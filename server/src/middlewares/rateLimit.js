@@ -11,10 +11,16 @@ export const globalLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+// An anonymous visitor has no refresh cookie, so a refresh attempt without one
+// cannot be guessed against and must not use up the login attempt budget.
+export const isAnonymousRefreshAttempt = (req) =>
+  req.path === "/refresh" && !req.cookies?.refreshToken;
+
 export const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 5,
   skipSuccessfulRequests: true,
+  skip: isAnonymousRefreshAttempt,
   message: {
     success: false,
     message: "Quá nhiều lần thử, vui lòng thử lại sau 15 phút",
