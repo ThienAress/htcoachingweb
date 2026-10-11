@@ -184,6 +184,45 @@ describe("deepseekLLMStream", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
+  const frames = (count, { content = "a", pad = 0 } = {}) => {
+    const rows = [];
+    for (let index = 0; index < count; index += 1) {
+      const last = index === count - 1;
+      const frame = { choices: [{ delta: { content }, ...(last ? { finish_reason: "stop" } : {}) }] };
+      if (pad) frame.system_fingerprint = "p".repeat(pad);
+      rows.push(`data: ${JSON.stringify(frame)}\n\n`);
+    }
+    rows.push("data: [DONE]\n\n");
+    return rows.join("");
+  };
+
+  it("accepts a long answer whose SSE envelopes exceed the text cap but not the stream bound", async () => {
+    process.env.DEEPSEEK_API_KEY = "synthetic-key";
+    const body = frames(1600, { pad: 200 });
+    expect(Buffer.byteLength(body)).toBeGreaterThan(256 * 1024);
+    expect(Buffer.byteLength(body)).toBeLessThan(1024 * 1024);
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(body, { status: 200 })));
+    const events = await collect(deepseekLLMStream([{ role: "user", content: "Hi" }]));
+    expect(events).toHaveLength(1600);
+  });
+
+  it("still rejects text beyond the response cap", async () => {
+    process.env.DEEPSEEK_API_KEY = "synthetic-key";
+    const body = frames(300, { content: "x".repeat(1024) });
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(body, { status: 200 })));
+    await expect(collect(deepseekLLMStream([{ role: "user", content: "Hi" }])))
+      .rejects.toMatchObject({ code: "DEEPSEEK_RESPONSE_LIMIT" });
+  });
+
+  it("still rejects a stream beyond the raw byte bound", async () => {
+    process.env.DEEPSEEK_API_KEY = "synthetic-key";
+    const body = frames(5200, { pad: 200 });
+    expect(Buffer.byteLength(body)).toBeGreaterThan(1024 * 1024);
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(body, { status: 200 })));
+    await expect(collect(deepseekLLMStream([{ role: "user", content: "Hi" }])))
+      .rejects.toMatchObject({ code: "DEEPSEEK_RESPONSE_LIMIT" });
+  });
+
   it("sanitizes 5xx, redirect rejection, bad JSON and provider error frames", async () => {
     process.env.DEEPSEEK_API_KEY = "synthetic-key";
     const fetchMock = vi.fn()

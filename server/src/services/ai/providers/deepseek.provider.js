@@ -20,6 +20,9 @@ import {
 const INPUT_LIMIT = 128 * 1024;
 const FRAME_LIMIT = 64 * 1024;
 const RESPONSE_LIMIT = 256 * 1024;
+// Raw SSE bytes include per-token JSON envelopes (about 280-390 bytes per token on the
+// official endpoint). The 256 KiB text cap stays authoritative; this only bounds memory.
+const STREAM_BYTES_LIMIT = 1024 * 1024;
 const TOOL_ARGS_LIMIT = 64 * 1024;
 const PROVIDER_TIMEOUT = 45_000;
 
@@ -159,7 +162,7 @@ export async function* deepseekLLMStream(messages, tools = [], options = {}) {
       }
       const chunk = part.done ? decoder.decode() : decoder.decode(part.value, { stream: true });
       responseBytes += byteLength(chunk);
-      if (responseBytes > RESPONSE_LIMIT) throw protocolError("DEEPSEEK_RESPONSE_LIMIT");
+      if (responseBytes > STREAM_BYTES_LIMIT) throw protocolError("DEEPSEEK_RESPONSE_LIMIT");
       for (const event of parser.push(chunk, part.done)) {
         if (done) throw protocolError("DEEPSEEK_STREAM_INCOMPLETE");
         if (event === "[DONE]") { done = true; continue; }
