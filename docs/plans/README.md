@@ -6,6 +6,8 @@ Generated on 2026-07-28. Execute plans in dependency order and pass every verifi
 
 | Plan | Title | Priority | Effort | Depends on | Status |
 |---|---|---:|---:|---|---|
+| 109 | [Harden financial consistency and recovery](./109-harden-financial-consistency-and-recovery.md) | P0 | XL | 023, 081, 085 | IN PROGRESS / PORTED FROM LOCAL 091; REVALIDATION PENDING |
+| 108 | [Add sculpted route transition](./108-add-sculpted-route-transition.md) | P1 | M | none | IN PROGRESS / PORTED FROM LOCAL 090; REVALIDATION PENDING |
 | 096C | [Repair draft knowledge publication](./096c-repair-draft-knowledge-publication.md) | P1 | L | 096A | IN PROGRESS |
 | 096B | [Recover completed staging KB timeout](./096b-recover-completed-kb-timeout.md) | P0 | M | 096A | IN PROGRESS |
 | 096A | [Enable Vibi production profile](./096a-enable-vibi-production-profile.md) | P1 | M | 096 | IN PROGRESS |

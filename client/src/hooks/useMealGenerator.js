@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { toast } from "react-toastify";
+import { isSampleMenuExcluded } from "../utils/foodCategory";
 
 export const useMealGenerator = ({
   selectedPlan,
@@ -16,8 +17,15 @@ export const useMealGenerator = ({
   const [totalCalories, setTotalCalories] = useState(0);
   const [isGenerating, setIsGenerating] = useState(false);
 
+  const getSampleMenuDatabase = () => {
+    const friendly = foodDatabase.filter(
+      (food) => !isSampleMenuExcluded(food.label || food.name || ""),
+    );
+    return friendly.length > 0 ? friendly : foodDatabase;
+  };
+
   const getActiveDatabase = () => {
-    if (!customFoods) return foodDatabase;
+    if (!customFoods) return getSampleMenuDatabase();
 
     const allowedIds = [
       ...(customFoods.carb || []),

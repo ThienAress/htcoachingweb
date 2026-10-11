@@ -111,3 +111,32 @@ export const enrichFoodDatabase = (foods = []) => {
     };
   });
 };
+
+const SAMPLE_MENU_EXCLUDED_KEYWORDS = [
+  "mật ong",
+  "đường",
+  "kẹo",
+  "bánh ngọt",
+  "mứt",
+  "siro",
+  "whey",
+  "bơ thực vật",
+  "margarin",
+  "mỡ",
+  "mayonnaise",
+  "nước mắm",
+  "mắm",
+  "muối",
+  "khô",
+  "tiết",
+  "lòng",
+  "sữa đặc",
+  "xúc xích",
+  "lạp xưởng",
+  "đồ hộp",
+];
+
+export const isSampleMenuExcluded = (foodName = "") => {
+  const name = foodName.toLowerCase().trim();
+  return SAMPLE_MENU_EXCLUDED_KEYWORDS.some((keyword) => name.includes(keyword));
+};

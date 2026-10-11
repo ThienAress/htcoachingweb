@@ -1,6 +1,7 @@
 import { pathToFileURL } from "node:url";
 
 import mongoose from "mongoose";
+import { resolveMongoConnectionOptions } from "../config/mongoConnectionOptions.js";
 
 import AnalyticsSyncState from "../models/AnalyticsSyncState.js";
 import F1Customer from "../models/F1Customer.js";
@@ -146,7 +147,10 @@ const main = async () => {
   const apply = args.has("--apply");
   const authorization = authorizeSeoConversionMigration({ args });
 
-  await mongoose.connect(process.env.MONGO_URI, { autoIndex: false });
+  await mongoose.connect(
+    process.env.MONGO_URI,
+    resolveMongoConnectionOptions({ durable: true, autoIndex: false }),
+  );
   try {
     assertConnectedMigrationTarget(mongoose.connection, authorization);
     const reports = await inspectSeoConversionIndexes();

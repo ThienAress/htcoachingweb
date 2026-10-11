@@ -242,6 +242,7 @@ export default function ExerciseDetailPage() {
           <div className="container-custom pb-4">
             <Link
               to="/exercises/"
+              data-sculpt-transition="off"
               className="mb-8 inline-flex min-h-11 items-center gap-2 rounded-xl border border-gray-700 bg-gray-900 px-4 py-2 text-sm font-bold text-gray-200 transition-colors hover:border-primary hover:text-orange-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300"
             >
               <ArrowLeft className="size-4" aria-hidden="true" />

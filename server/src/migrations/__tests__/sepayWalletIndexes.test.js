@@ -28,6 +28,7 @@ describe("SePay wallet deposit index migration", () => {
   test("derives every required index from the model schemas", () => {
     expect(getSePayWalletIndexContracts().map(({ name }) => name).sort()).toEqual(
       [
+        "incoming_cross_channel_fingerprint",
         "incoming_deposit_transaction_at",
         "incoming_status_created",
         "incoming_user_transaction_at",
@@ -59,11 +60,11 @@ describe("SePay wallet deposit index migration", () => {
       present: second.filter(({ status }) => status === "present").length,
       unchanged: rerun.filter(({ status }) => status === "unchanged").length,
     }).toEqual({
-      accountedFor: 7,
+      accountedFor: 8,
       created: first.filter(({ status }) => status === "missing").length,
       initiallyMissing: first.filter(({ status }) => status === "missing").length,
-      present: 7,
-      unchanged: 7,
+      present: 8,
+      unchanged: 8,
     });
   });
 
@@ -72,6 +73,30 @@ describe("SePay wallet deposit index migration", () => {
     await expect(
       applySePayWalletIndexes([
         { contract, duplicateGroupCount: 1, status: "missing" },
+      ]),
+    ).rejects.toThrow("blocked by preflight findings");
+  });
+
+  test("keeps the ambiguous fingerprint lookup non-unique and blocks name conflicts", async () => {
+    const contract = getSePayWalletIndexContracts().find(
+      ({ name }) => name === "incoming_cross_channel_fingerprint",
+    );
+    expect({
+      keys: contract.keys,
+      unique: Boolean(contract.options.unique),
+    }).toEqual({
+      keys: {
+        provider: 1,
+        fingerprintDigest: 1,
+        canonicalReferenceHash: 1,
+        status: 1,
+        source: 1,
+      },
+      unique: false,
+    });
+    await expect(
+      applySePayWalletIndexes([
+        { contract, duplicateGroupCount: 0, status: "name_conflict" },
       ]),
     ).rejects.toThrow("blocked by preflight findings");
   });
