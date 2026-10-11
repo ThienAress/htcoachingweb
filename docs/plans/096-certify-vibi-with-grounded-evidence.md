@@ -4,8 +4,8 @@
 
 - Priority: P1; Complexity: COMPLEX; Risk: HIGH; Effort: L.
 - Depends on: 095, deployed history repair PR204.
-- Lifecycle: IN PROGRESS; Verification: STAGING (code slice); Rollout: LIVE (code slice).
-- Owner: 01a1172c-d836-7250-8396-275f41a6f75d; Updated at: 2026-10-08.
+- Lifecycle: IN PROGRESS; Verification: PRODUCTION (code slice); Rollout: LIVE (code slice).
+- Owner: 01a1172c-d836-7250-8396-275f41a6f75d; Updated at: 2026-10-12.
 - Spec: `docs/specs/vibi-evidence-and-certification.md`.
 
 ## Vì sao và baseline
@@ -161,3 +161,11 @@ Duration/TTFT/tokens/tool/retry/error metadata không
   provider DeepSeek (PR 227) và verifier dùng chung bộ khoá provider (PR 228).
   Chưa có: exact-15, TALK01 paid, rendered acceptance, và chứng nhận trên profile production Vibi.
   Production chưa đổi. Plan 096 chưa tuyên bố GO toàn kế hoạch.
+
+- 2026-10-11 Release A lên production (PR 232, `main` `1f919b7`, Render `dep-db5ph3jbc2fs739mie1g`, Netlify
+  `6acb94e4f2df750008c19f7c`) với profile DeepSeek official (`deepseek-flash`) và Brave; Vibi bị loại vì byte đầu
+  21–27 giây. Chủ sở hữu quyết định dùng official cho production. Gemini chỉ còn embedding KB và quét ảnh bữa ăn.
+  Bằng chứng: exact-15 trên UI staging 15/15 đã chạy (11 PASS, 3 PASS_WITH_NOTE, 0 FAIL), TALK01 PASS; Staging Live
+  Acceptance PASS trên `1f919b7` (run 38149209135); Production Promotion Gate (run 38135765372) và Post-deploy Observation
+  Gate (run 38150264043) PASS. Sau deploy phát hiện bundle Netlify chưa publish do hộp thoại xác nhận chưa bấm; đã publish
+  và kiểm tra hash bundle. Đây là chứng nhận cho phạm vi DeepSeek official, không phải profile Vibi.

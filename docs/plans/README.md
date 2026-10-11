@@ -6,12 +6,12 @@ Generated on 2026-07-28. Execute plans in dependency order and pass every verifi
 
 | Plan | Title | Priority | Effort | Depends on | Status |
 |---|---|---:|---:|---|---|
-| 109 | [Harden financial consistency and recovery](./109-harden-financial-consistency-and-recovery.md) | P0 | XL | 023, 081, 085 | IN PROGRESS / PORTED FROM LOCAL 091; REVALIDATION PENDING |
-| 108 | [Add sculpted route transition](./108-add-sculpted-route-transition.md) | P1 | M | none | IN PROGRESS / PORTED FROM LOCAL 090; REVALIDATION PENDING |
+| 109 | [Harden financial consistency and recovery](./109-harden-financial-consistency-and-recovery.md) | P0 | XL | 023, 081, 085 | DONE / LIVE IN PRODUCTION 2026-10-12 |
+| 108 | [Add sculpted route transition](./108-add-sculpted-route-transition.md) | P1 | M | none | IN PROGRESS / PREVIEW-ONLY CODE LIVE 2026-10-12 |
 | 096C | [Repair draft knowledge publication](./096c-repair-draft-knowledge-publication.md) | P1 | L | 096A | IN PROGRESS |
 | 096B | [Recover completed staging KB timeout](./096b-recover-completed-kb-timeout.md) | P0 | M | 096A | IN PROGRESS |
 | 096A | [Enable Vibi production profile](./096a-enable-vibi-production-profile.md) | P1 | M | 096 | IN PROGRESS |
-| 096 | [Certify Vibi with grounded evidence](./096-certify-vibi-with-grounded-evidence.md) | P1 | L | 095 + PR204 | IN PROGRESS / FRESH EXACT-15 APPROVED |
+| 096 | [Certify Vibi with grounded evidence](./096-certify-vibi-with-grounded-evidence.md) | P1 | L | 095 + PR204 | IN PROGRESS / LIVE ON OFFICIAL DEEPSEEK 2026-10-11 |
 | 095 | [Integrate DeepSeek staging trial](./095-integrate-deepseek-staging-trial.md) | P1 | L | 094B baseline | IN PROGRESS / PR202 STAGING LIVE; VIBI GATEWAY + UI15 AUTHORIZED; VERIFICATION PENDING |
 | 094C | [Certify and promote assistant release](./094c-certify-and-promote-assistant-release.md) | P1 | M | 094B | IN PROGRESS / BOUNDED COLD-START READINESS + PRODUCTION GATES |
 | 094B | [Resolve source provenance and retest staging](./094b-resolve-source-provenance-and-retest-staging.md) | P1 | M | 094A | DONE / STAGING LIVE / UI15 14 PASS, 1 FAIL (93.3%) |
