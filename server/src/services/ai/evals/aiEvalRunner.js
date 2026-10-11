@@ -16,9 +16,14 @@ import {
 } from "../tools/toolRegistry.js";
 import { serializeToolResultForModel } from "../tools/toolResultBoundary.js";
 import { evaluateRetrievalGoldenQueries } from "./retrievalQualityEvaluator.js";
+import { evaluateSemanticOutput } from "./semanticOutputEvaluator.js";
 
 const SCHEMA_VERSION = 1;
 const ID_PATTERN = /^[a-z0-9][a-z0-9_-]{2,99}$/;
+const SEMANTIC_EVIDENCE_KINDS = new Set([
+  "oracle_fixture",
+  "runtime_capture",
+]);
 
 const isPlainObject = (value) =>
   Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -145,6 +150,11 @@ const evaluators = {
   },
   retrieval_quality_contract: ({ input, expected }) =>
     evaluateRetrievalGoldenQueries(input, expected),
+  semantic_output_contract: ({ input, expected }) =>
+    evaluateSemanticOutput({
+      output: input.output,
+      rules: expected.rules,
+    }),
 };
 
 export const AI_EVAL_EVALUATORS = Object.freeze(Object.keys(evaluators));
@@ -177,6 +187,14 @@ export function validateAiEvalCorpus(corpus) {
     if (!Object.hasOwn(evaluators, scenario.evaluator)) {
       throw new Error(`Unknown evaluator: ${scenario.evaluator}`);
     }
+    if (
+      scenario.evaluator === "semantic_output_contract" &&
+      !SEMANTIC_EVIDENCE_KINDS.has(scenario.evidenceKind)
+    ) {
+      throw new Error(
+        `Scenario ${scenario.id} evidenceKind must distinguish oracle_fixture from runtime_capture`,
+      );
+    }
     if (!isPlainObject(scenario.input)) {
       throw new Error(`Scenario ${scenario.id} input must be an object`);
     }
@@ -206,6 +224,9 @@ export async function evaluateAiCorpus(corpus) {
       const result = {
         id: scenario.id,
         evaluator: scenario.evaluator,
+        ...(scenario.evaluator === "semantic_output_contract"
+          ? { evidenceKind: scenario.evidenceKind }
+          : {}),
         passed: normalized.failures.length === 0,
         failures: normalized.failures,
       };
@@ -215,6 +236,9 @@ export async function evaluateAiCorpus(corpus) {
       results.push({
         id: scenario.id,
         evaluator: scenario.evaluator,
+        ...(scenario.evaluator === "semantic_output_contract"
+          ? { evidenceKind: scenario.evidenceKind }
+          : {}),
         passed: false,
         failures: [`evaluator error: ${error.message}`],
       });
@@ -222,6 +246,9 @@ export async function evaluateAiCorpus(corpus) {
   }
 
   const passed = results.filter((result) => result.passed).length;
+  const semanticResults = results.filter(
+    (result) => result.evaluator === "semantic_output_contract",
+  );
   return {
     schemaVersion: SCHEMA_VERSION,
     corpusVersion: corpus.corpusVersion,
@@ -229,6 +256,14 @@ export async function evaluateAiCorpus(corpus) {
     total: results.length,
     passed,
     failed: results.length - passed,
+    semanticEvidence: {
+      oracleFixtures: semanticResults.filter(
+        (result) => result.evidenceKind === "oracle_fixture",
+      ).length,
+      runtimeCaptures: semanticResults.filter(
+        (result) => result.evidenceKind === "runtime_capture",
+      ).length,
+    },
     results,
   };
 }

@@ -1,4 +1,10 @@
 import crypto from "node:crypto";
+import { waitControlStatus } from "./stagingAiChatAcceptance.controlBarrier.js";
+import { waitForBrowserCheckpoint } from "./stagingAiChatAcceptance.browserCheckpoint.js";
+import {
+  classifyMissingCitation,
+  recoveryEvidencePolicy,
+} from "./stagingAiChatAcceptance.citationDiagnosis.js";
 
 const assert = (condition, message, code = "STAGING_AI_BROWSER_ASSERTION_FAILED") => {
   if (!condition) {
@@ -46,17 +52,6 @@ export const waitForStableAssistantText = async (locator, expected, options = {}
     await wait(Math.min(pollMs, Math.max(1, deadline - now())));
   }
   assert(false, "Paced response prefix did not become stable", "STAGING_AI_PACED_TEXT_UNSTABLE");
-};
-
-const waitControlStatus = async (collection, jti, status, timeoutMs = 15_000) => {
-  const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
-    const control = await collection.findOne({ _id: jti }, { projection: { status: 1 } });
-    if (control?.status === status) return control;
-    if (["aborted", "timed_out", "completed"].includes(control?.status)) break;
-    await new Promise((resolve) => setTimeout(resolve, 100));
-  }
-  assert(false, `Staging control did not reach ${status}`, "STAGING_AI_CONTROL_BARRIER_FAILED");
 };
 
 export const waitForFailedRecoveryReceipt = async ({
@@ -210,34 +205,41 @@ export const runBrowserAcceptance = async ({
 
     await send(page, fixture.question);
     const citation = page.locator(`a[href="${sourceUrl}"]`).last();
-    await citation.waitFor({ state: "visible", timeout: 90_000 });
-    const stableCitation = await citation.getAttribute("href");
-    const stableBody = await assistantBodies.last().innerText();
-    const captureUiEvidence = async (expectedQuestion, cursor = 0) => {
+    await waitForBrowserCheckpoint(citation, { state: "visible", timeout: 90_000 },
+      "STAGING_AI_INITIAL_CITATION_NOT_VISIBLE");
+    const captureUiEvidence = async (expectedQuestion, cursor = 0, {
+      requireSource = true,
+      timeoutMs = 10_000,
+    } = {}) => {
       const questionDigest = crypto.createHash("sha256").update(expectedQuestion).digest("hex");
-      const deadline = Date.now() + 10_000;
+      const deadline = Date.now() + timeoutMs;
       let reconciled;
       while (!reconciled && Date.now() < deadline) {
         reconciled = selectNewReconciledAssistant(reconciledAssistants, cursor, questionDigest);
         if (reconciled) break;
         await new Promise((resolve) => setTimeout(resolve, 100));
       }
-      assert(reconciled?.assistantId, "UI reconciliation did not expose assistant identity");
+      assert(reconciled?.assistantId, "UI reconciliation did not expose assistant identity",
+        "STAGING_AI_UI_RECONCILIATION_FAILED");
       const renderedMessage = page.locator(
         `[data-message-id="${reconciled.assistantId}"] .markdown-body`,
       );
-      await renderedMessage.waitFor({ state: "visible", timeout: 10_000 });
-      await renderedMessage.locator(`a[href="${sourceUrl}"]`).waitFor({
-        state: "visible",
-        timeout: 10_000,
-      });
+      await waitForBrowserCheckpoint(renderedMessage, { state: "visible", timeout: 10_000 },
+        "STAGING_AI_PERSISTED_MESSAGE_NOT_VISIBLE");
+      if (requireSource) {
+        await waitForBrowserCheckpoint(renderedMessage.locator(`a[href="${sourceUrl}"]`),
+          { state: "visible", timeout: 10_000 }, "STAGING_AI_PERSISTED_CITATION_NOT_VISIBLE");
+      }
       uiAssistantEvidence.push({
         ...reconciled,
         renderedMessageId: reconciled.assistantId,
         renderedContentLength: (await renderedMessage.innerText()).length,
       });
+      return renderedMessage;
     };
-    await captureUiEvidence(fixture.question);
+    const completedMessage = await captureUiEvidence(fixture.question);
+    const stableCitation = await citation.getAttribute("href");
+    const stableBody = await completedMessage.innerText();
     recordLane({ name: "live-kb-provider", passed: true });
 
     await newConversation(page);
@@ -250,8 +252,10 @@ export const runBrowserAcceptance = async ({
     await pacedConversation.waitFor({ state: "visible", timeout: 10_000 });
     await conversationButton(page, fixture.question).click();
     await new Promise((resolve) => setTimeout(resolve, 500));
-    assert((await citation.getAttribute("href")) === stableCitation, "Conversation B citation changed while A was pending");
-    assert((await assistantBodies.last().innerText()) === stableBody, "Conversation B content changed while A was pending");
+    assert((await citation.getAttribute("href")) === stableCitation,
+      "Conversation B citation changed while A was pending", "STAGING_AI_ISOLATION_CITATION_CHANGED");
+    assert((await assistantBodies.last().innerText()) === stableBody,
+      "Conversation B content changed while A was pending", "STAGING_AI_ISOLATION_CONTENT_CHANGED");
     await pacedConversation.click();
     await waitForStableAssistantText(assistantBodies, prefix);
     const released = await controlCollection.updateOne({
@@ -303,7 +307,10 @@ export const runBrowserAcceptance = async ({
 
     const runFailureRecovery = async (kind) => {
       await newConversation(page);
-      const question = `${fixture.question} lane-${kind}`;
+      // The recovered answer must cite its reviewed source. Citation policy binds a
+      // source only to the exact root question or a reviewed variant, so the retry
+      // lane re-sends the exact root and the edit lane recovers to the exact variant.
+      const question = kind === "retry" ? fixture.question : `${fixture.question} lane-${kind}`;
       const before = await db.collection("serviceusagebuckets").findOne({ userId: ownerObjectId });
       await send(page, question);
       const alert = page.getByRole("alert");
@@ -350,13 +357,24 @@ export const runBrowserAcceptance = async ({
           if ((await candidate.inputValue()) === question) editor = candidate;
         }
         assert(editor, "Edit lane did not expose the failed user message editor");
-        recoveryQuestion = `${fixture.variant} recovery-edit`;
+        recoveryQuestion = fixture.variant;
         await editor.fill(recoveryQuestion);
         await page.getByRole("button", { name: "Cập nhật" }).click();
       }
-      await page.locator(`a[href="${sourceUrl}"]`).last().waitFor({ timeout: 90_000 });
+      const evidencePolicy = recoveryEvidencePolicy(kind);
+      if (evidencePolicy.requireSource) {
+        try {
+          await page.locator(`a[href="${sourceUrl}"]`).last().waitFor({ timeout: 90_000 });
+        } catch (error) {
+          throw await classifyMissingCitation({
+            error, db, ownerObjectId, fixtureId: fixture.id, sourceUrl,
+          });
+        }
+      }
+      // Capture first: it waits for the reconciled recovered answer, so the recovery POST
+      // (and its new requestId) exists before the identity assertion runs.
+      await captureUiEvidence(recoveryQuestion, reconciliationCursor, evidencePolicy);
       assert(requestIds.at(-1) !== failedId, "Recovery reused the failed requestId");
-      await captureUiEvidence(recoveryQuestion, reconciliationCursor);
       recordLane({
         name: `provider-failure-${kind}`,
         passed: true,

@@ -66,6 +66,17 @@ export function getKnowledgeSearchParams(query, mode = "production") {
   return { q: String(query || "").trim(), ...settings };
 }
 
+export function getKnowledgeMatchLabel(result, retrieval, fallbackRank = 1) {
+  if (retrieval?.method === "llm_selection" || result?.retrievalMethod === "llm_selection") {
+    const rank = Number.isSafeInteger(result?.retrievalRank) && result.retrievalRank > 0
+      ? result.retrievalRank
+      : fallbackRank;
+    return `Được chọn #${rank}`;
+  }
+  const similarity = Number(result?.similarity);
+  return Number.isFinite(similarity) ? `${(similarity * 100).toFixed(1)}% khớp` : "Điểm khớp không có";
+}
+
 export function createKnowledgeSearchRuntime({
   search,
   onStart,
@@ -117,6 +128,7 @@ export function createKnowledgeSearchRuntime({
         query: request.query,
         mode: request.mode,
         results: Array.isArray(response?.data?.data) ? response.data.data : [],
+        ...(response?.data?.retrieval && { retrieval: response.data.retrieval }),
       };
       status = "success";
       onSuccess?.(result);

@@ -6,6 +6,16 @@ Generated on 2026-07-28. Execute plans in dependency order and pass every verifi
 
 | Plan | Title | Priority | Effort | Depends on | Status |
 |---|---|---:|---:|---|---|
+| 096C | [Repair draft knowledge publication](./096c-repair-draft-knowledge-publication.md) | P1 | L | 096A | IN PROGRESS |
+| 096B | [Recover completed staging KB timeout](./096b-recover-completed-kb-timeout.md) | P0 | M | 096A | IN PROGRESS |
+| 096A | [Enable Vibi production profile](./096a-enable-vibi-production-profile.md) | P1 | M | 096 | IN PROGRESS |
+| 096 | [Certify Vibi with grounded evidence](./096-certify-vibi-with-grounded-evidence.md) | P1 | L | 095 + PR204 | IN PROGRESS / FRESH EXACT-15 APPROVED |
+| 095 | [Integrate DeepSeek staging trial](./095-integrate-deepseek-staging-trial.md) | P1 | L | 094B baseline | IN PROGRESS / PR202 STAGING LIVE; VIBI GATEWAY + UI15 AUTHORIZED; VERIFICATION PENDING |
+| 094C | [Certify and promote assistant release](./094c-certify-and-promote-assistant-release.md) | P1 | M | 094B | IN PROGRESS / BOUNDED COLD-START READINESS + PRODUCTION GATES |
+| 094B | [Resolve source provenance and retest staging](./094b-resolve-source-provenance-and-retest-staging.md) | P1 | M | 094A | DONE / STAGING LIVE / UI15 14 PASS, 1 FAIL (93.3%) |
+| 094A | [Fix assistant sources and UI acceptance](./094a-fix-assistant-sources-and-ui-acceptance.md) | P1 | L | 094 | IN PROGRESS / PR #190 LIVE; UI15 ACCEPTANCE BELOW TARGET |
+| 094 | [Isolate the AI staging release](./094-isolate-ai-staging-release.md) | P0 | M | 092 | IN PROGRESS / AI + approved Progress hotfix; LOCAL QA; NOT DEPLOYED |
+| 092 | Khôi phục HT Assistant ổn định trước khi mở rộng tiếp | P0 | L | 090, 090A | IN PROGRESS / 2026-09-23: five bounded fixes after 15-question staging review; release pending |
 | 091 | Modernize GitHub Actions and close release operations | P1 | M | 090A | DONE / FOCUSED — LOCAL WORKFLOW PATCH; NOT COMMITTED |
 | 090A | Rollout guarded Knowledge Base embeddings trên staging | P1 | L | 090, PR #114 | DONE / PRODUCTION VERIFIED — AC-009 PASS; OBSERVATION KEEP |
 | 090 | Biến HT Assistant thành fitness-first và grounding KB bằng evidence | P1 | L | 031, 052 | DONE / PRODUCTION VERIFIED — AC-009 PASS; OBSERVATION KEEP |

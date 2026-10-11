@@ -28,4 +28,31 @@ describe("lockDocumentScroll", () => {
       top: "",
     });
   });
+
+  it("giữ scroll lock cho tới khi cả menu và preview cùng đóng, bất kể thứ tự cleanup", () => {
+    const style = { overflow: "auto", overscrollBehavior: "contain" };
+    const documentObject = { body: { style } };
+
+    const closeMenu = lockDocumentScroll(documentObject);
+    const closePreview = lockDocumentScroll(documentObject);
+    closeMenu();
+    expect(style.overflow).toBe("hidden");
+
+    closePreview();
+    expect(style).toEqual({ overflow: "auto", overscrollBehavior: "contain" });
+  });
+
+  it("không mở lại scroll khi preview đóng trước menu", () => {
+    const style = { overflow: "", overscrollBehavior: "" };
+    const documentObject = { body: { style } };
+
+    const closeMenu = lockDocumentScroll(documentObject);
+    const closePreview = lockDocumentScroll(documentObject);
+    closePreview();
+    expect(style.overflow).toBe("hidden");
+
+    closeMenu();
+    closeMenu();
+    expect(style).toEqual({ overflow: "", overscrollBehavior: "" });
+  });
 });

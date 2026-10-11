@@ -68,6 +68,7 @@ export const prepareStagingAiAcceptanceSearch = async (req, res, next) => {
 // admitted receipt for the trusted runner to fail closed, without changing bytes.
 export const settleStagingAiAcceptanceHandler = (handler) => async (req, res, next) => {
   let failure;
+  let handlerCompleted = false;
   req.stagingAiAcceptanceHandlerStarted = Boolean(req.stagingAiAcceptance);
   try {
     if (req.stagingAiAcceptanceClosedBeforeHandler) {
@@ -81,14 +82,19 @@ export const settleStagingAiAcceptanceHandler = (handler) => async (req, res, ne
       }
     } else {
       await handler(req, res, next);
+      handlerCompleted = true;
     }
   } catch (error) {
     failure = error;
     throw error;
   } finally {
-    if (req.stagingAiAcceptance && !req.stagingAiAcceptanceSettlementBlocked && res.statusCode < 500) {
+    const completedKbFailure = req.stagingAiAcceptance?.action === "kb_search" &&
+      handlerCompleted && !failure && res.writableEnded && res.statusCode === 503;
+    const unknownKbFailure = req.stagingAiAcceptance?.action === "kb_search" && Boolean(failure);
+    if (req.stagingAiAcceptance && !unknownKbFailure && !req.stagingAiAcceptanceSettlementBlocked &&
+        (res.statusCode < 500 || completedKbFailure)) {
       const outcome = req.stagingAiAcceptanceOutcome ||
-        (failure ? "failed" : res.statusCode >= 400 ? "rejected" : "completed");
+        (failure || completedKbFailure ? "failed" : res.statusCode >= 400 ? "rejected" : "completed");
       try { await settleStagingAiAcceptance(req.stagingAiAcceptance, outcome); } catch { /* runner rejects non-settled receipt */ }
     }
   }

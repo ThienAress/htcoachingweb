@@ -100,4 +100,3 @@ jobs:
           path: artifacts/staging-kb-sync.json
           if-no-files-found: error
           retention-days: 30
-

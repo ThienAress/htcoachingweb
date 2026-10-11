@@ -1,106 +1,61 @@
-import { useState, useCallback } from "react";
-import { Flame, Calculator } from "lucide-react";
+import { useCallback, useState } from "react";
+import { Calculator, CircleAlert, Flame, Info } from "lucide-react";
+
 import {
   isTdeeInputWithinLimits,
   recommendActivityBand,
   TDEE_INPUT_LIMITS,
   updateTrainingEvidence,
 } from "../../../pages/TdeeCalculator/tdee.helpers";
+import AssistantCard, {
+  CardFooter,
+  CardNotice,
+  CardSection,
+  CardSectionLabel,
+} from "./AssistantCard";
+import {
+  ACTIVITIES,
+  buildTdeeSubmitRequest,
+  createTdeeFormState,
+  EVIDENCE_FIELDS,
+  EVIDENCE_OPTIONS,
+  fieldClass,
+  GENDERS,
+  getTdeeFormErrors,
+  GOALS,
+} from "./tdeeForm.config";
 
-const GENDERS = [
-  { value: "male", label: "Nam" },
-  { value: "female", label: "Nữ" },
-];
-
-const ACTIVITIES = [
-  { value: "", label: "Chọn sau khi khai báo vận động" },
-  { value: "sedentary", label: "Ít vận động cả ngày (1,2)" },
-  { value: "light", label: "Vận động nhẹ cả ngày (1,4)" },
-  { value: "moderate", label: "Vận động vừa cả ngày (1,55)" },
-  { value: "active", label: "Vận động nhiều cả ngày (1,7)" },
-  { value: "very_active", label: "Vận động rất nhiều cả ngày (1,85)" },
-];
-
-const EVIDENCE_OPTIONS = {
-  dailyMovement: [
-    ["", "Chọn"], ["mostly_seated", "Chủ yếu ngồi"], ["mixed", "Ngồi/đi lại xen kẽ"],
-    ["mostly_moving", "Đi lại phần lớn ngày"], ["physical_work", "Lao động thể chất"],
-  ],
-  steps: [
-    ["", "Chọn"], ["under_5000", "Dưới 5.000"], ["between_5000_7999", "5.000–7.999"],
-    ["between_8000_11999", "8.000–11.999"], ["at_least_12000", "Từ 12.000"],
-  ],
-  trainingFrequency: [
-    ["", "Chọn"], ["none", "Không tập"], ["one_two", "1–2 buổi"],
-    ["three_four", "3–4 buổi"], ["five_plus", "Từ 5 buổi"],
-  ],
-  trainingDuration: [
-    ["", "Chọn"], ["none", "Không áp dụng"], ["under_30", "Dưới 30 phút"], ["between_30_45", "30–45 phút"],
-    ["between_45_60", "45–60 phút"], ["over_60", "Trên 60 phút"],
-  ],
-  trainingIntensity: [
-    ["", "Chọn"], ["none", "Không áp dụng"], ["easy", "Nhẹ"], ["moderate", "Vừa"], ["vigorous", "Cao"],
-  ],
-};
-
-const GOALS = [
-  { value: "fat_loss", label: "🔥 Giảm mỡ" },
-  { value: "maintenance", label: "⚖️ Duy trì" },
-  { value: "muscle_gain", label: "💪 Tăng cơ" },
-];
-
-export default function TdeeFormCard({ onSubmit }) {
-  const [form, setForm] = useState({
-    gender: "",
-    age: "",
-    heightCm: "",
-    weightKg: "",
-    activityLevel: "",
-    dailyMovement: "",
-    steps: "",
-    trainingFrequency: "",
-    trainingDuration: "",
-    trainingIntensity: "",
-    goal: "",
+export default function TdeeFormCard({ data, disabled = false, onSubmit }) {
+  const [form, setForm] = useState(() => {
+    const initial = createTdeeFormState(data?.prefill);
+    return {
+      ...initial,
+      activityLevel: recommendActivityBand(initial)?.key || "",
+    };
   });
+  const [showErrors, setShowErrors] = useState(false);
 
-  const handleChange = (key, val) => setForm((prev) => {
-    const next = Object.hasOwn(EVIDENCE_OPTIONS, key)
-      ? updateTrainingEvidence(prev, key, val)
-      : { ...prev, [key]: val };
-    if (Object.hasOwn(EVIDENCE_OPTIONS, key)) {
-      next.activityLevel = recommendActivityBand(next)?.key || "";
-    }
-    return next;
-  });
+  const handleChange = (key, value) =>
+    setForm((current) => {
+      const next = Object.hasOwn(EVIDENCE_OPTIONS, key)
+        ? updateTrainingEvidence(current, key, value)
+        : { ...current, [key]: value };
+      if (Object.hasOwn(EVIDENCE_OPTIONS, key)) {
+        next.activityLevel = recommendActivityBand(next)?.key || "";
+      }
+      return next;
+    });
+
+  const errors = getTdeeFormErrors(form);
+  const isValid = Object.keys(errors).length === 0 && Boolean(form.activityLevel);
 
   const handleSubmit = useCallback(() => {
-    const { gender, age, heightCm, weightKg, activityLevel, goal } = form;
-    if (
-      !Object.values(form).every(Boolean) ||
-      !isTdeeInputWithinLimits("age", age) ||
-      !isTdeeInputWithinLimits("heightCm", heightCm) ||
-      !isTdeeInputWithinLimits("weightKg", weightKg)
-    ) return;
-
-    const evidenceLabel = (key, value) => EVIDENCE_OPTIONS[key]
-      .find(([optionValue]) => optionValue === value)?.[1];
-    const text = `Tính TDEE: ${gender === "male" ? "Nam" : "Nữ"}, ${age} tuổi, ${heightCm}cm, ${weightKg}kg, ${
-      ACTIVITIES.find((a) => a.value === activityLevel)?.label
-    }, vận động ngoài buổi tập: ${evidenceLabel("dailyMovement", form.dailyMovement)}, ` +
-      `số bước: ${form.steps === "under_5000" ? "4000" : form.steps === "between_5000_7999" ? "6500" : form.steps === "between_8000_11999" ? "10000" : "12000"} bước/ngày, ` +
-      `tập ${form.trainingFrequency === "none" ? "0" : form.trainingFrequency === "one_two" ? "2" : form.trainingFrequency === "three_four" ? "4" : "5"} buổi/tuần, ` +
-      `${form.trainingDuration === "none" ? "0" : form.trainingDuration === "under_30" ? "20" : form.trainingDuration === "between_30_45" ? "40" : form.trainingDuration === "between_45_60" ? "50" : "70"} phút/buổi, ` +
-      `cường độ ${evidenceLabel("trainingIntensity", form.trainingIntensity)}, mục tiêu ${GOALS.find((g) => g.value === goal)?.label}`;
-
-    onSubmit?.(text);
-  }, [form, onSubmit]);
-
-  const isValid =
-    Object.values(form).every(Boolean) &&
-    isTdeeInputWithinLimits("age", form.age) &&
-    isTdeeInputWithinLimits("heightCm", form.heightCm) &&
-    isTdeeInputWithinLimits("weightKg", form.weightKg);
+    if (!isValid) {
+      setShowErrors(true);
+      return;
+    }
+    onSubmit?.(buildTdeeSubmitRequest(form));
+  }, [form, isValid, onSubmit]);
 
   const measurementError = (field, value, label) => {
     if (value === "" || isTdeeInputWithinLimits(field, value)) return null;
@@ -108,186 +63,213 @@ export default function TdeeFormCard({ onSubmit }) {
     return `${label} phải từ ${min} đến ${max}.`;
   };
 
-  const selectClass = "w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500/50 transition-colors appearance-none";
-  const inputClass = "w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500/50 transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none";
-
   return (
-    <div className="bg-gradient-to-br from-emerald-500/10 to-cyan-500/10 border border-emerald-500/20 rounded-xl p-4 space-y-3 w-full chat-card-enter">
-      <div className="flex items-center gap-2 mb-1">
-        <Calculator size={16} className="text-emerald-400" />
-        <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider">Tính TDEE</span>
-      </div>
+    <div className="chat-card-enter w-full">
+      <AssistantCard
+        eyebrow="TÍNH TDEE"
+        icon={Calculator}
+        subtitle="Dùng cả vận động hằng ngày, không chỉ số buổi tập"
+        title="Thông tin cơ bản"
+        footer={
+          <CardFooter
+            action={disabled ? "Đang xử lý..." : "Xác nhận & tính TDEE"}
+            disabled={disabled}
+            icon={Flame}
+            note="Chỉ tính khi đủ dữ kiện bắt buộc"
+            onClick={handleSubmit}
+            primary
+          />
+        }
+      >
+        {Object.keys(data?.prefill || {}).length > 0 && (
+          <CardSection>
+            <CardNotice icon={Info}>
+              Đã tự điền dữ kiện từ câu hỏi của bạn. Hãy kiểm tra và bổ sung các mục còn trống.
+            </CardNotice>
+          </CardSection>
+        )}
 
-      {/* Row 1: Gender + Age */}
-      <div className="grid grid-cols-2 gap-2">
-        <div>
-          <span className="text-[10px] text-gray-400 uppercase mb-1 block">Giới tính</span>
-          <div className="flex gap-1" role="group" aria-label="Giới tính">
-            {GENDERS.map(({ value, label }) => (
+        {showErrors && !isValid && (
+          <CardSection>
+            <CardNotice icon={CircleAlert} role="alert" tone="amber">
+              Chưa thể tính TDEE vì còn thiếu hoặc có dữ liệu chưa hợp lệ. Vui lòng kiểm tra các mục được đánh dấu bên dưới.
+            </CardNotice>
+          </CardSection>
+        )}
+
+        <CardSection>
+          <div className="grid grid-cols-1 gap-4 min-[430px]:grid-cols-2">
+            <fieldset>
+              <legend className="mb-2 text-xs font-medium text-slate-500 dark:text-zinc-400">
+                Giới tính
+              </legend>
+              <div className="grid grid-cols-2 gap-2" role="group" aria-label="Giới tính">
+                {GENDERS.map(({ value, label }) => (
+                  <button
+                    aria-pressed={form.gender === value}
+                    disabled={disabled}
+                    className={`min-h-11 rounded-xl border px-3 py-2 text-[13px] font-medium transition-[border-color,color,background-color] duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500 motion-reduce:transition-none ${
+                      form.gender === value
+                        ? "border-emerald-600 bg-emerald-50 text-emerald-700 dark:border-emerald-300 dark:bg-emerald-950/60 dark:text-emerald-300"
+                        : "border-slate-200 text-slate-600 hover:border-emerald-500 dark:border-white/10 dark:text-zinc-300 dark:hover:border-emerald-400"
+                    }`}
+                    key={value}
+                    onClick={() => handleChange("gender", value)}
+                    type="button"
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              {showErrors && errors.gender && (
+                <span className="mt-1 block text-xs text-rose-700 dark:text-rose-300" role="alert">
+                  {errors.gender}
+                </span>
+              )}
+            </fieldset>
+
+            <NumberField
+              disabled={disabled}
+              error={showErrors ? errors.age : measurementError("age", form.age, "Tuổi")}
+              field="age"
+              label="Tuổi"
+              onChange={handleChange}
+              placeholder="28"
+              value={form.age}
+            />
+            <NumberField
+              disabled={disabled}
+              error={showErrors ? errors.heightCm : measurementError("heightCm", form.heightCm, "Chiều cao")}
+              field="heightCm"
+              label="Chiều cao (cm)"
+              onChange={handleChange}
+              placeholder="175"
+              value={form.heightCm}
+            />
+            <NumberField
+              disabled={disabled}
+              error={showErrors ? errors.weightKg : measurementError("weightKg", form.weightKg, "Cân nặng")}
+              field="weightKg"
+              label="Cân nặng (kg)"
+              onChange={handleChange}
+              placeholder="78"
+              value={form.weightKg}
+            />
+
+            {EVIDENCE_FIELDS.map(([key, label]) => (
+              <label className={key === "trainingIntensity" ? "min-[430px]:col-span-2" : ""} key={key}>
+                <span className="mb-2 block text-xs font-medium text-slate-500 dark:text-zinc-400">
+                  {label}
+                </span>
+                <select
+                  aria-invalid={Boolean(showErrors && errors[key])}
+                  aria-label={label}
+                  autoComplete="off"
+                  className={fieldClass}
+                  disabled={
+                    disabled ||
+                    (["trainingDuration", "trainingIntensity"].includes(key) &&
+                      form.trainingFrequency === "none")
+                  }
+                  onChange={(event) => handleChange(key, event.target.value)}
+                  name={key}
+                  value={form[key]}
+                >
+                  {EVIDENCE_OPTIONS[key].map(([value, optionLabel]) => (
+                    <option key={value} value={value}>
+                      {optionLabel}
+                    </option>
+                  ))}
+                </select>
+                {showErrors && errors[key] && (
+                  <span className="mt-1 block text-xs text-rose-700 dark:text-rose-300" role="alert">
+                    {errors[key]}
+                  </span>
+                )}
+              </label>
+            ))}
+          </div>
+        </CardSection>
+
+        <CardSection>
+          <CardSectionLabel>Khoảng hệ số đề xuất</CardSectionLabel>
+          <select
+            aria-label="Khoảng hệ số đề xuất"
+            className={fieldClass}
+            disabled
+            name="activityLevel"
+            value={form.activityLevel}
+          >
+            {ACTIVITIES.map(({ value, label }) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+          <p className="mt-2 text-xs leading-5 text-cyan-800 dark:text-cyan-100">
+            Dùng toàn bộ vận động cả ngày; số buổi tập riêng lẻ không quyết định hệ số.
+          </p>
+        </CardSection>
+
+        <CardSection>
+          <CardSectionLabel>Mục tiêu</CardSectionLabel>
+          <div className="grid grid-cols-3 gap-2" role="group" aria-label="Mục tiêu">
+            {GOALS.map(({ value, label }) => (
               <button
-                key={value}
-                type="button"
-                onClick={() => handleChange("gender", value)}
-                aria-pressed={form.gender === value}
-                className={`flex-1 py-1.5 text-xs rounded-lg border transition-colors duration-150 motion-reduce:transition-none ${
-                  form.gender === value
-                    ? "bg-emerald-500/20 border-emerald-500/50 text-emerald-400"
-                    : "border-white/10 text-gray-400 hover:border-white/20"
+                aria-pressed={form.goal === value}
+                disabled={disabled}
+                className={`min-h-11 rounded-xl border px-2 py-2 text-[13px] font-medium transition-[border-color,color,background-color] duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500 motion-reduce:transition-none ${
+                  form.goal === value
+                    ? "border-emerald-600 bg-emerald-50 text-emerald-700 dark:border-emerald-300 dark:bg-emerald-950/60 dark:text-emerald-300"
+                    : "border-slate-200 text-slate-600 hover:border-emerald-500 dark:border-white/10 dark:text-zinc-300 dark:hover:border-emerald-400"
                 }`}
+                key={value}
+                onClick={() => handleChange("goal", value)}
+                type="button"
               >
                 {label}
               </button>
             ))}
           </div>
-        </div>
-        <div>
-          <label htmlFor="chat-tdee-age" className="text-[10px] text-gray-400 uppercase mb-1 block">Tuổi</label>
-          <input
-            id="chat-tdee-age"
-            type="number"
-            min={TDEE_INPUT_LIMITS.age.min}
-            max={TDEE_INPUT_LIMITS.age.max}
-            step="1"
-            value={form.age}
-            onChange={(e) => handleChange("age", e.target.value)}
-            placeholder="25"
-            aria-invalid={Boolean(measurementError("age", form.age, "Tuổi"))}
-            className={inputClass}
-          />
-          {measurementError("age", form.age, "Tuổi") && (
-            <p className="mt-1 text-[11px] text-rose-300" role="alert">
-              {measurementError("age", form.age, "Tuổi")}
-            </p>
+          {showErrors && errors.goal && (
+            <span className="mt-1 block text-xs text-rose-700 dark:text-rose-300" role="alert">
+              {errors.goal}
+            </span>
           )}
-        </div>
-      </div>
-
-      {/* Row 2: Height + Weight */}
-      <div className="grid grid-cols-2 gap-2">
-        <div>
-          <label htmlFor="chat-tdee-height" className="text-[10px] text-gray-400 uppercase mb-1 block">Chiều cao (cm)</label>
-          <input
-            id="chat-tdee-height"
-            type="number"
-            min={TDEE_INPUT_LIMITS.heightCm.min}
-            max={TDEE_INPUT_LIMITS.heightCm.max}
-            value={form.heightCm}
-            onChange={(e) => handleChange("heightCm", e.target.value)}
-            placeholder="170"
-            aria-invalid={Boolean(measurementError("heightCm", form.heightCm, "Chiều cao"))}
-            className={inputClass}
-          />
-          {measurementError("heightCm", form.heightCm, "Chiều cao") && (
-            <p className="mt-1 text-[11px] text-rose-300" role="alert">
-              {measurementError("heightCm", form.heightCm, "Chiều cao")}
-            </p>
-          )}
-        </div>
-        <div>
-          <label htmlFor="chat-tdee-weight" className="text-[10px] text-gray-400 uppercase mb-1 block">Cân nặng (kg)</label>
-          <input
-            id="chat-tdee-weight"
-            type="number"
-            min={TDEE_INPUT_LIMITS.weightKg.min}
-            max={TDEE_INPUT_LIMITS.weightKg.max}
-            value={form.weightKg}
-            onChange={(e) => handleChange("weightKg", e.target.value)}
-            placeholder="70"
-            aria-invalid={Boolean(measurementError("weightKg", form.weightKg, "Cân nặng"))}
-            className={inputClass}
-          />
-          {measurementError("weightKg", form.weightKg, "Cân nặng") && (
-            <p className="mt-1 text-[11px] text-rose-300" role="alert">
-              {measurementError("weightKg", form.weightKg, "Cân nặng")}
-            </p>
-          )}
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-2">
-        {[
-          ["dailyMovement", "Vận động ngoài buổi tập"],
-          ["steps", "Số bước trung bình"],
-          ["trainingFrequency", "Số buổi mỗi tuần"],
-          ["trainingDuration", "Thời lượng mỗi buổi"],
-        ].map(([key, label]) => (
-          <div key={key}>
-            <label htmlFor={`chat-tdee-${key}`} className="text-[10px] text-gray-400 uppercase mb-1 block">{label}</label>
-            <select
-              id={`chat-tdee-${key}`}
-              value={form[key]}
-              onChange={(e) => handleChange(key, e.target.value)}
-              aria-label={label}
-              disabled={key === "trainingDuration" && form.trainingFrequency === "none"}
-              className={`${selectClass} disabled:cursor-not-allowed disabled:opacity-60`}
-            >
-              {EVIDENCE_OPTIONS[key].map(([value, optionLabel]) => <option key={value} value={value}>{optionLabel}</option>)}
-            </select>
-          </div>
-        ))}
-      </div>
-      <div>
-        <label htmlFor="chat-tdee-training-intensity" className="text-[10px] text-gray-400 uppercase mb-1 block">Cường độ buổi tập</label>
-        <select
-          id="chat-tdee-training-intensity"
-          value={form.trainingIntensity}
-          onChange={(e) => handleChange("trainingIntensity", e.target.value)}
-          aria-label="Cường độ buổi tập"
-          disabled={form.trainingFrequency === "none"}
-          className={`${selectClass} disabled:cursor-not-allowed disabled:opacity-60`}
-        >
-          {EVIDENCE_OPTIONS.trainingIntensity.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-        </select>
-      </div>
-
-      <div>
-        <label htmlFor="chat-tdee-activity-band" className="text-[10px] text-gray-400 uppercase mb-1 block">Khoảng hệ số đề xuất</label>
-        <select
-          id="chat-tdee-activity-band"
-          value={form.activityLevel}
-          disabled
-          className={selectClass}
-        >
-          {ACTIVITIES.map(({ value, label }) => (
-            <option key={value} value={value}>{label}</option>
-          ))}
-        </select>
-      </div>
-      <p className="text-[11px] leading-5 text-cyan-100/80">
-        Dùng toàn bộ vận động cả ngày; số buổi tập riêng lẻ không quyết định hệ số.
-      </p>
-
-      {/* Row 4: Goal */}
-      <div>
-        <span className="text-[10px] text-gray-400 uppercase mb-1 block">Mục tiêu</span>
-        <div className="flex gap-1.5" role="group" aria-label="Mục tiêu">
-          {GOALS.map(({ value, label }) => (
-            <button
-              key={value}
-              type="button"
-              onClick={() => handleChange("goal", value)}
-              aria-pressed={form.goal === value}
-              className={`flex-1 py-2 text-[11px] rounded-lg border transition-colors duration-150 motion-reduce:transition-none ${
-                form.goal === value
-                  ? "bg-emerald-500/20 border-emerald-500/50 text-emerald-400"
-                  : "border-white/10 text-gray-400 hover:border-white/20"
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Submit */}
-      <button
-        onClick={handleSubmit}
-        disabled={!isValid}
-        className="w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-600 text-white text-sm font-semibold hover:opacity-90 disabled:opacity-30 disabled:cursor-not-allowed transition-opacity duration-150 motion-reduce:transition-none flex items-center justify-center gap-2"
-      >
-        <Flame size={14} />
-        Tính TDEE
-      </button>
+        </CardSection>
+      </AssistantCard>
     </div>
+  );
+}
+
+function NumberField({ disabled, error, field, label, onChange, placeholder, value }) {
+  const limits = TDEE_INPUT_LIMITS[field];
+
+  return (
+    <label>
+      <span className="mb-2 block text-xs font-medium text-slate-500 dark:text-zinc-400">
+        {label}
+      </span>
+      <input
+        aria-invalid={Boolean(error)}
+        autoComplete="off"
+        className={fieldClass}
+        disabled={disabled}
+        inputMode="numeric"
+        max={limits.max}
+        min={limits.min}
+        name={field}
+        onChange={(event) => onChange(field, event.target.value)}
+        placeholder={placeholder}
+        step="1"
+        type="number"
+        value={value}
+      />
+      {error && (
+        <span className="mt-1 block text-xs text-rose-700 dark:text-rose-300" role="alert">
+          {error}
+        </span>
+      )}
+    </label>
   );
 }

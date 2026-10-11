@@ -1,64 +1,119 @@
-import { Users, ExternalLink } from "lucide-react";
+import { ArrowUpRight, Users } from "lucide-react";
 import { Link } from "react-router-dom";
+
+import AssistantCard, {
+  CardFooter,
+  CardList,
+  CardSection,
+  Tag,
+} from "./AssistantCard";
+
+const getInitials = (name) =>
+  String(name || "HLV")
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(-2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase();
 
 export default function TrainerInfoCard({ data }) {
   if (!data?.trainers?.length) return null;
 
   return (
-    <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 space-y-2 w-full">
-      <div className="flex items-center gap-2 mb-1">
-        <Users size={16} className="text-emerald-400" />
-        <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider">Huấn luyện viên</span>
-      </div>
-
-      <div className="space-y-2">
-        {data.trainers.map((trainer, i) => (
-          <div key={i} className="flex items-center gap-3 bg-black/20 rounded-lg p-2.5">
-            {trainer.image ? (
-              <img
-                src={trainer.image}
-                alt={trainer.name}
-                className="w-10 h-10 rounded-full object-cover shrink-0"
-              />
-            ) : (
-              <div className="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0">
-                <Users size={16} className="text-emerald-400" />
-              </div>
-            )}
-            <div className="flex-1 min-w-0">
-              <p className="text-sm text-white font-medium truncate">
-                {trainer.name}
-                {trainer.isHeadCoach && (
-                  <span className="ml-1 text-[9px] bg-yellow-500/20 text-yellow-400 px-1.5 py-0.5 rounded-full">
-                    Head Coach
+    <AssistantCard
+      eyebrow="HUẤN LUYỆN VIÊN"
+      icon={Users}
+      subtitle="Xếp theo chuyên môn và trạng thái công khai"
+      title="Huấn luyện viên phù hợp"
+      value={`${data.trainers.length} HLV`}
+      valueNote={
+        data.totalCount > data.trainers.length
+          ? `${data.totalCount} hồ sơ trong hệ thống`
+          : "hồ sơ đã xác minh"
+      }
+      footer={
+        <CardFooter
+          action="Xem tất cả HLV"
+          icon={Users}
+          note="Hồ sơ được HTCOACHING quản lý"
+          to="/#trainers"
+        />
+      }
+    >
+      <CardSection>
+        <CardList>
+          {data.trainers.map((trainer, index) => {
+            const content = (
+              <>
+                {trainer.image ? (
+                  <img
+                    alt=""
+                    className="h-11 w-11 shrink-0 rounded-xl object-cover"
+                    height="44"
+                    loading="lazy"
+                    src={trainer.image}
+                    width="44"
+                  />
+                ) : (
+                  <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-cyan-50 text-[13px] font-medium text-cyan-700 dark:bg-cyan-950/60 dark:text-cyan-300">
+                    {getInitials(trainer.name)}
                   </span>
                 )}
-              </p>
-              {trainer.title && (
-                <p className="text-[11px] text-gray-400 truncate">{trainer.title}</p>
-              )}
-              {trainer.specialties?.length > 0 && (
-                <div className="flex gap-1 mt-1 flex-wrap">
-                  {trainer.specialties.slice(0, 3).map((s, j) => (
-                    <span key={j} className="text-[9px] text-emerald-300 bg-emerald-500/10 px-1.5 py-0.5 rounded">
-                      {s}
-                    </span>
-                  ))}
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium leading-5 text-slate-900 dark:text-zinc-100">
+                    {trainer.name}
+                    {trainer.isHeadCoach && (
+                      <span className="text-slate-500 dark:text-zinc-400"> · Head Coach</span>
+                    )}
+                  </p>
+                  {(trainer.title || trainer.experience) && (
+                    <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-zinc-400">
+                      {[trainer.title, trainer.experience && `${trainer.experience} kinh nghiệm`]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </p>
+                  )}
+                  {trainer.specialties?.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {trainer.specialties.slice(0, 3).map((specialty, specialtyIndex) => (
+                        <Tag accent={specialtyIndex === 0} key={specialty}>
+                          {specialty}
+                        </Tag>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-            {trainer.slug && (
-              <Link
-                to={`/huan-luyen-vien/${trainer.slug}/`}
-                className="text-emerald-400 hover:text-emerald-300 shrink-0"
-                title="Xem profile"
+                {trainer.slug && (
+                  <ArrowUpRight
+                    aria-hidden="true"
+                    className="shrink-0 text-slate-400 transition-colors duration-200 group-hover:text-emerald-600 dark:text-zinc-500 dark:group-hover:text-emerald-300 motion-reduce:transition-none"
+                    size={17}
+                  />
+                )}
+              </>
+            );
+
+            return (
+              <li
+                className="py-3 first:pt-0 last:pb-0"
+                key={trainer.slug || `${trainer.name}-${index}`}
               >
-                <ExternalLink size={14} />
-              </Link>
-            )}
-          </div>
-        ))}
-      </div>
-    </div>
+                {trainer.slug ? (
+                  <Link
+                    className="group flex items-center gap-3 focus-visible:rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500"
+                    to={`/huan-luyen-vien/${trainer.slug}/`}
+                  >
+                    {content}
+                  </Link>
+                ) : (
+                  <div className="flex items-center gap-3">{content}</div>
+                )}
+              </li>
+            );
+          })}
+        </CardList>
+      </CardSection>
+    </AssistantCard>
   );
 }

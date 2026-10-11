@@ -110,6 +110,21 @@ const metricsSnapshots = ({
   },
 });
 
+const catalogReadiness = () => ({
+  ready: true,
+  gaps: [],
+  metrics: {
+    exerciseCount: 31,
+    displacedFixtures: 0,
+    beginnerBodyweightChest: 5,
+    foodCount: 50,
+    safeMealFoods: 3,
+    freshPricedSafeMealFoods: 3,
+    safeMacroGroups: ["carb", "fat", "protein"],
+    freshPricedSafeMacroGroups: ["carb", "fat", "protein"],
+  },
+});
+
 const candidate = (overrides = {}) => ({
   schemaVersion: 3,
   kind: "release-candidate",
@@ -182,7 +197,7 @@ const rawAiEvidence = ({
     attemptBaseAt: new Date(Date.parse(startedAt) + 60_000).toISOString(),
   });
   return {
-  schemaVersion: 2,
+  schemaVersion: 3,
   kind: "staging-ai-chat-acceptance",
   releaseSha: SHA,
   runId: "018f47f0-72a4-7c3c-9b21-891c46ffcb16",
@@ -216,6 +231,7 @@ const rawAiEvidence = ({
     "kb.vector_combined_fallbacks": 0,
     "provider.gemini_chat_failed": 0,
   },
+  catalogReadiness: catalogReadiness(),
   metricsSnapshots: metricsSnapshots(binding),
   runtimeBinding: binding,
   cleanup: {
@@ -284,6 +300,24 @@ test("release candidate fails closed on SHA drift and synthetic residue", () => 
     "STAGING_SERVER_SHA_MISMATCH",
     "STAGING_CLEANUP_UNVERIFIED",
   ]);
+});
+
+test("staging AI evidence requires a ready catalog with fresh prices for every macro group", () => {
+  const missing = rawAiEvidence();
+  delete missing.catalogReadiness;
+  assert.throws(
+    () => validateStagingAiAcceptanceEvidence(missing),
+    /catalogReadiness/i,
+  );
+
+  const incomplete = rawAiEvidence();
+  incomplete.catalogReadiness.ready = false;
+  incomplete.catalogReadiness.gaps = ["food_fresh_price_macro_groups_incomplete"];
+  incomplete.catalogReadiness.metrics.freshPricedSafeMacroGroups = ["protein"];
+  assert.throws(
+    () => validateStagingAiAcceptanceEvidence(incomplete),
+    /catalog|macro|ready/i,
+  );
 });
 
 test("release candidate fails closed on AI cleanup or post-AI verification drift", () => {

@@ -66,9 +66,10 @@ quota/model/auth hoặc relabel vector cũ thành version mới.
   load-balancing, receipt thiếu/thừa/chưa settled hoặc identity mismatch đều fail closed.
   Đây là request-cohort proof riêng cho AC-009, không phải chứng nhận toàn Render chỉ có
   một instance và không được dựng `currentInstances=1` khi provider inventory không có.
-  Raw evidence schema v2 và release-candidate schema v3 không đổi; readiness không
-  thêm field/JTI/receipt. Counter tuyệt đối tại `metrics-before` có thể chứa fallback
-  của attempt trước, nhưng delta trong exact-nine window vẫn phải bằng `0`.
+  Raw evidence schema v3 có snapshot `catalogReadiness` allowlisted và bắt buộc;
+  release-candidate schema v3 không đổi. `pre-cohort readiness` không thêm field/JTI/receipt.
+  Counter tuyệt đối tại `metrics-before` có thể chứa fallback của
+  attempt trước, nhưng delta trong exact-nine window vẫn phải bằng `0`.
   Hard-kill recovery phải revoke trước, chờ và inventory lại exact run; receipt
   `admitted` không terminal là manual blocker và không được xóa/đánh dấu settled.
   Runner phải ghi durable fixture-create journal trước KB POST. Journal v2 bind exact

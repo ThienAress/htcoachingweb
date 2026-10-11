@@ -57,22 +57,31 @@ deploy IDs và hai production known-good rollback deploy IDs. Workflow sẽ:
 
 1. checkout exact SHA và xác minh CI run cùng SHA đã success;
 2. dùng provider GET API xác minh deploy IDs/SHA/status;
-3. chạy `acceptance:staging` với exact database lock;
-4. chạy `acceptance:staging:ai` bằng browser live và capability request-scoped chỉ
+3. kiểm current release backup và off-device recovery **trước mọi acceptance ghi dữ liệu**;
+4. chạy `acceptance:staging` với exact database lock;
+5. chạy `acceptance:staging:ai` bằng browser live và capability request-scoped chỉ
    hoạt động trên staging; positive KB/provider lane không mock response;
-5. luôn cleanup cả hai acceptance lane và yêu cầu từng report có residue `0`;
-6. xác minh lại exact deploy IDs/SHA sau live AI smoke;
-7. chạy current backup + off-device recovery gates;
-8. tạo artifact `release-candidate-<run_id>`.
+6. chạy bộ Plan 092 gồm 11 prompt user-visible hai lượt liên tiếp, mỗi lượt có
+   synthetic actor và cleanup riêng; chỉ giữ metadata/semantic result trong artifact;
+   riêng Q8 được ghi `constraint_unavailable` khi Q7 không có cơm/dầu: runner phải
+   chứng minh card `scoped_adjustment_food_absent`, plan trước/sau cùng fingerprint
+   trong reliability evidence schema v2,
+   không có món cho phép điều chỉnh trong plan, cùng conversation và cleanup `0`;
+   nếu Q7 có món đó, Q8 vẫn phải qua numeric và scoped-adjustment oracle bình thường;
+7. luôn cleanup mọi acceptance lane và yêu cầu từng report có residue `0`;
+8. xác minh lại exact deploy IDs/SHA sau live AI smoke;
+9. tạo artifact `release-candidate-<run_id>`.
 
-AC-009 raw evidence schema v2 và release-candidate schema v3 phải giữ inventory
+AC-009 raw evidence schema v3 và release-candidate schema v3 phải giữ inventory
 request/receipt đóng, outcome terminal, boot UUID fingerprint và exact SHA đủ để
 validator tự recompute correspondence/delta. Mỗi provider-failure receipt phải
 `settledAt <= admittedAt` của Retry/Edit recovery tương ứng. Artifact v1/v2 lịch sử không được tự
 nâng cấp thành request-bound proof. Missing receipt, restart, runtime mismatch,
 auth/CSRF retry ngoài inventory hoặc cleanup khi mutation còn chưa settled đều FAIL.
-Hai schema vẫn giữ nguyên: readiness không thêm field/JTI/receipt; counter tuyệt đối
-tại `metrics-before` có thể gồm fallback từ attempt readiness trước đó, nhưng delta
+Raw evidence v3 còn giữ snapshot `catalogReadiness` allowlisted; validator chỉ chấp
+nhận khi Exercise/Food/allergen/fresh-price coverage đạt gate. Candidate schema v3
+không đổi; `pre-cohort readiness` không thêm field/JTI/receipt. Counter tuyệt đối tại
+`metrics-before` có thể gồm fallback từ attempt readiness trước đó, nhưng delta
 trong exact-nine window bắt buộc bằng `0`.
 
 Trước KB fixture POST, runner ghi durable `fixture_create` journal v2 ở trạng thái
@@ -106,6 +115,18 @@ trong `staging-ai-recovery-intent.json` được ghi trước khi connect/mutati
 toàn bộ closed schema không chứa secret) để kiểm tra residue, rồi dọn theo IDs/marker đã đăng ký; không
 dùng query rộng. Chỉ rerun sau khi cleanup verifier trả 0. Chạy thủ công, trong
 đúng môi trường staging và chỉ khi SHA của deploy vẫn khớp intent:
+
+Với Plan 092 reliability round, dùng intent tương ứng và CLI bounded sau khi
+xác minh đúng SHA/origin/database. CLI chỉ xóa đúng hai synthetic actor cùng
+các collection theo `userId`, giữ nguyên foreign data, và fail closed khi còn
+active stream hoặc control residue:
+
+```powershell
+$env:CONFIRM_STAGING_AI_RELIABILITY_RECOVERY = "yes"
+$env:STAGING_AI_RELIABILITY_RECOVERY_INTENT = "../artifacts/staging-ai-reliability-recovery-round-1.json"
+$env:STAGING_AI_RELIABILITY_RECOVERY_REPORT_OUTPUT = "../artifacts/staging-ai-reliability-recovery-report-round-1.json"
+npm run recover:acceptance:staging:ai:reliability --prefix server
+```
 
 Nếu runner mất file trước bước upload artifact, mở log của step AI acceptance và
 copy nguyên một dòng JSON bắt đầu bằng
@@ -225,6 +246,13 @@ Gate fail nếu backup hiện tại stale/khác ID, off-device recovery chưa re
 cleanup không sạch, CI/deploy SHA drift hoặc rollback ID thiếu. Gate không deploy;
 owner dùng kết quả PASS để phê duyệt thao tác deploy riêng.
 
+Với Plan 092, gate còn phải đọc đúng hai file
+`staging-ai-reliability-round-1.json` và `staging-ai-reliability-round-2.json`
+trong cùng artifact của acceptance run, xác minh mỗi lượt có 11 semantic result
+PASS, synthetic actor/conversation tách biệt, cleanup `residue=0` và exact SHA.
+Release-candidate schema v3 tự nó chưa chứa proof này; không được coi manifest
+đứng riêng là kết luận Plan 092 live PASS.
+
 ## 4. Production observation
 
 Production monitor chỉ gọi GET/HEAD. Sau deploy, ghi UTC start và chạy monitor
@@ -254,3 +282,22 @@ build pre-082 chỉ vì ID đó có trong release candidate.
 Atlas PITR/continuous recovery, paid monitoring, canary, Kubernetes và container
 registry promotion chưa thuộc workflow này. `continuousRecoveryAvailable=false`
 phải tiếp tục được báo là warning trung thực.
+
+## Recover the registered completed KB timeout
+
+Owner approval2026-10-08 covers only acceptance37758558812 and the closed tuple in
+`docs/specs/staging-kb-timeout-recovery.md`. Dispatch `staging-security.yml` from
+staging with operation `recover-ai-residue`, recovery_acceptance_run_id37758558812,
+recovery_release_sha88b5d3078ca6abadcead29e079bd6a677f1aae09,
+recovery_kb_failure_request_id9d43dd56-557f-4eb1-98c0-426f77730cd0, and the existing
+exact recovery confirmation. Keep fixture_request_id empty for this incident.
+
+The trusted workflow reads the failed artifact, Render identity and all relevant
+completion events, then builds the closed proof from a read-only receipt projection.
+It uploads an immutable proof artifact and downloads it again before validating
+artifact ID/run/SHA and content digest. Only then may exact CAS remove the expired
+admitted read-only receipt. Canonical cleanup reports schema3 with proof digest and
+archive ID; schema1/2 recovery reports remain supported. Missing/malformed proof,
+archive or CAS conflict blocks cleanup. An interrupted removal without a verified
+recovery report remains a blocker; do not infer proof from empty receipt inventory.
+Do not retry live acceptance until the recovery report verifies residue0.

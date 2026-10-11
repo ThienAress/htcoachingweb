@@ -29,6 +29,7 @@ export const findReviewableExercise = (exerciseId) =>
     {
       _id: new mongoose.Types.ObjectId(exerciseId),
       "_stagingSearchIndexCohortFixture.managed": { $ne: true },
+      "_stagingAiCatalogRollout.managed": { $ne: true },
     },
     { projection: { _id: 1 } },
   );

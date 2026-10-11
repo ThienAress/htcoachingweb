@@ -56,8 +56,10 @@ sổ quan sát tương ứng với chính release đó.
   provider-failure receipt đã settle trước admission của Retry/Edit recovery tương ứng. Render inventory
   thiếu/`null` không được biến thành instance count; request-cohort proof không
   được dùng để tuyên bố topology toàn service.
-  Raw evidence schema v2 và release-candidate schema v3 không đổi; readiness không
-  thêm field/JTI/receipt, còn mọi fallback delta trong exact-nine window vẫn bằng `0`.
+  Raw evidence schema v3 giữ thêm snapshot `catalogReadiness` đã allowlist và bắt
+  buộc Exercise/Food/allergen/fresh-price coverage đạt gate; release-candidate schema v3
+  không đổi. `pre-cohort readiness` không thêm field/JTI/receipt, còn mọi
+  fallback delta trong exact-nine window vẫn bằng `0`.
 - Candidate chỉ PASS khi CI và staging acceptance đều PASS, SHA của hai deploy
   trùng candidate SHA, cleanup residue bằng `0`, và backup/off-device recovery
   gate hiện tại PASS.

@@ -130,7 +130,7 @@ export const WeightTrendChart = ({ trend }) => {
                       fill="currentColor"
                       className="text-orange-300"
                     >
-                      <title>{`${formatDate(point.weekStartDateKey)}: ${point.weightKg} kg`}</title>
+                      <title>{`${formatDate(point.displayDateKey)}: ${point.weightKg} kg`}</title>
                     </circle>
                     {showLabel && (
                       <text
@@ -167,7 +167,7 @@ export const WeightTrendChart = ({ trend }) => {
                 <tbody>
                   {chart.points.map((point) => (
                     <tr key={point.weekStartDateKey} className="border-b border-slate-900">
-                      <td className="px-3 py-3 text-slate-300">{formatDate(point.weekStartDateKey)}</td>
+                      <td className="px-3 py-3 text-slate-300">{formatDate(point.displayDateKey)}</td>
                       <td className="px-3 py-3 font-medium text-white">{point.weightKg} kg</td>
                     </tr>
                   ))}

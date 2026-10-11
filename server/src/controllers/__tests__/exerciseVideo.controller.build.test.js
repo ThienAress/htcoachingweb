@@ -90,6 +90,7 @@ describe("exercise video Netlify build policy", () => {
       _testCatalogFixture: { managed: true },
       _stagingSearchIndexCohortFixture: { managed: true },
       _stagingSearchIndexCohortDisplaced: { managed: true },
+      _stagingAiCatalogRollout: { managed: true },
     });
     findExercise(exercise);
     mocks.uploadBufferToCloudinary.mockResolvedValue({

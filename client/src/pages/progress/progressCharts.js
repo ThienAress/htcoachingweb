@@ -9,6 +9,10 @@ const dateLabel = (dateKey) => {
   const [year, month, day] = String(dateKey || "").split("-");
   return year && month && day ? `${day}/${month}` : "";
 };
+const displayDateKey = (point) =>
+  isValidDateKey(point?.periodStartDateKey)
+    ? point.periodStartDateKey
+    : point?.dateKey;
 
 const chartDimensions = (requestedWidth) => {
   const width = Math.max(280, Number(requestedWidth) || DEFAULT_CHART_WIDTH);
@@ -59,10 +63,14 @@ export const buildBodyMetricChartModel = (
         typeof point?.value === "number" &&
         Number.isFinite(point.value) &&
         point.value > 0 &&
-        (!startDateKey || point.dateKey >= startDateKey) &&
-        (!endDateKey || point.dateKey <= endDateKey),
+        (!startDateKey || displayDateKey(point) >= startDateKey) &&
+        (!endDateKey || displayDateKey(point) <= endDateKey),
     )
-    .sort((left, right) => left.dateKey.localeCompare(right.dateKey));
+    .sort(
+      (left, right) =>
+        displayDateKey(left).localeCompare(displayDateKey(right)) ||
+        left.dateKey.localeCompare(right.dateKey),
+    );
   if (measurements.length === 0) return emptyChart(dimensions);
 
   const values = [
@@ -77,7 +85,7 @@ export const buildBodyMetricChartModel = (
   const domainMax = rawMax + domainPadding;
   const { height, padding, plotHeight, plotWidth } = dimensions;
   const timelineTimes = values.map((point) =>
-    Date.parse(`${point.dateKey}T12:00:00+07:00`),
+    Date.parse(`${displayDateKey(point)}T12:00:00+07:00`),
   );
   const firstTime = timelineTimes[0];
   const lastTime = timelineTimes.at(-1);
@@ -91,11 +99,12 @@ export const buildBodyMetricChartModel = (
     padding.top + ((domainMax - value) / (domainMax - domainMin)) * plotHeight;
   const points = values.map((point, index) => ({
     ...point,
+    displayDateKey: displayDateKey(point),
     x: roundCoordinate(xFor(index)),
     y: Number.isFinite(point.value)
       ? roundCoordinate(yFor(point.value))
       : null,
-    dateLabel: dateLabel(point.dateKey),
+    dateLabel: dateLabel(displayDateKey(point)),
   }));
   let drawing = false;
   const path = points

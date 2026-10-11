@@ -7,6 +7,12 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://htcoachingweb.io.vn/ket-qua-khach-hang/staging-demo-client-story/</loc>
+    <lastmod>2026-07-22</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://htcoachingweb.io.vn/ket-qua-khach-hang/cao-luc/</loc>
     <lastmod>2026-07-03</lastmod>
     <changefreq>monthly</changefreq>
@@ -55,183 +61,93 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://htcoachingweb.io.vn/huan-luyen-vien/staging-demo-coach/</loc>
+    <lastmod>2026-07-22</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://htcoachingweb.io.vn/huan-luyen-vien/hoang-thien/</loc>
     <lastmod>2026-07-03</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://htcoachingweb.io.vn/blog/can-thuc-an-song-hay-chin-moi-dung-chuan-macro/</loc>
-    <lastmod>2026-09-03</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://htcoachingweb.io.vn/blog/cach-doc-thuc-don-giam-can-ngung-am-anh-tung-gram-macro/</loc>
-    <lastmod>2026-08-28</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://htcoachingweb.io.vn/blog/cong-thuc-tinh-tdee-giam-mo-quy-tac-14-ngay-do-duong/</loc>
-    <lastmod>2026-08-28</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://htcoachingweb.io.vn/blog/cach-tinh-tdee-chuan-bay-he-so-van-dong-va-mo-thua/</loc>
-    <lastmod>2026-08-28</lastmod>
+    <loc>https://htcoachingweb.io.vn/blog/staging-demo-training-guide/</loc>
+    <lastmod>2026-08-13</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://htcoachingweb.io.vn/blog/vua-tang-co-vua-giam-mo-body-recomposition/</loc>
-    <lastmod>2026-09-01</lastmod>
+    <lastmod>2026-09-14</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://htcoachingweb.io.vn/blog/cach-giam-mo-bung-hieu-qua-boc-tran-co-che-dot-mo/</loc>
-    <lastmod>2026-08-16</lastmod>
+    <lastmod>2026-09-14</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://htcoachingweb.io.vn/blog/phuong-phap-tap-gym-hieu-qua-dap-tan-bay-no-pain-no-gain/</loc>
-    <lastmod>2026-08-16</lastmod>
+    <lastmod>2026-09-14</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://htcoachingweb.io.vn/blog/tu-duy-tap-gym-dung-cach-ngung-copy-giao-an-vdv/</loc>
-    <lastmod>2026-09-01</lastmod>
+    <lastmod>2026-09-14</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://htcoachingweb.io.vn/blog/thuc-don-giam-can-binh-dan-di-cho-chuan-macro/</loc>
-    <lastmod>2026-09-01</lastmod>
+    <lastmod>2026-09-14</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://htcoachingweb.io.vn/blog/su-that-ve-thuc-pham-giam-can-doc-nhan-mac-tranh-cu-lua/</loc>
-    <lastmod>2026-09-02</lastmod>
+    <lastmod>2026-09-14</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://htcoachingweb.io.vn/blog/bai-tap-chua-gu-lung-giai-ma-tu-the-sua-loi-co-rua/</loc>
-    <lastmod>2026-09-01</lastmod>
+    <lastmod>2026-09-14</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://htcoachingweb.io.vn/blog/tap-gym-bi-lech-co-giai-ma-nguyen-nhan-cach-khac-phuc/</loc>
-    <lastmod>2026-08-16</lastmod>
+    <lastmod>2026-09-14</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://htcoachingweb.io.vn/blog/cach-tinh-macro-giam-mo-flexible-dieting/</loc>
-    <lastmod>2026-09-01</lastmod>
+    <lastmod>2026-09-14</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://htcoachingweb.io.vn/blog/cach-tinh-calo-giam-can-ngung-nhin-doi/</loc>
-    <lastmod>2026-09-02</lastmod>
+    <lastmod>2026-09-14</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://htcoachingweb.io.vn/blog/lich-tap-gym-cho-nguoi-tap-moi-an-toan-chuan-khoa-hoc/</loc>
-    <lastmod>2026-09-01</lastmod>
+    <lastmod>2026-09-14</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://htcoachingweb.io.vn/blog/lich-tap-gym-4-ngay-1-tuan-pha-bo-chung-ta-upper-lower/</loc>
-    <lastmod>2026-09-01</lastmod>
+    <lastmod>2026-09-14</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://htcoachingweb.io.vn/blog/lich-tap-gym-cho-nguoi-ban-ron-sua-gu-lung/</loc>
-    <lastmod>2026-09-02</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://htcoachingweb.io.vn/blog/ky-thuat-dumbbell-chest-press-chuan/</loc>
-    <lastmod>2026-08-28</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://htcoachingweb.io.vn/blog/ky-thuat-bodyweight-squat-cho-nguoi-moi/</loc>
-    <lastmod>2026-08-28</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://htcoachingweb.io.vn/exercises/6a4b43515b0a4f47f1108990/3-4-sit-up/</loc>
-    <lastmod>2026-09-02</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  <url>
-    <loc>https://htcoachingweb.io.vn/exercises/6a4b495ea5de82055378a732/assisted-pull-up/</loc>
-    <lastmod>2026-09-02</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  <url>
-    <loc>https://htcoachingweb.io.vn/exercises/6a4b4998a5de82055378a7d4/band-squat/</loc>
-    <lastmod>2026-09-02</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  <url>
-    <loc>https://htcoachingweb.io.vn/exercises/6a4b4991a5de82055378a7c2/band-shoulder-press/</loc>
-    <lastmod>2026-09-02</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  <url>
-    <loc>https://htcoachingweb.io.vn/exercises/6a4b49aba5de82055378a80a/barbell-bench-press/</loc>
-    <lastmod>2026-09-02</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  <url>
-    <loc>https://htcoachingweb.io.vn/exercises/6a4b49b4a5de82055378a823/barbell-deadlift/</loc>
-    <lastmod>2026-09-02</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  <url>
-    <loc>https://htcoachingweb.io.vn/exercises/6a4b4a8ca5de82055378aa6e/cable-lat-pulldown-full-range-of-motion/</loc>
-    <lastmod>2026-09-02</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  <url>
-    <loc>https://htcoachingweb.io.vn/exercises/69d1362ea0f04831d73b8e0d/diamond-push-up/</loc>
-    <lastmod>2026-09-02</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  <url>
-    <loc>https://htcoachingweb.io.vn/exercises/6a4b4b44a5de82055378ac72/dumbbell-biceps-curl/</loc>
-    <lastmod>2026-09-02</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  <url>
-    <loc>https://htcoachingweb.io.vn/exercises/6a4b4b4aa5de82055378ac81/dumbbell-burpee/</loc>
-    <lastmod>2026-09-02</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
   </url>
 </urlset>

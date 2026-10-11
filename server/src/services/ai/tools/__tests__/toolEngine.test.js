@@ -6,11 +6,13 @@ import { getToolSchemas, toolRegistry } from "../toolRegistry.js";
 const originalSearchKnowledge = toolRegistry.search_knowledge.execute;
 const originalSearchKnowledgeConfirmation =
   toolRegistry.search_knowledge.requiresConfirmation;
+const originalSearchKnowledgeReadOnly = toolRegistry.search_knowledge.readOnly;
 
 afterEach(() => {
   toolRegistry.search_knowledge.execute = originalSearchKnowledge;
   toolRegistry.search_knowledge.requiresConfirmation =
     originalSearchKnowledgeConfirmation;
+  toolRegistry.search_knowledge.readOnly = originalSearchKnowledgeReadOnly;
 });
 
 describe("AI tool runtime validation", () => {
@@ -21,7 +23,11 @@ describe("AI tool runtime validation", () => {
       isSuccessfulToolResult({ error: null, meta: { internalError: "synthetic" } }),
       isSuccessfulToolResult({ error: "failed" }),
       isSuccessfulToolResult({ error: null, needsConfirmation: true }),
-    ]).toEqual([false, false, false, false, false]);
+      isSuccessfulToolResult({
+        error: null,
+        uiCard: { cardType: "meal", data: { status: "missing_data" } },
+      }),
+    ]).toEqual([false, false, false, false, false, false]);
   });
 
   it("only exposes public, bounded-cost tools to guest chat", () => {
@@ -49,6 +55,49 @@ describe("AI tool runtime validation", () => {
       allowed: allowed.includes("search_knowledge"),
       blocked: blocked.includes("search_knowledge"),
     }).toEqual({ allowed: true, blocked: false });
+  });
+
+  it("never exposes mutating or confirmation-required tools to the chat model", () => {
+    toolRegistry.search_knowledge.readOnly = false;
+    expect(
+      getToolSchemas({ isAuthenticated: true }).map(
+        (schema) => schema.function.name,
+      ),
+    ).not.toContain("search_knowledge");
+
+    toolRegistry.search_knowledge.readOnly = true;
+    toolRegistry.search_knowledge.requiresConfirmation = true;
+    expect(
+      getToolSchemas({ isAuthenticated: true }).map(
+        (schema) => schema.function.name,
+      ),
+    ).not.toContain("search_knowledge");
+  });
+
+  it("preserves only the canonical web-search outcome across the tool boundary", async () => {
+    toolRegistry.search_knowledge.execute = async () => ({
+      text: "Không có nguồn phù hợp.",
+      uiCard: null,
+      meta: {
+        evidenceAvailable: false,
+        sourceCount: 0,
+        sources: [],
+        searchOutcome: "no_supported_source",
+        unsafeInternalDetail: "must-not-cross",
+      },
+    });
+
+    const result = await executeTool(
+      "search_knowledge",
+      { query: "Ronaldo routine" },
+      { userId: "authenticated-user" },
+    );
+
+    expect(result.meta).toMatchObject({
+      searchOutcome: "no_supported_source",
+      evidenceAvailable: false,
+    });
+    expect(result.meta).not.toHaveProperty("unsafeInternalDetail");
   });
 
   it("rejects a guest-only-disabled tool even when the provider calls it", async () => {
@@ -86,6 +135,17 @@ describe("AI tool runtime validation", () => {
 
     expect(result.meta.validationFailed).toBe(true);
     expect(result.meta.invalidFields).toContain("age");
+  });
+
+  it("rejects a sub-800 whole-day meal target at the execution boundary", async () => {
+    const result = await executeTool(
+      "suggest_meal",
+      { targetCalories: 650, proteinGrams: 40, carbGrams: 75, fatGrams: 20, mealsPerDay: 1 },
+      { userId: "authenticated-user", allowedToolNames: ["suggest_meal"] },
+    );
+
+    expect(result.meta.validationFailed).toBe(true);
+    expect(result.meta.invalidFields).toContain("targetCalories");
   });
 
   it("enforces the server routing allowlist again at the execution boundary", async () => {

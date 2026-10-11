@@ -72,6 +72,95 @@ describe("progress chart presentation", () => {
     expect(chart.path).toContain("L");
   });
 
+  it("uses period coordinates without collapsing distinct body report identities", () => {
+    const chart = buildBodyMetricChartModel(
+      [
+        {
+          dateKey: "2026-10-05",
+          periodStartDateKey: "2026-10-01",
+          value: 70,
+        },
+        {
+          dateKey: "2026-10-01",
+          periodStartDateKey: "2026-10-01",
+          value: 71,
+        },
+        {
+          dateKey: "2026-10-12",
+          periodStartDateKey: "2026-10-12",
+          value: 69,
+        },
+      ],
+      { startDateKey: "2026-10-01", endDateKey: "2026-10-02" },
+    );
+
+    expect(
+      chart.points.map(
+        ({ dateKey, periodStartDateKey, displayDateKey, dateLabel, x }) => ({
+          dateKey,
+          periodStartDateKey,
+          displayDateKey,
+          dateLabel,
+          x,
+        }),
+      ),
+    ).toEqual([
+      {
+        dateKey: "2026-10-01",
+        periodStartDateKey: "2026-10-01",
+        displayDateKey: "2026-10-01",
+        dateLabel: "01/10",
+        x: 344,
+      },
+      {
+        dateKey: "2026-10-05",
+        periodStartDateKey: "2026-10-01",
+        displayDateKey: "2026-10-01",
+        dateLabel: "01/10",
+        x: 344,
+      },
+    ]);
+  });
+
+  it("keeps raw weight keys while using the reporting period for geometry", () => {
+    const chart = buildWeightChartModel([
+      {
+        weekStartDateKey: "2026-10-05",
+        periodStartDateKey: "2026-10-01",
+        weightKg: 70,
+      },
+      {
+        weekStartDateKey: "2026-10-01",
+        periodStartDateKey: "2026-10-01",
+        weightKg: 71,
+      },
+    ]);
+
+    expect(
+      chart.points.map(
+        ({ weekStartDateKey, displayDateKey, dateLabel, x }) => ({
+          weekStartDateKey,
+          displayDateKey,
+          dateLabel,
+          x,
+        }),
+      ),
+    ).toEqual([
+      {
+        weekStartDateKey: "2026-10-01",
+        displayDateKey: "2026-10-01",
+        dateLabel: "01/10",
+        x: 344,
+      },
+      {
+        weekStartDateKey: "2026-10-05",
+        displayDateKey: "2026-10-01",
+        dateLabel: "01/10",
+        x: 344,
+      },
+    ]);
+  });
+
   it("builds chart geometry from the rendered width", () => {
     const chart = buildBodyMetricChartModel(
       [

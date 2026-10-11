@@ -6,8 +6,10 @@ import {
 } from "../../observability/metrics.js";
 import {
   recordCloudinaryUsage,
+  recordGeminiChatDisposition,
   recordGeminiRequest,
   recordGeminiResult,
+  recordGeminiSearchGroundingDisposition,
   recordNetlifyBuildUsage,
   recordResendUsage,
   recordSePayApiUsage,
@@ -18,6 +20,9 @@ describe("bounded provider usage metrics", () => {
 
   it("records provider cost drivers without dynamic labels", () => {
     recordGeminiRequest("chat");
+    recordGeminiChatDisposition("unavailable");
+    recordGeminiChatDisposition("rate_limited");
+    recordGeminiChatDisposition("not_required");
     recordGeminiResult("chat", {
       success: true,
       usage: { promptTokens: 100, outputTokens: 20, totalTokens: 120 },
@@ -46,6 +51,9 @@ describe("bounded provider usage metrics", () => {
     expect(getMetricsSnapshot().counters).toMatchObject({
       "provider.gemini_chat_requests": 1,
       "provider.gemini_chat_succeeded": 1,
+      "provider.gemini_chat_unavailable": 1,
+      "provider.gemini_chat_rate_limited": 1,
+      "provider.gemini_chat_not_required": 1,
       "provider.gemini_chat_prompt_tokens": 100,
       "provider.gemini_chat_output_tokens": 20,
       "provider.gemini_chat_total_tokens": 120,
@@ -72,6 +80,12 @@ describe("bounded provider usage metrics", () => {
 
   it("rejects unknown surfaces/outcomes and tracks failures", () => {
     expect(() => recordGeminiRequest("user-id")).toThrow("Unknown Gemini");
+    expect(() => recordGeminiChatDisposition("user-id")).toThrow(
+      "Unknown Gemini",
+    );
+    expect(() => recordGeminiSearchGroundingDisposition("user-id")).toThrow(
+      "Unknown Gemini search grounding",
+    );
     expect(() => recordResendUsage("recipient@example.com")).toThrow(
       "Unknown Resend",
     );
@@ -85,6 +99,22 @@ describe("bounded provider usage metrics", () => {
       "provider.cloudinary_delete_failures": 1,
       "provider.sepay_api_failures": 1,
       "provider.netlify_build_failed": 1,
+    });
+  });
+
+  it("keeps a successful chat request independent from a failed search grounding request", () => {
+    recordGeminiRequest("chat");
+    recordGeminiResult("chat", { success: true });
+    recordGeminiRequest("search_grounding");
+    recordGeminiResult("search_grounding", { success: false });
+    recordGeminiSearchGroundingDisposition("permission_denied");
+
+    expect(getMetricsSnapshot().counters).toMatchObject({
+      "provider.gemini_chat_succeeded": 1,
+      "provider.gemini_chat_failed": 0,
+      "provider.gemini_search_grounding_succeeded": 0,
+      "provider.gemini_search_grounding_failed": 1,
+      "provider.gemini_search_grounding_permission_denied": 1,
     });
   });
 });

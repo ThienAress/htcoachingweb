@@ -176,7 +176,12 @@ const corsOptions = {
     "X-Request-Id",
     "Traceparent",
   ],
-  exposedHeaders: ["X-CSRF-Token", "X-Request-Id", "X-Trace-Id"],
+  exposedHeaders: [
+    "X-CSRF-Token",
+    "X-Request-Id",
+    "X-Trace-Id",
+    "X-AI-Conversation-Id",
+  ],
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
 };
 

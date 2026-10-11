@@ -5,6 +5,7 @@ import { parseSePayCutoverAt } from "./sepay.js";
 import { getMorningHealthReminderMode } from "./backgroundJobs.js";
 import { isTodayPlatformEnabled } from "./todayPlatform.js";
 import { evaluateCloudinaryBackupPolicy } from "./cloudinaryBackupPolicy.js";
+import { validateDeepseekProfile } from "./deepseekProfile.js";
 
 const PLACEHOLDER_PATTERN =
   /(change[-_ ]?me|replace[-_ ]?me|placeholder|example|your[-_ ]|test[-_ ]secret|local[-_ ]secret)/i;
@@ -384,15 +385,35 @@ export const validateProductionEnvironment = (
     strictOnly: !strict,
   });
 
-  if (String(env.AI_PROVIDER || "").toLowerCase() !== "gemini") {
+  const deepseekProfile = validateDeepseekProfile(env);
+  findings.errors.push(...deepseekProfile.errors);
+  if (!deepseekProfile.active && String(env.AI_PROVIDER || "").toLowerCase() !== "gemini") {
     addFinding(
       findings,
       "errors",
       "AI_PROVIDER_NOT_PRODUCTION",
-      "AI_PROVIDER must equal gemini for the production profile.",
+      "AI_PROVIDER requires Gemini or the explicit validated Vibi profile.",
     );
   }
+  if (deepseekProfile.active) validateSecret(env, findings, "DEEPSEEK_API_KEY", { minimum: 20 });
+  if (deepseekProfile.active && deepseekProfile.profile === "production") {
+    validateSecret(env, findings, "BRAVE_SEARCH_API_KEY", { minimum: 20 });
+  }
   validateSecret(env, findings, "GEMINI_API_KEY", { minimum: 20 });
+  const geminiSearchModel = String(
+    env.GEMINI_SEARCH_MODEL || "gemini-2.5-flash",
+  ).trim();
+  const geminiSearchModelValid =
+    geminiSearchModel.length <= 100 &&
+    /^[a-z0-9]+(?:[._-][a-z0-9]+)*$/i.test(geminiSearchModel);
+  if (!geminiSearchModelValid) {
+    addFinding(
+      findings,
+      "errors",
+      "GEMINI_SEARCH_MODEL_INVALID",
+      "GEMINI_SEARCH_MODEL must be a plain Gemini model identifier.",
+    );
+  }
   validateBooleanSetting(env, findings, "GEMINI_PAID_SERVICE_CONFIRMED", {
     required: true,
   });
@@ -668,6 +689,9 @@ export const validateProductionEnvironment = (
     errors: findings.errors,
     warnings: findings.warnings,
     summary: {
+      assistantProvider: deepseekProfile.active ? "deepseek" : String(env.AI_PROVIDER || "").toLowerCase(),
+      deepseekStagingTrial: deepseekProfile.active && deepseekProfile.profile === "staging",
+      deepseekProductionProfile: deepseekProfile.active && deepseekProfile.profile === "production",
       allowedOriginCount: allowedOrigins.length,
       hasExplicitTrustProxy: Boolean(String(env.TRUST_PROXY_HOPS || "").trim()),
       authCutoverMaintenanceEnabled: isAuthCutoverMaintenanceEnabled(env),
@@ -684,6 +708,9 @@ export const validateProductionEnvironment = (
       geminiPaidServiceConfirmed:
         String(env.GEMINI_PAID_SERVICE_CONFIRMED || "").toLowerCase() ===
         "true",
+      geminiSearchModel: geminiSearchModelValid
+        ? geminiSearchModel
+        : "invalid",
       geminiMealScanDataUseMode,
       mealScanProvider,
       foodReferenceLookupEnabled,

@@ -34,7 +34,13 @@ Giúp khách hàng và HLV trả lời nhanh ba câu hỏi cho từng số đo c
 ### Nguồn và tính trung thực
 
 - Mỗi điểm chỉ lấy từ báo cáo tuần `submitted` hoặc `reviewed`; draft không được tính.
-- `weekStartDateKey` là ngày đầu kỳ báo cáo trong tháng, không phải thời điểm đo chính xác.
+- `weekStartDateKey` là khóa lưu/định danh báo cáo tuần, không phải thời điểm đo chính xác.
+  Với kỳ đầu tháng được gộp, khóa này có thể nằm sau ngày bắt đầu khoảng báo cáo.
+  Progress DTO bổ sung `periodStartDateKey` làm ngày lọc/vẽ/hiển thị của kỳ canonical;
+  báo cáo legacy giữ ngày gốc. Khi field mới vắng mặt, client dùng ngày gốc để tương thích.
+- Giữ `dateKey`/`weekStartDateKey` gốc làm identity khi gộp history, deduplicate và chọn
+  điểm trên biểu đồ. Hai báo cáo legacy/canonical có cùng ngày đầu khoảng vẫn là hai
+  điểm riêng; thứ tự theo ngày đầu khoảng rồi khóa gốc. Không đổi khóa đã lưu hoặc backfill.
 - Nếu một kỳ báo cáo trong khoảng không có số đo của chỉ số đang chọn, đường bị ngắt tại kỳ đó.
 - Trục Y tự thu phóng theo dữ liệu nhìn thấy và có padding; không bắt đầu từ `0` nếu điều đó làm mất xu hướng.
 - Đường tham chiếu duy nhất trong release này là `Lần đầu` của khoảng đang xem.

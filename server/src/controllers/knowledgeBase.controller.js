@@ -8,6 +8,8 @@ import {
   generateEmbedding,
   searchKnowledgeBase,
 } from "../services/ai/embedding.service.js";
+import { searchAssistantKnowledgeBase } from "../services/ai/knowledgeRetrieval.service.js";
+import { KNOWLEDGE_SELECTION_TIMEOUT_MS } from "../services/ai/knowledgeSelectionPolicy.js";
 import { escapeRegex } from "../utils/escapeRegex.js";
 import { trackDbQuery } from "../observability/queryTelemetry.js";
 import {
@@ -25,6 +27,12 @@ import {
   validateKnowledgeEntryPrivacy,
 } from "../services/ai/knowledgePrivacy.js";
 import { routeAiRequest } from "../services/ai/requestRouter.js";
+import {
+  knowledgePublicationProjection,
+  knowledgePublicationSaveFilter,
+  knowledgePublicationTag,
+  validKnowledgePublicationTag,
+} from "../services/knowledgePublicationFence.js";
 import {
   KNOWLEDGE_CATEGORIES,
   normalizeKnowledgeQuestion,
@@ -465,6 +473,18 @@ export const updateEntry = async (req, res) => {
   if (!validId(req.params.id)) {
     return res.status(400).json({ success: false, message: "Mã entry không hợp lệ" });
   }
+  const conditionalPublish = Object.hasOwn(req.headers, "if-match");
+  if (conditionalPublish && (
+    !validKnowledgePublicationTag(req.headers["if-match"]) ||
+    !req.body || Array.isArray(req.body) ||
+    Object.keys(req.body).length !== 1 || req.body.status !== "published"
+  )) {
+    return res.status(400).json({
+      success: false,
+      code: "KNOWLEDGE_PUBLICATION_PRECONDITION_INVALID",
+      message: "If-Match hoặc dữ liệu publish không hợp lệ",
+    });
+  }
   const parsed = parseKnowledgeEntryPayload(req.body, { partial: true });
   if (parsed.error) return res.status(400).json({ success: false, message: parsed.error });
   const payload = parsed.value;
@@ -474,10 +494,28 @@ export const updateEntry = async (req, res) => {
   }
 
   try {
-    const entry = await KnowledgeEntry.findById(req.params.id).select(
-      "+embedding +variants +embeddingError +normalizedQuestion",
-    );
-    if (!entry) return res.status(404).json({ success: false, message: "Không tìm thấy knowledge entry" });
+    let entry;
+    if (conditionalPublish) {
+      const raw = await KnowledgeEntry.collection.findOne(
+        { _id: new mongoose.Types.ObjectId(req.params.id) },
+        { projection: knowledgePublicationProjection, promoteValues: false },
+      );
+      if (!raw || raw.status !== "draft" ||
+          knowledgePublicationTag(raw) !== req.headers["if-match"]) {
+        return res.status(412).json({
+          success: false,
+          code: "KNOWLEDGE_PUBLICATION_PRECONDITION_FAILED",
+          message: "Bản nháp đã thay đổi; hãy kiểm tra lại trước khi publish",
+        });
+      }
+      entry = KnowledgeEntry.hydrate(raw, knowledgePublicationProjection);
+      entry.$where = knowledgePublicationSaveFilter(raw);
+    } else {
+      entry = await KnowledgeEntry.findById(req.params.id).select(
+        "+embedding +variants +embeddingError +normalizedQuestion",
+      );
+      if (!entry) return res.status(404).json({ success: false, message: "Không tìm thấy knowledge entry" });
+    }
 
     const nextQuestion = payload.question ?? entry.question;
     const nextNormalized = normalizeKnowledgeQuestion(nextQuestion);
@@ -632,6 +670,13 @@ export const updateEntry = async (req, res) => {
     });
   } catch (error) {
     if (error?.code === 11000) return res.status(409).json({ success: false, message: "Câu hỏi này đã tồn tại" });
+    if (conditionalPublish && ["VersionError", "DocumentNotFoundError"].includes(error?.name)) {
+      return res.status(412).json({
+        success: false,
+        code: "KNOWLEDGE_PUBLICATION_PRECONDITION_FAILED",
+        message: "Bản nháp đã thay đổi; hãy kiểm tra lại trước khi publish",
+      });
+    }
     if (error?.name === "VersionError") return res.status(409).json({ success: false, message: "Entry vừa được cập nhật ở nơi khác, hãy tải lại" });
     return res.status(500).json({ success: false, message: "Không thể cập nhật knowledge entry" });
   }
@@ -801,7 +846,7 @@ export const searchEntries = async (req, res) => {
       success: false,
       code: "KNOWLEDGE_QUERY_SENSITIVE",
       message:
-        "Search Test không gửi dữ liệu sức khỏe hoặc định danh cá nhân tới embedding provider",
+        "Search Test không gửi dữ liệu sức khỏe hoặc định danh cá nhân tới nhà cung cấp AI",
     });
   }
   const limit = clampInteger(req.query.limit, 3, 1, 10);
@@ -809,11 +854,31 @@ export const searchEntries = async (req, res) => {
   if (!Number.isFinite(threshold) || threshold < 0 || threshold > 1) {
     return res.status(400).json({ success: false, message: "Threshold không hợp lệ" });
   }
-  const results = await searchKnowledgeBase(preparedQuery.query, {
-    limit,
-    threshold,
-  });
-  return res.json({ success: true, data: results });
+  const controller = new AbortController();
+  const abortOnClose = () => {
+    if (!res.writableEnded) controller.abort();
+  };
+  res.once("close", abortOnClose);
+  try {
+    const result = await searchAssistantKnowledgeBase(preparedQuery.query, {
+      limit,
+      threshold,
+      signal: controller.signal,
+      deadlineAt: Date.now() + KNOWLEDGE_SELECTION_TIMEOUT_MS,
+    });
+    return res.json({ success: true, data: result.results, retrieval: result.retrieval });
+  } catch (error) {
+    if (error?.code?.startsWith("KB_TRIAL_") || error?.code?.startsWith("DEEPSEEK_")) {
+      return res.status(503).json({
+        success: false,
+        code: error.code,
+        message: "Không thể hoàn tất tìm kiếm KB ở chế độ thử nghiệm. Vui lòng thử lại sau.",
+      });
+    }
+    throw error;
+  } finally {
+    res.removeListener("close", abortOnClose);
+  }
 };
 
 export const getStats = async (_req, res) => {

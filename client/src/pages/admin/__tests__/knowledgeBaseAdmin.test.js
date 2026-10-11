@@ -10,6 +10,7 @@ import {
   createLatestRequestRuntime,
   getKnowledgeSearchParams,
   getKnowledgeQueryViewState,
+  getKnowledgeMatchLabel,
   getSuggestionSourcePair,
 } from "../knowledgeBaseAdmin";
 
@@ -131,6 +132,18 @@ describe("Knowledge Base admin presentation", () => {
     ]);
   });
 
+  it("labels LLM selection by server rank without inventing a cosine score", () => {
+    expect(getKnowledgeMatchLabel(
+      { retrievalMethod: "llm_selection", retrievalRank: 2, similarity: 0.99 },
+      { method: "llm_selection" },
+      1,
+    )).toBe("Được chọn #2");
+  });
+
+  it("uses a safe label when legacy vector similarity is malformed", () => {
+    expect(getKnowledgeMatchLabel({ similarity: "not-a-number" }, { method: "vector" })).toBe("Điểm khớp không có");
+  });
+
   it("publishes only the latest response when searches resolve out of order", async () => {
     const firstResponse = deferred();
     const secondResponse = deferred();
@@ -163,6 +176,21 @@ describe("Knowledge Base admin presentation", () => {
         },
       ],
     });
+  });
+
+  it("preserves optional retrieval metadata without changing old response shape", async () => {
+    const onSuccess = vi.fn();
+    const runtime = createKnowledgeSearchRuntime({
+      search: vi.fn().mockResolvedValue({ data: {
+        data: [{ _id: "selected" }],
+        retrieval: { method: "llm_selection", coverage: "full", eligibleCount: 1, safeCount: 1, excludedCount: 0 },
+      } }),
+      onSuccess,
+    });
+    await runtime.run({ query: "squat" });
+    expect(onSuccess).toHaveBeenCalledWith(expect.objectContaining({
+      retrieval: expect.objectContaining({ method: "llm_selection", coverage: "full" }),
+    }));
   });
 
   it("invalidates an in-flight response after the query or mode changes", async () => {

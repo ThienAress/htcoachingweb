@@ -40,6 +40,11 @@ export const createProgressRange = (
 
 const inRange = (dateKey, start, end) =>
   dateKey >= start && dateKey <= end;
+const periodStartDateKey = (item) =>
+  item.periodStartDateKey || item.weekStartDateKey;
+const compareWeeklyCheckins = (left, right) =>
+  periodStartDateKey(left).localeCompare(periodStartDateKey(right)) ||
+  left.weekStartDateKey.localeCompare(right.weekStartDateKey);
 const percentMetric = (numerator, denominator) => ({
   numerator,
   denominator,
@@ -228,13 +233,12 @@ const weightTrend = ({ weeklyCheckins, range }) => {
       (item) =>
         item.status !== "draft" &&
         typeof item.weightKg === "number" &&
-        inRange(item.weekStartDateKey, lookbackStart, range.endDateKey),
+        inRange(periodStartDateKey(item), lookbackStart, range.endDateKey),
     )
-    .sort((left, right) =>
-      left.weekStartDateKey.localeCompare(right.weekStartDateKey),
-    )
+    .sort(compareWeeklyCheckins)
     .map((item) => ({
       weekStartDateKey: item.weekStartDateKey,
+      periodStartDateKey: periodStartDateKey(item),
       weightKg: item.weightKg,
     }));
   return {
@@ -257,16 +261,15 @@ const bodyMetric = ({ weeklyCheckins, range, field, unit }) => {
         Number.isFinite(item[field]) &&
         item[field] > 0 &&
         inRange(
-          item.weekStartDateKey,
+          periodStartDateKey(item),
           range.startDateKey,
           range.endDateKey,
         ),
     )
-    .sort((left, right) =>
-      left.weekStartDateKey.localeCompare(right.weekStartDateKey),
-    )
+    .sort(compareWeeklyCheckins)
     .map((item) => ({
       dateKey: item.weekStartDateKey,
+      periodStartDateKey: periodStartDateKey(item),
       value: item[field],
     }));
   return {

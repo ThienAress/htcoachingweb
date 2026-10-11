@@ -190,6 +190,10 @@ test.describe("AI chat", () => {
     }) => {
       test.setTimeout(60000);
       let aiScenario = "provider-failure";
+      let releaseFailure;
+      const failureGate = new Promise((resolve) => {
+        releaseFailure = resolve;
+      });
       const chatRequests = [];
       page.on("request", (request) => {
         if (
@@ -199,15 +203,22 @@ test.describe("AI chat", () => {
           chatRequests.push(JSON.parse(request.postData() || "{}"));
         }
       });
-      await page.route("**/api/**", (route) =>
-        route.continue({
+      await page.route("**/api/**", async (route) => {
+        if (
+          aiScenario === "provider-failure" &&
+          route.request().method() === "POST" &&
+          route.request().url().endsWith("/api/ai/chat")
+        ) {
+          await failureGate;
+        }
+        await route.continue({
           headers: {
             ...route.request().headers(),
             "x-e2e-role": "user",
             "x-e2e-ai-scenario": aiScenario,
           },
-        }),
-      );
+        });
+      });
 
       await page.goto("/");
       await page.getByRole("button", { name: "Mở HT Assistant" }).click();
@@ -219,6 +230,7 @@ test.describe("AI chat", () => {
 
       await expect(page.getByRole("button", { name: "Dừng phản hồi" })).toBeVisible();
       await expect(input).toBeDisabled();
+      releaseFailure();
       const error = page.getByRole("alert");
       await expect(error).toContainText("Nhà cung cấp AI tạm thời không khả dụng");
       await expect(input).toBeEnabled();
@@ -257,10 +269,10 @@ test.describe("AI chat", () => {
     });
   }
 
-  test("submits an opaque confirmation token and settles the card", async ({
+  test("ignores mutation confirmation cards from the chat stream", async ({
     page,
   }) => {
-    let confirmationBody;
+    let confirmationRequests = 0;
     await page.route("**/api/**", (route) =>
       route.continue({
         headers: {
@@ -272,7 +284,7 @@ test.describe("AI chat", () => {
     );
     page.on("request", (request) => {
       if (request.url().endsWith("/api/ai/tool-confirmations/confirm")) {
-        confirmationBody = request.postDataJSON();
+        confirmationRequests += 1;
       }
     });
 
@@ -283,14 +295,11 @@ test.describe("AI chat", () => {
       .first();
     await input.fill("Thực hiện hành động đã kiểm tra");
     await input.press("Enter");
-    await page.getByRole("button", { name: "Xác nhận", exact: true }).click();
 
-    await expect(page.getByText("Đã xác nhận và xử lý hành động.")).toBeVisible();
-    expect(confirmationBody).toEqual({
-      token: "abcdefghijklmnopqrstuvwxyzABCDEFGH123456789",
-    });
+    await expect(page.getByText("Vui lòng xác nhận.")).toBeVisible();
     await expect(
       page.getByRole("button", { name: "Xác nhận", exact: true }),
     ).toHaveCount(0);
+    expect(confirmationRequests).toBe(0);
   });
 });

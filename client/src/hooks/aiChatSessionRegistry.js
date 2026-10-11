@@ -6,6 +6,7 @@ const createView = ({ key, conversationId = null, loaded = false } = {}) => ({
   isLoading: false,
   activeTool: null,
   error: null,
+  retryableFailedTurn: null,
 });
 
 const defaultCreateKey = () => `new-${crypto.randomUUID()}`;

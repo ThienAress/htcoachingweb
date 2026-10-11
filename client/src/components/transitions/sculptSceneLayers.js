@@ -1,0 +1,18 @@
+export const SCULPT_STATIC_LAYER_IDS = Object.freeze([
+  "background-base",
+  "spotlight",
+  "vignette",
+  "haze",
+  "halo",
+  "main-body",
+  "inner-muscular-body",
+  "outer-stone-shell",
+  "hammer-arm",
+  "hammer",
+  "chisel-arm",
+  "chisel",
+  "cracks",
+  "floating-debris",
+  "dust-particles",
+  "foreground-rubble",
+]);

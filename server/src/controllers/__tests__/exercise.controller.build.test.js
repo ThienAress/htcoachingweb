@@ -100,6 +100,7 @@ describe("exercise catalog Netlify build policy", () => {
       _testCatalogFixture: { managed: true },
       _stagingSearchIndexCohortFixture: { managed: true },
       _stagingSearchIndexCohortDisplaced: { managed: true },
+      _stagingAiCatalogRollout: { managed: true },
     });
     mocks.create.mockResolvedValue(exercise);
     const res = makeResponse();

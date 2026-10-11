@@ -28,6 +28,42 @@ const exerciseRoutes = SEARCH_INDEX_EXERCISES.map(
 );
 const detailRoutes = [...recipeRoutes, ...exerciseRoutes];
 
+const isRecipeDetailRoute = (route) =>
+  route.startsWith("/cong-thuc-nau-an/");
+const isExerciseDetailRoute = (route) => route.startsWith("/exercises/");
+
+export const resolveSearchIndexBuildContract = ({
+  policy,
+  manifestRoutes,
+}) => {
+  if (!policy || typeof policy !== "object") {
+    throw new TypeError("Dynamic route policy is required");
+  }
+  if (
+    !Array.isArray(manifestRoutes) ||
+    manifestRoutes.some((route) => typeof route !== "string")
+  ) {
+    throw new TypeError("Prerender route manifest must be an array of strings");
+  }
+
+  const manifestDetails = manifestRoutes.filter(
+    (route) => isRecipeDetailRoute(route) || isExerciseDetailRoute(route),
+  );
+  const expectedDetails = policy.skip
+    ? []
+    : policy.netlifyProduction
+      ? detailRoutes
+      : [...new Set(manifestDetails)];
+
+  return {
+    manifestDetails,
+    detailRoutes: expectedDetails,
+    recipeRoutes: expectedDetails.filter(isRecipeDetailRoute),
+    exerciseRoutes: expectedDetails.filter(isExerciseDetailRoute),
+    requireApprovedHubLinks: Boolean(policy.netlifyProduction),
+  };
+};
+
 const routeFile = (route) =>
   path.join(DIST_DIR, ...route.split("/").filter(Boolean), "index.html");
 
@@ -193,14 +229,17 @@ const verifyFallbackShell = () => {
 
 const verifySearchIndexBuild = () => {
   const policy = resolveDynamicRoutePolicy();
-  const manifest = JSON.parse(
+  const manifestRoutes = JSON.parse(
     readRequired(path.join(__dirname, ".generated", "prerender-routes.json")),
   );
-  const manifestDetails = manifest.filter(
-    (route) =>
-      route.startsWith("/cong-thuc-nau-an/") ||
-      route.startsWith("/exercises/"),
-  );
+  const contract = resolveSearchIndexBuildContract({ policy, manifestRoutes });
+  const {
+    manifestDetails,
+    detailRoutes: expectedDetails,
+    recipeRoutes: expectedRecipeRoutes,
+    exerciseRoutes: expectedExerciseRoutes,
+    requireApprovedHubLinks,
+  } = contract;
   const recipeSitemap = extractSitemapRoutes(
     readRequired(path.join(PUBLIC_DIR, "sitemap-recipes.xml")),
     SITE_URL,
@@ -223,44 +262,58 @@ const verifySearchIndexBuild = () => {
     return;
   }
 
-  assertExactRoutes("Prerender manifest details", manifestDetails, detailRoutes);
+  assertExactRoutes(
+    "Prerender manifest details",
+    manifestDetails,
+    expectedDetails,
+  );
 
-  assertExactRoutes("Recipe sitemap", recipeSitemap, recipeRoutes);
+  assertExactRoutes("Recipe sitemap", recipeSitemap, expectedRecipeRoutes);
 
-  assertExactRoutes("Exercise sitemap", exerciseSitemap, exerciseRoutes);
+  assertExactRoutes("Exercise sitemap", exerciseSitemap, expectedExerciseRoutes);
 
   assertExactRoutes(
     "Rendered Recipe details",
     listRenderedRecipeRoutes(),
-    recipeRoutes,
+    expectedRecipeRoutes,
   );
   assertExactRoutes(
     "Rendered Exercise details",
     listRenderedExerciseRoutes(),
-    exerciseRoutes,
+    expectedExerciseRoutes,
   );
 
-  detailRoutes.forEach((route) =>
+  expectedDetails.forEach((route) =>
     assertIndexableDetailHtml(route, readRequired(routeFile(route))),
   );
 
-  const recipeHub = readRequired(path.join(DIST_DIR, "cong-thuc-nau-an", "index.html"));
-  const exerciseHub = readRequired(path.join(DIST_DIR, "exercises", "index.html"));
-  assertExactRoutes(
-    "Recipe hub links",
-    recipeRoutes.filter((route) => recipeHub.includes(`href="${route}/"`)),
-    recipeRoutes,
-  );
-  assertExactRoutes(
-    "Exercise hub links",
-    exerciseRoutes.filter((route) => exerciseHub.includes(`href="${route}/"`)),
-    exerciseRoutes,
-  );
+  if (requireApprovedHubLinks) {
+    const recipeHub = readRequired(
+      path.join(DIST_DIR, "cong-thuc-nau-an", "index.html"),
+    );
+    const exerciseHub = readRequired(
+      path.join(DIST_DIR, "exercises", "index.html"),
+    );
+    assertExactRoutes(
+      "Recipe hub links",
+      expectedRecipeRoutes.filter((route) =>
+        recipeHub.includes(`href="${route}/"`),
+      ),
+      expectedRecipeRoutes,
+    );
+    assertExactRoutes(
+      "Exercise hub links",
+      expectedExerciseRoutes.filter((route) =>
+        exerciseHub.includes(`href="${route}/"`),
+      ),
+      expectedExerciseRoutes,
+    );
+  }
 
   verifyFallbackShell();
 
   console.log(
-    `Search index build verified: ${recipeRoutes.length} Recipe + ${exerciseRoutes.length} Exercise details.`,
+    `Search index build verified: ${expectedRecipeRoutes.length} Recipe + ${expectedExerciseRoutes.length} Exercise details.`,
   );
 };
 

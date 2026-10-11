@@ -75,7 +75,8 @@ test("official action runtimes are upgraded while application Node remains 22.23
     }
   }
 
-  assert.equal(inspectedActions, 84, "the action-runtime inventory changed; review the new call site");
+  // Plan096B adds three SHA-pinned archive upload/download/provenance action call sites.
+  assert.equal(inspectedActions, 88, "the action-runtime inventory changed; review the new call site");
   assert.equal(setupNodeSteps, 24, "the setup-node inventory changed; review its Node/cache contract");
 
   const [nodeVersion, nvmrc, rootPackage] = await Promise.all([
@@ -125,6 +126,138 @@ test("staging live acceptance is explicitly write-enabled only behind staging lo
   assert.match(workflow, /\.github\/workflows\/ci\.yml/);
   assert.match(safety, /const STAGING_DATABASE = "htcoaching_staging"/);
   assert.match(safety, /STAGING_OPERATION_DATABASE_REQUIRED/);
+  assert.match(workflow, /uses: actions\/checkout@v5[\s\S]*?ref: staging/);
+  assert.match(workflow, /test "\$\(git rev-parse HEAD\)" = "\$RELEASE_SHA"/);
+});
+
+test("staging release recovery gate runs before any write-enabled acceptance", async () => {
+  const workflow = await read(".github/workflows/staging-acceptance.yml");
+  const recoveryGate = workflow.indexOf("- name: Verify current release and off-device recovery evidence");
+  const stagingWrite = workflow.indexOf("- name: Run write-enabled staging acceptance with mandatory cleanup");
+  const aiWrite = workflow.indexOf("- name: Run authenticated staging AI acceptance with verified cleanup");
+
+  assert.ok(recoveryGate > 0 && recoveryGate < stagingWrite && recoveryGate < aiWrite);
+});
+
+test("staging acceptance waits for bounded read-only health after recovery and before writes", async () => {
+  const workflow = await read(".github/workflows/staging-acceptance.yml");
+  const healthName = "- name: Verify staging health before write-enabled acceptance";
+  const health = workflow.match(
+    /- name: Verify staging health before write-enabled acceptance[\s\S]*?(?=\n      - name:|$)/,
+  )?.[0];
+  assert.ok(health, "cold staging must be ready before synthetic auth requests");
+  const recovery = workflow.indexOf("- name: Verify current release and off-device recovery evidence");
+  const warmup = workflow.indexOf(healthName);
+  const generalWrite = workflow.indexOf("- name: Run write-enabled staging acceptance with mandatory cleanup");
+  assert.ok(recovery < warmup && warmup < generalWrite);
+  assert.match(health, /if: \$\{\{ inputs\.operation == 'acceptance' \|\| github\.event_name == 'repository_dispatch' \}\}/);
+  assert.match(health, /timeout-minutes: 6/);
+  assert.match(health, /run: node scripts\/staging-health\.mjs/);
+  assert.match(health, /ALLOW_REMOTE_STAGING_HEALTH: "true"/);
+  assert.match(health, /STAGING_CLIENT_URL: https:\/\/staging--htcoachingweb\.netlify\.app/);
+  assert.match(health, /STAGING_API_URL: https:\/\/htcoachingweb-staging\.onrender\.com/);
+  assert.doesNotMatch(health, /continue-on-error|always\(\)|\|\|\s*true|secrets\.|MONGO_URI/);
+});
+
+test("staging reliability acceptance runs two exact, cleaned rounds before deploy reverification", async () => {
+  const [workflow, serverPackage] = await Promise.all([
+    read(".github/workflows/staging-acceptance.yml"),
+    read("server/package.json").then(JSON.parse),
+  ]);
+  const reliabilitySteps = [...workflow.matchAll(
+    /- name: Run Plan 092 live reliability round [12] with verified cleanup[\s\S]*?(?=\n      - name:|$)/g,
+  )].map(([step]) => step);
+
+  assert.equal(reliabilitySteps.length, 2);
+  assert.match(serverPackage.scripts["acceptance:staging:ai:reliability"], /stagingAiReliabilityAcceptance\.js/);
+  for (const [index, step] of reliabilitySteps.entries()) {
+    assert.match(step, /npm run acceptance:staging:ai:reliability/);
+    assert.match(step, /CONFIRM_STAGING_AI_RELIABILITY: "yes"/);
+    assert.match(step, /MONGO_URI: \$\{\{ secrets\.STAGING_MONGO_URI \}\}/);
+    assert.match(step, /JWT_SECRET: \$\{\{ secrets\.STAGING_JWT_SECRET \}\}/);
+    assert.match(step, new RegExp(`STAGING_AI_RELIABILITY_OUTPUT: \\.\\.\/artifacts\/staging-ai-reliability-round-${index + 1}\\.json`));
+    assert.match(step, new RegExp(`STAGING_AI_RELIABILITY_RECOVERY_OUTPUT: \\.\\.\/artifacts\/staging-ai-reliability-recovery-round-${index + 1}\\.json`));
+  }
+  const firstRound = workflow.indexOf("- name: Run Plan 092 live reliability round 1 with verified cleanup");
+  const secondRound = workflow.indexOf("- name: Run Plan 092 live reliability round 2 with verified cleanup");
+  const reverify = workflow.indexOf("- name: Reverify deploy identity after live AI acceptance");
+  assert.ok(firstRound > 0 && firstRound < secondRound && secondRound < reverify);
+});
+
+test("production promotion revalidates both live reliability artifacts", async () => {
+  const workflow = await read(".github/workflows/release-promotion-gate.yml");
+  const reliabilityGate = workflow.indexOf("node scripts/verify-staging-ai-reliability.mjs");
+  const candidateGate = workflow.indexOf("node scripts/release-gate.mjs --mode=candidate");
+
+  assert.ok(reliabilityGate > 0 && reliabilityGate < candidateGate);
+  assert.match(workflow, /--round-1=artifacts\/staging-ai-reliability-round-1\.json/);
+  assert.match(workflow, /--round-2=artifacts\/staging-ai-reliability-round-2\.json/);
+  assert.match(workflow, /--expected-sha="\$\{\{ inputs\.release_sha \}\}"/);
+});
+
+test("staging acceptance maintenance modes are explicit and preserve acceptance as default", async () => {
+  const workflow = await read(".github/workflows/staging-acceptance.yml");
+  assert.match(workflow, /operation:[\s\S]*default: acceptance/);
+  assert.match(workflow, /release_sha:[\s\S]*?required: true/);
+  assert.match(workflow, /ci_run_url:[\s\S]*?required: true/);
+  assert.match(workflow, /staging_client_deploy_id:[\s\S]*?required: true/);
+  assert.match(workflow, /staging_server_deploy_id:[\s\S]*?required: true/);
+  for (const operation of [
+    "search-cohort-rollback-preflight",
+    "search-cohort-rollback-apply",
+    "ai-catalog-preflight",
+    "ai-catalog-apply",
+    "ai-catalog-rollback-preflight",
+    "ai-catalog-rollback-apply",
+  ]) assert.match(workflow, new RegExp(operation));
+  assert.match(workflow, /MIGRATION_TARGET_DATABASE: htcoaching_staging/);
+  assert.match(workflow, /STAGING_MAINTENANCE_OUTPUT: \.\.\/artifacts\/staging-maintenance\.json/);
+  assert.match(workflow, /STAGING_SEARCH_INDEX_COHORT_EXPECTED_PLAN_DIGEST:/);
+  assert.match(workflow, /STAGING_AI_CATALOG_EXPECTED_PLAN_DIGEST:/);
+  assert.match(workflow, /CONFIRM_STAGING_SEARCH_INDEX_COHORT_ROLLBACK: "yes"/);
+  assert.match(workflow, /CONFIRM_STAGING_AI_CATALOG_ROLLOUT: "yes"/);
+  assert.match(workflow, /CONFIRM_STAGING_AI_CATALOG_ROLLBACK: "yes"/);
+  assert.match(workflow, /if: \$\{\{ inputs\.operation == 'acceptance'/);
+  assert.match(workflow, /data\.head_branch !== "staging"/);
+  assert.match(workflow, /data\.head_repository\?\.full_name !== context\.repo\.owner \+ "\/" \+ context\.repo\.repo/);
+  const inputValidation = workflow.match(
+    /- name: Validate operation-specific inputs[\s\S]*?(?=\n      - name: Install server dependencies)/,
+  )?.[0];
+  assert.ok(inputValidation, "operation-specific input validation step is missing");
+  assert.match(inputValidation, /STAGING_MAINTENANCE_OPERATION/);
+  assert.match(inputValidation, /ROLLBACK_CLIENT_DEPLOY_ID/);
+  assert.match(inputValidation, /ROLLBACK_SERVER_DEPLOY_ID/);
+  assert.match(inputValidation, /Acceptance requires both production rollback deploy IDs/);
+  const deployVerification = workflow.match(
+    /- name: Verify exact Netlify and Render staging deploys[\s\S]*?(?=\n      - name: Run reviewed staging catalog maintenance)/,
+  )?.[0];
+  assert.ok(deployVerification, "staging deploy verification step is missing");
+  assert.doesNotMatch(deployVerification, /^\s+if:/m);
+  assert.match(deployVerification, /STAGING_CLIENT_DEPLOY_ID/);
+  assert.match(deployVerification, /STAGING_SERVER_DEPLOY_ID/);
+  const maintenanceReverification = workflow.match(
+    /- name: Reverify deploy identity after staging catalog maintenance[\s\S]*?(?=\n      - name: Run write-enabled staging acceptance)/,
+  )?.[0];
+  assert.ok(maintenanceReverification, "post-maintenance deploy verification step is missing");
+  assert.match(maintenanceReverification, /inputs\.operation != 'acceptance'/);
+  assert.match(maintenanceReverification, /npm run verify:staging-deploys/);
+  assert.match(
+    maintenanceReverification,
+    /DEPLOY_IDENTITY_OUTPUT: artifacts\/staging-deploy-identity-post-maintenance\.json/,
+  );
+  assert.match(workflow, /path: \|[\s\S]*artifacts\/staging-maintenance\.json[\s\S]*artifacts\/staging-deploy-identity\.json[\s\S]*artifacts\/staging-deploy-identity-post-maintenance\.json/);
+});
+
+test("Netlify staging always builds an exact release SHA", async () => {
+  const config = await read("netlify.toml");
+  const staging = config.match(
+    /\[context\.staging\]\r?\n([\s\S]*?)(?=\r?\n\[|$)/,
+  )?.[1];
+
+  assert.ok(staging, "netlify.toml must define the exact staging deploy context");
+  assert.match(staging, /^\s*ignore = "exit 1"$/m);
+  assert.match(config, /\[context\.staging\.environment\][\s\S]*?NODE_VERSION = "22\.23\.1"/);
+  assert.match(config, /environment\s*=\s*\{\s*NODE_VERSION\s*=\s*"22\.23\.1"\s*\}/);
 });
 
 test("legacy AC-009 recovery is manual, staging-only and retains provider proof", async () => {
@@ -252,7 +385,7 @@ test("AC-009 docs keep pre-cohort readiness outside the exact-nine proof", async
   assert.match(releaseSpec, /nine-purpose inventory bên trong certified window/);
   assert.match(runbook, /Trong certified metrics window, bảy chat attempts cùng hai/);
   for (const source of [adr, rollout, releaseSpec, runbook]) {
-    assert.match(source, /raw evidence schema v2/i);
+    assert.match(source, /raw evidence schema v3/i);
     assert.match(source, /release-candidate schema v3/i);
   }
 });

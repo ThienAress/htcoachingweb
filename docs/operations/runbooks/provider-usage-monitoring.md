@@ -8,7 +8,7 @@ user ID, Cloudinary public ID, SePay payload/token hay Netlify hook URL.
 
 | Provider | Prometheus counters chính | Cách dùng |
 | --- | --- | --- |
-| Gemini Chat | `htcoaching_provider_gemini_chat_requests`, `_succeeded`, `_failed`, `_prompt_tokens`, `_output_tokens`, `_total_tokens` | theo dõi token velocity và retry/failure ratio |
+| Gemini Chat | `htcoaching_provider_gemini_chat_requests`, `_succeeded`, `_failed`, `_unavailable`, `_rate_limited`, `_not_required`, `_prompt_tokens`, `_output_tokens`, `_total_tokens` | `requests` là provider attempts (kể cả retry); `unavailable` tách 5xx khỏi `rate_limited` 429; `not_required` là static safety response không gọi model |
 | Gemini Meal Scan | `htcoaching_provider_gemini_meal_scan_requests`, `_succeeded`, `_failed`, `_prompt_tokens`, `_output_tokens`, `_total_tokens` | tách ảnh scan khỏi hội thoại |
 | Gemini Search Grounding | `htcoaching_provider_gemini_search_grounding_requests`, `_succeeded`, `_failed`, `_prompt_tokens`, `_output_tokens`, `_total_tokens` | tách chi phí tra cứu có Google Search grounding khỏi chat chính |
 | Gemini Embedding | `htcoaching_provider_gemini_embedding_requests`, `_succeeded`, `_failed`, `_prompt_tokens`, `_output_tokens`, `_total_tokens` | theo dõi request tạo vector thực tế; cache hit và caller dùng chung không tăng request |
@@ -26,6 +26,8 @@ user ID, Cloudinary public ID, SePay payload/token hay Netlify hook URL.
    qua restart.
 3. Reconcile định kỳ với dashboard/quota provider. Chỉ tạo threshold tiền sau khi owner nhập giá,
    currency, tax và billing period hiện hành vào monitoring bên ngoài repository.
+   Dashboard có thể cập nhật trễ; request bị chặn trước provider hoặc thất bại trước khi sinh token
+   có thể không làm quota token thay đổi, nên không dùng quota dashboard làm bằng chứng duy nhất.
 4. Cảnh báo sớm theo ratio và velocity: failure/retry tăng, token/byte/page/build tăng đột biến hoặc
    sent/attempt lệch. Không tự nâng gói hoặc tắt service chỉ từ một sample.
 5. Khi scale nhiều instance, thiếu scrape của bất kỳ instance nào làm cost estimate không đầy đủ;

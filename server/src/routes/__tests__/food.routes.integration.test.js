@@ -228,6 +228,57 @@ describe("Food provenance contract", () => {
     });
   });
 
+  test("does not expose internal staging rollout markers on public food APIs", async () => {
+    const foodId = new Food()._id;
+    await Food.collection.insertOne({
+      _id: foodId,
+      ...FOOD_PAYLOAD,
+      label: "Food staging rollout",
+      allergenProfile: { reviewStatus: "unreviewed" },
+      _testCatalogFixture: { managed: true, key: "internal-fixture" },
+      _stagingAiCatalogRollout: { managed: true, evidence: { internal: true } },
+    });
+    await FoodPriceObservation.collection.insertOne({
+      foodId,
+      sourceKey: "bach_hoa_xanh",
+      region: "ho_chi_minh",
+      currency: "VND",
+      packGrams: 500,
+      regularPriceVnd: 50_000,
+      sourceUrl: "https://www.bachhoaxanh.com/thit-ga/uc-ga",
+      observedAt: new Date(),
+      _stagingAiCatalogRollout: { managed: true, priorState: { mode: "inserted" } },
+    });
+
+    const [foods, foodDetail, prices, update] = await Promise.all([
+      request(app).get("/api/foods?all=true"),
+      request(app).get(`/api/foods/${foodId}`),
+      withAuth(request(app).get(`/api/foods/${foodId}/prices`), adminToken),
+      withAuth(
+        request(app).put(`/api/foods/${foodId}`).send({ label: "Food staging rollout updated" }),
+        adminToken,
+      ),
+    ]);
+
+    expect({
+      foodMarker: foods.body.data[0]._stagingAiCatalogRollout,
+      foodFixture: foods.body.data[0]._testCatalogFixture,
+      detailMarker: foodDetail.body.data._stagingAiCatalogRollout,
+      updateStatus: update.status,
+      updateMarker: update.body.data._stagingAiCatalogRollout,
+      updateFixture: update.body.data._testCatalogFixture,
+      priceMarker: prices.body.data[0]._stagingAiCatalogRollout,
+    }).toEqual({
+      foodMarker: undefined,
+      foodFixture: undefined,
+      detailMarker: undefined,
+      updateStatus: 200,
+      updateMarker: undefined,
+      updateFixture: undefined,
+      priceMarker: undefined,
+    });
+  });
+
   test("rejects a price source outside the retailer allowlist", async () => {
     const food = await Food.create({ ...FOOD_PAYLOAD, label: "Giá sai nguồn" });
     const response = await withAuth(

@@ -3,6 +3,7 @@ import { SEARCH_INDEX_EXERCISES } from "../../../../client/src/seo/searchIndexCo
 import {
   PLAN_043_FIXTURE_KEY,
   STAGING_SEARCH_COHORT_FIXTURE_KEY,
+  STAGING_SEARCH_COHORT_MONGO_CONNECT_OPTIONS,
   STAGING_SEARCH_INDEX_EXERCISES,
   applyStagingSearchIndexCohortPlan,
   buildStagingSearchIndexCohortPlan,
@@ -27,6 +28,13 @@ const validStagingEnvironment = () => ({
 });
 const authorize = (argv, env = validStagingEnvironment()) =>
   validateStagingSearchIndexCohortAuthorization({ argv, env });
+
+it("disables implicit Mongo DDL for search cohort preflight", () => {
+  expect(STAGING_SEARCH_COHORT_MONGO_CONNECT_OPTIONS).toEqual({
+    autoIndex: false,
+    autoCreate: false,
+  });
+});
 const instruction = (position) => ({
   title: `Bước ${position}`,
   description:
@@ -234,6 +242,12 @@ describe("staging Search cohort run seam", () => {
       now: NOW,
     });
     expect(result.mode).toBe("preflight");
+    expect(result.writes).toHaveLength(13);
+    expect(result.writes.every((write) =>
+      Object.keys(write).every((key) =>
+        ["type", "id", "name", "originalName", "displacedName", "replacementId"].includes(key),
+      ),
+    )).toBe(true);
     expect(applyPlan).not.toHaveBeenCalled();
     expect(dependencies.disconnect).toHaveBeenCalledOnce();
   });

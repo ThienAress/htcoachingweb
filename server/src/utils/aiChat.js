@@ -19,6 +19,54 @@ const PAGE_TYPES = new Set([
   "customer_story",
 ]);
 
+const TDEE_ACTION_REQUIRED_FIELDS = [
+  "gender",
+  "age",
+  "heightCm",
+  "weightKg",
+  "dailyMovement",
+  "steps",
+  "trainingFrequency",
+  "trainingDuration",
+  "trainingIntensity",
+  "goal",
+];
+const TDEE_ACTION_ALLOWED_FIELDS = new Set([
+  ...TDEE_ACTION_REQUIRED_FIELDS,
+  "calorieAdjustment",
+]);
+const TDEE_ACTION_ENUMS = {
+  gender: new Set(["male", "female"]),
+  dailyMovement: new Set([
+    "mostly_seated",
+    "mixed",
+    "mostly_moving",
+    "physical_work",
+  ]),
+  steps: new Set([
+    "under_5000",
+    "between_5000_7999",
+    "between_8000_11999",
+    "at_least_12000",
+  ]),
+  trainingFrequency: new Set(["none", "one_two", "three_four", "five_plus"]),
+  trainingDuration: new Set([
+    "none",
+    "under_30",
+    "between_30_45",
+    "between_45_60",
+    "over_60",
+  ]),
+  trainingIntensity: new Set(["none", "easy", "moderate", "vigorous"]),
+  goal: new Set(["fat_loss", "maintenance", "muscle_gain"]),
+};
+const TDEE_ACTION_NUMERIC_LIMITS = {
+  age: [13, 100],
+  heightCm: [100, 250],
+  weightKg: [20, 350],
+  calorieAdjustment: [-1500, 1500],
+};
+
 const boundedString = (value, maxLength) => {
   if (typeof value !== "string") return "";
   return value.trim().slice(0, maxLength);
@@ -48,6 +96,73 @@ const sanitizeMetrics = (metrics) => {
   }
 
   return Object.keys(result).length > 0 ? result : null;
+};
+
+const parseStructuredAction = (rawAction) => {
+  if (rawAction === undefined || rawAction === null) return { value: null };
+  if (
+    !rawAction ||
+    typeof rawAction !== "object" ||
+    Array.isArray(rawAction) ||
+    rawAction.type !== "calculate_tdee"
+  ) {
+    return { error: "Hành động có cấu trúc không được hỗ trợ" };
+  }
+  if (Object.keys(rawAction).some((key) => !["type", "payload"].includes(key))) {
+    return { error: "Dữ liệu TDEE có cấu trúc không hợp lệ" };
+  }
+
+  const payload = rawAction.payload;
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    return { error: "Dữ liệu TDEE có cấu trúc không hợp lệ" };
+  }
+  if (Object.keys(payload).some((key) => !TDEE_ACTION_ALLOWED_FIELDS.has(key))) {
+    return { error: "Dữ liệu TDEE có cấu trúc không hợp lệ" };
+  }
+  if (TDEE_ACTION_REQUIRED_FIELDS.some((field) => payload[field] == null)) {
+    return { error: "Dữ liệu TDEE có cấu trúc không hợp lệ" };
+  }
+
+  for (const [field, values] of Object.entries(TDEE_ACTION_ENUMS)) {
+    if (!values.has(payload[field])) {
+      return { error: "Dữ liệu TDEE có cấu trúc không hợp lệ" };
+    }
+  }
+  for (const [field, [min, max]] of Object.entries(TDEE_ACTION_NUMERIC_LIMITS)) {
+    if (payload[field] === undefined) continue;
+    if (
+      typeof payload[field] !== "number" ||
+      !Number.isFinite(payload[field]) ||
+      payload[field] < min ||
+      payload[field] > max ||
+      (field === "age" && !Number.isInteger(payload[field]))
+    ) {
+      return { error: "Dữ liệu TDEE có cấu trúc không hợp lệ" };
+    }
+  }
+
+  const noTraining = payload.trainingFrequency === "none";
+  if (
+    (noTraining &&
+      (payload.trainingDuration !== "none" ||
+        payload.trainingIntensity !== "none")) ||
+    (!noTraining &&
+      (payload.trainingDuration === "none" ||
+        payload.trainingIntensity === "none"))
+  ) {
+    return { error: "Dữ liệu TDEE có cấu trúc không hợp lệ" };
+  }
+
+  return {
+    value: {
+      type: "calculate_tdee",
+      payload: Object.fromEntries(
+        [...TDEE_ACTION_ALLOWED_FIELDS]
+          .filter((field) => payload[field] !== undefined)
+          .map((field) => [field, payload[field]]),
+      ),
+    },
+  };
 };
 
 const validateImage = (image) => {
@@ -85,6 +200,13 @@ export function parseChatRequest(body = {}) {
     return { error: "Mã cuộc trò chuyện không hợp lệ" };
   }
 
+  if (body.retryOfMessageId && !mongoose.isValidObjectId(body.retryOfMessageId)) {
+    return { error: "Mã tin nhắn retry không hợp lệ" };
+  }
+  if (body.retryOfMessageId && !body.conversationId) {
+    return { error: "Retry cần mã cuộc trò chuyện" };
+  }
+
   if (body.requestId && !UUID_V4_PATTERN.test(body.requestId)) {
     return { error: "Mã yêu cầu chat không hợp lệ" };
   }
@@ -100,6 +222,9 @@ export function parseChatRequest(body = {}) {
   } catch (error) {
     return { error: error.message };
   }
+
+  const structuredAction = parseStructuredAction(body.structuredAction);
+  if (structuredAction.error) return { error: structuredAction.error };
 
   const context = {};
   for (const [key, maxLength] of [
@@ -122,9 +247,11 @@ export function parseChatRequest(body = {}) {
     value: {
       message,
       conversationId: body.conversationId || null,
+      retryOfMessageId: body.retryOfMessageId || null,
       requestId: body.requestId || crypto.randomUUID(),
       context,
       image,
+      structuredAction: structuredAction.value,
     },
   };
 }

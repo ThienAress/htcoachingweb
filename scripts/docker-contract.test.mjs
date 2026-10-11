@@ -16,9 +16,25 @@ test("backend image pins its runtime and runs non-root", async () => {
 
   assert.equal(
     dockerfile.split(pinnedBase).length - 1,
-    2,
-    "dependency and runtime stages must use the same immutable base",
+    1,
+    "the shared security base must use the immutable Node image",
   );
+  assert.match(
+    dockerfile,
+    new RegExp(`^FROM ${pinnedBase.replaceAll(".", "\\.")} AS security-base$`, "m"),
+  );
+  const securityBase = dockerfile.slice(
+    0,
+    dockerfile.indexOf("FROM security-base AS production-dependencies"),
+  );
+  assert.match(securityBase, /apt-get update/);
+  assert.match(
+    securityBase,
+    /apt-get install -y --no-install-recommends --only-upgrade perl-base=5\.36\.0-7\+deb12u4/,
+  );
+  assert.match(securityBase, /rm -rf \/var\/lib\/apt\/lists\/\*/);
+  assert.match(dockerfile, /^FROM security-base AS production-dependencies$/m);
+  assert.match(dockerfile, /^FROM security-base AS runtime$/m);
   assert.match(dockerfile, /npm ci --omit=dev/);
   assert.match(dockerfile, /\/opt\/yarn-v\*/);
   assert.match(dockerfile, /COPY --chown=node:node/);

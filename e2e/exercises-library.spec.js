@@ -64,6 +64,11 @@ test.describe("exercise library-first experience", () => {
 
     await page.getByRole("link", { name: "Quay lại thư viện" }).click();
 
+    await expect(page).toHaveURL(/\/exercises\/?$/);
+    await expect(page.getByRole("dialog", {
+      name: /Bản xem thử chuyển động/,
+    })).toHaveCount(0);
+
     await page.getByRole("button", { name: "Tạo lịch tập PDF" }).click();
     await expect(page.locator('[data-workout-planner="true"]')).toBeVisible();
     await expect(page.locator('[data-exercise-library="true"]')).toHaveCount(0);

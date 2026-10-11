@@ -10,10 +10,155 @@ beforeEach(resetMetricsForTests);
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+  vi.unstubAllEnvs();
   delete process.env.GEMINI_API_KEY;
+  delete process.env.GEMINI_SEARCH_MODEL;
 });
 
 describe("Google grounding source boundary", () => {
+  it("rejects an incomplete production opt-in before Gemini or Brave egress", async () => {
+    vi.stubEnv("AI_PROVIDER", "gemini");
+    vi.stubEnv("APP_ENV", "production");
+    vi.stubEnv("AI_PRODUCTION_PROVIDER_PROFILE", "vibi");
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    await expect(searchKnowledge({ query: "latest sports news" }))
+      .rejects.toMatchObject({ code: "DEEPSEEK_PRODUCTION_CONFIG_INVALID" });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+  it("fails closed for web search during the DeepSeek trial without egress", async () => {
+    const env = {
+      [ ["DEEP", "SEEK", "_API_KEY"].join("") ]: "d".repeat(32),
+      APP_ENV: "staging", AI_PROVIDER: "deepseek", AI_STAGING_PROVIDER_TRIAL: "deepseek",
+      AI_KB_RETRIEVAL_MODE: "llm_selection", DEEPSEEK_MODEL: "deepseek-flash",
+      MONGO_URI: "mongodb://localhost/htcoaching_staging",
+      CLIENT_URL: "https://staging--htcoachingweb.netlify.app", PUBLIC_API_ORIGIN: "https://htcoachingweb-staging.onrender.com",
+      ALLOWED_ORIGINS: "https://staging--htcoachingweb.netlify.app", BACKGROUND_JOBS_ENABLED: "false",
+      EMAIL_DELIVERY_MODE: "disabled", F1_RETENTION_ENFORCE: "false",
+    };
+    for (const [key, value] of Object.entries(env)) vi.stubEnv(key, value);
+    const fetchMock = vi.fn(); vi.stubGlobal("fetch", fetchMock);
+    const result = await searchKnowledge({ query: "tin tức thể thao mới nhất" });
+    expect({ outcome: result.meta.searchOutcome, diagnostic: result.meta.diagnosticCode,
+      providerRequestMade: result.meta.providerRequestMade, calls: fetchMock.mock.calls.length })
+      .toEqual({ outcome: "not_called", diagnostic: "unsupported_capability", providerRequestMade: false, calls: 0 });
+  });
+  it("enforces generic identity scope on grounded output before selecting source links", async () => {
+    process.env.GEMINI_API_KEY = "test-key";
+    const claims = [
+      "Anh đang chơi cho câu lạc bộ Al Nassr.",
+      "Anh đã ghi hơn 950 bàn thắng.",
+      "Anh giành được 5 Quả bóng vàng.",
+      "Cristiano Ronaldo, còn được gọi là CR7, là cầu thủ bóng đá người Bồ Đào Nha.",
+      "Anh được biết đến với khả năng dứt điểm và kỹ thuật chơi bóng.",
+    ];
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({
+      candidates: [{
+        content: { parts: [{ text: claims.join("\n") }] },
+        groundingMetadata: {
+          groundingChunks: claims.map((_, index) => ({ web: {
+            title: "Public profile", uri: `https://public.example/profile-${Math.min(index, 3)}`,
+          } })),
+          groundingSupports: claims.map((text, index) => ({
+            segment: { text }, groundingChunkIndices: [index],
+          })),
+        },
+      }],
+    }), { status: 200 })));
+
+    const result = await searchKnowledge({ query: "Cristiano Ronaldo là ai? Dựa trên nguồn công khai cập nhật, hãy trả lời có nguồn." },
+      { allowedPublicPersonNames: ["Cristiano Ronaldo"] });
+
+    expect({
+      identity: result.text.includes(claims[3]), stableContribution: result.text.includes(claims[4]),
+      unsolicited: claims.slice(0, 3).some(claim => result.text.includes(claim)),
+      outcome: result.meta.searchOutcome, sources: result.meta.sources.map(source => source.uri),
+      links: result.text.match(/\]\(<https:/g)?.length,
+    }).toEqual({ identity: true, stableContribution: true, unsolicited: false,
+      outcome: "grounded", sources: ["https://public.example/profile-3"], links: 1 });
+  });
+
+  it("keeps explicitly requested statistics in the grounded answer", async () => {
+    process.env.GEMINI_API_KEY = "test-key";
+    const claim = "Theo nguồn này, anh đã ghi hơn 950 bàn thắng.";
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({
+      candidates: [{ content: { parts: [{ text: claim }] }, groundingMetadata: {
+        groundingChunks: [{ web: { title: "Statistics", uri: "https://public.example/statistics" } }],
+        groundingSupports: [{ segment: { text: claim }, groundingChunkIndices: [0] }],
+      } }],
+    }), { status: 200 })));
+
+    const result = await searchKnowledge({ query: "Cristiano Ronaldo là ai và ghi bao nhiêu bàn thắng?" },
+      { allowedPublicPersonNames: ["Cristiano Ronaldo"] });
+    expect(result.text).toContain(claim);
+  });
+
+  it("keeps only supported identity sentences within the sentence limit", async () => {
+    process.env.GEMINI_API_KEY = "test-key";
+    const unsupported = "Một nhận diện không có nguồn. Một vai trò không có nguồn. Một đóng góp không có nguồn.";
+    const supported = "Cristiano Ronaldo là cầu thủ bóng đá người Bồ Đào Nha. Anh được biết đến với khả năng dứt điểm. Anh còn được gọi là CR7. Anh sinh năm 1985.";
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({
+      candidates: [{ content: { parts: [{ text: `${unsupported}\n${supported}` }] }, groundingMetadata: {
+        groundingChunks: [{ web: { title: "Public biography", uri: "https://public.example/ronaldo" } }],
+        groundingSupports: [
+          { segment: { text: unsupported }, groundingChunkIndices: [99] },
+          { segment: { text: supported }, groundingChunkIndices: [0] },
+        ],
+      } }],
+    }), { status: 200 })));
+
+    const result = await searchKnowledge({ query: "Cristiano Ronaldo là ai?" },
+      { allowedPublicPersonNames: ["Cristiano Ronaldo"] });
+    expect(result.text).toBe("Cristiano Ronaldo là cầu thủ bóng đá người Bồ Đào Nha. Anh được biết đến với khả năng dứt điểm. Anh còn được gọi là CR7.\n\n📎 *Nguồn: [Public biography (public.example)](<https://public.example/ronaldo>)*");
+  });
+
+  it("keeps a public identity query unchanged and requests a concise grounded answer without unsolicited statistics", async () => {
+    process.env.GEMINI_API_KEY = "test-key";
+    const query = "Cristiano Ronaldo là ai? Dựa trên nguồn công khai cập nhật, hãy trả lời có nguồn.";
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({
+      candidates: [{ content: { parts: [{ text: "No supported claim." }] } }],
+    }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await searchKnowledge({ query }, { allowedPublicPersonNames: ["Cristiano Ronaldo"] });
+
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect({
+      query: body.contents[0].parts[0].text,
+      instruction: body.systemInstruction.parts[0].text,
+      providerCalls: fetchMock.mock.calls.length,
+    }).toEqual({ query, instruction: expect.stringMatching(/2–3 câu[\s\S]*Không tự thêm tuổi/), providerCalls: 1 });
+  });
+
+  it("cites a source once across supported segments while retaining each supported claim", async () => {
+    process.env.GEMINI_API_KEY = "test-key";
+    const first = "Vận động đều đặn có lợi cho sức khỏe.";
+    const second = "Tăng dần thời lượng theo khả năng.";
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({
+      candidates: [{
+        content: { parts: [{ text: `${first}\n${second}\nUnsupported claim.` }] },
+        groundingMetadata: {
+          groundingChunks: [{ web: { title: "Guide", uri: "https://who.int/guide" } }],
+          groundingSupports: [
+            { segment: { text: first }, groundingChunkIndices: [0, 0] },
+            { segment: { text: second }, groundingChunkIndices: [0] },
+          ],
+        },
+      }],
+    }), { status: 200 })));
+
+    const result = await searchKnowledge({ query: "WHO physical activity guidance" });
+
+    expect({
+      firstClaim: result.text.includes(first),
+      secondClaim: result.text.includes(second),
+      ungroundedClaim: result.text.includes("Unsupported claim"),
+      sourceLinks: result.text.match(/\]\(<https:\/\/who.int\/guide>\)/g)?.length,
+      sourceCount: result.meta.sourceCount,
+    }).toEqual({ firstClaim: true, secondClaim: true, ungroundedClaim: false, sourceLinks: 1, sourceCount: 1 });
+  });
+
   it("shows the actual source host alongside an untrusted publisher title", async () => {
     process.env.GEMINI_API_KEY = "test-key";
     vi.stubGlobal(
@@ -47,6 +192,19 @@ describe("Google grounding source boundary", () => {
     expect(result.text).toContain(
       "[World Health Organization (evil.example)](<https://evil.example/phish>)",
     );
+    expect(result.uiCard).toMatchObject({
+      cardType: "webSources",
+      data: {
+        topic: "fitness research",
+        searchedAt: expect.any(String),
+        sources: [
+          {
+            title: "World Health Organization (evil.example)",
+            uri: "https://evil.example/phish",
+          },
+        ],
+      },
+    });
   });
 
   it("does not render a provider-authored link or URL from a supported segment", async () => {
@@ -153,7 +311,13 @@ describe("Google grounding source boundary", () => {
 
     expect(result).toMatchObject({
       text: expect.stringMatching(/chưa tìm thấy nguồn/i),
-      meta: { evidenceAvailable: false, sourceCount: 0, sources: [] },
+      uiCard: null,
+      meta: {
+        evidenceAvailable: false,
+        sourceCount: 0,
+        sources: [],
+        searchOutcome: "no_supported_source",
+      },
     });
   });
 
@@ -213,6 +377,9 @@ describe("Google grounding source boundary", () => {
     expect(result.meta).toEqual({
       evidenceAvailable: true,
       sourceCount: 1,
+      searchOutcome: "grounded",
+      diagnosticCode: "grounded",
+      providerRequestMade: true,
       sources: [
         {
           title: "Trusted \\[source\\] txt.exe (example.com)",
@@ -237,6 +404,7 @@ describe("Google grounding source boundary", () => {
 
   it("counts a rejected grounding request without logging its query", async () => {
     process.env.GEMINI_API_KEY = "test-key";
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
     vi.stubGlobal(
       "fetch",
       vi.fn(async () =>
@@ -261,7 +429,13 @@ describe("Google grounding source boundary", () => {
 
     expect(result).toMatchObject({
       text: expect.stringMatching(/không thể xác minh/i),
-      meta: { evidenceAvailable: false, sourceCount: 0 },
+      meta: {
+        evidenceAvailable: false,
+        sourceCount: 0,
+        searchOutcome: "provider_error",
+        diagnosticCode: "upstream_error",
+        providerRequestMade: true,
+      },
     });
     expect(result.text).not.toMatch(/kiến thức có sẵn|hỏi trực tiếp/i);
     expect(getMetricsSnapshot().counters).toMatchObject({
@@ -270,6 +444,179 @@ describe("Google grounding source boundary", () => {
       "provider.gemini_search_grounding_prompt_tokens": 5,
       "provider.gemini_search_grounding_output_tokens": 1,
       "provider.gemini_search_grounding_total_tokens": 6,
+      "provider.gemini_search_grounding_upstream_error": 1,
+    });
+    expect(JSON.stringify(warnSpy.mock.calls)).not.toContain(
+      "synthetic private query",
+    );
+  });
+
+  it("reports a missing provider configuration without making a Gemini request", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await searchKnowledge({ query: "fitness research" });
+
+    expect({
+      providerCalls: fetchMock.mock.calls.length,
+      meta: result.meta,
+      counters: getMetricsSnapshot().counters,
+    }).toMatchObject({
+      providerCalls: 0,
+      meta: {
+        searchOutcome: "provider_error",
+        diagnosticCode: "not_configured",
+        providerRequestMade: false,
+      },
+      counters: {
+        "provider.gemini_search_grounding_requests": 0,
+        "provider.gemini_search_grounding_not_configured": 1,
+      },
+    });
+  });
+
+  it.each([
+    [400, "request_rejected", "provider.gemini_search_grounding_request_rejected"],
+    [404, "request_rejected", "provider.gemini_search_grounding_request_rejected"],
+    [401, "permission_denied", "provider.gemini_search_grounding_permission_denied"],
+    [403, "permission_denied", "provider.gemini_search_grounding_permission_denied"],
+    [429, "rate_limited", "provider.gemini_search_grounding_rate_limited"],
+    [502, "upstream_error", "provider.gemini_search_grounding_upstream_error"],
+    [422, "http_error", "provider.gemini_search_grounding_http_error"],
+  ])(
+    "classifies HTTP %i without exposing provider details",
+    async (status, diagnosticCode, metricName) => {
+      process.env.GEMINI_API_KEY = "test-key";
+      vi.spyOn(console, "warn").mockImplementation(() => {});
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async () =>
+          new Response('{"error":{"message":"synthetic provider detail"}}', {
+            status,
+            headers: { "Content-Type": "application/json" },
+          }),
+        ),
+      );
+
+      const result = await searchKnowledge({ query: "fitness research" });
+      const counters = getMetricsSnapshot().counters;
+
+      expect({
+        textLeaksProviderDetail: result.text.includes("synthetic provider detail"),
+        meta: result.meta,
+        requestCount: counters["provider.gemini_search_grounding_requests"],
+        failureCount: counters["provider.gemini_search_grounding_failed"],
+        dispositionCount: counters[metricName],
+      }).toEqual({
+        textLeaksProviderDetail: false,
+        meta: {
+          evidenceAvailable: false,
+          sourceCount: 0,
+          sources: [],
+          searchOutcome: "provider_error",
+          diagnosticCode,
+          providerRequestMade: true,
+        },
+        requestCount: 1,
+        failureCount: 1,
+        dispositionCount: 1,
+      });
+    },
+  );
+
+  it("classifies a network failure and never logs the query", async () => {
+    process.env.GEMINI_API_KEY = "test-key";
+    const query = "synthetic query that must stay private";
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw new TypeError(`network failure for ${query}`);
+      }),
+    );
+
+    const result = await searchKnowledge({ query });
+
+    expect({
+      meta: result.meta,
+      queryLeaked: JSON.stringify(warnSpy.mock.calls).includes(query),
+      counters: getMetricsSnapshot().counters,
+    }).toMatchObject({
+      meta: {
+        searchOutcome: "provider_error",
+        diagnosticCode: "network_error",
+        providerRequestMade: true,
+      },
+      queryLeaked: false,
+      counters: {
+        "provider.gemini_search_grounding_failed": 1,
+        "provider.gemini_search_grounding_network_error": 1,
+      },
+    });
+  });
+
+  it("classifies a successful HTTP response with invalid JSON", async () => {
+    process.env.GEMINI_API_KEY = "test-key";
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        new Response("not-json", {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      ),
+    );
+
+    const result = await searchKnowledge({ query: "fitness research" });
+
+    expect({
+      meta: result.meta,
+      counters: getMetricsSnapshot().counters,
+    }).toMatchObject({
+      meta: {
+        searchOutcome: "provider_error",
+        diagnosticCode: "invalid_response",
+        providerRequestMade: true,
+      },
+      counters: {
+        "provider.gemini_search_grounding_failed": 1,
+        "provider.gemini_search_grounding_invalid_response": 1,
+      },
+    });
+  });
+
+  it("records an aborted grounding request before propagating cancellation", async () => {
+    process.env.GEMINI_API_KEY = "test-key";
+    const controller = new AbortController();
+    controller.abort(new Error("synthetic abort"));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw controller.signal.reason;
+      }),
+    );
+    let caught;
+
+    try {
+      await searchKnowledge(
+        { query: "fitness research" },
+        { signal: controller.signal },
+      );
+    } catch (error) {
+      caught = error;
+    }
+
+    expect({
+      caught: caught?.message,
+      counters: getMetricsSnapshot().counters,
+    }).toMatchObject({
+      caught: "synthetic abort",
+      counters: {
+        "provider.gemini_search_grounding_requests": 1,
+        "provider.gemini_search_grounding_failed": 1,
+        "provider.gemini_search_grounding_aborted": 1,
+      },
     });
   });
 
@@ -311,12 +658,17 @@ describe("Google grounding source boundary", () => {
     );
 
     const requestBody = JSON.parse(fetchMock.mock.calls[0][1].body);
-    expect(requestBody.systemInstruction.parts[0].text).toMatch(
-      /bằng chứng web công khai[\s\S]*mọi chủ đề an toàn/i,
-    );
-    expect(requestBody.systemInstruction.parts[0].text).not.toMatch(
-      /trợ lý tra cứu thông tin fitness/i,
-    );
+    expect({
+      instruction: requestBody.systemInstruction.parts[0].text,
+      tools: requestBody.tools,
+      mapsToolPresent: JSON.stringify(requestBody.tools).includes("googleMaps"),
+    }).toEqual({
+      instruction: expect.stringMatching(
+        /bằng chứng web công khai[\s\S]*mọi chủ đề an toàn/i,
+      ),
+      tools: [{ googleSearch: {} }],
+      mapsToolPresent: false,
+    });
   });
 
   it("marks a source-free answer as unavailable evidence", async () => {
@@ -340,7 +692,13 @@ describe("Google grounding source boundary", () => {
 
     expect(result).toMatchObject({
       text: expect.stringMatching(/chưa tìm thấy nguồn/i),
-      meta: { evidenceAvailable: false, sourceCount: 0 },
+      meta: {
+        evidenceAvailable: false,
+        sourceCount: 0,
+        searchOutcome: "no_supported_source",
+        diagnosticCode: "no_supported_source",
+        providerRequestMade: true,
+      },
     });
   });
 
@@ -379,7 +737,12 @@ describe("Google grounding source boundary", () => {
 
     expect(result).toMatchObject({
       text: expect.stringMatching(/chưa tìm thấy nguồn/i),
-      meta: { evidenceAvailable: false, sourceCount: 0, sources: [] },
+      meta: {
+        evidenceAvailable: false,
+        sourceCount: 0,
+        sources: [],
+        searchOutcome: "no_supported_source",
+      },
     });
   });
 
@@ -446,9 +809,26 @@ describe("Google grounding source boundary", () => {
     expect({
       providerCalls: fetchMock.mock.calls.length,
       evidence: result.meta,
+      requestCount:
+        getMetricsSnapshot().counters[
+          "provider.gemini_search_grounding_requests"
+        ],
+      privacyBlockedCount:
+        getMetricsSnapshot().counters[
+          "provider.gemini_search_grounding_privacy_blocked"
+        ],
     }).toEqual({
       providerCalls: 0,
-      evidence: { evidenceAvailable: false, sourceCount: 0, sources: [] },
+      evidence: {
+        evidenceAvailable: false,
+        sourceCount: 0,
+        sources: [],
+        searchOutcome: "not_called",
+        diagnosticCode: "privacy_blocked",
+        providerRequestMade: false,
+      },
+      requestCount: 0,
+      privacyBlockedCount: 1,
     });
   });
 
@@ -494,7 +874,14 @@ describe("Google grounding source boundary", () => {
       evidence: result.meta,
     }).toEqual({
       providerCalled: 0,
-      evidence: { evidenceAvailable: false, sourceCount: 0, sources: [] },
+      evidence: {
+        evidenceAvailable: false,
+        sourceCount: 0,
+        sources: [],
+        searchOutcome: "not_called",
+        diagnosticCode: "privacy_blocked",
+        providerRequestMade: false,
+      },
     });
   });
 
@@ -512,7 +899,14 @@ describe("Google grounding source boundary", () => {
       evidence: result.meta,
     }).toEqual({
       providerCalled: 0,
-      evidence: { evidenceAvailable: false, sourceCount: 0, sources: [] },
+      evidence: {
+        evidenceAvailable: false,
+        sourceCount: 0,
+        sources: [],
+        searchOutcome: "not_called",
+        diagnosticCode: "privacy_blocked",
+        providerRequestMade: false,
+      },
     });
   });
 
@@ -549,7 +943,14 @@ describe("Google grounding source boundary", () => {
         evidence: result.meta,
       }).toEqual({
         providerCalled: 0,
-        evidence: { evidenceAvailable: false, sourceCount: 0, sources: [] },
+        evidence: {
+          evidenceAvailable: false,
+          sourceCount: 0,
+          sources: [],
+          searchOutcome: "not_called",
+          diagnosticCode: "privacy_blocked",
+          providerRequestMade: false,
+        },
       });
     },
   );

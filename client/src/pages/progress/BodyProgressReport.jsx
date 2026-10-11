@@ -161,7 +161,9 @@ const HistoryTable = ({ history, selfManaged = false }) => (
             {history.map((row) => (
               <tr key={row.dateKey} className="border-b border-slate-900">
                 <td className="px-3 py-3 text-slate-300">
-                  <time dateTime={row.dateKey}>{formatDate(row.dateKey)}</time>
+                  <time dateTime={row.periodStartDateKey || row.dateKey}>
+                    {formatDate(row.periodStartDateKey || row.dateKey)}
+                  </time>
                 </td>
                 {METRICS.map(({ key, unit }) => (
                   <td
