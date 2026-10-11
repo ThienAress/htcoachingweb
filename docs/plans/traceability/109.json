@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "planId": "109",
+  "specPath": "docs/specs/acid-financial-integrity-hardening.md",
+  "planPath": "docs/plans/109-harden-financial-consistency-and-recovery.md",
+  "tasks": [
+    { "id": "TASK-001", "title": "Serialize ambiguous SePay settlement", "planStep": "Step 1" },
+    { "id": "TASK-002", "title": "Make Contract lifecycle revision-aware", "planStep": "Step 2" },
+    { "id": "TASK-003", "title": "Add fenced signing recovery", "planStep": "Step 3" },
+    { "id": "TASK-004", "title": "Enforce Mongo durability options", "planStep": "Step 4" },
+    { "id": "TASK-005", "title": "Reconcile wallets from a bounded snapshot", "planStep": "Step 5" },
+    { "id": "TASK-006", "title": "Integrate, review and verify", "planStep": "Step 6" }
+  ],
+  "requirements": [
+    {
+      "id": "REQ-001",
+      "acceptanceCriteria": [
+        { "id": "AC-001", "mustHave": true, "taskIds": ["TASK-001"], "verifications": [{ "type": "command", "command": "cd server && npx vitest run src/services/__tests__/sepayReconciliation.test.js src/services/__tests__/bankTransactionSettlementConcurrency.test.js" }] },
+        { "id": "AC-002", "mustHave": true, "taskIds": ["TASK-001"], "verifications": [{ "type": "command", "command": "cd server && npx vitest run src/controllers/__tests__/sepayWebhook.integration.test.js src/migrations/__tests__/sepayWalletIndexes.test.js" }] }
+      ]
+    },
+    {
+      "id": "REQ-002",
+      "acceptanceCriteria": [
+        { "id": "AC-003", "mustHave": true, "taskIds": ["TASK-002"], "verifications": [{ "type": "command", "command": "cd server && npx vitest run src/controllers/__tests__/contractLifecycleConcurrency.integration.test.js" }] },
+        { "id": "AC-004", "mustHave": true, "taskIds": ["TASK-002"], "verifications": [{ "type": "command", "command": "cd client && npx vitest run src/services/__tests__/contract.service.test.js src/pages/admin/__tests__/ContractEditModal.test.jsx" }] }
+      ]
+    },
+    {
+      "id": "REQ-003",
+      "acceptanceCriteria": [
+        { "id": "AC-005", "mustHave": true, "taskIds": ["TASK-003"], "verifications": [{ "type": "command", "command": "cd server && npx vitest run src/controllers/__tests__/contractHandwrittenSigning.integration.test.js src/services/__tests__/contractSigningRecovery.integration.test.js" }] },
+        { "id": "AC-006", "mustHave": true, "taskIds": ["TASK-003"], "verifications": [{ "type": "command", "command": "cd server && npx vitest run src/operations/__tests__/contractGridFsRestoreVerifier.test.js" }] }
+      ]
+    },
+    {
+      "id": "REQ-004",
+      "acceptanceCriteria": [
+        { "id": "AC-007", "mustHave": true, "taskIds": ["TASK-004"], "verifications": [{ "type": "command", "command": "cd server && npx vitest run src/config/__tests__/mongoConnectionOptions.test.js src/config/__tests__/productionReadiness.test.js" }] },
+        { "id": "AC-008", "mustHave": true, "taskIds": ["TASK-004", "TASK-006"], "verifications": [{ "type": "command", "command": "npm run audit:backup-readiness" }] }
+      ]
+    },
+    {
+      "id": "REQ-005",
+      "acceptanceCriteria": [
+        { "id": "AC-009", "mustHave": true, "taskIds": ["TASK-005"], "verifications": [{ "type": "command", "command": "cd server && npx vitest run src/services/__tests__/walletReconciliation.integration.test.js" }] },
+        { "id": "AC-010", "mustHave": true, "taskIds": ["TASK-005"], "verifications": [{ "type": "command", "command": "cd server && npx vitest run src/services/__tests__/walletReconciliation.service.test.js" }] }
+      ]
+    },
+    {
+      "id": "REQ-006",
+      "acceptanceCriteria": [
+        { "id": "AC-011", "mustHave": true, "taskIds": ["TASK-006"], "verifications": [{ "type": "command", "command": "npm run test:unit:server" }, { "type": "command", "command": "npm run security:secrets" }, { "type": "command", "command": "npm run security:data-boundaries" }, { "type": "command", "command": "git diff --check" }] }
+      ]
+    }
+  ]
+}

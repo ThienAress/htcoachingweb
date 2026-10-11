@@ -1,5 +1,6 @@
 import "../config/env.js";
 import mongoose from "mongoose";
+import { resolveMongoConnectionOptions } from "../config/mongoConnectionOptions.js";
 import { assertStagingOperation } from "../config/stagingOperationSafety.js";
 import BlogPost from "../models/BlogPost.js";
 import CustomerStory from "../models/CustomerStory.js";
@@ -454,7 +455,10 @@ const main = async () => {
       ? "CONFIRM_STAGING_CLEANUP"
       : "CONFIRM_STAGING_SEED",
   });
-  await mongoose.connect(process.env.MONGO_URI, { autoIndex: false });
+  await mongoose.connect(
+    process.env.MONGO_URI,
+    resolveMongoConnectionOptions({ durable: true, autoIndex: false }),
+  );
   ensureConnectedDatabase();
 
   if (cleanupMode) {

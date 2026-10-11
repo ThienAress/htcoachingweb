@@ -239,13 +239,14 @@ describe("contract handwritten signing", () => {
     const unsignedSend = await postAs(
       `/api/contracts/${contract._id}/send`,
       admin.accessToken,
+      { expectedRevision: 0 },
     );
     expect(unsignedSend.status).toBe(400);
 
     const updated = await withAuth(
       request(app)
         .put(`/api/contracts/${contract._id}`)
-        .send({ trainerSignature: SIGNATURE }),
+        .send({ trainerSignature: SIGNATURE, expectedRevision: 0 }),
       admin.accessToken,
     );
     expect(updated.status).toBe(200);
@@ -253,6 +254,7 @@ describe("contract handwritten signing", () => {
     const issued = await postAs(
       `/api/contracts/${contract._id}/send`,
       admin.accessToken,
+      { expectedRevision: 1 },
     );
     expect(issued.status).toBe(200);
     expect(issued.body.data.status).toBe("sent");

@@ -454,7 +454,7 @@ describe("trainer-scoped administration", () => {
     const updated = await withAuth(
       request(app)
         .put(`/api/contracts/${created.body.data?._id}`)
-        .send({ trainerInfo: { address: "Quận 1" } }),
+        .send({ trainerInfo: { address: "Quận 1" }, expectedRevision: created.body.data?.revision ?? 0 }),
       trainerA.accessToken,
     );
 

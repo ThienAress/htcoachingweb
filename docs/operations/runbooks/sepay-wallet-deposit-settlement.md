@@ -89,6 +89,11 @@ Apply cần `MIGRATION_TARGET_DATABASE`, confirmation migration, và production 
 cần backup snapshot/approval theo `migrationSafety.js`. Migration chỉ tạo index,
 không backfill hoặc sửa số dư.
 
+Plan 091 bổ sung `incoming_cross_channel_fingerprint` vào manifest migration
+hiện có. Đây là index **non-unique** trên provider/fingerprint/reference/status/source;
+rerun có guard chỉ tạo index thiếu, không merge incoming hoặc sửa lịch sử. Việc
+tạo artifact/test local không đồng nghĩa đã preflight/apply trên môi trường thật.
+
 ## Sandbox acceptance
 
 Staging giữ background jobs tắt. Sau khi cấu hình Sandbox và xác nhận target,
@@ -106,7 +111,8 @@ Test tối thiểu trước Live:
 
 1. Đúng mã + đúng tiền: cộng đúng một lần.
 2. Gửi lại cùng webhook: không cộng thêm.
-3. Hai giao dịch mô phỏng khác ID, cùng mã/số tiền: cộng hai lần.
+3. Hai giao dịch thật khác ID, cùng mã/số tiền: cộng hai lần nếu cùng source hoặc
+   có canonical reference khác nhau. Không coi fingerprint là immutable identity.
 4. Đúng mã + sai tiền: `needs_review`, ví không đổi.
 5. Sai/thiếu mã: `needs_review`, ví không đổi.
 6. Webhook lỗi rồi API v2 thấy giao dịch: reconciliation chỉ cộng một lần.
@@ -114,6 +120,11 @@ Test tối thiểu trước Live:
 8. Giao dịch sau `expiresAt + 24h`: chỉ review.
 9. Admin approve cộng số tiền ngân hàng thực nhận; replay không cộng lại.
 10. Admin reverse tạo ledger đối ứng cho đúng incoming transaction.
+11. Hai incoming khác source/ID, cùng fingerprint và đều thiếu canonical reference,
+    cùng `received` trước khi settle đồng thời: chỉ một credit; bản còn lại thành
+    `needs_review` / `POSSIBLE_CROSS_CHANNEL_DUPLICATE`. Peer đã `reversed` vẫn
+    chặn auto-credit bản sao. Admin xác minh giao dịch thật rồi dùng approve có audit;
+    không merge record hoặc tự sửa ledger lịch sử.
 
 Không dùng chuyển khoản thật để smoke test Sandbox.
 

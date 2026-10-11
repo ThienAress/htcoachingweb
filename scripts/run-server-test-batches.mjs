@@ -64,6 +64,8 @@ const run = () => {
 
   for (const [index, batch] of batches.entries()) {
     const reportPath = path.join(reportDirectory, `vitest-batch-${process.pid}-${index + 1}.json`);
+    const relativeReportPath = path.relative(repositoryRoot, reportPath).split(path.sep).join("/");
+    let shouldRemoveReport = false;
     process.stdout.write(`Server unit batch ${index + 1}/${batches.length}: ${batch.length} files\n`);
 
     try {
@@ -83,7 +85,13 @@ const run = () => {
         throw new Error(`Vitest batch ${index + 1} did not produce a report`);
       }
 
-      const summary = summarizeVitestReport(JSON.parse(readFileSync(reportPath, "utf8")));
+      let report;
+      try {
+        report = JSON.parse(readFileSync(reportPath, "utf8"));
+      } catch {
+        throw new Error(`Vitest batch ${index + 1} produced an unreadable JSON report`);
+      }
+      const summary = summarizeVitestReport(report);
       if (result.status !== 0 || !summary.success) {
         throw new Error(
           `Vitest batch ${index + 1} failed (exit=${result.status ?? "signal"}, failedTests=${summary.failedTests})`,
@@ -92,11 +100,16 @@ const run = () => {
 
       totals.files += summary.files;
       totals.tests += summary.tests;
+      shouldRemoveReport = true;
       process.stdout.write(
         `Server unit batch ${index + 1}/${batches.length}: PASS (${summary.files} files / ${summary.tests} tests)\n`,
       );
     } finally {
-      rmSync(reportPath, { force: true });
+      if (shouldRemoveReport) {
+        rmSync(reportPath, { force: true });
+      } else if (existsSync(reportPath)) {
+        process.stderr.write(`Vitest batch ${index + 1} report retained: ${relativeReportPath}\n`);
+      }
     }
   }
 

@@ -1,5 +1,6 @@
 import "../config/env.js";
 import mongoose from "mongoose";
+import { resolveMongoConnectionOptions } from "../config/mongoConnectionOptions.js";
 import {
   assertConnectedMigrationTarget,
   assertMigrationEnvironment,
@@ -44,7 +45,10 @@ const runFromCli = async () => {
   const authorization = assertMigrationEnvironment({
     confirmationVariable: "CONFIRM_PHASE4_INDEX_MIGRATION",
   });
-  await mongoose.connect(process.env.MONGO_URI, { autoIndex: false });
+  await mongoose.connect(
+    process.env.MONGO_URI,
+    resolveMongoConnectionOptions({ durable: true, autoIndex: false }),
+  );
   try {
     assertConnectedMigrationTarget(mongoose.connection, authorization);
     const created = await runPhase4IndexMigration();

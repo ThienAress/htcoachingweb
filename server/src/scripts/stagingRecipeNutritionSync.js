@@ -1,6 +1,7 @@
 import { pathToFileURL } from "node:url";
 
 import mongoose from "mongoose";
+import { resolveMongoConnectionOptions } from "../config/mongoConnectionOptions.js";
 
 import Recipe from "../models/Recipe.js";
 import { SEARCH_INDEX_RECIPE_SLUGS } from "../seo/recipeSearchIndexPolicy.js";
@@ -138,7 +139,8 @@ export const applyStagingRecipeNutritionPlan = async ({
 };
 
 const defaultDependencies = {
-  connect: (uri) => mongoose.connect(uri, { autoIndex: false }),
+  connect: (uri) =>
+    mongoose.connect(uri, resolveMongoConnectionOptions({ durable: true, autoIndex: false })),
   disconnect: () => mongoose.disconnect(),
   assertConnectedTarget: ({ targetDatabase }) => {
     if (mongoose.connection.name !== targetDatabase) {

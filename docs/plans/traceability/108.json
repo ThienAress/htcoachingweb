@@ -1,0 +1,178 @@
+{
+  "schemaVersion": 1,
+  "planId": "108",
+  "specPath": "docs/specs/sculpted-route-transition.md",
+  "planPath": "docs/plans/108-add-sculpted-route-transition.md",
+  "tasks": [
+    { "id": "TASK-001", "title": "Lock preview-only click contract", "planStep": "Step 1" },
+    { "id": "TASK-002", "title": "Render five-second sculpting loop", "planStep": "Step 2" },
+    { "id": "TASK-003", "title": "Review and verify", "planStep": "Step 3" },
+    { "id": "TASK-004", "title": "Revise continuous-body sculpting visual", "planStep": "Step 4" },
+    { "id": "TASK-005", "title": "Build approved static composition and layer architecture", "planStep": "Step 5" },
+    { "id": "TASK-006", "title": "Prepare nine animation states and visual targets", "planStep": "Step 6" },
+    { "id": "TASK-007", "title": "Animate the approved state architecture", "planStep": "Step 7" },
+    { "id": "TASK-008", "title": "Revert route integration to a looping preview", "planStep": "Step 8" }
+  ],
+  "requirements": [
+    {
+      "id": "REQ-001",
+      "acceptanceCriteria": [
+        {
+          "id": "AC-001",
+          "mustHave": true,
+          "taskIds": ["TASK-001"],
+          "verifications": [
+            { "type": "command", "command": "npm run test:unit:client" }
+          ]
+        },
+        {
+          "id": "AC-002",
+          "mustHave": true,
+          "taskIds": ["TASK-001"],
+          "verifications": [
+            { "type": "command", "command": "npm run test:unit:client" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "REQ-002",
+      "acceptanceCriteria": [
+        {
+          "id": "AC-003",
+          "mustHave": true,
+          "taskIds": ["TASK-002"],
+          "verifications": [
+            { "type": "command", "command": "npm run test:unit:client" },
+            { "type": "command", "command": "npm run lint --prefix client" }
+          ]
+        },
+        {
+          "id": "AC-004",
+          "mustHave": true,
+          "taskIds": ["TASK-002", "TASK-003"],
+          "verifications": [
+            { "type": "command", "command": "npm run ui:audit -- --baseline scripts/ui-audit/baseline.json --fail-on-new-high" },
+            { "type": "command", "command": "cd client && npx vite build" }
+          ]
+        },
+        {
+          "id": "AC-005",
+          "mustHave": true,
+          "taskIds": ["TASK-004"],
+          "verifications": [
+            { "type": "command", "command": "npm run test:unit:client" },
+            { "type": "command", "command": "npm run ui:audit -- --baseline scripts/ui-audit/baseline.json --fail-on-new-high" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "REQ-003",
+      "acceptanceCriteria": [
+        {
+          "id": "AC-006",
+          "mustHave": true,
+          "taskIds": ["TASK-005"],
+          "verifications": [
+            { "type": "command", "command": "npm run test:unit:client" },
+            { "type": "command", "command": "npm run ui:audit -- --baseline scripts/ui-audit/baseline.json --fail-on-new-high" }
+          ]
+        },
+        {
+          "id": "AC-007",
+          "mustHave": true,
+          "taskIds": ["TASK-005"],
+          "verifications": [
+            { "type": "command", "command": "npm run test:unit:client" },
+            { "type": "command", "command": "cd client && npx vite build" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "REQ-004",
+      "acceptanceCriteria": [
+        {
+          "id": "AC-008",
+          "mustHave": true,
+          "taskIds": ["TASK-006"],
+          "verifications": [
+            { "type": "command", "command": "cd client && npx vitest run src/components/transitions/__tests__" }
+          ]
+        },
+        {
+          "id": "AC-009",
+          "mustHave": true,
+          "taskIds": ["TASK-006"],
+          "verifications": [
+            { "type": "command", "command": "npm run ui:audit -- --baseline scripts/ui-audit/baseline.json --fail-on-new-high" },
+            { "type": "command", "command": "cd client && npx vite build" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "REQ-005",
+      "acceptanceCriteria": [
+        {
+          "id": "AC-010",
+          "mustHave": true,
+          "taskIds": ["TASK-007"],
+          "verifications": [
+            { "type": "command", "command": "cd client && npx vitest run src/components/transitions/__tests__" }
+          ]
+        },
+        {
+          "id": "AC-011",
+          "mustHave": true,
+          "taskIds": ["TASK-007"],
+          "verifications": [
+            { "type": "command", "command": "npm run test:unit:client" },
+            { "type": "command", "command": "npm run lint --prefix client" }
+          ]
+        },
+        {
+          "id": "AC-012",
+          "mustHave": true,
+          "taskIds": ["TASK-007"],
+          "verifications": [
+            { "type": "command", "command": "npm run ui:audit -- --baseline scripts/ui-audit/baseline.json --fail-on-new-high" },
+            { "type": "command", "command": "cd client && npx vite build" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "REQ-006",
+      "acceptanceCriteria": [
+        {
+          "id": "AC-013",
+          "mustHave": true,
+          "taskIds": ["TASK-008"],
+          "verifications": [
+            { "type": "command", "command": "cd client && npx vitest run src/components/transitions/__tests__" },
+            { "type": "command", "command": "cd client && npx vite build" }
+          ]
+        },
+        {
+          "id": "AC-014",
+          "mustHave": true,
+          "taskIds": ["TASK-008"],
+          "verifications": [
+            { "type": "command", "command": "npm run test:unit:client" },
+            { "type": "command", "command": "npm run lint --prefix client" }
+          ]
+        },
+        {
+          "id": "AC-015",
+          "mustHave": true,
+          "taskIds": ["TASK-008"],
+          "verifications": [
+            { "type": "command", "command": "npm run ui:audit -- --baseline scripts/ui-audit/baseline.json --fail-on-new-high" }
+          ]
+        }
+      ]
+    }
+  ]
+}
