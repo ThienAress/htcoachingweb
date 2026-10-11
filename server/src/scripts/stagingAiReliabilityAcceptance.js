@@ -317,7 +317,11 @@ export const runStagingAiReliabilityAcceptance = async ({ env = process.env, dep
         }
         check(state.prompts.length === 11 && state.prompts.every((item) => item.semanticPassed),
           "STAGING_AI_RELIABILITY_INVENTORY_FAILED");
-        check(state.prompts.some((item) => item.providerWindowDelta["provider.gemini_chat_succeeded"] > 0),
+        // The live provider is Gemini by default and DeepSeek under the staging trial profile;
+        // either must have completed at least one chat generation inside the observed window.
+        check(state.prompts.some((item) =>
+          item.providerWindowDelta["provider.gemini_chat_succeeded"] > 0 ||
+          item.providerWindowDelta["provider.deepseek_chat_succeeded"] > 0),
           "STAGING_AI_RELIABILITY_PROVIDER_NOT_OBSERVED");
         return true;
       },

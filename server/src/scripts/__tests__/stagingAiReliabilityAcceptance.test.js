@@ -22,6 +22,9 @@ const providerCounters = () => ({
   "provider.gemini_chat_unavailable": 0,
   "provider.gemini_chat_rate_limited": 0,
   "provider.gemini_chat_not_required": 0,
+  "provider.deepseek_chat_requests": 0,
+  "provider.deepseek_chat_succeeded": 0,
+  "provider.deepseek_chat_failed": 0,
   ...Object.fromEntries([
     "requests", "succeeded", "failed", "prompt_tokens", "output_tokens", "total_tokens",
     "privacy_blocked", "not_configured", "request_rejected", "permission_denied",
@@ -320,5 +323,50 @@ describe("one-round reliability acceptance", () => {
       ], seeded: requests[3].conversationId === result.prompts[3].conversationId }).toEqual({
       count: 11, cleanup: 1, residue: 0, followUps: [true, true], seeded: true,
     });
+  });
+
+  const runWithCounters = async (bump) => {
+    const env = await stagingEnv();
+    const counters = providerCounters();
+    let sequence = 0;
+    return runStagingAiReliabilityAcceptance({ env, deps: {
+      connection: { connection: { db: { databaseName: "htcoaching_staging" } },
+        connect: vi.fn(), disconnect: vi.fn() },
+      inspectReadiness: async () => ({ ready: true }),
+      createCleanup: () => ({ registerUser: vi.fn(), markMutationStart: vi.fn(),
+        markMutationSettled: vi.fn(), cleanup: vi.fn(), verify: async () => ({ residue: 0 }) }),
+      saveUser: async () => {},
+      createClient: () => async (request) => {
+        sequence += 1;
+        return { conversationId: request.conversationId || sequence.toString(16).padStart(24, "0"),
+          text: "safe answer", cards: [], toolResults: 0 };
+      },
+      seedContext: async ({ conversationId }) => String(conversationId),
+      fetchMetrics: async () => {
+        bump(counters);
+        return { runtimeReleaseSha: SHA, runtimeInstanceId: "11111111-1111-4111-8111-111111111111",
+          uptimeSeconds: 100 + sequence, counters: { ...counters } };
+      },
+      inspectTurn: async ({ plan }) => ({ trace: {
+        routeDomain: plan.expectedPath.domain || "fitness",
+        evidenceMode: plan.expectedPath.evidence || "model_prior",
+        webSearchOutcome: plan.expectedPath.webSearchRequired ? "grounded" : "not_called",
+      }, tools: [] }),
+    } });
+  };
+
+  test("accepts a DeepSeek-only staging window as an observed live provider", async () => {
+    const result = await runWithCounters((counters) => {
+      counters["provider.deepseek_chat_requests"] += 1;
+      counters["provider.deepseek_chat_succeeded"] += 1;
+    });
+    expect(result.prompts).toHaveLength(11);
+  });
+
+  test("still fails when no live chat provider completed a generation", async () => {
+    await expect(runWithCounters((counters) => {
+      counters["provider.deepseek_chat_requests"] += 1;
+      counters["provider.deepseek_chat_failed"] += 1;
+    })).rejects.toMatchObject({ code: "STAGING_AI_RELIABILITY_PROVIDER_NOT_OBSERVED" });
   });
 });

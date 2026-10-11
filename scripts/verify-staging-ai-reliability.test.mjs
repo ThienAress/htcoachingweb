@@ -17,6 +17,9 @@ const COUNTERS = {
   "provider.gemini_chat_unavailable": 0,
   "provider.gemini_chat_rate_limited": 0,
   "provider.gemini_chat_not_required": 0,
+  "provider.deepseek_chat_requests": 0,
+  "provider.deepseek_chat_succeeded": 0,
+  "provider.deepseek_chat_failed": 0,
 };
 const uuid = (number) => `00000000-0000-4000-8000-${String(number).padStart(12, "0")}`;
 const oid = (number) => number.toString(16).padStart(24, "0");

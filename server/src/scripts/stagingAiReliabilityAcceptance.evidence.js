@@ -10,6 +10,8 @@ const CHAT_PROVIDER_KEYS = [
   "provider.gemini_chat_requests", "provider.gemini_chat_succeeded",
   "provider.gemini_chat_failed", "provider.gemini_chat_unavailable",
   "provider.gemini_chat_rate_limited", "provider.gemini_chat_not_required",
+  "provider.deepseek_chat_requests", "provider.deepseek_chat_succeeded",
+  "provider.deepseek_chat_failed",
 ];
 const SEARCH_GROUNDING_PROVIDER_KEYS = [
   "provider.gemini_search_grounding_requests", "provider.gemini_search_grounding_succeeded",
