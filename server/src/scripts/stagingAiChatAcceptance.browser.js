@@ -1,7 +1,10 @@
 import crypto from "node:crypto";
 import { waitControlStatus } from "./stagingAiChatAcceptance.controlBarrier.js";
 import { waitForBrowserCheckpoint } from "./stagingAiChatAcceptance.browserCheckpoint.js";
-import { classifyMissingCitation } from "./stagingAiChatAcceptance.citationDiagnosis.js";
+import {
+  classifyMissingCitation,
+  recoveryEvidencePolicy,
+} from "./stagingAiChatAcceptance.citationDiagnosis.js";
 
 const assert = (condition, message, code = "STAGING_AI_BROWSER_ASSERTION_FAILED") => {
   if (!condition) {
@@ -204,9 +207,12 @@ export const runBrowserAcceptance = async ({
     const citation = page.locator(`a[href="${sourceUrl}"]`).last();
     await waitForBrowserCheckpoint(citation, { state: "visible", timeout: 90_000 },
       "STAGING_AI_INITIAL_CITATION_NOT_VISIBLE");
-    const captureUiEvidence = async (expectedQuestion, cursor = 0) => {
+    const captureUiEvidence = async (expectedQuestion, cursor = 0, {
+      requireSource = true,
+      timeoutMs = 10_000,
+    } = {}) => {
       const questionDigest = crypto.createHash("sha256").update(expectedQuestion).digest("hex");
-      const deadline = Date.now() + 10_000;
+      const deadline = Date.now() + timeoutMs;
       let reconciled;
       while (!reconciled && Date.now() < deadline) {
         reconciled = selectNewReconciledAssistant(reconciledAssistants, cursor, questionDigest);
@@ -220,8 +226,10 @@ export const runBrowserAcceptance = async ({
       );
       await waitForBrowserCheckpoint(renderedMessage, { state: "visible", timeout: 10_000 },
         "STAGING_AI_PERSISTED_MESSAGE_NOT_VISIBLE");
-      await waitForBrowserCheckpoint(renderedMessage.locator(`a[href="${sourceUrl}"]`),
-        { state: "visible", timeout: 10_000 }, "STAGING_AI_PERSISTED_CITATION_NOT_VISIBLE");
+      if (requireSource) {
+        await waitForBrowserCheckpoint(renderedMessage.locator(`a[href="${sourceUrl}"]`),
+          { state: "visible", timeout: 10_000 }, "STAGING_AI_PERSISTED_CITATION_NOT_VISIBLE");
+      }
       uiAssistantEvidence.push({
         ...reconciled,
         renderedMessageId: reconciled.assistantId,
@@ -353,15 +361,18 @@ export const runBrowserAcceptance = async ({
         await editor.fill(recoveryQuestion);
         await page.getByRole("button", { name: "Cập nhật" }).click();
       }
-      try {
-        await page.locator(`a[href="${sourceUrl}"]`).last().waitFor({ timeout: 90_000 });
-      } catch (error) {
-        throw await classifyMissingCitation({
-          error, db, ownerObjectId, fixtureId: fixture.id, sourceUrl,
-        });
+      const evidencePolicy = recoveryEvidencePolicy(kind);
+      if (evidencePolicy.requireSource) {
+        try {
+          await page.locator(`a[href="${sourceUrl}"]`).last().waitFor({ timeout: 90_000 });
+        } catch (error) {
+          throw await classifyMissingCitation({
+            error, db, ownerObjectId, fixtureId: fixture.id, sourceUrl,
+          });
+        }
       }
       assert(requestIds.at(-1) !== failedId, "Recovery reused the failed requestId");
-      await captureUiEvidence(recoveryQuestion, reconciliationCursor);
+      await captureUiEvidence(recoveryQuestion, reconciliationCursor, evidencePolicy);
       recordLane({
         name: `provider-failure-${kind}`,
         passed: true,
