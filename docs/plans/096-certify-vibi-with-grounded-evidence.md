@@ -147,3 +147,17 @@ Duration/TTFT/tokens/tool/retry/error metadata không
   còn bắt link nguồn mà bắt: lượt trả lời mới được lưu và reconcile, dùng KB entry fixture,
   không còn stream treo. Lane retry giữ nguyên yêu cầu link. Chủ sở hữu duyệt phương án này
   ngày 2026-10-11; đây là nới tiêu chí gate có chủ đích, không đổi chính sách trích dẫn.
+
+- 2026-10-11 Staging Live Acceptance PASS trên SHA `2254fd1a213de1f1dcc8d7e2fb586bce12a50385`
+  (run 38115893441, Render `dep-db5i28d9fdbs73cv5pdg`, Netlify `6acb20cdb681f00008272f97`, CI xanh,
+  backup verified còn hạn, rollback production `89ac30f`): acceptance không-AI 9/9; AI acceptance
+  6 lane (live-kb, paced isolation, stop-recovery, provider-failure-retry, provider-failure-edit,
+  request-cohort-runtime-binding) PASS với cleanup residue 0; Plan 092 reliability hai vòng
+  11/11 prompt mỗi vòng, cleanup residue 0, verifier hai vòng PASS, release-candidate manifest tạo.
+  Staging chạy profile DeepSeek official (`deepseek-flash`) vì kênh Vibi trả byte đầu 21–27 giây
+  (log Vibi nhóm `model - china`, trung bình 17,6 giây) làm bước chọn KB vượt 30 giây. Bản vá trên đường đi:
+  chat giảm cấp khi chọn KB quá 12 giây (PR 220), trần stream 1 MiB cho envelope SSE (PR 226),
+  lane edit chứng minh dùng KB thay vì bắt link nguồn (PR 224, do owner duyệt), gate reliability nhận
+  provider DeepSeek (PR 227) và verifier dùng chung bộ khoá provider (PR 228).
+  Chưa có: exact-15, TALK01 paid, rendered acceptance, và chứng nhận trên profile production Vibi.
+  Production chưa đổi. Plan 096 chưa tuyên bố GO toàn kế hoạch.
