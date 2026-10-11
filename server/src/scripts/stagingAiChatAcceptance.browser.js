@@ -371,8 +371,10 @@ export const runBrowserAcceptance = async ({
           });
         }
       }
-      assert(requestIds.at(-1) !== failedId, "Recovery reused the failed requestId");
+      // Capture first: it waits for the reconciled recovered answer, so the recovery POST
+      // (and its new requestId) exists before the identity assertion runs.
       await captureUiEvidence(recoveryQuestion, reconciliationCursor, evidencePolicy);
+      assert(requestIds.at(-1) !== failedId, "Recovery reused the failed requestId");
       recordLane({
         name: `provider-failure-${kind}`,
         passed: true,
