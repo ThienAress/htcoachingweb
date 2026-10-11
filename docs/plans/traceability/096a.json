@@ -33,6 +33,11 @@
       "id": "TASK-006",
       "title": "Explicit WHO fixture and browser checkpoints",
       "planStep": "Step 3"
+    },
+    {
+      "id": "TASK-007",
+      "title": "Official production profile",
+      "planStep": "Step 5"
     }
   ],
   "requirements": [
@@ -104,9 +109,31 @@
         {
           "id": "AC-005",
           "mustHave": true,
-          "taskIds": ["TASK-003"],
+          "taskIds": [
+            "TASK-003"
+          ],
           "verifications": [
-            { "type": "command", "command": "cd server && npx vitest run src/services/ai/__tests__/knowledgeSelectionDeadline.test.js src/controllers/__tests__/knowledgeSelectionDeadline.test.js" }
+            {
+              "type": "command",
+              "command": "cd server && npx vitest run src/services/ai/__tests__/knowledgeSelectionDeadline.test.js src/controllers/__tests__/knowledgeSelectionDeadline.test.js"
+            }
+          ]
+        },
+        {
+          "id": "AC-006",
+          "mustHave": true,
+          "taskIds": [
+            "TASK-007"
+          ],
+          "verifications": [
+            {
+              "type": "command",
+              "command": "cd server && npx vitest run src/config/__tests__/deepseekProfile.test.js"
+            },
+            {
+              "type": "command",
+              "command": "node --test scripts/ai-certification-contract.test.mjs"
+            }
           ]
         }
       ]

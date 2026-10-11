@@ -51,6 +51,14 @@ Carry forward verified 2026-10-08 backup readiness and record (secret-free docum
    docs/operations/production/backup-readiness.json and backup record; bounded release reports; generated systemDependencyManifests.json and project-inventory.json.
    Verify: release and disaster-recovery readiness commands exit 0; exact candidate CI 5/5;
    both staging deploy identities match candidate; trusted staging acceptance passes.
+### Step 5: Allow the official DeepSeek production profile
+
+Add `official` as a second approved `AI_PRODUCTION_PROVIDER_PROFILE` whose resolved endpoint
+profile must equal the profile name, and accept its fixed model in the certification contract.
+
+**Verify**: `cd server && npx vitest run src/config/__tests__/deepseekProfile.test.js` and
+`node --test scripts/ai-certification-contract.test.mjs` pass.
+
 ### Step 4: Promote and observe production
 
 Promote only after gates pass. Configure production Vibi + Brave internally, retain all
@@ -214,3 +222,8 @@ is not trusted certification; another paid run requires newly verifiable wallet 
 The owner is asleep and the wallet browser connector reports Transport closed. Continue
 local/CI work; keep production NO-GO until required live gates pass. Do not substitute
 API-key quota for account wallet or repeat the owner's fifteen cases.
+
+- 2026-10-11: owner chose the official DeepSeek endpoint for production (Vibi first-token
+  latency 21-27 s). Added the guarded `official` production profile and provider/model pair
+  to the certification contract; no production environment value, deploy or database write
+  was changed. Staging acceptance PASS on SHA `2254fd1` used this endpoint and model.

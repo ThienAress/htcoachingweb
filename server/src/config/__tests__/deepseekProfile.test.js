@@ -57,3 +57,35 @@ describe("explicit Vibi production profile", () => {
     expect(validateDeepseekProfile({ AI_PROVIDER: "gemini" })).toMatchObject({ valid: true, active: false });
   });
 });
+
+const officialProduction = () => ({
+  ...production(),
+  AI_PRODUCTION_PROVIDER_PROFILE: "official",
+  DEEPSEEK_ENDPOINT_PROFILE: "official",
+  DEEPSEEK_MODEL: "deepseek-flash",
+});
+
+describe("explicit official DeepSeek production profile", () => {
+  it("accepts the official endpoint only with its own profile name and fixed model", () => {
+    expect(validateDeepseekProfile(officialProduction()))
+      .toMatchObject({ valid: true, active: true, profile: "production" });
+    expect(validateDeepseekTrialEnvironment(officialProduction()).valid).toBe(false);
+  });
+
+  it.each([
+    ["DEEPSEEK_ENDPOINT_PROFILE", "vibi"],
+    ["DEEPSEEK_MODEL", "deepseek-v4.1-flash"],
+    ["AI_PRODUCTION_PROVIDER_PROFILE", "vibi"],
+    ["AI_PRODUCTION_PROVIDER_PROFILE", "deepseek"],
+    ["APP_ENV", "staging"],
+    ["AI_STAGING_PROVIDER_TRIAL", "deepseek"],
+    ["AI_WEB_SEARCH_PROVIDER", "gemini"],
+    ["BRAVE_SEARCH_API_KEY", ""],
+    ["DEEPSEEK_API_KEY", ""],
+    ["MONGO_URI", "mongodb+srv://cluster.example/htcoaching_staging"],
+  ])("rejects a mixed or unsafe official configuration: %s", (key, value) => {
+    const result = validateDeepseekProfile({ ...officialProduction(), [key]: value });
+    expect(result.valid).toBe(false);
+    expect(result.active).toBe(false);
+  });
+});
