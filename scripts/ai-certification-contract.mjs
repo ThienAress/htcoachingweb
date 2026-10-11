@@ -4,7 +4,11 @@ import { fileURLToPath } from "node:url";
 const shaPattern = /^[a-f0-9]{40}$/;
 const objectIdPattern = /^[a-f0-9]{24}$/;
 const timestamp = (value) => typeof value === "string" && Number.isFinite(Date.parse(value));
-const EXPECTED_MODEL = "deepseek-v4.1-flash";
+// Provider profile -> fixed model the certified run must have used.
+const EXPECTED_MODELS = Object.freeze({
+  vibi: "deepseek-v4.1-flash",
+  official: "deepseek-flash",
+});
 const CI_JOBS = ["client", "docker", "e2e", "secrets", "server"];
 
 export function verifyAiCertification(evidence, corpus) {
@@ -19,7 +23,10 @@ export function verifyAiCertification(evidence, corpus) {
   reject(evidence.environment === "staging", "environment_mismatch");
   reject(shaPattern.test(sha || ""), "invalid_sha");
   reject(timestamp(runStartedAt), "invalid_run_time");
-  reject(evidence.model === EXPECTED_MODEL && evidence.provider === "vibi", "provider_mismatch");
+  const expectedModel = Object.hasOwn(EXPECTED_MODELS, evidence.provider)
+    ? EXPECTED_MODELS[evidence.provider]
+    : null;
+  reject(expectedModel !== null && evidence.model === expectedModel, "provider_mismatch");
   reject(Array.isArray(cases) && cases.length === 15 && corpus.cases.length === 15, "exact_15_required");
   const records = Array.isArray(cases) ? cases.filter((record) => record && typeof record === "object") : [];
   const prompts = Array.isArray(corpus.cases) ? corpus.cases : [];
@@ -31,7 +38,7 @@ export function verifyAiCertification(evidence, corpus) {
     const record = matched[0];
     if (!record) continue;
     reject(record.prompt === item.prompt, `case_${item.id}_prompt_mismatch`);
-    reject(record.sha === sha && record.configuredModel === EXPECTED_MODEL &&
+    reject(record.sha === sha && record.configuredModel === expectedModel &&
       typeof record.model === "string" && record.model.length <= 100, `case_${item.id}_identity_mismatch`);
     reject(record.grade === "PASS" && record.completed === true, `case_${item.id}_not_passed`);
     reject(record.runStartedAt === runStartedAt && record.reused !== true, `case_${item.id}_reused`);
@@ -53,7 +60,7 @@ export function verifyAiCertification(evidence, corpus) {
     }
   }
   reject(Boolean(talk01) && talk01.grade === "PASS" && talk01.sha === sha &&
-    talk01.model === EXPECTED_MODEL && talk01.runStartedAt === runStartedAt &&
+    talk01.model === expectedModel && talk01.runStartedAt === runStartedAt &&
     talk01.completedToolGroups >= 3 && talk01.requestCount >= 3 &&
     Array.isArray(talk01.errors) && talk01.errors.length === 0 &&
     !conversations.has(talk01.conversationId) && objectIdPattern.test(talk01.conversationId || ""),

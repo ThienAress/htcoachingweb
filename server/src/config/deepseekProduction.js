@@ -14,6 +14,10 @@ const productionOrigin = (value) => {
   }
 };
 
+// Each approved production profile pins its own fixed endpoint and model; the profile
+// name must equal the resolved endpoint profile, so a mixed configuration is rejected.
+const PRODUCTION_PROFILES = new Set(["vibi", "official"]);
+
 const validKey = (value) => {
   const key = String(value || "");
   return key.length >= 20 && key.length <= 512 && !/\s/.test(key);
@@ -21,16 +25,17 @@ const validKey = (value) => {
 
 export const validateDeepseekProductionEnvironment = (env = process.env) => {
   const errors = [];
-  const reject = (code) => errors.push({ code, message: "Vibi requires the approved production profile." });
+  const reject = (code) => errors.push({ code, message: "DeepSeek requires an approved production profile." });
   if (env.APP_ENV !== "production" || env.NODE_ENV !== "production") {
     reject("DEEPSEEK_PRODUCTION_ENV_REQUIRED");
   }
-  if (env.AI_PRODUCTION_PROVIDER_PROFILE !== "vibi" || env.AI_PROVIDER !== "deepseek" ||
+  const profile = String(env.AI_PRODUCTION_PROVIDER_PROFILE || "");
+  if (!PRODUCTION_PROFILES.has(profile) || env.AI_PROVIDER !== "deepseek" ||
       env.AI_KB_RETRIEVAL_MODE !== "llm_selection" || String(env.AI_STAGING_PROVIDER_TRIAL || "").trim()) {
     reject("DEEPSEEK_PRODUCTION_PROFILE_MISMATCH");
   }
   const endpoint = resolveDeepseekEndpoint(env);
-  if (endpoint?.profile !== "vibi") reject("DEEPSEEK_PRODUCTION_ENDPOINT_INVALID");
+  if (!endpoint || endpoint.profile !== profile) reject("DEEPSEEK_PRODUCTION_ENDPOINT_INVALID");
   if (!validKey(env.DEEPSEEK_API_KEY)) reject("DEEPSEEK_PRODUCTION_KEY_INVALID");
   if (env.AI_WEB_SEARCH_PROVIDER !== "brave" || !validKey(env.BRAVE_SEARCH_API_KEY)) {
     reject("DEEPSEEK_PRODUCTION_SEARCH_INVALID");

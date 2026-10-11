@@ -27,6 +27,17 @@ Implementation: [Plan096A](../plans/096a-enable-vibi-production-profile.md).
   45-second provider cap and generic tools keep 15 seconds. No additional retries,
   token/context limits or model changes. Certify this change on the new exact SHA.
 
+- AC-006: On 2026-10-11 the owner chose the official DeepSeek endpoint for production because
+  the Vibi channel returned first tokens after 21-27 seconds (Vibi average 17.6 s) while the
+  official endpoint answered KB selection in about 0.7 s. `AI_PRODUCTION_PROVIDER_PROFILE=official`
+  is accepted only with `DEEPSEEK_ENDPOINT_PROFILE=official`, `DEEPSEEK_MODEL=deepseek-flash`, the
+  same production guards as AC-001 (Brave search, exact gym-app database, production HTTPS
+  origins, no staging trial flag) and a key for that endpoint. The profile name must equal the
+  resolved endpoint profile; mixed Vibi/official values are rejected. Exact-15 certification
+  evidence accepts the pair (`vibi`, `deepseek-v4.1-flash`) or (`official`, `deepseek-flash`).
+  Activation still needs the protected promotion and observation of AC-004; this change alone
+  activates nothing without those environment values.
+
 ## Cost and privacy
 
 Owner-attested wallet after TALK01: 9.06 USD. Stop before another paid request if balance

@@ -55,3 +55,29 @@ test("invalid and incomplete evidence is NO-GO", () => {
   e.cases.push(e.cases[0]);
   assert.equal(verifyAiCertification(e, corpus).go, false);
 });
+
+test("accepts the official DeepSeek provider only with its fixed model", () => {
+  const e = fixture();
+  e.provider = "official";
+  e.model = "deepseek-flash";
+  for (const item of e.cases) {
+    item.model = "deepseek-flash";
+    item.configuredModel = "deepseek-flash";
+  }
+  e.talk01.model = "deepseek-flash";
+  assert.deepEqual(verifyAiCertification(e, corpus), { go: true, reasons: [] });
+});
+
+test("rejects a provider/model pair that mixes Vibi and official", () => {
+  const e = fixture();
+  e.provider = "official";
+  const result = verifyAiCertification(e, corpus);
+  assert.equal(result.go, false);
+  assert.ok(result.reasons.includes("provider_mismatch"));
+});
+
+test("rejects an unknown provider", () => {
+  const e = fixture();
+  e.provider = "other";
+  assert.equal(verifyAiCertification(e, corpus).go, false);
+});
