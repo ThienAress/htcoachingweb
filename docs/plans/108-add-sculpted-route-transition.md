@@ -17,9 +17,9 @@
 - **Planned at**: 2026-09-14
 - **Lifecycle**: IN PROGRESS
 - **Verification**: LOCAL FULL — LOOPING PREVIEW READY FOR APPROVAL
-- **Rollout**: NOT STARTED
+- **Rollout**: LIVE — PREVIEW-ONLY CODE SHIPPED WITH RELEASE B
 - **Owner**: root
-- **Updated at**: 2026-09-15
+- **Updated at**: 2026-10-12
 
 ## Why This Matters
 
