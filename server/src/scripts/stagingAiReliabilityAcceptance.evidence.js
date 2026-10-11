@@ -24,7 +24,7 @@ const SEARCH_GROUNDING_PROVIDER_KEYS = [
   "provider.gemini_search_grounding_network_error", "provider.gemini_search_grounding_aborted",
   "provider.gemini_search_grounding_no_supported_source", "provider.gemini_search_grounding_grounded",
 ];
-const PROVIDER_KEYS = [...CHAT_PROVIDER_KEYS, ...SEARCH_GROUNDING_PROVIDER_KEYS];
+export const PROVIDER_KEYS = [...CHAT_PROVIDER_KEYS, ...SEARCH_GROUNDING_PROVIDER_KEYS];
 
 export const providerDelta = (before, after, releaseSha) => {
   if (before?.runtimeReleaseSha !== releaseSha || after?.runtimeReleaseSha !== releaseSha ||
