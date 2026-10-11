@@ -139,3 +139,11 @@ Duration/TTFT/tokens/tool/retry/error metadata không
   giữ hợp đồng 503 fail-closed. Chat giảm cấp khi chọn KB quá ngân sách 12 giây thành
   KB miss (`kbRetrieval.coverage="unknown"`), các lỗi khác vẫn fail-closed. Plan 096 vẫn NO-GO
   cho tới khi lane AI pass trên SHA triển khai.
+
+- 2026-10-11 acceptance trên staging `8753d2d` với DeepSeek official (kb_selection 0,75 giây):
+  lane live-kb, paced isolation, stop-recovery và provider-failure-retry PASS; lane edit trả
+  `URL_NOT_IN_ANSWER` 2/2 lượt. Router/chính sách trích dẫn cho câu gốc và biến thể giống nhau;
+  nguồn chỉ hiện khi model tự nêu xuất xứ, nên lane edit (recover về biến thể đã duyệt) không
+  còn bắt link nguồn mà bắt: lượt trả lời mới được lưu và reconcile, dùng KB entry fixture,
+  không còn stream treo. Lane retry giữ nguyên yêu cầu link. Chủ sở hữu duyệt phương án này
+  ngày 2026-10-11; đây là nới tiêu chí gate có chủ đích, không đổi chính sách trích dẫn.

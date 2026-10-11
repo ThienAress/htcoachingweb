@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { classifyMissingCitation, DIAGNOSIS_CODES } from "../stagingAiChatAcceptance.citationDiagnosis.js";
+import {
+  classifyMissingCitation,
+  DIAGNOSIS_CODES,
+  recoveryEvidencePolicy,
+} from "../stagingAiChatAcceptance.citationDiagnosis.js";
 
 const URL_SOURCE = "https://www.who.int/news-room/fact-sheets/detail/physical-activity";
 const timeout = () => Object.assign(new Error("Timeout 90000ms exceeded"), { name: "TimeoutError" });
@@ -45,5 +49,15 @@ describe("citation diagnosis for the recovered answer", () => {
     const messages = [{ role: "assistant", content: "SECRET-ANSWER", answerTrace: { kbEntryIds: ["fix1"] } }];
     const diagnosed = await run(messages);
     expect(JSON.stringify({ message: diagnosed.message, code: diagnosed.code })).not.toMatch(/SECRET-ANSWER/);
+  });
+});
+
+describe("recovery evidence policy", () => {
+  it("keeps the retry lane strict about its reviewed source link", () => {
+    expect(recoveryEvidencePolicy("retry")).toEqual({ requireSource: true, timeoutMs: 10_000 });
+  });
+
+  it("does not require a link in the edit lane but waits for the reconciled answer", () => {
+    expect(recoveryEvidencePolicy("edit")).toEqual({ requireSource: false, timeoutMs: 90_000 });
   });
 });

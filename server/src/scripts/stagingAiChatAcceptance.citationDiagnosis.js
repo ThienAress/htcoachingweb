@@ -43,3 +43,14 @@ export const classifyMissingCitation = async ({
 };
 
 export { DIAGNOSIS_CODES };
+
+/**
+ * Recovery lanes differ in what the citation policy guarantees: the retry lane
+ * re-sends the exact root question and must show its reviewed source link. The
+ * edit lane recovers to a reviewed variant, whose answer is only cited when the
+ * model explicitly attributes it, so that lane must prove KB use and a persisted,
+ * reconciled answer instead of a link.
+ */
+export const recoveryEvidencePolicy = (kind) => (kind === "retry"
+  ? { requireSource: true, timeoutMs: 10_000 }
+  : { requireSource: false, timeoutMs: 90_000 });
