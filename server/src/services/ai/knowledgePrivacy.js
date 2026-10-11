@@ -148,6 +148,18 @@ const PUBLIC_COMPARISON_BEFORE_NAME_PATTERN =
   /(?:^|\s)(?:giong|nhu|so voi|compared with|like)\s+$/i;
 const PUBLIC_ONLY_PERSON_PREDICATE_AFTER_PATTERN =
   /^\s+(?:dang\s+)?(?:luu dien|thi dau)|^\s+(?:dang\s+)?choi cho(?:\s+(?:clb|cau lac bo|doi bong))?\b|^\s+(?:is\s+)?(?:touring|on tour|plays? for|competes? for)\b/i;
+// Acronyms of public health/sport governing bodies. A capitalized phrase that contains one
+// (for example "Theo WHO") names an organization, not a private person.
+const PUBLIC_HEALTH_ORGANIZATION_ACRONYMS = new Set([
+  "who", "cdc", "nih", "nhs", "fda", "efsa", "usda", "acsm", "aaos", "nasm", "nsca",
+  "issn", "aha", "wada", "wcrf",
+]);
+
+const containsPublicHealthOrganizationAcronym = (name) =>
+  normalizePrivacyText(name)
+    .split(/\s+/)
+    .some((token) => PUBLIC_HEALTH_ORGANIZATION_ACRONYMS.has(token));
+
 const NON_NAME_CAPITALIZED_STARTS = new Set([
   "ai",
   "bai",
@@ -879,6 +891,7 @@ const extractUnboundPrivateNames = (value, allowedPublicPersonNames = []) => {
     const normalizedName = normalizePrivacyText(name).trim();
     const firstToken = normalizedName.split(/\s+/)[0];
     if (NON_NAME_CAPITALIZED_STARTS.has(firstToken)) continue;
+    if (/\p{Lu}{2,6}/u.test(name) && containsPublicHealthOrganizationAcronym(name)) continue;
 
     multiTokenNameRanges.push({
       start: match.index,
