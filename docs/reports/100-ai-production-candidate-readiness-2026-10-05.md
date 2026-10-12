@@ -67,7 +67,7 @@ xác minh; chưa approve/bypass. Backup release/disaster gatesready, age3.14h l�
 
 ## Checkpoint sau PR195
 
-Owner chọn phương án1; global Sculpture interception đã được gỡ. PR195 final CI
+Owner chọn phương án1; global navigation interception đã được gỡ. PR195 final CI
 37266234606 và staging merge CI37266900816 đều5/5PASS; E2E129/129PASS.
 Netlify ready `6ac3323de9aece0009662e0b` và Render live `dep-db1j5d5g1s2s73aej4p0`
 cùng exact389e. Served assets/API/health đã đối chiếu. Live public desktop TDEE
@@ -140,7 +140,7 @@ kết quả hai runs để gọi certified PASS.
 
 ## Follow-up tối thiểu đã được duyệt
 
-Owner chọn phương án1: gỡ `SculptNavigationBoundary` import/wrapper khỏi App;
+Owner chọn phương án1: gỡ navigation wrapper import/wrapper khỏi App;
 links Exercises/TDEE điều hướng bình thường, giữ assets/component preview.
 E2E kiểm page đích và không có preview: desktop/mobile, keyboard, reduced motion,
 Save-Data. Không đổi public routes, SEO metadata, API hoặc Assistant behavior.

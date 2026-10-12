@@ -17,7 +17,7 @@ Owner đã duyệt riêng proposal dữ liệu `gym-app` digest
 `d1c0ede94b5e0b4a807eccce98de496d858eb2cffccf3686d51fbb9249ce5750`, chỉ sau
 certified staging PASS: 26 KB/root embeddings, bỏ 110 variants có rollback,
 4 native food allergen profiles, 3 price observations giữ ngày gốc và root index/profile.
-Giữ 39 legacy KB và 2 holds. Owner chọn gỡ global Sculpture wrapper để links mở
+Giữ 39 legacy KB và 2 holds. Owner chọn gỡ global navigation wrapper để links mở
 Exercises/TDEE bình thường, giữ component/assets.
 
 ## Current state và phạm vi
@@ -318,7 +318,7 @@ Manifest `traceability/094c.json` map toàn bộ 39 AC kế thừa; hơn300 dòn
   Plan092rounds NOT RUN. Fixture semantic readiness PASS; browser lane đầu lỗi
   chưa có safe operation code. Cleanup fail-closed vì mutation outcomeUnknown.
   Recovery37264185169 verifiedtrue/residue0/alreadyCleantrue; run cũ vẫnFAIL.
-- Follow-up tối thiểu: gỡ App Sculpture wrapper/import và E2E normal navigation;
+- Follow-up tối thiểu: gỡ App navigation wrapper/import và E2E normal navigation;
   thêm sanitized operationCode/cleanupCode vào failed acceptance evidence.
   Không đổi cleanup/oracle/caps/schemaVersion. Focused evidence tests68PASS;
   navigation6PASS/exit0, UI regression0newhigh, strict production releasebuildPASS;
