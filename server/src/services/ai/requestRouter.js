@@ -174,9 +174,16 @@ const CONTEXTUAL_FOLLOW_UP_PATTERN =
   /^(?:còn(?:\s+(?:bài|gì|cách|món|loại|lựa chọn|nào|thêm))?|thế còn|vậy còn|ngoài ra|nói thêm|gợi ý thêm|có (?:bài|cách|món|gì) nào khác|bài nào khác)\b/u;
 const ASCII_CONTEXTUAL_FOLLOW_UP_PATTERN =
   /^(?:con\s+(?:bai|gi|cach|mon|loai|lua chon|nao|them)|the con|vay con|ngoai ra|noi them|goi y them|co (?:bai|cach|mon|gi) nao khac|bai nao khac|what else|any other|tell me more)\b/;
-// A follow-up that points back at a person ("anh ấy", "người đó") or compares with them.
-const PERSON_REFERENCE_FOLLOW_UP_PATTERN =
-  /\b(?:anh ay|ong ay|co ay|chi ay|anh ta|ong ta|nguoi nay|nguoi do|cau ay|cau thu nay|van dong vien nay|so voi|vs)\b/;
+// A follow-up that points back at a person ("anh ấy", "người đó"). It refers to the earlier
+// person only when the message itself names nobody: "bạn biết LeBron James không, anh ấy ..."
+// is about LeBron, whoever was discussed before.
+const PERSON_PRONOUN_FOLLOW_UP_PATTERN =
+  /\b(?:anh ay|ong ay|co ay|chi ay|anh ta|ong ta|nguoi nay|nguoi do|cau ay|cau thu nay|van dong vien nay)\b/;
+// Two capitalised words in a row look like a person's name, listed in the registry or not.
+const NAMED_PERSON_IN_MESSAGE_PATTERN =
+  /\p{Lu}[\p{L}'’-]+[ \t]+\p{Lu}[\p{L}'’-]+/u;
+// A comparison keeps the earlier person even when the message names the other one.
+const PERSON_COMPARISON_FOLLOW_UP_PATTERN = /\b(?:so voi|vs)\b/;
 const MAX_PRIOR_MESSAGES_FOR_PERSON_REFERENCE = 6;
 const MAX_CONTEXTUAL_QUERY_CHARACTERS = 500;
 const MAX_FOLLOW_UP_CHARACTERS = 240;
@@ -243,8 +250,14 @@ export function buildStandaloneRetrievalQuery(message, priorMessages = []) {
 
   const normalized = normalizeMessage(current);
   const normalizedWithDiacritics = normalizeMessageWithDiacritics(current);
-  if (PERSON_REFERENCE_FOLLOW_UP_PATTERN.test(normalized)) {
-    const named = new Set(findPublicFigures(current).map(({ canonical }) => canonical));
+  const namedFigures = findPublicFigures(current).map(({ canonical }) => canonical);
+  const pointsBack =
+    PERSON_COMPARISON_FOLLOW_UP_PATTERN.test(normalized) ||
+    (PERSON_PRONOUN_FOLLOW_UP_PATTERN.test(normalized) &&
+      namedFigures.length === 0 &&
+      !NAMED_PERSON_IN_MESSAGE_PATTERN.test(current));
+  if (pointsBack) {
+    const named = new Set(namedFigures);
     const referenced = resolveReferencedPublicFigures(priorMessages).filter(
       (canonical) => !named.has(canonical),
     );
