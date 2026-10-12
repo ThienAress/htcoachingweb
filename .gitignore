@@ -48,3 +48,7 @@ workers/production-watchdog/wrangler.toml
 
 # Local Codex worktrees are never release artifacts
 .codex-worktrees/
+
+# Local verification clones are separate repositories, not release source
+/.ci-verify/
+/.stage-clone/

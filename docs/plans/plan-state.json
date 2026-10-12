@@ -337,6 +337,18 @@
       "rollout": "live",
       "owner": "root",
       "updatedAt": "2026-10-12"
+    },
+    {
+      "id": "110",
+      "title": "Improve AI adherence and gate JEV pilot",
+      "path": "docs/plans/110-improve-ai-adherence-and-gate-jev-pilot.md",
+      "priority": "P0",
+      "complexity": "complex",
+      "lifecycle": "planned",
+      "verification": "none",
+      "rollout": "not_started",
+      "owner": "root",
+      "updatedAt": "2026-10-12"
     }
   ]
 }
