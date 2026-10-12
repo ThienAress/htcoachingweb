@@ -8,7 +8,7 @@ const TOOL = { type: "function", function: {
   description: "Submit short Vietnamese claims supported by exact quotes from supplied web evidence only.",
   parameters: {
     type: "object", additionalProperties: false, required: ["segments"],
-    properties: { segments: { type: "array", maxItems: 6, items: {
+    properties: { segments: { type: "array", maxItems: 10, items: {
       type: "object", additionalProperties: false, required: ["text", "supports"],
       properties: {
         text: { type: "string", maxLength: 800 },
@@ -35,13 +35,16 @@ Nếu câu hỏi là "là ai", chỉ nêu nghề nghiệp và quốc tịch ổn
 Không nêu câu lạc bộ, đội trưởng, ngày sinh, tuổi, danh hiệu hay số bàn thắng trong câu nhận diện;
 server sẽ loại toàn bộ câu có những chi tiết đó, kể cả khi cùng câu có nghề nghiệp/quốc tịch đúng.
 Nếu không có evidence hỗ trợ câu hỏi, trả segments rỗng; không bịa nguồn hoặc quote.
-Trả lời súc tích; nguồn có thể chỉ hỗ trợ một phần, nêu giới hạn thay vì đoán.` },
+Trả lời đầy đủ mọi vế của câu hỏi (ví dụ thành tích và cách tập luyện), dùng từ 6 đến 10 dữ kiện cụ thể có trong evidence,
+ưu tiên con số, mốc thời gian, tên giải và chi tiết thực hành thay vì nhận định chung chung.
+Có thể dùng nhiều nguồn khác nhau, nếu nguồn bằng tiếng Anh thì vẫn viết claim bằng tiếng Việt.
+Nguồn có thể chỉ hỗ trợ một phần: chỉ nêu những gì có evidence, không đoán phần còn lại.` },
     { role: "user", content: JSON.stringify({ question: query, untrustedWebEvidence: evidence }) },
   ];
   let answer = null;
   for await (const chunk of deepseekLLMStream(messages, [TOOL], {
-    surface: "web_grounding", requiredToolName: NAME, maxOutputTokens: 1200,
-    timeoutMs: 15_000, signal, deadlineAt,
+    surface: "web_grounding", requiredToolName: NAME, maxOutputTokens: 1800,
+    timeoutMs: 20_000, signal, deadlineAt,
   })) {
     if (chunk.type === "tool_call") {
       if (answer || chunk.toolCalls.length !== 1 || chunk.toolCalls[0].name !== NAME) {
