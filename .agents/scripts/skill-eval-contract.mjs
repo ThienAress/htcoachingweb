@@ -12,9 +12,6 @@ const POSIX_LOCAL_PATH_PATTERN =
 
 export const REQUIRED_SKILL_EVAL_BASELINE = Object.freeze({
   "ai-chat-system": 4,
-  "code-review": 7,
-  debugging: 4,
-  "domain-modeling": 4,
   "feature-spec": 6,
   "impact-check": 8,
   "new-tool": 4,
@@ -26,8 +23,6 @@ export const REQUIRED_SKILL_EVAL_BASELINE = Object.freeze({
 });
 
 export const REQUIRED_SKILL_EVAL_CASE_IDS = Object.freeze({
-  "code-review": ["review-refresh-rotation-invariants"],
-  "domain-modeling": ["evidence-gated-queue-adr", "adversarial-copy-sharding-pattern"],
   "impact-check": ["keyed-state-contract-change", "explain-hashmap-read-only"],
   "new-tool": ["mutating-tool-confirmed-lifecycle", "read-only-tool-least-privilege"],
   qa: ["browser-agent-deterministic-evidence"],

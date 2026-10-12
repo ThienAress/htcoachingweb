@@ -1,5 +1,9 @@
 # Spec: Chuẩn hóa pattern kỹ thuật upstream đã xác minh
 
+> **Ghi chú (2026-10-13).** Đường dẫn `AGENTS.md`/`.agents/rules/`/`.agents/skills/` bên dưới đã chuyển sang
+> `CLAUDE.md`/`.claude/rules/`/`.claude/skills/`; một số skill được gộp (`ai-check` → `ai-chat-system`,
+> `code-review` → `/code-review` sẵn có của Claude Code, `domain-modeling` → `CLAUDE.md` + `CONTEXT.md`).
+
 ## Objective
 
 Chuyển những bài học có thể áp dụng từ năm video/repository đã phân tích thành guardrail

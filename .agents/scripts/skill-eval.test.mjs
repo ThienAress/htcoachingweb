@@ -10,7 +10,7 @@ import {
 } from "./skill-eval-contract.mjs";
 
 const evalRoot = path.resolve(import.meta.dirname, "../evals/skills");
-const skillsRoot = path.resolve(import.meta.dirname, "../skills");
+const skillsRoot = path.resolve(import.meta.dirname, "../../.claude/skills");
 
 const withEvalDirectory = (context) => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "ht-skill-eval-"));
@@ -40,7 +40,7 @@ const validCorpus = {
       id: "local-skill-drift",
       kind: "should_not_trigger",
       prompt: "Skill debugging local có còn khớp codebase hiện tại không?",
-      expectedEvidence: ["Định tuyến sang goad vì đây là internal drift."],
+      expectedEvidence: ["Rà soát skill local trực tiếp vì đây là internal drift."],
     },
     {
       id: "install-known-skill",
@@ -207,7 +207,7 @@ test("validateSkillEvalDirectory rejects deletion of a required baseline corpus"
 
 test("validateSkillEvalDirectory rejects reducing a required corpus below its floor", (context) => {
   const rootDir = withEvalDirectory(context);
-  const corpusPath = path.join(rootDir, "code-review.json");
+  const corpusPath = path.join(rootDir, "impact-check.json");
   const corpus = JSON.parse(fs.readFileSync(corpusPath, "utf8"));
   corpus.cases = [
     corpus.cases[0],
@@ -219,7 +219,7 @@ test("validateSkillEvalDirectory rejects reducing a required corpus below its fl
 
   assert.throws(
     () => validateSkillEvalDirectory({ rootDir, skillsRoot }),
-    /required baseline corpus code-review requires at least 7 scenarios/i,
+    /required baseline corpus impact-check requires at least 8 scenarios/i,
   );
 });
 

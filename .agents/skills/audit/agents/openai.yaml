@@ -1,7 +1,0 @@
-interface:
-  display_name: "Codebase Audit"
-  short_description: "Audit quality, security, and debt"
-  default_prompt: "Use $audit to run an evidence-backed health check of the requested codebase scope."
-
-policy:
-  allow_implicit_invocation: true

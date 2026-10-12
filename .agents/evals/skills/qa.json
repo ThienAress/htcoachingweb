@@ -34,7 +34,7 @@
       "kind": "should_not_trigger",
       "prompt": "Chỉ review working-tree diff theo standards và security, không chạy build hoặc test.",
       "expectedEvidence": [
-        "Định tuyến sang code-review và giữ read-only; không chạy QA trái với phạm vi explicit."
+        "Định tuyến sang /code-review và giữ read-only; không chạy QA trái với phạm vi explicit."
       ]
     },
     {
@@ -50,7 +50,7 @@
       "kind": "should_not_trigger",
       "prompt": "CI build lúc pass lúc fail dù code không đổi; hãy tìm root cause và chứng minh hypothesis, chưa cần release evidence.",
       "expectedEvidence": [
-        "Định tuyến sang debugging Deep Investigation; không coi một lần chạy QA là chẩn đoán lỗi intermittent."
+        "Chuyển sang điều tra root cause có thể tái hiện; không coi một lần chạy QA là chẩn đoán lỗi intermittent."
       ]
     },
     {

@@ -19,7 +19,7 @@
     "agents:radar": "node .agents/scripts/skill-radar-cli.mjs",
     "test:agents:radar": "node --test .agents/scripts/skill-radar.test.mjs .agents/scripts/skill-radar-lifecycle.test.mjs .agents/scripts/technology-radar.test.mjs",
     "test:agents:eval": "node --test .agents/scripts/skill-eval.test.mjs",
-    "test:agents:governance": "node --test .agents/scripts/project-inventory.test.mjs .agents/scripts/plan-state-contract.test.mjs .agents/scripts/traceability-contract.test.mjs .agents/scripts/skill-eval.test.mjs scripts/docs-privacy.test.mjs scripts/docs-privacy-git.test.mjs",
+    "test:agents:governance": "node --test .agents/scripts/project-inventory.test.mjs .agents/scripts/plan-state-contract.test.mjs .agents/scripts/traceability-contract.test.mjs .agents/scripts/skill-eval.test.mjs .claude/hooks/guard.test.mjs scripts/docs-privacy.test.mjs scripts/docs-privacy-git.test.mjs",
     "test:search-quality": "node --test scripts/search-quality/benchmark.test.mjs",
     "search:benchmark": "node scripts/search-quality/benchmark.mjs",
     "search:benchmark:latency": "node scripts/search-quality/benchmark.mjs --include-latency",

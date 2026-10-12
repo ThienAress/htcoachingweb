@@ -38,7 +38,7 @@ function collectEvalInventory(rootDir) {
 }
 
 export function collectProjectInventory(rootDir = DEFAULT_ROOT) {
-  const skillsRoot = path.join(rootDir, ".agents", "skills");
+  const skillsRoot = path.join(rootDir, ".claude", "skills");
   const skills = fs.existsSync(skillsRoot)
     ? fs
         .readdirSync(skillsRoot, { withFileTypes: true })

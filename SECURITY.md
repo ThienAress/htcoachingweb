@@ -1,8 +1,8 @@
 # Security context — HTCOACHINGWEB
 
-File này cung cấp threat model và security invariants cho review thủ công, Codex và Codex Security.
-Policy thực thi canonical nằm tại `.agents/rules/security/security.md`; build/test commands nằm trong
-`AGENTS.md` và `.agents/skills/qa/SKILL.md`.
+File này cung cấp threat model và security invariants cho review thủ công, Claude Code và scan bảo mật bên ngoài.
+Policy thực thi canonical nằm tại `.claude/rules/security.md`; build/test commands nằm trong
+`CLAUDE.md` và `.claude/skills/qa/SKILL.md`.
 
 ## System overview
 
@@ -78,7 +78,7 @@ thành confirmed finding.
 
 - Không report mixed quote style, file lớn/validation file đã biết hoặc backup file là security issue nếu
   không có exploit path cụ thể.
-- Một số CSP/cross-origin/OAuth URL patterns là intentional theo `.agents/skills/known-issues/SKILL.md`;
+- Một số CSP/cross-origin/OAuth URL patterns là intentional theo `.claude/rules/known-issues.md`;
   phải xác minh code và consumer trước khi đề xuất thay đổi.
 - Không coi secret scan, dependency audit hoặc Codex Security output là proof duy nhất; finding vẫn phải vet.
 

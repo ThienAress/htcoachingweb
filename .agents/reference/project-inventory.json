@@ -4,9 +4,9 @@
     "agentGovernance": "working_tree_candidates",
     "productSurfaces": "git_index"
   },
-  "skills": 30,
-  "evalCorpora": 12,
-  "evalScenarios": 64,
+  "skills": 15,
+  "evalCorpora": 9,
+  "evalScenarios": 49,
   "testFiles": {
     "client": 173,
     "server": 354,

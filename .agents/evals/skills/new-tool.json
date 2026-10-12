@@ -27,7 +27,7 @@
       "kind": "should_not_trigger",
       "prompt": "Tool hiện có trả đúng dữ liệu nhưng SSE đôi lúc kết thúc trước ui_card; hãy tìm root cause, không tạo tool mới.",
       "expectedEvidence": [
-        "Định tuyến sang ai-chat-system kết hợp debugging; không dùng workflow scaffold tool mới."
+        "Định tuyến sang ai-chat-system (mục Debug nhanh); không dùng workflow scaffold tool mới."
       ]
     },
     {

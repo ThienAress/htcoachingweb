@@ -17,22 +17,28 @@ import { validateTraceabilityDirectory } from "./traceability-contract.mjs";
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(SCRIPT_DIR, "../..");
-const AGENTS_ROOT = path.join(ROOT, ".agents");
-const SKILLS_ROOT = path.join(AGENTS_ROOT, "skills");
-const SKILL_EVAL_ROOT = path.join(AGENTS_ROOT, "evals", "skills");
-const RULES_ROOT = path.join(AGENTS_ROOT, "rules");
-const WORKFLOW_MAP = path.join(AGENTS_ROOT, "reference", "agent-workflow-map.md");
-const PROJECT_INVENTORY = path.join(AGENTS_ROOT, "reference", "project-inventory.json");
-const UPSTREAM_WATCHLIST = path.join(AGENTS_ROOT, "upstream-skills", "watchlist.json");
+const CLAUDE_MD = path.join(ROOT, "CLAUDE.md");
+const CLAUDE_ROOT = path.join(ROOT, ".claude");
+const SKILLS_ROOT = path.join(CLAUDE_ROOT, "skills");
+const RULES_ROOT = path.join(CLAUDE_ROOT, "rules");
+const AGENTS_DIR = path.join(CLAUDE_ROOT, "agents");
+const SETTINGS = path.join(CLAUDE_ROOT, "settings.json");
+const SKILL_EVAL_ROOT = path.join(ROOT, ".agents", "evals", "skills");
+const PROJECT_INVENTORY = path.join(ROOT, ".agents", "reference", "project-inventory.json");
+const UPSTREAM_WATCHLIST = path.join(ROOT, ".agents", "upstream-skills", "watchlist.json");
 const PLAN_STATE = path.join(ROOT, "docs", "plans", "plan-state.json");
 const TRACEABILITY_ROOT = path.join(ROOT, "docs", "plans", "traceability");
+
+const CLAUDE_MD_MAX_LINES = 200;
+const SKILL_MAX_LINES = 500;
+const DESCRIPTION_MAX_CHARS = 1024;
 
 let errors = 0;
 let warnings = 0;
 
 const relative = (filePath) => path.relative(ROOT, filePath).replaceAll("\\", "/");
 const readText = (filePath) => fs.readFileSync(filePath, "utf8").replace(/^\uFEFF/, "");
-const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const lineCount = (content) => content.split(/\r?\n/).length;
 
 function fail(message) {
   console.error(`  ❌ ${message}`);
@@ -49,185 +55,188 @@ function pass(message) {
 }
 
 function listFiles(directory, predicate = () => true) {
+  if (!fs.existsSync(directory)) return [];
   return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
     const fullPath = path.join(directory, entry.name);
-    if (entry.isDirectory()) return listFiles(fullPath, predicate);
+    if (entry.isDirectory()) return entry.name === "worktrees" ? [] : listFiles(fullPath, predicate);
     return predicate(fullPath) ? [fullPath] : [];
   });
-}
-
-function getYamlSection(content, sectionName) {
-  const lines = content.split(/\r?\n/);
-  const sectionPattern = new RegExp(`^${escapeRegExp(sectionName)}:\\s*(?:#.*)?$`);
-  const start = lines.findIndex((line) => sectionPattern.test(line));
-  if (start === -1) return null;
-
-  const sectionLines = [];
-  for (let index = start + 1; index < lines.length; index += 1) {
-    const line = lines[index];
-    if (/^\S/.test(line)) break;
-    sectionLines.push(line);
-  }
-  return sectionLines.join("\n");
-}
-
-function decodeYamlScalar(rawValue) {
-  const value = rawValue.trim();
-  if (value.startsWith('"') && value.endsWith('"')) {
-    try {
-      return JSON.parse(value);
-    } catch {
-      return null;
-    }
-  }
-  if (value.startsWith("'") && value.endsWith("'")) {
-    return value.slice(1, -1).replaceAll("''", "'");
-  }
-  return value.replace(/\s+#.*$/, "").trim();
-}
-
-function getYamlField(section, fieldName) {
-  if (section === null) return null;
-  const fieldPattern = new RegExp(`^\\s+${escapeRegExp(fieldName)}:\\s*(.*?)\\s*$`, "m");
-  const match = section.match(fieldPattern);
-  if (!match) return null;
-  return { raw: match[1].trim(), value: decodeYamlScalar(match[1]) };
-}
-
-function isQuotedYamlScalar(rawValue) {
-  return (
-    (rawValue.startsWith('"') && rawValue.endsWith('"')) ||
-    (rawValue.startsWith("'") && rawValue.endsWith("'"))
-  );
-}
-
-function hasExactSkillToken(content, skillName) {
-  const pattern = new RegExp(`(?:^|[^A-Za-z0-9_-])\\$${escapeRegExp(skillName)}(?![A-Za-z0-9_-])`);
-  return pattern.test(content);
 }
 
 function lineNumberAt(content, index) {
   return content.slice(0, index).split(/\r?\n/).length;
 }
 
-console.log("\n🔍 Agent Instruction Validation");
-console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
+// Parse simple YAML frontmatter: scalar `key: value` and `key:` followed by `- item` lists.
+export function parseFrontmatter(content) {
+  const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/);
+  if (!match) return null;
+  const fields = {};
+  let listKey = null;
+  for (const line of match[1].split(/\r?\n/)) {
+    if (!line.trim() || line.trim().startsWith("#")) continue;
+    const item = line.match(/^\s+-\s+(.*)$/);
+    if (item && listKey) {
+      fields[listKey].push(item[1].trim().replace(/^["']|["']$/g, ""));
+      continue;
+    }
+    const pair = line.match(/^([A-Za-z][\w-]*):\s*(.*)$/);
+    if (!pair) return { invalidLine: line };
+    const [, key, rawValue] = pair;
+    if (rawValue === "") {
+      fields[key] = [];
+      listKey = key;
+    } else {
+      fields[key] = rawValue.trim().replace(/^"([\s\S]*)"$/, "$1").replace(/^'([\s\S]*)'$/, "$1");
+      listKey = null;
+    }
+  }
+  return { fields };
+}
+
+console.log("\n🔍 Claude Code configuration validation");
+console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
 
 const requiredPaths = [
-  "AGENTS.md",
-  ".agents/reference/project-guide.md",
-  ".agents/reference/agent-workflow-map.md",
-  ".agents/rules/workflow/task-orchestration.md",
-  ".agents/rules/security/security.md",
-  ".agents/rules/seo/seo.md",
-  ".agents/skills/known-issues/SKILL.md",
-  ".agents/skills/audit-playbook/SKILL.md",
+  "CLAUDE.md",
+  "CONTEXT.md",
+  ".claude/settings.json",
+  ".claude/hooks/guard.mjs",
+  ".claude/rules/security.md",
+  ".claude/rules/seo.md",
+  ".claude/rules/known-issues.md",
+  ".claude/rules/release-promotion.md",
+  ".claude/agents/security-reviewer.md",
   ".agents/reference/project-inventory.json",
   "docs/plans/plan-state.json",
   "docs/plans/traceability",
 ];
 
-console.log("📁 Required instruction files");
+console.log("📁 Required files");
 for (const item of requiredPaths) {
-  const target = path.join(ROOT, item);
-  if (fs.existsSync(target)) pass(item);
+  if (fs.existsSync(path.join(ROOT, item))) pass(item);
   else fail(`Missing required file: ${item}`);
 }
 
-console.log("\n🧩 Skill metadata");
-const skillDirectories = fs
-  .readdirSync(SKILLS_ROOT, { withFileTypes: true })
-  .filter((entry) => entry.isDirectory());
+const legacyPaths = ["AGENTS.md", ".agents/skills", ".agents/rules", ".codex"];
+for (const item of legacyPaths) {
+  if (fs.existsSync(path.join(ROOT, item))) fail(`Legacy Codex path must not return: ${item}`);
+}
+
+console.log("\n📏 CLAUDE.md budget");
+const claudeMd = fs.existsSync(CLAUDE_MD) ? readText(CLAUDE_MD) : "";
+const claudeMdLines = lineCount(claudeMd);
+if (claudeMdLines > CLAUDE_MD_MAX_LINES) {
+  fail(`CLAUDE.md has ${claudeMdLines} lines; keep it under ${CLAUDE_MD_MAX_LINES} and move detail into rules/skills`);
+} else {
+  pass(`CLAUDE.md ${claudeMdLines}/${CLAUDE_MD_MAX_LINES} lines`);
+}
+
+console.log("\n🧩 Skills");
+const skillDirectories = fs.existsSync(SKILLS_ROOT)
+  ? fs.readdirSync(SKILLS_ROOT, { withFileTypes: true }).filter((entry) => entry.isDirectory())
+  : [];
 const skillNames = new Set(skillDirectories.map((directory) => directory.name));
-const implicitInvocationBySkill = new Map();
+const userOnlySkills = new Set();
 
 for (const directory of skillDirectories) {
-  const metadataPath = path.join(SKILLS_ROOT, directory.name, "agents", "openai.yaml");
-  if (!fs.existsSync(metadataPath)) {
-    fail(`${directory.name}: missing agents/openai.yaml`);
-  } else {
-    const metadata = readText(metadataPath);
-    const interfaceSection = getYamlSection(metadata, "interface");
-    const policySection = getYamlSection(metadata, "policy");
-    const displayName = getYamlField(interfaceSection, "display_name");
-    const shortDescription = getYamlField(interfaceSection, "short_description");
-    const defaultPrompt = getYamlField(interfaceSection, "default_prompt");
-    const allowImplicitInvocation = getYamlField(policySection, "allow_implicit_invocation");
-
-    if (
-      !displayName ||
-      !isQuotedYamlScalar(displayName.raw) ||
-      typeof displayName.value !== "string" ||
-      displayName.value.trim().length === 0
-    ) {
-      fail(`${relative(metadataPath)}: interface.display_name must be a non-empty quoted string`);
-    }
-
-    if (
-      !shortDescription ||
-      !isQuotedYamlScalar(shortDescription.raw) ||
-      typeof shortDescription.value !== "string"
-    ) {
-      fail(`${relative(metadataPath)}: interface.short_description must be a quoted string`);
-    } else {
-      const descriptionLength = [...shortDescription.value.trim()].length;
-      if (descriptionLength < 25 || descriptionLength > 64) {
-        fail(
-          `${relative(metadataPath)}: interface.short_description must be 25-64 characters ` +
-            `(found ${descriptionLength})`,
-        );
-      }
-    }
-
-    if (
-      !defaultPrompt ||
-      !isQuotedYamlScalar(defaultPrompt.raw) ||
-      typeof defaultPrompt.value !== "string"
-    ) {
-      fail(`${relative(metadataPath)}: interface.default_prompt must be a quoted string`);
-    } else if (!hasExactSkillToken(defaultPrompt.value, directory.name)) {
-      fail(`${relative(metadataPath)}: interface.default_prompt must contain exact token $${directory.name}`);
-    }
-
-    if (!allowImplicitInvocation || !/^(?:true|false)$/.test(allowImplicitInvocation.raw)) {
-      fail(`${relative(metadataPath)}: policy.allow_implicit_invocation must be an explicit boolean`);
-    } else {
-      implicitInvocationBySkill.set(directory.name, allowImplicitInvocation.raw === "true");
-    }
-  }
-
   const skillPath = path.join(SKILLS_ROOT, directory.name, "SKILL.md");
   if (!fs.existsSync(skillPath)) {
     fail(`${directory.name}: missing SKILL.md`);
     continue;
   }
-
   const content = readText(skillPath);
-  if (/\[\s*TODO\b/i.test(content)) {
-    fail(`${relative(skillPath)}: unresolved TODO placeholder`);
-  }
-
-  const frontmatter = content.match(/^---\r?\nname:\s*([^\r\n]+)\r?\ndescription:\s*([^\r\n]+)\r?\n---/);
-  if (!frontmatter) {
-    fail(`${relative(skillPath)}: invalid name/description frontmatter`);
+  const frontmatter = parseFrontmatter(content);
+  if (!frontmatter || frontmatter.invalidLine !== undefined) {
+    fail(`${relative(skillPath)}: invalid frontmatter`);
     continue;
   }
-
-  if (frontmatter[1].trim() !== directory.name) {
-    fail(`${relative(skillPath)}: name must match directory "${directory.name}"`);
+  const { name, description } = frontmatter.fields;
+  if (name !== directory.name) fail(`${relative(skillPath)}: name must match directory "${directory.name}"`);
+  if (typeof description !== "string" || description.trim().length < 40) {
+    fail(`${relative(skillPath)}: description must say what the skill does and when to use it`);
+  } else if ([...description].length > DESCRIPTION_MAX_CHARS) {
+    fail(`${relative(skillPath)}: description exceeds ${DESCRIPTION_MAX_CHARS} characters`);
   }
-
-  const lineCount = content.split(/\r?\n/).length;
-  if (lineCount > 500) fail(`${relative(skillPath)}: ${lineCount} lines exceeds 500-line skill limit`);
+  const disable = frontmatter.fields["disable-model-invocation"];
+  if (disable !== undefined && !["true", "false"].includes(disable)) {
+    fail(`${relative(skillPath)}: disable-model-invocation must be true or false`);
+  }
+  if (disable === "true") userOnlySkills.add(directory.name);
+  if (/\[\s*TODO\b/i.test(content)) fail(`${relative(skillPath)}: unresolved TODO placeholder`);
+  if (lineCount(content) > SKILL_MAX_LINES) {
+    fail(`${relative(skillPath)}: ${lineCount(content)} lines exceeds ${SKILL_MAX_LINES}-line skill limit`);
+  }
+  for (const leftover of listFiles(path.join(SKILLS_ROOT, directory.name), (file) => /openai\.ya?ml$/i.test(file))) {
+    fail(`${relative(leftover)}: Codex metadata is not used by Claude Code`);
+  }
 }
-pass(`${skillDirectories.length} skill directories checked`);
+pass(`${skillDirectories.length} skills checked (${userOnlySkills.size} user-invoked only)`);
+
+const userOnlyLine = claudeMd.split(/\r?\n/).findIndex((line) => /Chỉ chạy khi user gọi:/.test(line));
+if (userOnlyLine === -1) {
+  fail("CLAUDE.md must list user-invoked skills after 'Chỉ chạy khi user gọi:'");
+} else {
+  const block = claudeMd.split(/\r?\n/).slice(userOnlyLine, userOnlyLine + 3).join(" ");
+  const listed = new Set([...block.matchAll(/`\/([a-z][a-z0-9-]*)`/g)].map((match) => match[1]));
+  for (const skill of userOnlySkills) {
+    if (!listed.has(skill)) fail(`CLAUDE.md does not list user-invoked skill /${skill}`);
+  }
+  for (const skill of listed) {
+    if (!userOnlySkills.has(skill)) fail(`CLAUDE.md lists /${skill} as user-invoked but its SKILL.md does not disable model invocation`);
+  }
+  pass(`${listed.size} user-invoked skills match CLAUDE.md`);
+}
+
+console.log("\n📜 Rules");
+const ruleFiles = listFiles(RULES_ROOT, (filePath) => filePath.endsWith(".md"));
+for (const rulePath of ruleFiles) {
+  const content = readText(rulePath);
+  if (!content.startsWith("---")) continue;
+  const frontmatter = parseFrontmatter(content);
+  if (!frontmatter || frontmatter.invalidLine !== undefined) {
+    fail(`${relative(rulePath)}: invalid frontmatter`);
+    continue;
+  }
+  const { paths } = frontmatter.fields;
+  if (!Array.isArray(paths) || paths.length === 0) {
+    fail(`${relative(rulePath)}: frontmatter must declare a non-empty paths list`);
+    continue;
+  }
+  const unknownKeys = Object.keys(frontmatter.fields).filter((key) => key !== "paths");
+  if (unknownKeys.length > 0) fail(`${relative(rulePath)}: unsupported frontmatter keys ${unknownKeys.join(", ")}`);
+}
+pass(`${ruleFiles.length} rule files checked`);
+
+console.log("\n🤖 Subagents");
+const agentFiles = listFiles(AGENTS_DIR, (filePath) => filePath.endsWith(".md"));
+for (const agentPath of agentFiles) {
+  const frontmatter = parseFrontmatter(readText(agentPath));
+  const expectedName = path.basename(agentPath, ".md");
+  if (!frontmatter || frontmatter.invalidLine !== undefined) {
+    fail(`${relative(agentPath)}: invalid frontmatter`);
+  } else if (frontmatter.fields.name !== expectedName || !frontmatter.fields.description) {
+    fail(`${relative(agentPath)}: name must match file name and description is required`);
+  }
+}
+pass(`${agentFiles.length} subagents checked`);
+
+console.log("\n🪝 Settings and hooks");
+try {
+  const settings = JSON.parse(readText(SETTINGS));
+  const hookCommands = (settings.hooks?.PreToolUse || []).flatMap((entry) => entry.hooks || []).map((hook) => hook.command || "");
+  if (!hookCommands.some((command) => command.includes(".claude/hooks/guard.mjs"))) {
+    fail(".claude/settings.json must register .claude/hooks/guard.mjs as a PreToolUse hook");
+  } else {
+    pass("PreToolUse guard hook registered");
+  }
+} catch (error) {
+  fail(`.claude/settings.json is not valid JSON: ${error.message}`);
+}
 
 console.log("\n🧪 Skill evaluation corpora");
 try {
-  const summary = validateSkillEvalDirectory({
-    rootDir: SKILL_EVAL_ROOT,
-    skillsRoot: SKILLS_ROOT,
-  });
+  const summary = validateSkillEvalDirectory({ rootDir: SKILL_EVAL_ROOT, skillsRoot: SKILLS_ROOT });
   pass(`${summary.corpora} corpora / ${summary.cases} scenarios checked`);
 } catch (error) {
   fail(`Invalid skill eval catalog: ${error.message}`);
@@ -235,10 +244,7 @@ try {
 
 console.log("\n📦 Generated project inventory");
 try {
-  const inventory = checkProjectInventory({
-    rootDir: ROOT,
-    inventoryPath: PROJECT_INVENTORY,
-  });
+  const inventory = checkProjectInventory({ rootDir: ROOT, inventoryPath: PROJECT_INVENTORY });
   pass(`Inventory is current: ${JSON.stringify(inventory)}`);
 } catch (error) {
   fail(error.message);
@@ -255,10 +261,7 @@ try {
 
 console.log("\n🔗 Requirement traceability");
 try {
-  const summary = validateTraceabilityDirectory({
-    rootDir: ROOT,
-    directory: TRACEABILITY_ROOT,
-  });
+  const summary = validateTraceabilityDirectory({ rootDir: ROOT, directory: TRACEABILITY_ROOT });
   pass(
     `${summary.manifests} manifests / ${summary.requirements} requirements / ` +
       `${summary.acceptanceCriteria} acceptance criteria checked`,
@@ -287,137 +290,84 @@ try {
   fail(`Invalid upstream watchlist: ${error.message}`);
 }
 
-console.log("\n📜 Rule metadata");
-const ruleFiles = listFiles(RULES_ROOT, (filePath) => filePath.endsWith(".md"));
-for (const rulePath of ruleFiles) {
-  const content = readText(rulePath);
-  if (!/^---\r?\nname:\s*[^\r\n]+\r?\ndescription:\s*[^\r\n]+\r?\n---/.test(content)) {
-    fail(`${relative(rulePath)}: invalid name/description frontmatter`);
-  }
-}
-pass(`${ruleFiles.length} rule files checked`);
+const instructionFiles = [CLAUDE_MD, ...listFiles(CLAUDE_ROOT, (file) => file.endsWith(".md"))].filter((file) =>
+  fs.existsSync(file),
+);
 
-const markdownFiles = [path.join(ROOT, "AGENTS.md"), ...listFiles(AGENTS_ROOT, (file) => file.endsWith(".md"))];
-
-console.log("\n🧭 Skill references and workflow map");
-const instructionFiles = listFiles(AGENTS_ROOT, (filePath) => /\.(?:md|ya?ml)$/i.test(filePath));
-const ignoredDollarReferences = new Set(["skill-name"]);
-const dollarReferencePattern = /\$([a-z][a-z0-9]*(?:-[a-z0-9]+)*)\b/g;
-const backtickReferencePattern = /`([a-z][a-z0-9]*(?:-[a-z0-9]+)*)`/g;
-
+console.log("\n🧭 Skill references");
+const legacySkillToken = /(?<![\w$`])\$([a-z][a-z0-9]*(?:-[a-z0-9]+)+|qa|audit|ship|goad)\b/g;
+const backtickReferencePattern = /`\/?([a-z][a-z0-9]*(?:-[a-z0-9]+)*)`/g;
 for (const filePath of instructionFiles) {
   const content = readText(filePath);
-  for (const match of content.matchAll(dollarReferencePattern)) {
-    const skillName = match[1];
-    if (skillNames.has(skillName) || ignoredDollarReferences.has(skillName)) continue;
-    fail(`${relative(filePath)}:${lineNumberAt(content, match.index)}: dangling $${skillName} skill reference`);
+  for (const match of content.matchAll(legacySkillToken)) {
+    fail(`${relative(filePath)}:${lineNumberAt(content, match.index)}: legacy Codex skill syntax $${match[1]}; use /${match[1]} or the skill name`);
   }
-
   for (const match of content.matchAll(backtickReferencePattern)) {
     const skillName = match[1];
     if (skillNames.has(skillName)) continue;
     const lineStart = content.lastIndexOf("\n", match.index) + 1;
     const nextLineBreak = content.indexOf("\n", match.index);
     const lineEnd = nextLineBreak === -1 ? content.length : nextLineBreak;
-    const nearbyStart = Math.max(lineStart, match.index - 48);
-    const nearbyEnd = Math.min(lineEnd, match.index + match[0].length + 48);
-    const nearbyContext = content.slice(nearbyStart, nearbyEnd);
-    if (!/(?:\bskills?\b|\bworkflows?\b|kỹ năng)/iu.test(nearbyContext)) continue;
+    const nearby = content.slice(Math.max(lineStart, match.index - 32), Math.min(lineEnd, match.index + match[0].length + 32));
+    if (!/(?:\bskills?\b|kỹ năng)/iu.test(nearby)) continue;
+    if (["code-review", "security-review", "security-reviewer"].includes(skillName)) continue;
     fail(`${relative(filePath)}:${lineNumberAt(content, match.index)}: dangling \`${skillName}\` skill reference`);
   }
 }
+pass(`${instructionFiles.length} instruction files scanned`);
 
-if (fs.existsSync(WORKFLOW_MAP)) {
-  const workflowMap = readText(WORKFLOW_MAP);
-  const mappedSkills = new Set();
-  const invocationBySkill = new Map();
-
-  for (const match of workflowMap.matchAll(dollarReferencePattern)) {
-    if (skillNames.has(match[1])) mappedSkills.add(match[1]);
-  }
-  for (const match of workflowMap.matchAll(backtickReferencePattern)) {
-    if (skillNames.has(match[1])) mappedSkills.add(match[1]);
-  }
-  for (const match of workflowMap.matchAll(/(?:^|[\\/])skills[\\/]([a-z][a-z0-9-]*)(?:[\\/]|$)/gm)) {
-    if (skillNames.has(match[1])) mappedSkills.add(match[1]);
-  }
-  for (const match of workflowMap.matchAll(/^\|\s*`\$([a-z][a-z0-9-]*)`\s*\|\s*(user|model)\s*\|/gm)) {
-    if (invocationBySkill.has(match[1])) {
-      fail(`${relative(WORKFLOW_MAP)}: duplicate invocation row for skill ${match[1]}`);
-    }
-    invocationBySkill.set(match[1], match[2]);
-  }
-
-  if (mappedSkills.size === 0) {
-    warn(`${relative(WORKFLOW_MAP)}: router coverage could not be parsed`);
-  } else {
-    const missingMappedSkills = [];
-    for (const skillName of skillNames) {
-      if (!mappedSkills.has(skillName)) {
-        missingMappedSkills.push(skillName);
-        fail(`${relative(WORKFLOW_MAP)}: router does not cover skill ${skillName}`);
-      }
-    }
-    if (missingMappedSkills.length === 0) {
-      pass(`${mappedSkills.size}/${skillNames.size} skills covered by workflow map`);
-    }
-  }
-
-  for (const skillName of skillNames) {
-    const invocation = invocationBySkill.get(skillName);
-    if (!invocation) {
-      fail(`${relative(WORKFLOW_MAP)}: missing invocation row for skill ${skillName}`);
-      continue;
-    }
-    const allowImplicit = implicitInvocationBySkill.get(skillName);
-    const expectedAllowImplicit = invocation === "model";
-    if (allowImplicit !== expectedAllowImplicit) {
-      fail(
-        `${relative(WORKFLOW_MAP)}: ${skillName} is ${invocation} but metadata ` +
-          `allow_implicit_invocation is ${String(allowImplicit)}`,
-      );
+console.log("\n🗺️ Repository paths in instructions");
+const PATH_ROOTS = "client|server|scripts|docs|e2e|workers|\\.claude|\\.agents|\\.github";
+const pathPattern = new RegExp(`\`((?:${PATH_ROOTS})/[^\`\\s]+|CLAUDE\\.md|CONTEXT\\.md|SECURITY\\.md|package\\.json)\``, "g");
+let checkedPaths = 0;
+for (const filePath of instructionFiles) {
+  const content = readText(filePath);
+  for (const match of content.matchAll(pathPattern)) {
+    const target = match[1].replace(/[),.:;]+$/, "");
+    if (/[*<>{}$|]|NNN|YYYY|XX|\.\.\.|…/.test(target)) continue;
+    if (/^client\/scripts\/\.generated\//.test(target)) continue;
+    checkedPaths += 1;
+    const resolved = path.resolve(ROOT, target);
+    if (!fs.existsSync(resolved)) {
+      fail(`${relative(filePath)}:${lineNumberAt(content, match.index)}: referenced path does not exist: ${target}`);
     }
   }
 }
+pass(`${checkedPaths} repository paths verified`);
 
 console.log("\n🔗 Relative Markdown links");
 let checkedLinks = 0;
-for (const markdownFile of markdownFiles) {
+for (const markdownFile of instructionFiles) {
   const content = readText(markdownFile);
-  const links = content.matchAll(/\[[^\]]*\]\(([^)]+)\)/g);
-  for (const match of links) {
+  for (const match of content.matchAll(/\[[^\]]*\]\(([^)]+)\)/g)) {
     const rawTarget = match[1].trim().replace(/^<|>$/g, "");
-    if (!rawTarget.startsWith("./") && !rawTarget.startsWith("../")) continue;
+    if (/^[a-z][a-z0-9+.-]*:/i.test(rawTarget) || rawTarget.startsWith("#") || rawTarget.startsWith("/")) continue;
     const withoutAnchor = rawTarget.split("#")[0];
     if (!withoutAnchor) continue;
     checkedLinks += 1;
     const resolved = path.resolve(path.dirname(markdownFile), withoutAnchor);
-    if (!fs.existsSync(resolved)) {
-      fail(`${relative(markdownFile)}: broken link ${rawTarget}`);
-    }
+    if (!fs.existsSync(resolved)) fail(`${relative(markdownFile)}: broken link ${rawTarget}`);
   }
 }
 pass(`${checkedLinks} relative Markdown links checked`);
 
 console.log("\n🧹 Deprecated instruction references");
 const deprecatedPatterns = [
-  { regex: /\.\.\$audit-playbook\/SKILL\.md/g, label: "malformed audit-playbook path" },
-  { regex: /(?:skills\/)?known_issues\.md/g, label: "legacy known_issues.md path" },
-  { regex: /\.agents\/skills\/ai-chat-system\.md/g, label: "legacy ai-chat-system.md path" },
-  { regex: /(?<![\w/-])tdd\.md(?![\w/-])/g, label: "legacy tdd.md path" },
-  { regex: /(?<![\w/-])audit-playbook\.md(?![\w/-])/g, label: "legacy audit-playbook.md path" },
+  { regex: /\bAGENTS\.md\b/g, label: "AGENTS.md was replaced by CLAUDE.md" },
+  { regex: /\.agents\/(?:skills|rules|reference\/(?:project-guide|agent-workflow-map))/g, label: "legacy .agents instruction path" },
+  { regex: /codex-session-governor|session-governance\.md|task-orchestration\.md/g, label: "removed Codex session workflow" },
   { regex: /Decode JWT (?:tại|at) jwt\.io/gi, label: "external JWT decoding guidance" },
   { regex: /console\.log\([^\n]*req\.body/g, label: "raw request-body debug logging" },
 ];
-
-for (const filePath of markdownFiles) {
+const errorsBeforeDeprecated = errors;
+for (const filePath of instructionFiles) {
   const content = readText(filePath);
   for (const pattern of deprecatedPatterns) {
     pattern.regex.lastIndex = 0;
     if (pattern.regex.test(content)) fail(`${relative(filePath)}: ${pattern.label}`);
   }
 }
-if (errors === 0) pass("No deprecated instruction references found");
+if (errors === errorsBeforeDeprecated) pass("No deprecated instruction references found");
 
 console.log("\n📊 Drift-prone snapshots");
 const snapshotPatterns = [
@@ -431,28 +381,23 @@ const snapshotPatterns = [
   /admin\/[^\n]*\d+\+? admin pages/,
   /tools\/ \(\d+ tools\)/,
 ];
-for (const filePath of markdownFiles) {
+for (const filePath of instructionFiles) {
   const content = readText(filePath);
   for (const pattern of snapshotPatterns) {
     if (pattern.test(content)) fail(`${relative(filePath)}: hardcoded count should be generated from repo`);
   }
 }
-
-const inventory = collectProjectInventory(ROOT);
-console.log(`  ℹ️  Live inventory: ${JSON.stringify(inventory)}`);
+console.log(`  ℹ️  Live inventory: ${JSON.stringify(collectProjectInventory(ROOT))}`);
 
 console.log("\n🔎 Canonical contracts");
 const homePage = readText(path.join(ROOT, "client", "src", "pages", "Home.jsx"));
-const seoRule = readText(path.join(AGENTS_ROOT, "rules", "seo", "seo.md"));
-const homeTypes = ["Organization", "ProfessionalService", "Service", "FAQPage"];
-for (const type of homeTypes) {
+const seoRule = readText(path.join(RULES_ROOT, "seo.md"));
+for (const type of ["Organization", "ProfessionalService", "Service", "FAQPage"]) {
   if (!homePage.includes(`"@type": "${type}"`)) fail(`Home.jsx missing JSON-LD type ${type}`);
   if (!seoRule.includes(type)) fail(`SEO rule missing Home JSON-LD type ${type}`);
 }
 
-const rootAgents = readText(path.join(ROOT, "AGENTS.md"));
-if (!rootAgents.includes("task-orchestration.md")) fail("AGENTS.md does not route task orchestration rule");
-if (!rootAgents.includes("npm run agents:validate")) fail("AGENTS.md does not list agent validation command");
+if (!claudeMd.includes("npm run agents:validate")) fail("CLAUDE.md does not list agent validation command");
 
 const packageJson = JSON.parse(readText(path.join(ROOT, "package.json")));
 if (packageJson.scripts?.["agents:validate"] !== "node .agents/scripts/validate-agent-system.mjs") {
@@ -467,8 +412,8 @@ const knownScripts = new Set([
   ...Object.keys(serverPackage.scripts || {}),
 ]);
 const referencedScripts = new Set();
-for (const filePath of markdownFiles) {
-  for (const match of readText(filePath).matchAll(/npm run ([A-Za-z0-9:_-]+)/g)) {
+for (const filePath of instructionFiles) {
+  for (const match of readText(filePath).matchAll(/npm(?:\.cmd)? run ([A-Za-z0-9:_-]+)/g)) {
     referencedScripts.add(match[1]);
   }
 }
@@ -480,10 +425,12 @@ pass(`${referencedScripts.size} referenced npm scripts checked`);
 const ciWorkflow = readText(path.join(ROOT, ".github", "workflows", "ci.yml"));
 if (!ciWorkflow.includes("npm run agents:validate")) fail("CI does not run agents:validate");
 
-const preDeploy = readText(path.join(SKILLS_ROOT, "pre-deploy", "SKILL.md"));
-if (!preDeploy.includes("npm run agents:validate")) fail("pre-deploy skill does not run agents:validate");
+const releaseSkill = path.join(SKILLS_ROOT, "release", "SKILL.md");
+if (!fs.existsSync(releaseSkill) || !readText(releaseSkill).includes("npm run agents:validate")) {
+  fail("release skill does not run agents:validate");
+}
 
-console.log("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+console.log("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
 if (errors > 0) {
   console.error(`❌ FAIL — ${errors} error(s), ${warnings} warning(s)`);
   process.exit(1);
@@ -492,5 +439,5 @@ if (errors > 0) {
 if (warnings > 0) {
   warn(`PASS WITH WARNINGS — ${warnings} warning(s)`);
 } else {
-  console.log(`✅ ALL PASS — ${skillDirectories.length} skills validated, 0 warnings`);
+  console.log(`✅ ALL PASS — ${skillDirectories.length} skills, ${ruleFiles.length} rules validated, 0 warnings`);
 }
