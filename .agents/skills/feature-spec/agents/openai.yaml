@@ -1,7 +1,0 @@
-interface:
-  display_name: "Feature Spec"
-  short_description: "Specify risky or multi-file features"
-  default_prompt: "Use $feature-spec to define behavior, boundaries, and success criteria before implementation."
-
-policy:
-  allow_implicit_invocation: true

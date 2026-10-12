@@ -1,7 +1,0 @@
-interface:
-  display_name: "New AI Tool"
-  short_description: "Create registered HT Assistant tools"
-  default_prompt: "Use $new-tool to add an HT Assistant tool with complete backend and UI registration."
-
-policy:
-  allow_implicit_invocation: true

@@ -14,7 +14,7 @@ Các câu như “Tôi đã nâng MongoDB lên rồi, kiểm tra những việc 
 
 Agent xử lý trigger theo thứ tự:
 
-1. Đọc file này, `AGENTS.md`, Git status và skill phù hợp; không chạm thay đổi đang có ngoài scope.
+1. Đọc file này, `CLAUDE.md`, Git status và skill phù hợp; không chạm thay đổi đang có ngoài scope.
 2. Xác minh bằng dashboard/billing thật: provider, account/project/service/cluster đã che ID, plan/tier, region, quota, capability đang bật và ngày kiểm tra. Không suy plan từ code hoặc lời quảng cáo cũ.
 3. Mở lại nguồn chính thức ở cuối file vì giá, tên gói, quota và entitlement có thể đổi. Billing screen hiện tại thắng mọi con số trong tài liệu.
 4. Phân loại từng mục là `LÀM NGAY`, `ĐÃ MỞ KHÓA`, `CHƯA CẦN`, `BLOCKED` hoặc `VERIFIED`; nêu evidence và blast radius.

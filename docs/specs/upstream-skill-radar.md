@@ -8,7 +8,7 @@ Xây dựng một hệ thống theo dõi có kiểm soát cho các Agent Skill c
 
 Hệ thống gồm hai bề mặt liên kết với nhau:
 
-1. `$skill-radar` và scanner repo-native phục vụ engineering governance.
+1. `/skill-radar` và scanner repo-native phục vụ engineering governance.
 2. Trang Admin **Radar công nghệ** hiển thị watchlist, drift, audit, lịch kiểm tra kế tiếp và cho Admin thêm
    GitHub repository/skill qua luồng phân tích trước khi lưu.
 
@@ -21,16 +21,16 @@ Hệ thống gồm hai bề mặt liên kết với nhau:
    nhất ở read model; không ghi ngược vào filesystem của Render hoặc làm thay đổi Git history.
 4. Release này thêm collection `SkillRadarSource` cho nguồn động. Không backfill 23 nguồn baseline và không cần
    migration dữ liệu; document cũ không bị ảnh hưởng.
-5. Job tự động chỉ thu thập metadata và phát hiện drift. Nó không tự cài skill, sửa `.agents/skills/`, sửa
-   `.agents/rules/`, commit, merge hoặc deploy.
+5. Job tự động chỉ thu thập metadata và phát hiện drift. Nó không tự cài skill, sửa `.claude/skills/`, sửa
+   `.claude/rules/`, commit, merge hoặc deploy.
 
 ## Canonical Boundaries
 
-- `AGENTS.md` và `.agents/rules/` tiếp tục là policy canonical.
-- `.agents/skills/` tiếp tục là workflow đã thích nghi cho HTCOACHINGWEB.
+- `CLAUDE.md` và `.claude/rules/` là policy canonical (chuyển từ `AGENTS.md`/`.agents/rules/` ngày 2026-10-13).
+- `.claude/skills/` là workflow đã thích nghi cho HTCOACHINGWEB.
 - Upstream skill chỉ là input tham khảo, không bao giờ thắng policy/security/project contract.
-- `$skill-radar` xử lý **external upstream drift** và tạo báo cáo.
-- `$goad` xử lý **internal codebase drift** sau khi một local skill được chọn để review.
+- `/skill-radar` xử lý **external upstream drift** và tạo báo cáo.
+- Internal codebase drift của skill local được xử lý bằng sửa trực tiếp trong `.claude/` sau khi user duyệt.
 - `skills.sh` có thể giúp discovery, popularity và security audit, nhưng install count không chứng minh chất lượng
   hoặc độ phù hợp với project.
 
@@ -42,10 +42,10 @@ Hệ thống gồm hai bề mặt liên kết với nhau:
 | 2 | Debugging | `diagnosing-bugs` | `mattpocock/skills` | `debugging` | Nâng chất lượng hypothesis/reproduction loop. |
 | 3 | Domain | `domain-modeling` | `mattpocock/skills` | `domain-modeling`, `CONTEXT.md` | Giữ vocabulary và boundary nghiệp vụ nhất quán. |
 | 4 | Review | `code-review` | `mattpocock/skills` | `code-review` | Học cách review có evidence và severity rõ. |
-| 5 | Testing | `tdd` | `mattpocock/skills` | `tdd-guide`, `qa` | Theo dõi TDD workflow thực dụng cho coding agents. |
+| 5 | Testing | `tdd` | `mattpocock/skills` | `.claude/rules/testing.md`, `qa` | Theo dõi TDD workflow thực dụng cho coding agents. |
 | 6 | Planning | `writing-plans` | `obra/superpowers` | `feature-spec`, `plan-template` | Cải thiện decomposition và verification checkpoint. |
-| 7 | Delivery | `verification-before-completion` | `obra/superpowers` | `qa`, `cleanup-delivery`, `ship` | Ngăn agent tuyên bố hoàn thành khi chưa có evidence. |
-| 8 | Skill authoring | `skill-creator` | `anthropics/skills` | Toàn bộ `.agents/skills/` | Theo dõi format, progressive disclosure và evaluation. |
+| 7 | Delivery | `verification-before-completion` | `obra/superpowers` | `qa`, `release` | Ngăn agent tuyên bố hoàn thành khi chưa có evidence. |
+| 8 | Skill authoring | `skill-creator` | `anthropics/skills` | Toàn bộ `.claude/skills/` | Theo dõi format, progressive disclosure và evaluation. |
 | 9 | UI | `frontend-design` | `anthropics/skills` | `ui-quality` | Nâng taste, hierarchy và chất lượng frontend. |
 | 10 | UI audit | `web-design-guidelines` | `vercel-labs/agent-skills` | `ui-check` | Theo dõi accessibility và web UI review checklist. |
 | 11 | React | `vercel-react-best-practices` | `vercel-labs/agent-skills` | `ui-quality`, `qa` | Phù hợp React 19, performance và client rendering. |
@@ -148,10 +148,10 @@ khi đồng thời xét activity, relevance, local usage, maintainer response, s
   rate limit khi `X-RateLimit-Remaining=0` hoặc có `Retry-After`. Generic `403` khi quota còn lại là access/upstream
   failure, không dựng thời điểm thử lại. Khi quota đã cạn, dừng request GitHub mới trong batch và giữ last-known-good.
 - Source chưa có `lastReviewedAt` phải qua baseline content comparison; `clean` chỉ mô tả hash drift sau baseline.
-- `$skill-radar` đọc kết quả, duyệt Trending/Hot/Official/Audits trên skills.sh, tìm candidate mới và tạo
+- `/skill-radar` đọc kết quả, duyệt Trending/Hot/Official/Audits trên skills.sh, tìm candidate mới và tạo
   `docs/audits/YYYY-MM-skill-radar.md`.
 - Mỗi thay đổi phải được phân loại `adopt`, `adapt`, `reject` hoặc `defer` kèm evidence.
-- Chỉ sau phê duyệt mới dùng `$goad`/skill domain tương ứng để cập nhật local canonical source.
+- Chỉ sau phê duyệt mới sửa skill/rule tương ứng trong `.claude/` để cập nhật local canonical source.
 
 ## Admin — Radar công nghệ
 
@@ -219,7 +219,7 @@ Trang phải có search, filter theo domain/lifecycle/drift và đầy đủ loa
   local targets và decision review.
 - Scanner phát hiện content hash thay đổi và tạo snapshot/report deterministic mà không sửa local skill.
 - Lịch tháng có thể chạy tự động và thủ công; failure không làm CI/release chính thất bại.
-- `$skill-radar` và `$goad` có ranh giới rõ, validator bao phủ skill mới.
+- `/skill-radar` có ranh giới rõ, validator bao phủ skill mới.
 - Admin dán URL TencentDB Agent Memory, nhận preview repository/AI Memory, chỉnh được đề xuất, lưu và thấy hàng mới ngay.
 - `seo-audit` rate limit giữ hash/commit gần nhất, hiển thị retry time và không bị gắn `unreachable`.
 - Có Mongoose schema riêng cho nguồn động nhưng không migration/backfill; không lộ secret/raw upstream content.
@@ -227,7 +227,7 @@ Trang phải có search, filter theo domain/lifecycle/drift và đầy đủ loa
 ## Out of Scope
 
 - Cài toàn bộ skill từ skills.sh hoặc Desktop snapshot.
-- Tự động sửa rules/security/AGENTS.md.
+- Tự động sửa rules/security/CLAUDE.md.
 - Xóa/sửa nguồn động sau khi đã lưu; release này chỉ thêm mới để giữ mutation scope nhỏ.
 - Xây marketplace skill riêng hoặc xuất bản skill HTCOACHINGWEB ra công khai.
 - Biến popularity/install count thành tiêu chí auto-approve.
