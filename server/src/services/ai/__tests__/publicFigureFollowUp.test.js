@@ -71,3 +71,29 @@ describe("focused search query for public figures", () => {
     expect(buildPublicFigureSearchQuery([], "thành tích")).toBe("");
   });
 });
+
+describe("a follow-up that names a different person", () => {
+  const RONALDO_TURN = {
+    role: "user",
+    content: "Cristiano Ronaldo là ai? Dựa trên nguồn công khai, hãy liệt kê những bài tập anh ấy thực hiện.",
+  };
+
+  it("is about the named person, not the one discussed before", () => {
+    const message =
+      "bạn biết LeBron James không bro, thành tích của anh ấy vang dội như thế nào và anh ấy tập luyện rất kỷ luật";
+    const query = buildStandaloneRetrievalQuery(message, [RONALDO_TURN, ANSWER_TURN]);
+    expect(query).toBe(message);
+    expect(query).not.toContain("Cristiano");
+    expect(decide(message, [RONALDO_TURN, ANSWER_TURN]).webSearchRequired).toBe(true);
+  });
+
+  it("is not tied to an earlier figure when it names someone outside the registry", () => {
+    const message = "Conor McGregor tập luyện thế nào, anh ấy có kỷ luật không?";
+    expect(buildStandaloneRetrievalQuery(message, [LEBRON_TURN, ANSWER_TURN])).toBe(message);
+  });
+
+  it("still carries the earlier person into a comparison", () => {
+    const message = "so với Cristiano Ronaldo thì ai tập kỷ luật hơn?";
+    expect(buildStandaloneRetrievalQuery(message, [LEBRON_TURN, ANSWER_TURN])).toContain("LeBron James");
+  });
+});
