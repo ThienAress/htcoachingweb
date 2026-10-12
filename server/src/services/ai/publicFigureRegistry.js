@@ -67,6 +67,11 @@ export const PUBLIC_FIGURE_REGISTRY = Object.freeze([
   figure("Mike Tyson", ["Iron Mike"]),
 ]);
 
+const CURATED_CANONICALS = new Set(PUBLIC_FIGURE_REGISTRY.map((entry) => entry.canonical));
+
+/** True for a name that is in the curated registry (not merely classifier-approved). */
+export const isCuratedPublicFigure = (canonical) => CURATED_CANONICALS.has(canonical);
+
 // One UTF-16 unit in, one out, so indexes found on the folded text slice the original.
 const foldText = (value) =>
   Array.from(String(value || "").normalize("NFC"), (character) => {

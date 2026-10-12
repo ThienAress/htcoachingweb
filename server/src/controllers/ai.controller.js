@@ -96,7 +96,10 @@ import {
   isPublicFigureClassifierEnabled,
   resolveClassifiedPublicFigures,
 } from "../services/ai/publicFigureIdentity.service.js";
-import { buildPublicFigureSearchQuery } from "../services/ai/publicFigureRegistry.js";
+import {
+  buildPublicFigureSearchQuery,
+  isCuratedPublicFigure,
+} from "../services/ai/publicFigureRegistry.js";
 import { frameGroundedWebAnswer } from "../services/ai/webAnswerFraming.js";
 import {
   streamAssistantText,
@@ -1240,6 +1243,15 @@ export const chatStream = async (req, res) => {
       verifiedPublicPersonNames.length > 0
         ? verifiedPublicPersonNames
         : publicFigureLookup.names;
+    // Thumbnails are only searched for people in the curated registry, never for a name that
+    // was approved by the identity classifier.
+    const curatedImageSubjects = () => [
+      ...new Set(
+        publicFigureLookup.rewrites
+          .map(({ canonical }) => canonical)
+          .filter(isCuratedPublicFigure),
+      ),
+    ];
     const urgentSafetyResponse = getUrgentSafetyResponse(routingDecision);
     if (urgentSafetyResponse) {
       incrementMetric("provider.gemini_chat_not_required");
@@ -1699,6 +1711,7 @@ export const chatStream = async (req, res) => {
           : TOOL_TIMEOUT_MS,
         allowedToolNames: [toolName],
         allowedPublicPersonNames,
+        publicFigureImageSubjects: curatedImageSubjects(),
         previousMealPlan: conversationMemory.lastMeal?.plan || null,
         scopedSubstitution,
       });
@@ -2073,6 +2086,7 @@ export const chatStream = async (req, res) => {
                 timeoutMs: TOOL_TIMEOUT_MS,
                 allowedToolNames: [...allowedToolNames],
                 allowedPublicPersonNames,
+                publicFigureImageSubjects: curatedImageSubjects(),
                 previousMealPlan: conversationMemory.lastMeal?.plan || null,
               },
               {
