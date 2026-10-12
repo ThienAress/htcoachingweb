@@ -85,6 +85,7 @@ import {
   sanitizeAssistantOutput,
 } from "../services/ai/assistantOutput.js";
 import {
+  getPublicFigureLookupCandidates,
   getPublicPersonLookupNames,
   prepareExternalKnowledgeQuery,
   prepareKnowledgeRetrievalQuery,
@@ -1220,8 +1221,13 @@ export const chatStream = async (req, res) => {
     const activityFollowupResponse = !structuredAction
       ? activityIntakeFollowup(message, priorMessages, routingDecision)
       : null;
+    const verifiedPublicPersonNames = getPublicPersonLookupNames(retrievalQuery);
+    // A named person without a role word can still be a public figure, so a web-required
+    // question may look the name up unless it points at a private subject or health data.
     const allowedPublicPersonNames =
-      getPublicPersonLookupNames(retrievalQuery);
+      verifiedPublicPersonNames.length > 0 || !routingDecision?.webSearchRequired
+        ? verifiedPublicPersonNames
+        : getPublicFigureLookupCandidates(retrievalQuery);
     const urgentSafetyResponse = getUrgentSafetyResponse(routingDecision);
     if (urgentSafetyResponse) {
       incrementMetric("provider.gemini_chat_not_required");

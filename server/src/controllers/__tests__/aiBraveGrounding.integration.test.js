@@ -108,6 +108,59 @@ describe("Vibi + Brave through owned chat SSE", () => {
       .toBe(true);
   });
 
+  it("looks up a famous person named without a role word and answers with a source", async () => {
+    const question = "bạn biết LeBron James không bro, thành tích của anh ấy vang dội như thế nào " +
+      "và anh ấy củng tập luyện rất kỷ luật để có được thân hình săn chắc đúng không";
+    const lebronQuote = "LeBron James has won 4 NBA championships and 4 NBA Finals MVP awards.";
+    const lebronAnswer = { segments: [{
+      text: "LeBron James đã giành 4 chức vô địch NBA và 4 danh hiệu MVP Chung kết NBA.",
+      supports: [{ sourceId: "source_1", quote: lebronQuote }],
+    }] };
+    const fetchMock = vi.fn(async (url, options) => {
+      if (url === "https://api.search.brave.com/res/v1/llm/context") {
+        return new Response(JSON.stringify({ grounding: { generic: [{
+          url: "https://www.nba.com/player/2544/lebron-james",
+          title: "LeBron James", snippets: [lebronQuote],
+        }] } }));
+      }
+      if (url === "https://vibi.top/v1/chat/completions") {
+        const body = JSON.parse(options.body);
+        return body.tool_choice?.function?.name === "submit_grounded_answer"
+          ? streamTool("submit_grounded_answer", lebronAnswer)
+          : streamTool("search_knowledge", { query: question });
+      }
+      throw new Error("Unexpected egress");
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const { accessToken } = await createTestUser();
+    const response = await withAuth(request(app).post("/api/ai/chat"), accessToken)
+      .send({ message: question });
+    expect(response.status).toBe(200);
+    const frames = parseFrames(response);
+    expect(frames.some((frame) => frame.type === "error")).toBe(false);
+    expect(frames.find((frame) => frame.type === "done").meta.provenance).toBe("web_grounded");
+    const text = frames.filter((frame) => frame.type === "text").map((frame) => frame.content).join("");
+    expect(text).toContain("LeBron James");
+    expect(text).not.toContain("chưa thể xác minh");
+    const braveCalls = fetchMock.mock.calls.filter(([url]) =>
+      url === "https://api.search.brave.com/res/v1/llm/context");
+    expect(braveCalls).toHaveLength(1);
+  });
+
+  it.each([
+    "học viên Lisa bị tiểu đường type 2 thì nên ăn gì?",
+    "bạn tôi Lisa tập gym thế nào?",
+  ])("never sends a private subject named in %s to the search provider", async (message) => {
+    const fetchMock = vi.fn(async () => new Response("{}"));
+    vi.stubGlobal("fetch", fetchMock);
+    const { accessToken } = await createTestUser();
+    const response = await withAuth(request(app).post("/api/ai/chat"), accessToken).send({ message });
+    expect(response.status).toBe(200);
+    const braveCalls = fetchMock.mock.calls.filter(([url]) =>
+      String(url).includes("api.search.brave.com"));
+    expect(braveCalls).toHaveLength(0);
+  });
+
   it("reports unavailable provenance when a required lookup has no evidence", async () => {
     const fetchMock = vi.fn(async () => new Response("{}"));
     vi.stubGlobal("fetch", fetchMock);

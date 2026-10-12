@@ -979,6 +979,67 @@ export function getPublicPersonLookupNames(value) {
   ];
 }
 
+// People close to the asker or clients of the coach are private subjects even when named.
+const PRIVATE_RELATION_CONTEXT_PATTERN =
+  /\b(?:ban|bo|ba|me|vo|chong|con|anh|chi|em|dong nghiep|hang xom)\s+(?:toi|minh)\b/;
+
+/**
+ * Names that can be looked up as public figures without a role word such as
+ * "cau thu". It never binds a name when the request points at a private subject
+ * (client, student, patient, relative or colleague of the asker) or at a health
+ * record. The caller still runs the sensitive-health check, and web grounding
+ * declines when the sources do not identify a public person.
+ */
+export function getPublicFigureLookupCandidates(value) {
+  const text = normalizeAthleteRoleAbbreviations(String(value || ""));
+  const normalized = normalizePrivacyText(text);
+  if (!normalized.trim()) return [];
+  if (
+    EXPLICIT_PRIVATE_RECORD_SUBJECT_PATTERN.test(normalized) ||
+    PRIVATE_RELATION_CONTEXT_PATTERN.test(normalized) ||
+    PRIVATE_HEALTH_RECORD_CUE_PATTERN.test(normalized) ||
+    containsSensitivePersonalHealth(text, "", [])
+  ) {
+    return [];
+  }
+  const names = new Set();
+  const fullNameRanges = [];
+  for (const match of text.matchAll(LIKELY_PERSON_NAME_GLOBAL_PATTERN)) {
+    const name = match[0].replace(PUBLIC_PERSON_METADATA_SUFFIX_PATTERN, "").trim();
+    if (!name || match.index === undefined) continue;
+    const firstToken = normalizePrivacyText(name).trim().split(/\s+/)[0];
+    if (NON_NAME_CAPITALIZED_STARTS.has(firstToken)) continue;
+    if (/\p{Lu}{2,6}/u.test(name) && containsPublicHealthOrganizationAcronym(name)) continue;
+    if (
+      NON_PERSON_ORGANIZATION_NAME_PATTERN.test(name) ||
+      hasClearNonPersonEntityContext({ text, index: match.index, name })
+    ) {
+      continue;
+    }
+    fullNameRanges.push({ start: match.index, end: match.index + name.length });
+    names.add(name);
+  }
+  for (const match of text.matchAll(LIKELY_SINGLE_CAPITALIZED_TOKEN_GLOBAL_PATTERN)) {
+    const name = match[1];
+    if (!name || match.index === undefined) continue;
+    const matchEnd = match.index + match[0].length;
+    if (fullNameRanges.some((range) => match.index >= range.start && matchEnd <= range.end)) continue;
+    const normalizedName = normalizePrivacyText(name).trim();
+    const suffix = normalizePrivacyText(text.slice(match.index + name.length));
+    if (
+      normalizedName.length < 3 ||
+      NON_NAME_CAPITALIZED_STARTS.has(normalizedName) ||
+      (name.length > 1 && name === name.toLocaleUpperCase()) ||
+      hasClearNonPersonEntityContext({ text, index: match.index, name }) ||
+      PRIVATE_SINGLE_NAME_POSSESSIVE_AFTER_PATTERN.test(suffix) ||
+      PRIVATE_PERSON_RELATION_AFTER_PATTERN.test(suffix)
+    ) {
+      continue;
+    }
+    names.add(name);
+  }
+  return [...names].slice(0, 2);
+}
 export const hashKnowledgeText = (value) =>
   crypto.createHash("sha256").update(String(value || ""), "utf8").digest("hex");
 
