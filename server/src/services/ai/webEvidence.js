@@ -1,6 +1,7 @@
 import { selectKnowledgeAnswerSegments } from "./knowledgeAnswerScope.js";
 
-const PREFERRED_HOSTS = ["who.int", "cdc.gov", "nih.gov", "acsm.org", "uefa.com", "fifa.com", "olympics.com"];
+const PREFERRED_HOSTS = ["who.int", "cdc.gov", "nih.gov", "acsm.org", "uefa.com", "fifa.com", "olympics.com",
+  "nba.com", "britannica.com", "espn.com", "mensfitness.com", "menshealth.com", "muscleandfitness.com"];
 const hostnameMatches = (host, domain) => host === domain || host.endsWith(`.${domain}`);
 const normalize = (value) => String(value || "").replace(/<[^>]*>/g, " ")
   .replace(/[\u0000-\u001f\u007f\u202a-\u202e\u2066-\u2069]/g, " ").replace(/\s+/g, " ").trim();
@@ -37,12 +38,12 @@ export function selectWebEvidence(body, query) {
       continue;
     }
   }
-  return selected.sort((a, b) => Number(b.preferred) - Number(a.preferred)).slice(0, 3)
+  return selected.sort((a, b) => Number(b.preferred) - Number(a.preferred)).slice(0, 5)
     .map(({ preferred: _preferred, ...source }, index) => ({ ...source, id: `source_${index + 1}` }));
 }
 
 export function buildCitedWebAnswer(answer, evidence, query) {
-  if (!Array.isArray(answer?.segments) || answer.segments.length > 6) return { text: "", sources: [] };
+  if (!Array.isArray(answer?.segments) || answer.segments.length > 10) return { text: "", sources: [] };
   const validated = [];
   for (const segment of answer.segments) {
     if (typeof segment?.text !== "string" || segment.text.length > 800 ||

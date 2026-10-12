@@ -188,6 +188,50 @@ describe("Vibi + Brave through owned chat SSE", () => {
     expect(sentQuery).not.toContain("Đăng Béo");
   });
 
+  it("searches again for a follow-up that only says 'anh ấy' after a public figure", async () => {
+    const quote = "LeBron James trains about 6 days per week with weights and recovery work.";
+    const answerFor = { segments: [{
+      text: "LeBron James tập khoảng 6 ngày mỗi tuần với tạ và các bài phục hồi.",
+      supports: [{ sourceId: "source_1", quote }],
+    }] };
+    const first = "LeBron James thành tích thế nào?";
+    const second = "anh ấy tập luyện cụ thể như thế nào mỗi tuần vậy?";
+    let userQuestion = first;
+    const fetchMock = vi.fn(async (url, options) => {
+      if (url === "https://api.search.brave.com/res/v1/llm/context") {
+        return new Response(JSON.stringify({ grounding: { generic: [{
+          url: "https://www.mensfitness.com/lebron-training", title: "LeBron training",
+          snippets: [quote],
+        }] } }));
+      }
+      if (url === "https://vibi.top/v1/chat/completions") {
+        const body = JSON.parse(options.body);
+        return body.tool_choice?.function?.name === "submit_grounded_answer"
+          ? streamTool("submit_grounded_answer", answerFor)
+          : streamTool("search_knowledge", { query: userQuestion });
+      }
+      throw new Error("Unexpected egress");
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const { accessToken } = await createTestUser();
+    const firstResponse = await withAuth(request(app).post("/api/ai/chat"), accessToken)
+      .send({ message: first });
+    expect(firstResponse.status).toBe(200);
+    const conversationId = parseFrames(firstResponse)
+      .find((frame) => frame.type === "conversation").conversationId;
+    userQuestion = second;
+    const secondResponse = await withAuth(request(app).post("/api/ai/chat"), accessToken)
+      .send({ message: second, conversationId });
+    expect(secondResponse.status).toBe(200);
+    expect(parseFrames(secondResponse).find((frame) => frame.type === "done").meta.provenance)
+      .toBe("web_grounded");
+    const braveCalls = fetchMock.mock.calls.filter(([url]) =>
+      url === "https://api.search.brave.com/res/v1/llm/context");
+    expect(braveCalls).toHaveLength(2);
+    expect(JSON.parse(braveCalls[1][1].body).q)
+      .toBe("LeBron James training workout routine");
+  });
+
   it("does not search an ordinary private name even when it is written like a full name", async () => {
     const fetchMock = vi.fn(async () => new Response("{}"));
     vi.stubGlobal("fetch", fetchMock);
