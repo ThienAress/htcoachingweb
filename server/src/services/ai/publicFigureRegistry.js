@@ -1,7 +1,11 @@
 /**
  * Curated public figures the assistant may look up on the web by name, with the nicknames
  * people actually type. Only people whose training, physique or sport the product's
- * fitness assistant is realistically asked about are listed, Vietnamese athletes first.
+ * fitness assistant is realistically asked about are listed, in this priority order:
+ *   1. vietnam_pro      Vietnamese bodybuilding / physique athletes (IFBB Pro card holders)
+ *   2. vietnam          Other Vietnamese athletes (Olympic and Asian level, not football)
+ *   3. vietnam_football Vietnamese footballers
+ *   4. international    Strength / physique focused international figures
  *
  * Short given-name-only forms (for example "Quang Hai" or "Van Hau") are deliberately not
  * aliases: they are also ordinary private names. Those still work when the question carries
@@ -11,26 +15,24 @@ const figure = (canonical, aliases = [], scope = "international") =>
   Object.freeze({ canonical, aliases: Object.freeze(aliases), scope });
 
 export const PUBLIC_FIGURE_REGISTRY = Object.freeze([
-  // Vietnam
-  figure("Hoàng Hải Đăng", ["Đăng Béo"], "vietnam"),
-  figure("Vũ Minh Hiếu", [], "vietnam"),
+  // 1. Vietnam: bodybuilding / physique athletes. Add IFBB Pro card holders here first.
+  figure("Hoàng Hải Đăng", ["Đăng Béo"], "vietnam_pro"),
+  figure("Vũ Minh Hiếu", [], "vietnam_pro"),
+  // 2. Vietnam: other athletes
   figure("Nguyễn Thị Ánh Viên", ["Ánh Viên"], "vietnam"),
   figure("Hoàng Xuân Vinh", [], "vietnam"),
   figure("Nguyễn Tiến Minh", [], "vietnam"),
   figure("Thạch Kim Tuấn", [], "vietnam"),
   figure("Lê Tú Chinh", [], "vietnam"),
   figure("Nguyễn Trần Duy Nhất", [], "vietnam"),
-  figure("Nguyễn Quang Hải", [], "vietnam"),
-  figure("Nguyễn Công Phượng", ["Công Phượng"], "vietnam"),
-  figure("Đoàn Văn Hậu", [], "vietnam"),
-  figure("Nguyễn Tiến Linh", [], "vietnam"),
-  figure("Đặng Văn Lâm", [], "vietnam"),
-  figure("Quế Ngọc Hải", [], "vietnam"),
-  figure("Nguyễn Hoàng Đức", [], "vietnam"),
-  figure("Lương Xuân Trường", [], "vietnam"),
-  figure("Đỗ Hùng Dũng", [], "vietnam"),
-  figure("Bùi Tiến Dũng", [], "vietnam"),
-  // International, strength / physique focused
+  // 3. Vietnam: footballers
+  figure("Nguyễn Quang Hải", [], "vietnam_football"),
+  figure("Nguyễn Công Phượng", ["Công Phượng"], "vietnam_football"),
+  figure("Đoàn Văn Hậu", [], "vietnam_football"),
+  figure("Nguyễn Tiến Linh", [], "vietnam_football"),
+  figure("Đặng Văn Lâm", [], "vietnam_football"),
+  figure("Quế Ngọc Hải", [], "vietnam_football"),
+  // 4. International, strength / physique focused
   figure("Cristiano Ronaldo", ["CR7"]),
   figure("LeBron James", ["King James"]),
   figure("Kobe Bryant", ["Black Mamba"]),

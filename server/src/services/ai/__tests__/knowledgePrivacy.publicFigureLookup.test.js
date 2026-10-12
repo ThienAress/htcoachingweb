@@ -12,11 +12,17 @@ const LEBRON_QUESTION =
   "bạn biết LeBron James không bro, thành tích của anh ấy vang dội như thế nào và anh ấy củng tập luyện rất kỷ luật để có được thân hình săn chắc đúng không";
 
 describe("public figure registry", () => {
-  it("covers Vietnamese athletes first and keeps the list around forty people", () => {
-    const scopes = PUBLIC_FIGURE_REGISTRY.map((entry) => entry.scope);
-    expect(scopes.slice(0, 18).every((scope) => scope === "vietnam")).toBe(true);
+  it("orders pro card athletes, then other athletes, then footballers, then international", () => {
+    const order = ["vietnam_pro", "vietnam", "vietnam_football", "international"];
+    const ranks = PUBLIC_FIGURE_REGISTRY.map((entry) => order.indexOf(entry.scope));
+    expect(ranks.every((rank) => rank >= 0)).toBe(true);
+    expect(ranks).toEqual([...ranks].sort((left, right) => left - right));
+    const footballers = PUBLIC_FIGURE_REGISTRY.filter((entry) => entry.scope === "vietnam_football");
+    const proCardAndOthers = PUBLIC_FIGURE_REGISTRY.filter((entry) =>
+      ["vietnam_pro", "vietnam"].includes(entry.scope));
+    expect(footballers.length).toBeLessThanOrEqual(proCardAndOthers.length);
     expect(PUBLIC_FIGURE_REGISTRY.length).toBeGreaterThanOrEqual(40);
-    expect(PUBLIC_FIGURE_REGISTRY.length).toBeLessThanOrEqual(50);
+    expect(PUBLIC_FIGURE_REGISTRY.length).toBeLessThanOrEqual(60);
   });
 
   it("never lists a bare given name as an alias", () => {
