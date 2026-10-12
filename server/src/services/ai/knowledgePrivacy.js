@@ -1018,12 +1018,46 @@ export function applyPublicFigureCanonicalNames(query, rewrites = []) {
   for (const { surface, canonical } of rewrites) {
     if (!surface || surface === canonical) continue;
     rewritten = rewritten.replace(
-      new RegExp(`(?<![\p{L}\p{N}_])${escapeRegExp(surface)}(?![\p{L}\p{N}_])`, "giu"),
+      new RegExp(String.raw`(?<![\p{L}\p{N}_])` + escapeRegExp(surface) + String.raw`(?![\p{L}\p{N}_])`, "giu"),
       canonical,
     );
   }
   return rewritten;
 }
+/**
+ * Person names in a question that are not in the curated registry and carry no private cue.
+ * Only these names (never the rest of the message) may be sent to the identity classifier.
+ * Returns [] when the request points at a private subject, personal health data, or names more
+ * than two people, so a caller can treat any non-empty result as "worth classifying".
+ */
+export function resolveUnlistedPersonCandidates(value) {
+  const text = String(value || "");
+  const normalized = normalizePrivacyText(text);
+  if (!normalized.trim()) return [];
+  if (
+    EXPLICIT_PRIVATE_RECORD_SUBJECT_PATTERN.test(normalized) ||
+    PRIVATE_RELATION_CONTEXT_PATTERN.test(normalized) ||
+    PRIVATE_HEALTH_RECORD_CUE_PATTERN.test(normalized) ||
+    containsSensitivePersonalHealth(text, "", []) ||
+    extractContextualPrivateNames(text).length > 0
+  ) {
+    return [];
+  }
+  const names = [
+    ...new Set(
+      extractUnboundPrivateNames(text, [])
+        .map((name) => name.trim())
+        .filter(
+          (name) =>
+            name.length <= 60 &&
+            name.split(/\s+/).length >= 2 &&
+            name.split(/\s+/).every((token) => /^\p{Lu}/u.test(token)),
+        ),
+    ),
+  ];
+  return names.length > 0 && names.length <= 2 ? names : [];
+}
+
 export const hashKnowledgeText = (value) =>
   crypto.createHash("sha256").update(String(value || ""), "utf8").digest("hex");
 
@@ -1468,16 +1502,23 @@ const redactDirectIdentifiers = (value, privateNames = []) => {
 
 // The Vietnamese name heuristics can split the full name of a registry figure ("Hoang Hai
 // Dang" is read as "Hoang Hai") and mistake the fragment for a private person. A fragment of a
-// name that was matched against the registry and bound by the caller is not a private name.
+// name that the caller bound as public (registry or classifier) and that appears in full is
+// not a private name.
 const isRegistryNameFragment = (name, text, allowedPublicPersonNames) => {
-  const allowed = new Set(
-    allowedPublicPersonNames.map((value) => normalizePrivacyText(value).trim()).filter(Boolean),
-  );
   const fragment = normalizePrivacyText(name).trim();
   if (!fragment) return false;
-  return findPublicFigures(text).some(({ surface }) => {
-    const full = normalizePrivacyText(surface).trim();
-    return allowed.has(full) && (full === fragment || ` ${full} `.includes(` ${fragment} `));
+  const normalizedText = normalizePrivacyText(text);
+  const registrySurfaces = new Set(
+    findPublicFigures(text).map(({ surface }) => normalizePrivacyText(surface).trim()),
+  );
+  return allowedPublicPersonNames.some((allowedName) => {
+    const full = normalizePrivacyText(allowedName).trim();
+    if (!full) return false;
+    // A single token can only be its own registry entry; a longer bound name may be split.
+    const isWholeRegistryName = full === fragment && registrySurfaces.has(full);
+    const isPartOfLongerName = full.includes(" ") && ` ${full} `.includes(` ${fragment} `);
+    if (!isWholeRegistryName && !isPartOfLongerName) return false;
+    return new RegExp(String.raw`(?<![\p{L}\p{N}_])` + escapeRegExp(full) + String.raw`(?![\p{L}\p{N}_])`, "u").test(normalizedText);
   });
 };
 

@@ -90,7 +90,12 @@ import {
   prepareExternalKnowledgeQuery,
   prepareKnowledgeRetrievalQuery,
   resolvePublicFigureLookup,
+  resolveUnlistedPersonCandidates,
 } from "../services/ai/knowledgePrivacy.js";
+import {
+  isPublicFigureClassifierEnabled,
+  resolveClassifiedPublicFigures,
+} from "../services/ai/publicFigureIdentity.service.js";
 import {
   streamAssistantText,
   truncateAssistantText,
@@ -1225,11 +1230,11 @@ export const chatStream = async (req, res) => {
     const verifiedPublicPersonNames = getPublicPersonLookupNames(retrievalQuery);
     // A figure in the curated registry (nicknames included) can be looked up without a role
     // word, unless the request points at a private subject or personal health data.
-    const publicFigureLookup =
+    let publicFigureLookup =
       verifiedPublicPersonNames.length === 0 && routingDecision?.webSearchRequired
         ? resolvePublicFigureLookup(retrievalQuery)
         : { names: [], rewrites: [] };
-    const allowedPublicPersonNames =
+    let allowedPublicPersonNames =
       verifiedPublicPersonNames.length > 0
         ? verifiedPublicPersonNames
         : publicFigureLookup.names;
@@ -1479,6 +1484,32 @@ export const chatStream = async (req, res) => {
         : prepareExternalKnowledgeQuery(retrievalQuery, {
             allowedPublicPersonNames,
           });
+      if (
+        !externalKnowledgeQuery.eligible &&
+        externalKnowledgeQuery.reason === "ambiguous_person_identity" &&
+        allowedPublicPersonNames.length === 0 &&
+        isPublicFigureClassifierEnabled()
+      ) {
+        // Not in the curated registry: ask the provider, with the bare name only, whether it is
+        // one widely known public figure. Anything but a confident yes keeps the query blocked.
+        const classified = await resolveClassifiedPublicFigures(
+          resolveUnlistedPersonCandidates(retrievalQuery),
+          {
+            signal: abortController.signal,
+            deadlineAt: chatStartTime + CHAT_DEADLINE_MS,
+          },
+        );
+        if (classified.names.length > 0) {
+          publicFigureLookup = classified;
+          allowedPublicPersonNames = classified.names;
+          externalKnowledgeQuery = prepareExternalKnowledgeQuery(retrievalQuery, {
+            allowedPublicPersonNames,
+          });
+          incrementMetric("ai.public_figure_classifier_accepted");
+        } else {
+          incrementMetric("ai.public_figure_classifier_rejected");
+        }
+      }
       if (externalKnowledgeQuery.eligible) {
         externalKnowledgeQuery = {
           ...externalKnowledgeQuery,

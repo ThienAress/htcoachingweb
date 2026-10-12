@@ -3,6 +3,7 @@ import request from "supertest";
 import { clearCollections, createTestApp, createTestUser, setupTestDB,
   teardownTestDB, withAuth } from "../../__tests__/setup.js";
 import ChatConversation from "../../models/ChatConversation.js";
+import { resetPublicFigureIdentityCache } from "../../services/ai/publicFigureIdentity.service.js";
 
 vi.mock("../../utils/safeLogger.js", () => ({ safeLog: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } }));
 
@@ -17,6 +18,10 @@ supports: [{ sourceId: "source_1", quote }] }] };
 const streamTool = (name, args) => new Response([
   `data: ${JSON.stringify({ choices: [{ delta: { tool_calls: [{ index: 0, id: "call_brave",
     function: { name, arguments: JSON.stringify(args) } }] }, finish_reason: "tool_calls" }] })}\n\n`,
+  "data: [DONE]\n\n",
+].join(""), { headers: { "Content-Type": "text/event-stream" } });
+const streamText = (content) => new Response([
+  `data: ${JSON.stringify({ choices: [{ delta: { content }, finish_reason: "stop" }] })}\n\n`,
   "data: [DONE]\n\n",
 ].join(""), { headers: { "Content-Type": "text/event-stream" } });
 const configure = () => {
@@ -193,6 +198,96 @@ describe("Vibi + Brave through owned chat SSE", () => {
     const braveCalls = fetchMock.mock.calls.filter(([url]) =>
       String(url).includes("api.search.brave.com"));
     expect(braveCalls).toHaveLength(0);
+  });
+
+  describe("identity classifier for names outside the registry", () => {
+    afterEach(() => resetPublicFigureIdentityCache());
+    const mcgregorQuestion = "Conor McGregor thành tích thế nào?";
+    const mcgregorQuote = "Conor McGregor won the UFC featherweight title in 2015 and the lightweight title in 2016.";
+    const mcgregorAnswer = { segments: [{
+      text: "Conor McGregor đã giành đai hạng lông UFC năm 2015 và đai hạng nhẹ năm 2016.",
+      supports: [{ sourceId: "source_1", quote: mcgregorQuote }],
+    }] };
+    const stubProvider = (classification) => {
+      const fetchMock = vi.fn(async (url, options) => {
+        if (url === "https://api.search.brave.com/res/v1/llm/context") {
+          return new Response(JSON.stringify({ grounding: { generic: [{
+            url: "https://www.ufc.com/athlete/conor-mcgregor", title: "Conor McGregor",
+            snippets: [mcgregorQuote],
+          }] } }));
+        }
+        if (url === "https://vibi.top/v1/chat/completions") {
+          const body = JSON.parse(options.body);
+          if (body.response_format?.type === "json_object") {
+            return classification === null
+              ? new Response("{}", { status: 500 })
+              : streamText(JSON.stringify(classification));
+          }
+          return body.tool_choice?.function?.name === "submit_grounded_answer"
+            ? streamTool("submit_grounded_answer", mcgregorAnswer)
+            : streamTool("search_knowledge", { query: mcgregorQuestion });
+        }
+        throw new Error("Unexpected egress");
+      });
+      vi.stubGlobal("fetch", fetchMock);
+      return fetchMock;
+    };
+    const braveCalls = (fetchMock) => fetchMock.mock.calls.filter(([url]) =>
+      String(url).includes("api.search.brave.com"));
+
+    it("looks up a famous person the classifier confirms, sending only the name to it", async () => {
+      const fetchMock = stubProvider({ public: true, confidence: "high", canonical: "Conor McGregor" });
+      const { accessToken } = await createTestUser();
+      const response = await withAuth(request(app).post("/api/ai/chat"), accessToken)
+        .send({ message: "Conor McGregor thành tích thế nào?" });
+      expect(response.status).toBe(200);
+      expect(parseFrames(response).find((frame) => frame.type === "done").meta.provenance)
+        .toBe("web_grounded");
+      const classifierCall = fetchMock.mock.calls.find(([url, options]) =>
+        url === "https://vibi.top/v1/chat/completions"
+        && JSON.parse(options.body).response_format?.type === "json_object");
+      const classifierMessages = JSON.parse(classifierCall[1].body).messages;
+      expect(classifierMessages[classifierMessages.length - 1].content)
+        .toBe(JSON.stringify({ name: "Conor McGregor" }));
+      expect(braveCalls(fetchMock)).toHaveLength(1);
+    });
+
+    it.each([
+      ["says the name is not public", { public: false, confidence: "high", canonical: "" }],
+      ["is unsure", { public: true, confidence: "low", canonical: "Conor McGregor" }],
+      ["names a different person", { public: true, confidence: "high", canonical: "Floyd Mayweather" }],
+      ["is unavailable", null],
+    ])("does not search when the classifier %s", async (_label, classification) => {
+      const fetchMock = stubProvider(classification);
+      const { accessToken } = await createTestUser();
+      const response = await withAuth(request(app).post("/api/ai/chat"), accessToken)
+        .send({ message: "Conor McGregor thành tích thế nào?" });
+      expect(response.status).toBe(200);
+      expect(braveCalls(fetchMock)).toHaveLength(0);
+    });
+
+    it("never asks the classifier about a private subject", async () => {
+      const fetchMock = stubProvider({ public: true, confidence: "high", canonical: "Conor McGregor" });
+      const { accessToken } = await createTestUser();
+      const response = await withAuth(request(app).post("/api/ai/chat"), accessToken)
+        .send({ message: "học viên Conor McGregor bị tiểu đường, nên ăn gì?" });
+      expect(response.status).toBe(200);
+      const classifierCalls = fetchMock.mock.calls.filter(([url, options]) =>
+        url === "https://vibi.top/v1/chat/completions"
+        && JSON.parse(options.body).response_format?.type === "json_object");
+      expect(classifierCalls).toHaveLength(0);
+      expect(braveCalls(fetchMock)).toHaveLength(0);
+    });
+
+    it("can be switched off", async () => {
+      vi.stubEnv("AI_PUBLIC_FIGURE_CLASSIFIER", "off");
+      const fetchMock = stubProvider({ public: true, confidence: "high", canonical: "Conor McGregor" });
+      const { accessToken } = await createTestUser();
+      const response = await withAuth(request(app).post("/api/ai/chat"), accessToken)
+        .send({ message: "Conor McGregor thành tích thế nào?" });
+      expect(response.status).toBe(200);
+      expect(braveCalls(fetchMock)).toHaveLength(0);
+    });
   });
 
   it.each([
