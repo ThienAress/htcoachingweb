@@ -11,6 +11,7 @@ const TOOL = { type: "function", function: {
     properties: { segments: { type: "array", maxItems: 10, items: {
       type: "object", additionalProperties: false, required: ["text", "supports"],
       properties: {
+        group: { type: "string", maxLength: 40 },
         text: { type: "string", maxLength: 800 },
         supports: { type: "array", minItems: 1, maxItems: 3, items: {
           type: "object", additionalProperties: false, required: ["sourceId", "quote"],
@@ -31,6 +32,11 @@ Quote phải là một đoạn liên tục, sao chép nguyên văn từng ký t�
 không thêm dấu ba chấm hoặc dấu ngoặc, và nên chọn đoạn ngắn dưới 160 ký tự.
 Số liệu trong claim phải có trong quote. Không đặt link trong text, server sẽ dựng citation.
 Mỗi segment.text chỉ chứa đúng một câu và một dữ kiện, không ghép nhiều ý bằng dấu phẩy/chấm phẩy.
+Gom các segment cùng chủ đề liền nhau và đặt chung một group ngắn (ví dụ "Thành tích", "Tập luyện", "Ăn uống");
+server sẽ ghép mỗi group thành một đoạn văn và chỉ gắn tối đa 3 nguồn cho cả đoạn.
+Các câu trong cùng group phải đọc liền mạch như một đoạn văn: không lặp lại tên chủ thể ở mỗi câu.
+Chỉ dùng tên đầy đủ ở câu đầu của đoạn, các câu sau lược chủ ngữ hoặc dùng đại từ phù hợp ("anh ấy", "chị ấy", "họ"),
+dùng từ nối tự nhiên và tránh bắt đầu hai câu liên tiếp bằng cùng một cụm từ.
 Nếu câu hỏi là "là ai", chỉ nêu nghề nghiệp và quốc tịch ổn định, mỗi dữ kiện một segment riêng.
 Không nêu câu lạc bộ, đội trưởng, ngày sinh, tuổi, danh hiệu hay số bàn thắng trong câu nhận diện;
 server sẽ loại toàn bộ câu có những chi tiết đó, kể cả khi cùng câu có nghề nghiệp/quốc tịch đúng.

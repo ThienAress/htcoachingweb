@@ -97,6 +97,7 @@ import {
   resolveClassifiedPublicFigures,
 } from "../services/ai/publicFigureIdentity.service.js";
 import { buildPublicFigureSearchQuery } from "../services/ai/publicFigureRegistry.js";
+import { frameGroundedWebAnswer } from "../services/ai/webAnswerFraming.js";
 import {
   streamAssistantText,
   truncateAssistantText,
@@ -1837,7 +1838,11 @@ export const chatStream = async (req, res) => {
           ? webSearchEvidenceAvailable ? resolveDeepseekEndpoint().model : "server:web_evidence_unavailable"
           : String(process.env.GEMINI_SEARCH_MODEL || "gemini-2.5-flash").slice(0, 100);
       fullResponse = await deliverAssistantResponse(
-        enforceEvidenceBoundary(directSearch.safeToolText),
+        enforceEvidenceBoundary(
+          webSearchEvidenceAvailable
+            ? frameGroundedWebAnswer(directSearch.safeToolText, message)
+            : directSearch.safeToolText,
+        ),
       );
       requiredToolConsumed = true;
     } else if (!compoundTdeeMeal && routedRequiredToolName === "suggest_meal") {
@@ -2392,7 +2397,9 @@ export const chatStream = async (req, res) => {
             webSearchSources = [];
           }
         }
-        const finalContent = enforceEvidenceBoundary(groundedContent);
+        const finalContent = enforceEvidenceBoundary(
+          groundedContent ? frameGroundedWebAnswer(groundedContent, message) : groundedContent,
+        );
         fullResponse = await deliverAssistantResponse(finalContent);
         needsToolCall = false;
         break;
