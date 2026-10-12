@@ -146,6 +146,8 @@ describe("Vibi + Brave through owned chat SSE", () => {
     expect(frames.find((frame) => frame.type === "done").meta.provenance).toBe("web_grounded");
     const text = frames.filter((frame) => frame.type === "text").map((frame) => frame.content).join("");
     expect(text).toContain("LeBron James");
+    expect(text.startsWith("Biết chứ bro!")).toBe(true);
+    expect(text).toContain("Điều đáng học hỏi");
     expect(text).not.toContain("chưa thể xác minh");
     const braveCalls = fetchMock.mock.calls.filter(([url]) =>
       url === "https://api.search.brave.com/res/v1/llm/context");
