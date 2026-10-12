@@ -108,3 +108,37 @@ export function findPublicFigures(value) {
   }
   return [...found.values()];
 }
+
+const SEARCH_TOPICS = Object.freeze([
+  {
+    pattern: /thanh tich|danh hieu|vo dich|su nghiep|giai thuong|huy chuong/,
+    keywords: "career achievements championships awards",
+  },
+  {
+    pattern: /tap luyen|luyen tap|tap gi|thuong tap|routine|lich tap|che do tap|ky luat|the hinh|than hinh|co bap|cach tap/,
+    keywords: "training workout routine",
+  },
+  {
+    pattern: /an uong|che do an|an gi|dinh duong|an bao nhieu/,
+    keywords: "diet nutrition meal plan",
+  },
+]);
+
+const foldAscii = (value) => foldText(value).replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ");
+
+/**
+ * A focused web query for registry figures: the canonical names plus fixed topic keywords taken
+ * from what the user asked. Chat filler ("bạn biết ... không bro") ranks poorly in a search
+ * engine, and nothing from the message except the topic is forwarded.
+ * Returns "" when the question has no recognisable topic, so the caller keeps its own query.
+ */
+export function buildPublicFigureSearchQuery(canonicalNames, message) {
+  const names = [...new Set((canonicalNames || []).filter(Boolean))].slice(0, 2);
+  if (names.length === 0) return "";
+  const text = foldAscii(message);
+  const keywords = SEARCH_TOPICS.filter(({ pattern }) => pattern.test(text)).map(
+    ({ keywords: topic }) => topic,
+  );
+  if (keywords.length === 0) return "";
+  return `${names.join(" ")} ${keywords.join(" ")}`;
+}

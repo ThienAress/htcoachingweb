@@ -96,6 +96,7 @@ import {
   isPublicFigureClassifierEnabled,
   resolveClassifiedPublicFigures,
 } from "../services/ai/publicFigureIdentity.service.js";
+import { buildPublicFigureSearchQuery } from "../services/ai/publicFigureRegistry.js";
 import {
   streamAssistantText,
   truncateAssistantText,
@@ -1511,12 +1512,20 @@ export const chatStream = async (req, res) => {
         }
       }
       if (externalKnowledgeQuery.eligible) {
+        const canonicalQuery = applyPublicFigureCanonicalNames(
+          externalKnowledgeQuery.query,
+          publicFigureLookup.rewrites,
+        );
+        const focusedQuery = buildPublicFigureSearchQuery(
+          publicFigureLookup.rewrites.map(({ canonical }) => canonical),
+          message,
+        );
         externalKnowledgeQuery = {
           ...externalKnowledgeQuery,
-          query: applyPublicFigureCanonicalNames(
-            externalKnowledgeQuery.query,
-            publicFigureLookup.rewrites,
-          ).slice(0, SEARCH_KNOWLEDGE_QUERY_MAX_CHARACTERS),
+          query: (focusedQuery || canonicalQuery).slice(
+            0,
+            SEARCH_KNOWLEDGE_QUERY_MAX_CHARACTERS,
+          ),
         };
       }
       if (!externalKnowledgeQuery.eligible) {

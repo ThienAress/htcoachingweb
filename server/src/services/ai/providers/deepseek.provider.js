@@ -43,7 +43,7 @@ const limitsFor = (options) => {
   if (options.responseFormat && !["text", "json_object"].includes(options.responseFormat)) {
     throw protocolError("DEEPSEEK_OPTIONS_INVALID");
   }
-  const limit = surface === "kb_selection" ? 256 : surface === "web_grounding" ? 1200 : 2048;
+  const limit = surface === "kb_selection" ? 256 : surface === "web_grounding" ? 1800 : 2048;
   const requested = Number(options.maxOutputTokens);
   const maxTokens = Number.isFinite(requested) && requested > 0
     ? Math.min(Math.floor(requested), limit) : limit;

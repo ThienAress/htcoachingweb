@@ -6,6 +6,7 @@ import {
   isCallerVettedPublicDateOfBirth,
   isCallerVettedPublicPersonClaim,
   prepareExternalKnowledgeQuery,
+  resolvePublicFigureLookup,
 } from "./knowledgePrivacy.js";
 
 const MAX_SAFETY_MESSAGE_CHARACTERS = 8000;
@@ -68,6 +69,10 @@ const RESEARCH_CLAIM_PATTERN =
 const IDENTITY_QUERY_PATTERN = /\b(la ai|who is|gioi thieu ve)\b/;
 const PUBLIC_PERSON_CLAIM_PATTERN =
   /\b(thuong tap|hay tap|co tap|tap nhung bai gi|tap bai gi|tap gi|tap may hiep|tap bao nhieu|tap gym|tap (?:squat|deadlift|bench press|plank|cardio|hiit)|yeu thich bai tap|bai tap yeu thich|routine|lich tap|che do tap|che do an|co dung (?:creatine|whey|protein|supplement)|an bao nhieu|an gi|ngu may tieng|ngu bao nhieu|thoi quen|thanh tich|vo dich|bao nhieu lan|(?:hien\s+)?bao nhieu tuoi|how old|phat ngon|noi gi ve|thuoc cong ty|dang thi dau|dang choi cho|choi cho|plays? for|current (?:club|team)|dang luu dien|touring|on tour|tour dates?|song o dau|lives? where|bi chan thuong|dang chan thuong|chan thuong gi|bi dau gi|ngat xiu|dot quy|dau nguc|kho tho|fainted|stroke|chest pain|shortness of breath)\b/;
+// Topics that make a question about a curated public figure a lookup. Only used when the
+// figure is named, so everyday phrases such as "tap luyen" never route on their own.
+const PUBLIC_FIGURE_TOPIC_PATTERN =
+  /\b(?:thanh tich|su nghiep|danh hieu|huy chuong|vo dich|tap luyen|luyen tap|ky luat|than hinh|the hinh|co bap|an uong|dinh duong|che do an|che do tap|routine|lich tap|tap gi|cach tap)\b/;
 const GENERIC_ROUTINE_SUBJECT_PATTERN =
   /^(?:ai|ban|toi|minh|em|i|bo toi|me toi|vo toi|chong toi|con toi|ban toi|anh toi|chi toi|em toi|my father|my mother|my wife|my husband|my child|my friend|nguoi moi|nguoi tap|hoc vien|khach hang|benh nhan|client|patient|customer|member|user|he|she|they|hlv|huan luyen vien|coach|ppl|push pull legs|van dong vien|cac van dong vien|cau thu|cac cau thu|trieu chung|dau hieu|vai|nguc|chan|lung|tay|bung|co bung|mong|nhom co|bai tap|tap chan|tap vai|tap nguc|tap lung|tap tay|squat|deadlift|bench press|plank|cardio|hiit|yoga|cach (?:tang|giam|siet)\b)(?:\b[\s\S]*)?$/;
 const GENERIC_PERSON_QUERY_PREFIX_PATTERN =
@@ -169,6 +174,10 @@ const CONTEXTUAL_FOLLOW_UP_PATTERN =
   /^(?:còn(?:\s+(?:bài|gì|cách|món|loại|lựa chọn|nào|thêm))?|thế còn|vậy còn|ngoài ra|nói thêm|gợi ý thêm|có (?:bài|cách|món|gì) nào khác|bài nào khác)\b/u;
 const ASCII_CONTEXTUAL_FOLLOW_UP_PATTERN =
   /^(?:con\s+(?:bai|gi|cach|mon|loai|lua chon|nao|them)|the con|vay con|ngoai ra|noi them|goi y them|co (?:bai|cach|mon|gi) nao khac|bai nao khac|what else|any other|tell me more)\b/;
+// A follow-up that points back at a person ("anh ấy", "người đó") or compares with them.
+const PERSON_REFERENCE_FOLLOW_UP_PATTERN =
+  /\b(?:anh ay|ong ay|co ay|chi ay|anh ta|ong ta|nguoi nay|nguoi do|cau ay|cau thu nay|van dong vien nay|so voi|vs)\b/;
+const MAX_PRIOR_MESSAGES_FOR_PERSON_REFERENCE = 6;
 const MAX_CONTEXTUAL_QUERY_CHARACTERS = 500;
 const MAX_FOLLOW_UP_CHARACTERS = 240;
 
@@ -207,6 +216,20 @@ const normalizeAsciiRiskText = (normalizedWithDiacritics) =>
 const maskNonMedicalStrokePhrases = (value) =>
   String(value || "").replace(NON_MEDICAL_STROKE_PATTERN, "non_medical_stroke");
 
+// The public figure the user most recently asked about, by canonical name. A message that
+// points at a private subject never counts, so a client's name is not carried forward.
+const resolveReferencedPublicFigures = (priorMessages) => {
+  const userTurns = (Array.isArray(priorMessages) ? priorMessages : [])
+    .filter((item) => item?.role === "user" && typeof item.content === "string")
+    .slice(-MAX_PRIOR_MESSAGES_FOR_PERSON_REFERENCE)
+    .reverse();
+  for (const turn of userTurns) {
+    const { rewrites } = resolvePublicFigureLookup(turn.content.slice(0, MAX_RETRIEVAL_QUERY_CHARACTERS));
+    if (rewrites.length > 0) return [...new Set(rewrites.map(({ canonical }) => canonical))];
+  }
+  return [];
+};
+
 /**
  * Gắn một follow-up ngắn với user turn gần nhất để router và retrieval không
  * đánh mất chủ đề. Chỉ dùng nội dung user, có giới hạn và không lưu query này
@@ -220,6 +243,15 @@ export function buildStandaloneRetrievalQuery(message, priorMessages = []) {
 
   const normalized = normalizeMessage(current);
   const normalizedWithDiacritics = normalizeMessageWithDiacritics(current);
+  if (PERSON_REFERENCE_FOLLOW_UP_PATTERN.test(normalized)) {
+    const named = new Set(findPublicFigures(current).map(({ canonical }) => canonical));
+    const referenced = resolveReferencedPublicFigures(priorMessages).filter(
+      (canonical) => !named.has(canonical),
+    );
+    if (referenced.length > 0) {
+      return `${referenced.join(", ")}\n${current}`.slice(0, MAX_CONTEXTUAL_QUERY_CHARACTERS);
+    }
+  }
   if (
     !CONTEXTUAL_FOLLOW_UP_PATTERN.test(normalizedWithDiacritics) &&
     !ASCII_CONTEXTUAL_FOLLOW_UP_PATTERN.test(normalized)
@@ -355,7 +387,7 @@ export function routeAiRequest(message, { contextualQuery = message } = {}) {
   const domain = inferDomain(normalized, normalizedWithDiacritics);
   const namedPerson =
     hasLikelyNamedPerson(normalized, domain) ||
-    (domain !== "ht_service" && findPublicFigures(message).length > 0);
+    (domain !== "ht_service" && findPublicFigures(contextualQuery || message).length > 0);
   const boundedSafetyMessage = String(message ?? "").slice(
     0,
     MAX_SAFETY_MESSAGE_CHARACTERS,
@@ -470,7 +502,10 @@ export function routeAiRequest(message, { contextualQuery = message } = {}) {
     (!personalHealth &&
       namedPerson &&
       (PUBLIC_PERSON_CLAIM_PATTERN.test(normalized) ||
-        POSSESSIVE_PUBLIC_PERSON_CLAIM_PATTERN.test(normalized)));
+        POSSESSIVE_PUBLIC_PERSON_CLAIM_PATTERN.test(normalized) ||
+        (domain !== "ht_service" &&
+          PUBLIC_FIGURE_TOPIC_PATTERN.test(normalized) &&
+          findPublicFigures(contextualQuery || message).length > 0)));
   const explicitEvidence = SOURCE_REQUEST_PATTERN.test(normalized);
   const researchClaim = RESEARCH_CLAIM_PATTERN.test(normalized);
   const workoutCreation =
