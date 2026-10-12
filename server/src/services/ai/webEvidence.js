@@ -42,14 +42,43 @@ export function selectWebEvidence(body, query) {
     .map(({ preferred: _preferred, ...source }, index) => ({ ...source, id: `source_${index + 1}` }));
 }
 
-const MAX_SOURCES_PER_PARAGRAPH = 3;
+const MAX_SOURCES_PER_ANSWER = 3;
 const MAX_GROUP_LENGTH = 40;
 
-// Facts that share a topic read as one paragraph with at most three sources for the whole
-// paragraph; a lone group has no heading.
+// The chat contract allows three distinct sources per answer. Pick the three that back the most
+// facts (ties keep the earliest), and drop a fact only when none of its sources was chosen.
+function chooseAnswerSources(selected) {
+  const chosen = [];
+  const covered = new Set();
+  while (chosen.length < MAX_SOURCES_PER_ANSWER) {
+    const gains = new Map();
+    selected.forEach((segment, index) => {
+      if (covered.has(index)) return;
+      for (const source of segment.sources) {
+        if (chosen.includes(source.uri)) continue;
+        gains.set(source.uri, (gains.get(source.uri) || 0) + 1);
+      }
+    });
+    let best = null;
+    for (const [uri, gain] of gains) if (!best || gain > best.gain) best = { uri, gain };
+    if (!best) break;
+    chosen.push(best.uri);
+    selected.forEach((segment, index) => {
+      if (segment.sources.some((source) => source.uri === best.uri)) covered.add(index);
+    });
+  }
+  return chosen;
+}
+
+// Facts that share a topic read as one paragraph; the sources of the paragraph close it.
+// A lone group has no heading.
 function renderGroupedAnswer(selected) {
+  const allowed = new Set(chooseAnswerSources(selected));
+  const usable = selected
+    .map((segment) => ({ ...segment, sources: segment.sources.filter((source) => allowed.has(source.uri)) }))
+    .filter((segment) => segment.sources.length > 0);
   const groups = [];
-  for (const segment of selected) {
+  for (const segment of usable) {
     const label = normalize(segment.group).slice(0, MAX_GROUP_LENGTH);
     const last = groups[groups.length - 1];
     if (last && last.label === label) last.segments.push(segment);
@@ -58,7 +87,7 @@ function renderGroupedAnswer(selected) {
   const sources = [];
   const paragraphs = groups.map(({ label, segments }) => {
     const unique = [...new Map(segments.flatMap((segment) => segment.sources)
-      .map((source) => [source.uri, source])).values()].slice(0, MAX_SOURCES_PER_PARAGRAPH);
+      .map((source) => [source.uri, source])).values()];
     const links = unique.map(({ title, uri }) => {
       if (!sources.some((source) => source.uri === uri)) sources.push({ title, uri });
       return `[${title}](<${uri}>)`;
