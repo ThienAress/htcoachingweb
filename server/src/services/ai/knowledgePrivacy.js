@@ -1,4 +1,5 @@
 import crypto from "crypto";
+import { findPublicFigures } from "./publicFigureRegistry.js";
 
 import {
   containsDateOfBirthInformation,
@@ -983,62 +984,45 @@ export function getPublicPersonLookupNames(value) {
 const PRIVATE_RELATION_CONTEXT_PATTERN =
   /\b(?:ban|bo|ba|me|vo|chong|con|anh|chi|em|dong nghiep|hang xom)\s+(?:toi|minh)\b/;
 
+const NO_PUBLIC_FIGURE_LOOKUP = Object.freeze({ names: [], rewrites: [] });
+
 /**
- * Names that can be looked up as public figures without a role word such as
- * "cau thu". It never binds a name when the request points at a private subject
- * (client, student, patient, relative or colleague of the asker) or at a health
- * record. The caller still runs the sensitive-health check, and web grounding
- * declines when the sources do not identify a public person.
+ * Public figures named in a question, matched against the curated registry (case,
+ * diacritics and nicknames do not matter). `names` are the forms to bind as allowed public
+ * names, `rewrites` map the typed form to the canonical name used for the search query.
+ * Nothing is bound when the request points at a private subject (client, student, patient,
+ * relative or colleague of the asker), a treatment record or personal health data.
  */
-export function getPublicFigureLookupCandidates(value) {
-  const text = normalizeAthleteRoleAbbreviations(String(value || ""));
+export function resolvePublicFigureLookup(value) {
+  const text = String(value || "");
   const normalized = normalizePrivacyText(text);
-  if (!normalized.trim()) return [];
+  if (!normalized.trim()) return NO_PUBLIC_FIGURE_LOOKUP;
   if (
     EXPLICIT_PRIVATE_RECORD_SUBJECT_PATTERN.test(normalized) ||
     PRIVATE_RELATION_CONTEXT_PATTERN.test(normalized) ||
     PRIVATE_HEALTH_RECORD_CUE_PATTERN.test(normalized) ||
     containsSensitivePersonalHealth(text, "", [])
   ) {
-    return [];
+    return NO_PUBLIC_FIGURE_LOOKUP;
   }
-  const names = new Set();
-  const fullNameRanges = [];
-  for (const match of text.matchAll(LIKELY_PERSON_NAME_GLOBAL_PATTERN)) {
-    const name = match[0].replace(PUBLIC_PERSON_METADATA_SUFFIX_PATTERN, "").trim();
-    if (!name || match.index === undefined) continue;
-    const firstToken = normalizePrivacyText(name).trim().split(/\s+/)[0];
-    if (NON_NAME_CAPITALIZED_STARTS.has(firstToken)) continue;
-    if (/\p{Lu}{2,6}/u.test(name) && containsPublicHealthOrganizationAcronym(name)) continue;
-    if (
-      NON_PERSON_ORGANIZATION_NAME_PATTERN.test(name) ||
-      hasClearNonPersonEntityContext({ text, index: match.index, name })
-    ) {
-      continue;
-    }
-    fullNameRanges.push({ start: match.index, end: match.index + name.length });
-    names.add(name);
+  const figures = findPublicFigures(text).slice(0, 2);
+  if (figures.length === 0) return NO_PUBLIC_FIGURE_LOOKUP;
+  return {
+    names: [...new Set(figures.flatMap((figure) => [figure.surface, figure.canonical]))],
+    rewrites: figures,
+  };
+}
+
+export function applyPublicFigureCanonicalNames(query, rewrites = []) {
+  let rewritten = String(query || "");
+  for (const { surface, canonical } of rewrites) {
+    if (!surface || surface === canonical) continue;
+    rewritten = rewritten.replace(
+      new RegExp(`(?<![\p{L}\p{N}_])${escapeRegExp(surface)}(?![\p{L}\p{N}_])`, "giu"),
+      canonical,
+    );
   }
-  for (const match of text.matchAll(LIKELY_SINGLE_CAPITALIZED_TOKEN_GLOBAL_PATTERN)) {
-    const name = match[1];
-    if (!name || match.index === undefined) continue;
-    const matchEnd = match.index + match[0].length;
-    if (fullNameRanges.some((range) => match.index >= range.start && matchEnd <= range.end)) continue;
-    const normalizedName = normalizePrivacyText(name).trim();
-    const suffix = normalizePrivacyText(text.slice(match.index + name.length));
-    if (
-      normalizedName.length < 3 ||
-      NON_NAME_CAPITALIZED_STARTS.has(normalizedName) ||
-      (name.length > 1 && name === name.toLocaleUpperCase()) ||
-      hasClearNonPersonEntityContext({ text, index: match.index, name }) ||
-      PRIVATE_SINGLE_NAME_POSSESSIVE_AFTER_PATTERN.test(suffix) ||
-      PRIVATE_PERSON_RELATION_AFTER_PATTERN.test(suffix)
-    ) {
-      continue;
-    }
-    names.add(name);
-  }
-  return [...names].slice(0, 2);
+  return rewritten;
 }
 export const hashKnowledgeText = (value) =>
   crypto.createHash("sha256").update(String(value || ""), "utf8").digest("hex");
@@ -1482,6 +1466,21 @@ const redactDirectIdentifiers = (value, privateNames = []) => {
   return { text: redacted, redacted: redacted !== before };
 };
 
+// The Vietnamese name heuristics can split the full name of a registry figure ("Hoang Hai
+// Dang" is read as "Hoang Hai") and mistake the fragment for a private person. A fragment of a
+// name that was matched against the registry and bound by the caller is not a private name.
+const isRegistryNameFragment = (name, text, allowedPublicPersonNames) => {
+  const allowed = new Set(
+    allowedPublicPersonNames.map((value) => normalizePrivacyText(value).trim()).filter(Boolean),
+  );
+  const fragment = normalizePrivacyText(name).trim();
+  if (!fragment) return false;
+  return findPublicFigures(text).some(({ surface }) => {
+    const full = normalizePrivacyText(surface).trim();
+    return allowed.has(full) && (full === fragment || ` ${full} `.includes(` ${fragment} `));
+  });
+};
+
 export function prepareExternalKnowledgeQuery(
   value,
   { allowedPublicPersonNames = [] } = {},
@@ -1508,7 +1507,9 @@ export function prepareExternalKnowledgeQuery(
   const unboundPrivateNames = extractUnboundPrivateNames(
     query,
     resolvedPublicPersonNames,
-  ).filter(
+  )
+    .filter((name) => !isRegistryNameFragment(name, query, resolvedPublicPersonNames))
+    .filter(
     (name) =>
       !contextualPrivateNames.some(
         (contextualName) =>

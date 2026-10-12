@@ -1,3 +1,4 @@
+import { findPublicFigures } from "./publicFigureRegistry.js";
 import { containsPersonalHealthData } from "./personalHealthData.js";
 import { resolveWebPolicy } from "./capabilityPolicy.js";
 import {
@@ -352,7 +353,9 @@ export function routeAiRequest(message, { contextualQuery = message } = {}) {
   const asciiRiskText = normalizeAsciiRiskText(safetyWithDiacritics);
   const medicalRiskText = maskNonMedicalStrokePhrases(safetyNormalized);
   const domain = inferDomain(normalized, normalizedWithDiacritics);
-  const namedPerson = hasLikelyNamedPerson(normalized, domain);
+  const namedPerson =
+    hasLikelyNamedPerson(normalized, domain) ||
+    (domain !== "ht_service" && findPublicFigures(message).length > 0);
   const boundedSafetyMessage = String(message ?? "").slice(
     0,
     MAX_SAFETY_MESSAGE_CHARACTERS,

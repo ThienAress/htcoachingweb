@@ -85,10 +85,11 @@ import {
   sanitizeAssistantOutput,
 } from "../services/ai/assistantOutput.js";
 import {
-  getPublicFigureLookupCandidates,
+  applyPublicFigureCanonicalNames,
   getPublicPersonLookupNames,
   prepareExternalKnowledgeQuery,
   prepareKnowledgeRetrievalQuery,
+  resolvePublicFigureLookup,
 } from "../services/ai/knowledgePrivacy.js";
 import {
   streamAssistantText,
@@ -1222,12 +1223,16 @@ export const chatStream = async (req, res) => {
       ? activityIntakeFollowup(message, priorMessages, routingDecision)
       : null;
     const verifiedPublicPersonNames = getPublicPersonLookupNames(retrievalQuery);
-    // A named person without a role word can still be a public figure, so a web-required
-    // question may look the name up unless it points at a private subject or health data.
+    // A figure in the curated registry (nicknames included) can be looked up without a role
+    // word, unless the request points at a private subject or personal health data.
+    const publicFigureLookup =
+      verifiedPublicPersonNames.length === 0 && routingDecision?.webSearchRequired
+        ? resolvePublicFigureLookup(retrievalQuery)
+        : { names: [], rewrites: [] };
     const allowedPublicPersonNames =
-      verifiedPublicPersonNames.length > 0 || !routingDecision?.webSearchRequired
+      verifiedPublicPersonNames.length > 0
         ? verifiedPublicPersonNames
-        : getPublicFigureLookupCandidates(retrievalQuery);
+        : publicFigureLookup.names;
     const urgentSafetyResponse = getUrgentSafetyResponse(routingDecision);
     if (urgentSafetyResponse) {
       incrementMetric("provider.gemini_chat_not_required");
@@ -1477,10 +1482,10 @@ export const chatStream = async (req, res) => {
       if (externalKnowledgeQuery.eligible) {
         externalKnowledgeQuery = {
           ...externalKnowledgeQuery,
-          query: externalKnowledgeQuery.query.slice(
-            0,
-            SEARCH_KNOWLEDGE_QUERY_MAX_CHARACTERS,
-          ),
+          query: applyPublicFigureCanonicalNames(
+            externalKnowledgeQuery.query,
+            publicFigureLookup.rewrites,
+          ).slice(0, SEARCH_KNOWLEDGE_QUERY_MAX_CHARACTERS),
         };
       }
       if (!externalKnowledgeQuery.eligible) {

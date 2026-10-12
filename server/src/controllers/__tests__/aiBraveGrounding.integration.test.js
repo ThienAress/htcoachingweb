@@ -147,6 +147,54 @@ describe("Vibi + Brave through owned chat SSE", () => {
     expect(braveCalls).toHaveLength(1);
   });
 
+  it("searches a nickname under the canonical name", async () => {
+    const question = "Đăng Béo thường tập gì để có thân hình đó?";
+    const dangQuote = "Hoàng Hải Đăng trains with 5 sessions of weight lifting each week.";
+    const dangAnswer = { segments: [{
+      text: "Hoàng Hải Đăng tập tạ 5 buổi mỗi tuần.",
+      supports: [{ sourceId: "source_1", quote: dangQuote }],
+    }] };
+    const fetchMock = vi.fn(async (url, options) => {
+      if (url === "https://api.search.brave.com/res/v1/llm/context") {
+        return new Response(JSON.stringify({ grounding: { generic: [{
+          url: "https://example.com/hoang-hai-dang", title: "Hoàng Hải Đăng",
+          snippets: [dangQuote],
+        }] } }));
+      }
+      if (url === "https://vibi.top/v1/chat/completions") {
+        const body = JSON.parse(options.body);
+        return body.tool_choice?.function?.name === "submit_grounded_answer"
+          ? streamTool("submit_grounded_answer", dangAnswer)
+          : streamTool("search_knowledge", { query: question });
+      }
+      throw new Error("Unexpected egress");
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const { accessToken } = await createTestUser();
+    const response = await withAuth(request(app).post("/api/ai/chat"), accessToken)
+      .send({ message: question });
+    expect(response.status).toBe(200);
+    const frames = parseFrames(response);
+    expect(frames.find((frame) => frame.type === "done").meta.provenance).toBe("web_grounded");
+    const braveCall = fetchMock.mock.calls.find(([url]) =>
+      url === "https://api.search.brave.com/res/v1/llm/context");
+    const sentQuery = JSON.parse(braveCall[1].body).q;
+    expect(sentQuery).toContain("Hoàng Hải Đăng");
+    expect(sentQuery).not.toContain("Đăng Béo");
+  });
+
+  it("does not search an ordinary private name even when it is written like a full name", async () => {
+    const fetchMock = vi.fn(async () => new Response("{}"));
+    vi.stubGlobal("fetch", fetchMock);
+    const { accessToken } = await createTestUser();
+    const response = await withAuth(request(app).post("/api/ai/chat"), accessToken)
+      .send({ message: "Nguyễn Văn A thường tập gì để có thân hình đẹp?" });
+    expect(response.status).toBe(200);
+    const braveCalls = fetchMock.mock.calls.filter(([url]) =>
+      String(url).includes("api.search.brave.com"));
+    expect(braveCalls).toHaveLength(0);
+  });
+
   it.each([
     "học viên Lisa bị tiểu đường type 2 thì nên ăn gì?",
     "bạn tôi Lisa tập gym thế nào?",
