@@ -6,7 +6,6 @@
 >
 > **Drift check chạy đầu tiên**: `git status --short`, `git diff --check` và
 > `git diff --name-only b102572c626b1b79c290a786c96a51ebfc28c242 -- <in-scope paths>`.
-> Các thay đổi route-transition hiện có thuộc user và phải được giữ nguyên.
 
 ## Status
 
@@ -187,7 +186,6 @@ repair cycles for the same failure or if a fix needs a new data/permission polic
 - Deploy, production/staging writes, index apply, backup/restore, Atlas billing/PITR.
 - Historical wallet corrections, merging incoming rows or deleting GridFS files.
 - Changing SePay provider contract, wallet commercial rules, Auth/CSRF/JWT.
-- Route-transition files already modified in the working tree.
 
 ## Implementation Workstreams
 
