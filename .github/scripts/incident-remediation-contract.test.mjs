@@ -195,7 +195,7 @@ test("patch contract allows app code but blocks privileged and traversal paths",
 
   for (const path of [
     ".github/workflows/ci.yml",
-    ".agents/rules/security/security.md",
+    ".claude/rules/security.md",
     "server/src/middlewares/auth.middleware.js",
     "server/src/services/wallet.service.js",
     "client/src/context/AuthContext.jsx",

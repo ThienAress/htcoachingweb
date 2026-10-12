@@ -28,8 +28,8 @@ test("collectProjectInventory counts repository surfaces from files", (context) 
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "ht-inventory-"));
   context.after(() => fs.rmSync(root, { recursive: true, force: true }));
 
-  writeFixture(root, ".agents/skills/qa/SKILL.md");
-  writeFixture(root, ".agents/skills/audit/SKILL.md");
+  writeFixture(root, ".claude/skills/qa/SKILL.md");
+  writeFixture(root, ".claude/skills/audit/SKILL.md");
   writeFixture(
     root,
     ".agents/evals/skills/qa.json",

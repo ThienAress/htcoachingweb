@@ -1,5 +1,8 @@
 # Agent Workflow Modernization
 
+> **Đã thay thế (2026-10-13).** `AGENTS.md`, `.agents/skills/`, `.agents/rules/` và workflow map đã chuyển sang
+> `CLAUDE.md`, `.claude/skills/`, `.claude/rules/` cho Claude Code. Giữ file này làm hồ sơ lịch sử.
+
 ## Objective
 
 Nâng hệ thống agent của HTCOACHINGWEB bằng các pattern tốt từ `mattpocock/skills` mà không làm yếu

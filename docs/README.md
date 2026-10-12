@@ -22,7 +22,7 @@ nguồn canonical trước khi thay đổi code.
 - [HLV chính mặc định và effective coach](./specs/default-lead-coach.md)
 - [Rollout HLV chính mặc định](./operations/runbooks/default-lead-coach.md)
 - [Bàn giao resolver HLV chính — Plan089](./reports/089-effective-coach-delivery.md)
-- [Session Governor và model recommendations](./specs/codex-session-governor.md)
+- [Session Governor cho Codex (đã ngừng — chuyển sang Claude Code)](./specs/codex-session-governor.md)
 - [Today Dashboard spec](./specs/today-dashboard.md)
 - [Wellness targets spec](./specs/wellness-targets.md)
 - [Trainer client workspace spec](./specs/trainer-client-workspace.md)
