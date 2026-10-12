@@ -42,6 +42,33 @@ export function selectWebEvidence(body, query) {
     .map(({ preferred: _preferred, ...source }, index) => ({ ...source, id: `source_${index + 1}` }));
 }
 
+const MAX_SOURCES_PER_PARAGRAPH = 3;
+const MAX_GROUP_LENGTH = 40;
+
+// Facts that share a topic read as one paragraph with at most three sources for the whole
+// paragraph; a lone group has no heading.
+function renderGroupedAnswer(selected) {
+  const groups = [];
+  for (const segment of selected) {
+    const label = normalize(segment.group).slice(0, MAX_GROUP_LENGTH);
+    const last = groups[groups.length - 1];
+    if (last && last.label === label) last.segments.push(segment);
+    else groups.push({ label, segments: [segment] });
+  }
+  const sources = [];
+  const paragraphs = groups.map(({ label, segments }) => {
+    const unique = [...new Map(segments.flatMap((segment) => segment.sources)
+      .map((source) => [source.uri, source])).values()].slice(0, MAX_SOURCES_PER_PARAGRAPH);
+    const links = unique.map(({ title, uri }) => {
+      if (!sources.some((source) => source.uri === uri)) sources.push({ title, uri });
+      return `[${title}](<${uri}>)`;
+    });
+    const body = `${segments.map((segment) => segment.text).join(" ")} ${links.join(" ")}`;
+    return groups.length > 1 && label ? `**${escape(label)}**\n\n${body}` : body;
+  });
+  return { text: paragraphs.join("\n\n"), sources };
+}
+
 export function buildCitedWebAnswer(answer, evidence, query) {
   if (!Array.isArray(answer?.segments) || answer.segments.length > 10) return { text: "", sources: [] };
   const validated = [];
@@ -65,17 +92,9 @@ export function buildCitedWebAnswer(answer, evidence, query) {
     const text = plainClaim(segment.text);
     const claimNumbers = text.match(/\d+(?:[.,]\d+)?/g) || [];
     const quoteNumbers = new Set(quotes.join(" ").match(/\d+(?:[.,]\d+)?/g) || []);
-    if (valid && text && claimNumbers.every((number) => quoteNumbers.has(number))) validated.push({ text, sources });
+    if (valid && text && claimNumbers.every((number) => quoteNumbers.has(number))) {
+      validated.push({ text, sources, group: typeof segment.group === "string" ? segment.group : "" });
+    }
   }
-  const selected = selectKnowledgeAnswerSegments(query, validated);
-  const sources = [];
-  const text = selected.map((segment) => {
-    const unique = [...new Map(segment.sources.map((source) => [source.uri, source])).values()];
-    const links = unique.map(({ title, uri }) => {
-      if (!sources.some((source) => source.uri === uri)) sources.push({ title, uri });
-      return `[${title}](<${uri}>)`;
-    });
-    return `${segment.text} ${links.join(" ")}`;
-  }).join("\n\n");
-  return { text, sources };
+  return renderGroupedAnswer(selectKnowledgeAnswerSegments(query, validated));
 }

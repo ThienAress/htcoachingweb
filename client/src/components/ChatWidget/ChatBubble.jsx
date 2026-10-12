@@ -14,6 +14,8 @@ import TrainingScheduleCard from "./cards/TrainingScheduleCard";
 import CheckinHistoryCard from "./cards/CheckinHistoryCard";
 import GymInfoCard from "./cards/GymInfoCard";
 import CitationChip from "./CitationChip";
+import CitationGroup from "./CitationGroup";
+import { splitTrailingCitations } from "./citationGroups";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { isAllowedAiUiCard } from "./aiCardPolicy";
@@ -270,7 +272,16 @@ const ChatBubble = memo(function ChatBubble({
                 <ReactMarkdown
                   remarkPlugins={[remarkGfm]}
                   components={{
-                  p: ({ children }) => <p className="mb-2 last:mb-0 leading-relaxed text-gray-800 dark:text-gray-200">{children}</p>,
+                  p: ({ children }) => {
+                    const grouped = splitTrailingCitations(children, (href) =>
+                      citationByUri.get(normalizeCitationUri(href)) || null);
+                    return (
+                      <p className="mb-2 last:mb-0 leading-relaxed text-gray-800 dark:text-gray-200">
+                        {grouped ? grouped.lead : children}
+                        {grouped ? <CitationGroup sources={grouped.sources} /> : null}
+                      </p>
+                    );
+                  },
                   a: ({ href, children }) => {
                     const citation = citationByUri.get(normalizeCitationUri(href));
                     if (citation) return <CitationChip source={citation} />;
