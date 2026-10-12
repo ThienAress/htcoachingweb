@@ -24,6 +24,8 @@ const COUNTER_NAMES = new Set([
   "ai.tool_calls",
   "ai.tool_failures",
   "ai.moderation_blocks",
+  "ai.public_figure_classifier_accepted",
+  "ai.public_figure_classifier_rejected",
   "auth.refresh_succeeded",
   "auth.refresh_missing",
   "auth.refresh_rejected",

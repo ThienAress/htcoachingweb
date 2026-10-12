@@ -258,6 +258,43 @@ describe("searchExercises query normalization", () => {
     });
   });
 
+  it("lays each exercise out as a name line, a description line and numbered steps", async () => {
+    mockExerciseQuery([
+      {
+        name: "Bodyweight Row",
+        muscleGroup: "Cơ lưng",
+        description: "Kéo thân người về phía điểm tựa.",
+        instructions: [
+          { title: "Thiết lập", description: "Giữ cột sống trung lập." },
+          { title: "Kéo", description: "Dẫn chuyển động bằng khuỷu tay." },
+        ],
+      },
+      {
+        name: "Wall Push-up",
+        muscleGroup: "Cơ ngực",
+        description: "",
+        instructions: [{ title: "Hạ người", description: "" }],
+      },
+    ]);
+
+    const { text } = await searchExercises({ searchQuery: "bài tập", limit: 2 });
+    const lines = text.split(/\r?\n/u);
+
+    expect(lines).toEqual(expect.arrayContaining([
+      "1. **Bodyweight Row** (Cơ lưng)",
+      "   - **Kỹ thuật:** Kéo thân người về phía điểm tựa.",
+      "   - **Các bước chính:**",
+      "     1. **Thiết lập:** Giữ cột sống trung lập.",
+      "     2. **Kéo:** Dẫn chuyển động bằng khuỷu tay.",
+      "2. **Wall Push-up** (Cơ ngực)",
+      "     1. Hạ người",
+    ]));
+    const headerIndex = lines.indexOf("1. **Bodyweight Row** (Cơ lưng)");
+    expect(lines[headerIndex + 1]).toMatch(/^ {3}- \*\*Kỹ thuật:\*\* /u);
+    expect(lines.every((line) => line.length < 320)).toBe(true);
+    expect(text).not.toMatch(/Kỹ thuật: [^\n]*Thiết lập: [^\n]*Kéo:/u);
+  });
+
   it("maps an English muscle alias to Vietnamese and English catalog values", async () => {
     const chain = mockExerciseQuery();
     await searchExercises({ muscleGroup: "chest", limit: 2 });
