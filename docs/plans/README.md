@@ -6,6 +6,7 @@ Generated on 2026-07-28. Execute plans in dependency order and pass every verifi
 
 | Plan | Title | Priority | Effort | Depends on | Status |
 |---|---|---:|---:|---|---|
+| 110 | [Improve AI adherence and gate JEV pilot](./110-improve-ai-adherence-and-gate-jev-pilot.md) | P0 | L | 092–096C | PLANNED / NONE / NOT STARTED |
 | 109 | [Harden financial consistency and recovery](./109-harden-financial-consistency-and-recovery.md) | P0 | XL | 023, 081, 085 | DONE / LIVE IN PRODUCTION 2026-10-12 |
 | 096C | [Repair draft knowledge publication](./096c-repair-draft-knowledge-publication.md) | P1 | L | 096A | IN PROGRESS |
 | 096B | [Recover completed staging KB timeout](./096b-recover-completed-kb-timeout.md) | P0 | M | 096A | IN PROGRESS |

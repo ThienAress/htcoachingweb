@@ -50,3 +50,7 @@ workers/production-watchdog/wrangler.toml
 .codex-worktrees/
 .claude/worktrees/
 .claude/settings.local.json
+
+# Local verification clones are separate repositories, not release source
+/.ci-verify/
+/.stage-clone/
