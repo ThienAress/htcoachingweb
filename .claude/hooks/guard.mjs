@@ -28,8 +28,9 @@ const secretTokens = (text) => {
 
 const isSecretPath = (filePath) => {
   if (!filePath) return false;
-  const base = path.basename(String(filePath));
+  // Chuẩn hóa trước khi lấy basename: trên Linux path.basename không tách theo "\".
   const normalized = String(filePath).replaceAll("\\", "/");
+  const base = normalized.slice(normalized.lastIndexOf("/") + 1);
   if (/(^|\/)\.env-backup(\/|$)|(^|\/)\.private(\/|$)/i.test(normalized)) return true;
   return /^\.env(\..+)?$/i.test(base) && !SAFE_ENV_EXAMPLE.test(base);
 };
