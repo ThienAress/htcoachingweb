@@ -46,8 +46,16 @@ describe("public figure registry", () => {
     ["kobe bryant tập luyện kỷ luật thế nào", "kobe bryant", "Kobe Bryant"],
     ["The Rock ăn gì mỗi ngày?", "The Rock", "Dwayne Johnson"],
     ["Ánh Viên tập bơi bao nhiêu giờ?", "Ánh Viên", "Nguyễn Thị Ánh Viên"],
+    ["Giang SmallGym tập như thế nào?", "Giang SmallGym", "Giang Hoàng"],
+    ["Namcio ăn uống ra sao?", "Namcio", "Trần Quang Nam"],
+    ["bi mat wellness tap gi?", "bi mat", "Nguyễn Thị Mai"],
+    ["Lương Hồng Sơn thi hạng nào?", "Lương Hồng Sơn", "Lương Hồng Sơn"],
   ])("recognises %s", (question, surface, canonical) => {
     expect(findPublicFigures(question)).toEqual([{ canonical, surface }]);
+  });
+
+  it("does not match a very common full name that is only listed by its nickname", () => {
+    expect(findPublicFigures("Nguyễn Thị Mai tập gym bao lâu rồi?")).toEqual([]);
   });
 
   it("does not match inside other words or for ordinary private names", () => {

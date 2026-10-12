@@ -11,27 +11,48 @@
  * aliases: they are also ordinary private names. Those still work when the question carries
  * a role word such as "cau thu".
  */
-const figure = (canonical, aliases = [], scope = "international") =>
-  Object.freeze({ canonical, aliases: Object.freeze(aliases), scope });
+const figure = (canonical, aliases = [], scope = "international", options = {}) =>
+  Object.freeze({
+    canonical,
+    aliases: Object.freeze(aliases),
+    scope,
+    // false: the full name is an extremely common private name, so only the aliases match.
+    matchCanonical: options.matchCanonical !== false,
+  });
 
 export const PUBLIC_FIGURE_REGISTRY = Object.freeze([
-  // 1. Vietnam: bodybuilding / physique athletes. Add IFBB Pro card holders here first.
-  figure("Hoàng Hải Đăng", ["Đăng Béo"], "vietnam_pro"),
+  // 1. Vietnam: IFBB Pro card holders (list checked by the owner on 2026-10-12).
+  figure("Trần Tuấn Anh", ["Tuấn Anh IFBB Pro"], "vietnam_pro"),
+  figure("Đinh Kim Loan", [], "vietnam_pro"),
+  figure("Lương Hồng Sơn", [], "vietnam_pro"),
   figure("Vũ Minh Hiếu", [], "vietnam_pro"),
+  figure("Hoàng Hải Đăng", ["Đăng Béo", "Dangbeoo"], "vietnam_pro"),
+  figure("Đỗ Văn Quý", [], "vietnam_pro"),
+  figure("Nguyễn Hoàng Phúc", [], "vietnam_pro"),
+  figure("Kelvin Obinna", [], "vietnam_pro"),
+  figure("Trần Xuân Quỳnh", [], "vietnam_pro"),
+  figure("Alice Nguyễn", [], "vietnam_pro"),
+  figure("Trần Quang Nam", ["Namcio"], "vietnam_pro"),
+  figure("Nguyễn Ngọc Phong", [], "vietnam_pro"),
+  figure("Bao Dang Hoang", [], "vietnam_pro"),
+  figure("Phạm Hữu Hậu", ["Hậu Love"], "vietnam_pro"),
+  figure("Trinh Kieu", [], "vietnam_pro"),
+  figure("Nguyễn Thị Mai", ["Bi Mật"], "vietnam_pro", { matchCanonical: false }),
+  figure("Dam Ho", [], "vietnam_pro"),
+  figure("Đinh Trọng Hậu", [], "vietnam_pro"),
+  figure("Trần Thùy Anh", [], "vietnam_pro"),
+  figure("Bup Ny", ["Ny Búp"], "vietnam_pro"),
+  figure("Phuc Do", [], "vietnam_pro"),
+  figure("Giang Hoàng", ["Giang SmallGym"], "vietnam_pro"),
   // 2. Vietnam: other athletes
   figure("Nguyễn Thị Ánh Viên", ["Ánh Viên"], "vietnam"),
   figure("Hoàng Xuân Vinh", [], "vietnam"),
   figure("Nguyễn Tiến Minh", [], "vietnam"),
-  figure("Thạch Kim Tuấn", [], "vietnam"),
   figure("Lê Tú Chinh", [], "vietnam"),
-  figure("Nguyễn Trần Duy Nhất", [], "vietnam"),
   // 3. Vietnam: footballers
   figure("Nguyễn Quang Hải", [], "vietnam_football"),
   figure("Nguyễn Công Phượng", ["Công Phượng"], "vietnam_football"),
   figure("Đoàn Văn Hậu", [], "vietnam_football"),
-  figure("Nguyễn Tiến Linh", [], "vietnam_football"),
-  figure("Đặng Văn Lâm", [], "vietnam_football"),
-  figure("Quế Ngọc Hải", [], "vietnam_football"),
   // 4. International, strength / physique focused
   figure("Cristiano Ronaldo", ["CR7"]),
   figure("LeBron James", ["King James"]),
@@ -42,23 +63,8 @@ export const PUBLIC_FIGURE_REGISTRY = Object.freeze([
   figure("Chris Bumstead", ["CBum"]),
   figure("Jay Cutler", []),
   figure("Phil Heath", []),
-  figure("Dorian Yates", []),
-  figure("Kai Greene", []),
   figure("Eddie Hall", []),
-  figure("Hafþór Júlíus Björnsson", ["Thor Bjornsson", "Hafthor Bjornsson"]),
-  figure("Brian Shaw", []),
   figure("Mike Tyson", ["Iron Mike"]),
-  figure("Conor McGregor", []),
-  figure("Khabib Nurmagomedov", ["Khabib"]),
-  figure("Usain Bolt", []),
-  figure("Michael Phelps", []),
-  figure("Lionel Messi", ["Messi"]),
-  figure("Zlatan Ibrahimović", ["Zlatan"]),
-  figure("Erling Haaland", ["Haaland"]),
-  figure("Mohamed Salah", []),
-  figure("Giannis Antetokounmpo", ["Greek Freak"]),
-  figure("Stephen Curry", []),
-  figure("Novak Djokovic", ["Djokovic"]),
 ]);
 
 // One UTF-16 unit in, one out, so indexes found on the folded text slice the original.
@@ -78,7 +84,7 @@ const termPattern = (term) =>
   );
 
 const COMPILED_TERMS = PUBLIC_FIGURE_REGISTRY.flatMap((entry) =>
-  [entry.canonical, ...entry.aliases].map((term) => ({
+  [...(entry.matchCanonical ? [entry.canonical] : []), ...entry.aliases].map((term) => ({
     entry,
     pattern: termPattern(term),
   })),
