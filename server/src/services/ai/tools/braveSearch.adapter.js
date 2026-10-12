@@ -2,6 +2,7 @@ import { prepareExternalKnowledgeQuery } from "../knowledgePrivacy.js";
 import { selectWebEvidence } from "../webEvidence.js";
 import { synthesizeWebEvidence } from "../webGroundingSynthesis.js";
 import { safeLog } from "../../../utils/safeLogger.js";
+import { fetchFigureImages } from "./braveImages.adapter.js";
 
 const ENDPOINT = "https://api.search.brave.com/res/v1/llm/context";
 const MAX_RESPONSE_BYTES = 192 * 1024;
@@ -83,6 +84,8 @@ export async function braveSearchKnowledge({ query }, context = {}) {
       return unavailable(code, true, outcome, "retrieval");
     }
     code = "synthesis_failed";
+    // Thumbnails run alongside the synthesis so they add no waiting time; they are optional.
+    const imagesPromise = fetchFigureImages(context.publicFigureImageSubjects, { signal: context.signal });
     const answer = await synthesizeWebEvidence(prepared.query, evidence, {
       signal: context.signal, deadlineAt: context.deadlineAt,
     });
@@ -95,9 +98,11 @@ export async function braveSearchKnowledge({ query }, context = {}) {
     outcome = "grounded";
     code = "grounded";
     sourceCount = answer.sources.length;
+    const images = await imagesPromise;
     return { text: answer.text,
       uiCard: { cardType: "webSources", data: { topic: prepared.query.slice(0, 160),
-        searchedAt: new Date().toISOString(), sources: answer.sources } },
+        searchedAt: new Date().toISOString(), sources: answer.sources,
+        ...(images.length ? { images } : {}) } },
       meta: { evidenceAvailable: true, sourceCount, sources: answer.sources,
         searchOutcome: outcome, diagnosticCode: code, providerRequestMade: true, searchProvider: "brave" },
     };

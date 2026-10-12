@@ -15,6 +15,8 @@ import CheckinHistoryCard from "./cards/CheckinHistoryCard";
 import GymInfoCard from "./cards/GymInfoCard";
 import CitationChip from "./CitationChip";
 import CitationGroup from "./CitationGroup";
+import WebImagesStrip from "./WebImagesStrip";
+import { getSafeWebImages } from "./webImages";
 import { splitTrailingCitations } from "./citationGroups";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -83,6 +85,7 @@ const ChatBubble = memo(function ChatBubble({
       .flatMap((card) => card.data?.sources || []),
   );
   const citationByUri = new Map(citationSources.map((source) => [source.uri, source]));
+  const webImages = getSafeWebImages(visibleUiCards);
   const inlineCitationUris = getInlineCitationUris(message.content);
   const allCitationSourcesAreInline = citationSources.length > 0 && citationSources.every(
     (source) => inlineCitationUris.has(source.uri),
@@ -269,6 +272,7 @@ const ChatBubble = memo(function ChatBubble({
               </div>
             ) : (
               <div className="markdown-body space-y-3 relative">
+                <WebImagesStrip images={webImages} />
                 <ReactMarkdown
                   remarkPlugins={[remarkGfm]}
                   components={{

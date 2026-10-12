@@ -190,6 +190,47 @@ describe("Vibi + Brave through owned chat SSE", () => {
     expect(sentQuery).not.toContain("Đăng Béo");
   });
 
+  it("adds proxied thumbnails for a curated figure and nothing for a classifier-approved name", async () => {
+    const question = "LeBron James thành tích thế nào?";
+    const quote = "LeBron James has won 4 NBA championships and 4 NBA Finals MVP awards.";
+    const answerFor = { segments: [{
+      text: "LeBron James đã giành 4 chức vô địch NBA và 4 danh hiệu MVP Chung kết NBA.",
+      supports: [{ sourceId: "source_1", quote }],
+    }] };
+    const thumb = { title: "LeBron James with the trophy", url: "https://www.nba.com/news/lebron-james",
+      thumbnail: { src: "https://imgs.search.brave.com/abc/rs:fit:500:0:0/g:ce/aHR0cHM", width: 500, height: 333 } };
+    const fetchMock = vi.fn(async (url, options) => {
+      const target = String(url);
+      if (target.startsWith("https://api.search.brave.com/res/v1/images/search")) {
+        return new Response(JSON.stringify({ results: [thumb] }));
+      }
+      if (target === "https://api.search.brave.com/res/v1/llm/context") {
+        return new Response(JSON.stringify({ grounding: { generic: [{
+          url: "https://www.nba.com/player/2544/lebron-james", title: "LeBron James", snippets: [quote],
+        }] } }));
+      }
+      if (target === "https://vibi.top/v1/chat/completions") {
+        const body = JSON.parse(options.body);
+        return body.tool_choice?.function?.name === "submit_grounded_answer"
+          ? streamTool("submit_grounded_answer", answerFor)
+          : streamTool("search_knowledge", { query: question });
+      }
+      throw new Error("Unexpected egress");
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const { accessToken } = await createTestUser();
+    const response = await withAuth(request(app).post("/api/ai/chat"), accessToken).send({ message: question });
+    expect(response.status).toBe(200);
+    const cards = parseFrames(response).filter((frame) => frame.type === "ui_card" && frame.cardType === "webSources");
+    expect(cards.length).toBeGreaterThan(0);
+    const images = cards.flatMap((card) => card.data.images || []);
+    expect(images).toHaveLength(1);
+    expect(images[0]).toMatchObject({ host: "nba.com", pageUrl: "https://www.nba.com/news/lebron-james" });
+    const imageCalls = fetchMock.mock.calls.filter(([url]) => String(url).includes("/images/search"));
+    expect(imageCalls).toHaveLength(1);
+    expect(String(imageCalls[0][0])).toContain("safesearch=strict");
+  });
+
   it("searches again for a follow-up that only says 'anh ấy' after a public figure", async () => {
     const quote = "LeBron James trains about 6 days per week with weights and recovery work.";
     const answerFor = { segments: [{
