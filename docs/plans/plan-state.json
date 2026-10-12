@@ -45,10 +45,10 @@
       "priority": "P1",
       "complexity": "complex",
       "lifecycle": "in_progress",
-      "verification": "focused",
-      "rollout": "pending",
+      "verification": "production",
+      "rollout": "live",
       "owner": "01a1172c-d836-7250-8396-275f41a6f75d",
-      "updatedAt": "2026-10-08"
+      "updatedAt": "2026-10-12"
     },
     {
       "id": "095",
@@ -332,11 +332,11 @@
       "path": "docs/plans/108-add-sculpted-route-transition.md",
       "priority": "P1",
       "complexity": "moderate",
-      "lifecycle": "in_progress",
+      "lifecycle": "rejected",
       "verification": "focused",
-      "rollout": "not_started",
+      "rollout": "not_applicable",
       "owner": "root",
-      "updatedAt": "2026-10-10"
+      "updatedAt": "2026-10-12"
     },
     {
       "id": "109",
@@ -344,11 +344,11 @@
       "path": "docs/plans/109-harden-financial-consistency-and-recovery.md",
       "priority": "P0",
       "complexity": "complex",
-      "lifecycle": "in_progress",
-      "verification": "focused",
-      "rollout": "not_started",
+      "lifecycle": "done",
+      "verification": "production",
+      "rollout": "live",
       "owner": "root",
-      "updatedAt": "2026-10-10"
+      "updatedAt": "2026-10-12"
     }
   ]
 }

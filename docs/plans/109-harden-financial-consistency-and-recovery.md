@@ -17,11 +17,11 @@
 - **Depends on**: 023, 081, 085
 - **Category**: bug | security | recovery | migration | tests
 - **Planned at**: 2026-09-18
-- **Lifecycle**: DONE — LOCAL IMPLEMENTATION COMPLETE
-- **Verification**: LOCAL FULL — QA PASS 2026-10-02; NOT DEPLOYED
-- **Rollout**: NOT STARTED
+- **Lifecycle**: DONE — LIVE IN PRODUCTION
+- **Verification**: PRODUCTION — QA PASS 2026-10-02; staging acceptance PASS 2026-10-12; deployed 2026-10-12
+- **Rollout**: LIVE
 - **Owner**: root
-- **Updated at**: 2026-10-02
+- **Updated at**: 2026-10-12
 
 ## Why This Matters
 
@@ -363,3 +363,15 @@ từ working tree root (backup cục bộ ngoài repo) sang branch
   client 982 PASS; agents:validate, security:secrets, data-boundaries PASS.
 - Blocker môi trường: `npm run build` fail ở verify-search-index-build (public content API 404, cũng fail trên
   `origin/staging` sạch); `audit:backup-readiness` BACKUP_STALE (28,88h > 24h). Không deploy/migration/write.
+
+## Production rollout (2026-10-12)
+
+- Release B (PR 237, `main` `0a25b8b`) đã lên production sau backup `...20261011T164740Z...` (off-device RESTORE_PASS),
+  staging acceptance PASS (run 38159464794) và index migration: preflight sạch rồi apply trên staging và production
+  (`incoming_cross_channel_fingerprint`, `uniq_contract_signing_candidate`, `contract_signing_recovery_claim`,
+  `contract_signing_history`; 4 index tạo mới, không sửa dữ liệu).
+- Hồi quy sau release: client mới thử `/auth/refresh` khi `/user/me` trả 401; khách chưa đăng nhập không có refresh cookie
+  nên mỗi lần tải trang tạo một request lỗi và làm cạn `authLimiter` (5 lỗi / 15 phút) của toàn bộ `/api/auth`, chặn cả
+  đăng nhập Google. Bản vá PR 238 (`authLimiter` bỏ qua `POST /refresh` không có cookie `refreshToken`) lên production
+  qua PR 239 (`main` `5433f29`, Render `dep-db5tfd5ckfvc73bd66m0`); kiểm chứng 8 lần refresh ẩn danh liên tiếp đều 401.
+- Bài học: acceptance chưa có kịch bản "khách ẩn danh tải trang lặp lại"; cần thêm vào smoke test các lần release sau.

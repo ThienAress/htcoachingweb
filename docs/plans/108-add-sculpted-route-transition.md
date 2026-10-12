@@ -15,11 +15,11 @@
 - **Depends on**: none
 - **Category**: perf
 - **Planned at**: 2026-09-14
-- **Lifecycle**: IN PROGRESS
+- **Lifecycle**: REJECTED — FEATURE REMOVED BY OWNER (2026-10-12)
 - **Verification**: LOCAL FULL — LOOPING PREVIEW READY FOR APPROVAL
-- **Rollout**: NOT STARTED
+- **Rollout**: NOT APPLICABLE — CODE REMOVED
 - **Owner**: root
-- **Updated at**: 2026-09-15
+- **Updated at**: 2026-10-12
 
 ## Why This Matters
 
@@ -394,3 +394,10 @@ từ working tree root (backup cục bộ ngoài repo) sang branch
 - Verify: client unit 192 files/982 tests PASS; lint 0 error/1 warning; UI gate 0 new;
   `e2e/sculpted-route-transition.spec.js` 6/6 PASS (lượt đầu timeout do cold start Vite, lượt hai PASS).
 - Chưa chạy: rendered review desktop/mobile, deploy. Rollout vẫn NOT STARTED.
+
+## Removal (2026-10-12)
+
+Chủ sở hữu quyết định không cần hiệu ứng chuyển trang khi bấm công cụ TDEE (và thư viện bài tập) nên toàn bộ code của tính
+năng đã bị gỡ: thư mục `client/src/components/transitions`, ảnh `client/src/assets/images/transitions`, bọc
+`SculptNavigationBoundary` trong `App.jsx`, thuộc tính `data-sculpt-transition` ở trang chi tiết bài tập và spec E2E
+`sculpted-route-transition`. Tài liệu plan và spec được giữ làm lịch sử, không còn đối tượng triển khai.
