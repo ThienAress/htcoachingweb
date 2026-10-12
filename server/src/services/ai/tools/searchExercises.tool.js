@@ -154,21 +154,33 @@ const compactCatalogCopy = (value, limit) => {
   return compact.length > limit ? `${compact.slice(0, limit - 1).trimEnd()}…` : compact;
 };
 
+const escapeMarkdownInline = (value) =>
+  String(value || "").replace(/([\\*_`[\]])/g, "\\$1");
+
+// One exercise per numbered item; the description and each step get their own
+// line so the answer stays scannable instead of one long run-on paragraph.
 const formatExerciseTechnique = (exercise) => {
-  const cues = [];
   const description = compactCatalogCopy(exercise?.description, 280);
-  if (description) cues.push(description);
+  const steps = [];
   for (const instruction of Array.isArray(exercise?.instructions)
     ? exercise.instructions.slice(0, 3)
     : []) {
     const title = compactCatalogCopy(instruction?.title, 80);
     const detail = compactCatalogCopy(instruction?.description, 220);
-    if (title && detail) cues.push(`${title}: ${detail}`);
-    else if (title || detail) cues.push(title || detail);
+    if (title && detail) steps.push(`**${escapeMarkdownInline(title)}:** ${detail}`);
+    else if (title || detail) steps.push(title || detail);
   }
-  return cues.length > 0
-    ? cues.join(" ")
-    : "Thư viện chưa có hướng dẫn kỹ thuật chi tiết cho bài này.";
+  const techniqueLabel = "**Kỹ thuật:**";
+  if (!description && steps.length === 0) {
+    return [`   - ${techniqueLabel} Thư viện chưa có hướng dẫn kỹ thuật chi tiết cho bài này.`];
+  }
+  const lines = [];
+  if (description) lines.push(`   - ${techniqueLabel} ${description}`);
+  if (steps.length > 0) {
+    lines.push(description ? "   - **Các bước chính:**" : `   - ${techniqueLabel}`);
+    steps.forEach((step, stepIndex) => lines.push(`     ${stepIndex + 1}. ${step}`));
+  }
+  return lines;
 };
 
 /**
@@ -324,9 +336,11 @@ export async function searchExercises(params) {
   // Text cho LLM
   const exerciseList = exercises
     .map((exercise, index) =>
-      `${index + 1}. ${exercise.name} (${exercise.muscleGroup})\n` +
-      `   Kỹ thuật: ${formatExerciseTechnique(exercise)}`)
-    .join("\n");
+      [
+        `${index + 1}. **${escapeMarkdownInline(exercise.name)}** (${exercise.muscleGroup})`,
+        ...formatExerciseTechnique(exercise),
+      ].join("\n"))
+    .join("\n\n");
 
   const availabilityNotice = catalogInsufficient
     ? `\n\nThư viện hiện chỉ có ${exercises.length}/${resultLimit} bài phù hợp với bộ lọc và thiết bị bạn đã nêu.`
