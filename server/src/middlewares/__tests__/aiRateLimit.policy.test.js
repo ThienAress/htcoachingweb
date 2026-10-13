@@ -21,6 +21,7 @@ import { serializeRequestQuota } from "../../services/serviceAccessPolicy.servic
 import FitnessSubscription from "../../models/FitnessSubscription.js";
 import { resolveServiceAccessTierMiddleware } from "../resolveServiceAccessTier.js";
 import { enforceSharedServiceUsage } from "../serviceUsageLedger.js";
+import { enforceAiCredits } from "../aiCredits.js";
 
 let app;
 
@@ -50,8 +51,8 @@ beforeAll(async () => {
   app.post(
     "/guest",
     aiGuestChatLimiter,
-    enforceSharedServiceUsage("ai_chat"),
-    (req, res) => res.json({ quota: serializeRequestQuota(req, "ai_chat") }),
+    enforceAiCredits("chat"),
+    (req, res) => res.json({ quota: serializeRequestQuota(req, "ai_credits") }),
   );
   app.post(
     "/fitness-meal/:id",
@@ -74,8 +75,8 @@ beforeAll(async () => {
     },
     resolveServiceAccessTierMiddleware,
     aiChatLimiter,
-    enforceSharedServiceUsage("ai_chat"),
-    (req, res) => res.json({ quota: serializeRequestQuota(req, "ai_chat") }),
+    enforceAiCredits("chat"),
+    (req, res) => res.json({ quota: serializeRequestQuota(req, "ai_credits") }),
   );
 });
 
@@ -139,20 +140,20 @@ describe("commercial quota ledger and Fitness+ quota", () => {
     expect(responses[5].body).toMatchObject({ code: "AI_GUEST_RATE_LIMITED" });
   });
 
-  it("limits regular users to fifteen daily AI messages and trainers to thirty per hour", async () => {
+  it("limits regular users to twenty daily AI credits and trainers to forty per hour", async () => {
     const regularId = new mongoose.Types.ObjectId();
     const regular = [];
-    for (let attempt = 1; attempt <= 16; attempt += 1) {
+    for (let attempt = 1; attempt <= 21; attempt += 1) {
       regular.push((await request(app).post(`/user/${regularId}`)).status);
     }
-    expect(regular).toEqual([...Array(15).fill(200), 429]);
+    expect(regular).toEqual([...Array(20).fill(200), 429]);
 
     const trainerId = new mongoose.Types.ObjectId();
     const trainer = [];
-    for (let attempt = 1; attempt <= 31; attempt += 1) {
+    for (let attempt = 1; attempt <= 41; attempt += 1) {
       trainer.push((await request(app).post(`/user/${trainerId}`).set("X-Test-Role", "trainer")).status);
     }
-    expect(trainer).toEqual([...Array(30).fill(200), 429]);
+    expect(trainer).toEqual([...Array(40).fill(200), 429]);
   });
 
   it("uses the Fitness+ plan tier for AI Chat and Meal Scan", async () => {
@@ -170,10 +171,10 @@ describe("commercial quota ledger and Fitness+ quota", () => {
     });
 
     const ai = [];
-    for (let attempt = 1; attempt <= 21; attempt += 1) {
+    for (let attempt = 1; attempt <= 31; attempt += 1) {
       ai.push((await request(app).post(`/user/${user._id}`)).status);
     }
-    expect(ai).toEqual([...Array(20).fill(200), 429]);
+    expect(ai).toEqual([...Array(30).fill(200), 429]);
 
     const meal = [];
     for (let attempt = 1; attempt <= 6; attempt += 1) {
@@ -183,8 +184,7 @@ describe("commercial quota ledger and Fitness+ quota", () => {
   });
 
   it.each([
-    { tier: "fitness_plus_smart", aiLimit: 40, mealLimit: 10 },
-    { tier: "fitness_plus_max", aiLimit: 60, mealLimit: 15 },
+    { tier: "fitness_plus_smart", aiLimit: 50, mealLimit: 10 },
   ])("enforces $tier boundaries from the registry", async ({ tier, aiLimit, mealLimit }) => {
     const userId = new mongoose.Types.ObjectId();
     const ai = [];

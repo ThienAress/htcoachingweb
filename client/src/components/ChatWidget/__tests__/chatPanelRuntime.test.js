@@ -70,32 +70,31 @@ describe("chat panel runtime", () => {
     });
   });
 
-  it("presents a server quota with normal emphasis", () => {
-    expect(getChatQuotaPresentation({ remaining: 4, limit: 5 })).toEqual({
-      remaining: 4,
-      limit: 5,
-      label: "Còn 4/5 lượt hỏi",
-      compactLabel: "4/5",
+  it("presents server credits with normal emphasis", () => {
+    expect(getChatQuotaPresentation({ remaining: 12, limit: 20 })).toEqual({
+      remaining: 12,
+      limit: 20,
+      resetAt: null,
+      label: "Còn 12 credit",
+      compactLabel: "12",
       tone: "normal",
     });
   });
 
-  it("warns when only two quota messages remain", () => {
-    expect(getChatQuotaPresentation({ remaining: 2, limit: 15 })).toEqual({
-      remaining: 2,
-      limit: 15,
-      label: "Còn 2/15 lượt hỏi",
-      compactLabel: "2/15",
+  it("warns when five credits or fewer remain", () => {
+    expect(getChatQuotaPresentation({ remaining: 5, limit: 80 })).toMatchObject({
+      label: "Còn 5 credit",
       tone: "low",
     });
+    expect(getChatQuotaPresentation({ remaining: 6, limit: 80 }).tone).toBe("normal");
   });
 
-  it("marks an exhausted quota without deriving a client-side limit", () => {
-    expect(getChatQuotaPresentation({ remaining: 0, limit: 30 })).toEqual({
+  it("marks exhausted credits without deriving a client-side limit", () => {
+    expect(getChatQuotaPresentation({ remaining: 0, limit: 30 })).toMatchObject({
       remaining: 0,
       limit: 30,
-      label: "Còn 0/30 lượt hỏi",
-      compactLabel: "0/30",
+      label: "Còn 0 credit",
+      compactLabel: "0",
       tone: "exhausted",
     });
   });
@@ -112,12 +111,12 @@ describe("chat panel runtime", () => {
         resetAt: "2026-08-12T13:42:00.000Z",
       }),
     ).toEqual({
-      label: "Còn 22/30 lượt · Làm mới 20:42 12/08",
+      label: "Còn 22 credit · Làm mới 20:42 12/08",
       tone: "normal",
     });
   });
 
-  it("shows burst and monthly windows and emphasizes the binding allowance", () => {
+  it("uses the window with the fewest spendable credits", () => {
     const quota = {
       windows: [
         {
@@ -144,12 +143,13 @@ describe("chat panel runtime", () => {
       presentation: {
         remaining: 2,
         limit: 120,
-        label: "Còn 2/120 lượt hỏi",
-        compactLabel: "2/120",
+        resetAt: "2026-09-11T13:00:00.000Z",
+        label: "Còn 2 credit",
+        compactLabel: "2",
         tone: "low",
       },
       status: {
-        label: "Còn 19/20 giờ · 2/120 30 ngày · Làm mới 20:00 11/09",
+        label: "Còn 2 credit · Làm mới 20:00 11/09",
         tone: "low",
       },
     });

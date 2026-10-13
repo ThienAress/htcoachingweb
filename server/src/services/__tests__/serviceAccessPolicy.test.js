@@ -100,7 +100,7 @@ describe("service access policy registry", () => {
       trainerTier: "trainer",
     });
     expect(
-      ["meal_scan", "ai_chat", "meal_plan", "tdee"].every(
+      ["meal_scan", "ai_credits", "meal_plan", "tdee"].every(
         (serviceKey) =>
           JSON.stringify(getServiceAccessPolicy(serviceKey, adminTier)) ===
           JSON.stringify(getServiceAccessPolicy(serviceKey, trainerTier)),
@@ -108,7 +108,7 @@ describe("service access policy registry", () => {
     ).toBe(true);
   });
 
-  it("keeps the approved Meal Scan and AI Chat limits in one registry", () => {
+  it("keeps the approved Meal Scan and AI credit limits in one registry", () => {
     const limits = (serviceKey, tier) =>
       getServiceAccessPolicy(serviceKey, tier).windows.map((window) => [
         window.key,
@@ -125,14 +125,14 @@ describe("service access policy registry", () => {
         smart: limits("meal_scan", "fitness_plus_smart"),
         max: limits("meal_scan", "fitness_plus_max"),
       },
-      aiChat: {
-        guest: limits("ai_chat", "guest"),
-        user: limits("ai_chat", "user"),
-        coaching: limits("ai_chat", "coaching_customer"),
-        trainer: limits("ai_chat", "trainer"),
-        essential: limits("ai_chat", "fitness_plus_essential"),
-        smart: limits("ai_chat", "fitness_plus_smart"),
-        max: limits("ai_chat", "fitness_plus_max"),
+      aiCredits: {
+        guest: limits("ai_credits", "guest"),
+        user: limits("ai_credits", "user"),
+        coaching: limits("ai_credits", "coaching_customer"),
+        trainer: limits("ai_credits", "trainer"),
+        essential: limits("ai_credits", "fitness_plus_essential"),
+        smart: limits("ai_credits", "fitness_plus_smart"),
+        max: limits("ai_credits", "fitness_plus_max"),
       },
     }).toEqual({
       mealScan: {
@@ -144,14 +144,14 @@ describe("service access policy registry", () => {
         smart: [["daily", 10], ["monthly", 210]],
         max: [["daily", 15], ["monthly", 300]],
       },
-      aiChat: {
+      aiCredits: {
         guest: [["rolling_24_hours", 5]],
-        user: [["daily", 15], ["monthly", 60]],
-        coaching: [["burst", 30], ["monthly", 600]],
-        trainer: [["burst", 30], ["monthly", 1200]],
-        essential: [["burst", 20], ["monthly", 120]],
-        smart: [["burst", 40], ["monthly", 300]],
-        max: [["burst", 60], ["monthly", 600]],
+        user: [["daily", 20], ["monthly", 80]],
+        coaching: [["burst", 40], ["monthly", 1200]],
+        trainer: [["burst", 40], ["monthly", 2400]],
+        essential: [["burst", 30], ["monthly", 360]],
+        smart: [["burst", 50], ["monthly", 720]],
+        max: [["burst", 80], ["monthly", 1200]],
       },
     });
   });
@@ -310,7 +310,7 @@ describe("resolveServiceAccessTier", () => {
 
     const ai = await resolveRequestServicePolicy(
       { user: { id: user._id, role: "user" } },
-      "ai_chat",
+      "ai_credits",
     );
     const meal = await resolveRequestServicePolicy(
       { user: { id: user._id, role: "user" } },
@@ -326,11 +326,11 @@ describe("resolveServiceAccessTier", () => {
   it("uses an entitlement snapshot as a no-downgrade floor", async () => {
     const { user } = await createTestUser({ email: "tier-floor@example.com" });
     const snapshot = {
-      ai_chat: {
-        ...getServiceAccessPolicy("ai_chat", SERVICE_ACCESS_TIERS.FITNESS_PLUS_ESSENTIAL),
+      ai_credits: {
+        ...getServiceAccessPolicy("ai_credits", SERVICE_ACCESS_TIERS.FITNESS_PLUS_ESSENTIAL),
         windows: [
-          { key: "burst", limit: 25, period: "rolling_hour", periodLabel: "giờ", windowMs: 3600000 },
-          { key: "monthly", limit: 240, period: "rolling_30_days", periodLabel: "30 ngày", windowMs: 2592000000 },
+          { key: "burst", limit: 35, period: "rolling_hour", periodLabel: "giờ", windowMs: 3600000 },
+          { key: "monthly", limit: 400, period: "rolling_30_days", periodLabel: "30 ngày", windowMs: 2592000000 },
         ],
       },
     };
@@ -350,12 +350,12 @@ describe("resolveServiceAccessTier", () => {
 
     const resolved = await resolveRequestServicePolicy(
       { user: { id: user._id, role: "user" } },
-      "ai_chat",
+      "ai_credits",
     );
 
     expect(resolved.policy.windows.map(({ key, limit }) => [key, limit])).toEqual([
-      ["burst", 25],
-      ["monthly", 240],
+      ["burst", 35],
+      ["monthly", 400],
     ]);
   });
 });

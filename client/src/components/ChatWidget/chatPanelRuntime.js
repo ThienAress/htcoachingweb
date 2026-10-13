@@ -72,13 +72,17 @@ const normalizeQuotaWindows = (quota) => {
   );
 };
 
+// Credit tiêu được = số còn lại nhỏ nhất trong các cửa sổ (giờ/ngày/30 ngày).
 const selectBindingQuotaWindow = (quota) =>
   [...normalizeQuotaWindows(quota)].sort((left, right) => {
-    const ratioDifference =
-      left.remaining / left.limit - right.remaining / right.limit;
-    if (ratioDifference !== 0) return ratioDifference;
-    return left.remaining - right.remaining;
+    const remainingDifference = left.remaining - right.remaining;
+    if (remainingDifference !== 0) return remainingDifference;
+    return left.remaining / left.limit - right.remaining / right.limit;
   })[0];
+
+export const LOW_CREDIT_THRESHOLD = 5;
+
+export const getChatQuotaWindows = (quota) => normalizeQuotaWindows(quota);
 
 export const getChatQuotaPresentation = (quota) => {
   const bindingWindow = selectBindingQuotaWindow(quota);
@@ -98,9 +102,15 @@ export const getChatQuotaPresentation = (quota) => {
   return {
     remaining,
     limit,
-    label: `Còn ${remaining}/${limit} lượt hỏi`,
-    compactLabel: `${remaining}/${limit}`,
-    tone: remaining === 0 ? "exhausted" : remaining <= 2 ? "low" : "normal",
+    resetAt: bindingWindow.resetAt || null,
+    label: `Còn ${remaining} credit`,
+    compactLabel: String(remaining),
+    tone:
+      remaining === 0
+        ? "exhausted"
+        : remaining <= LOW_CREDIT_THRESHOLD
+          ? "low"
+          : "normal",
   };
 };
 
@@ -113,35 +123,23 @@ const CHAT_QUOTA_RESET_FORMATTER = new Intl.DateTimeFormat("vi-VN", {
   timeZone: "Asia/Ho_Chi_Minh",
 });
 
+export const formatChatQuotaReset = (value) => {
+  const resetAt = new Date(value);
+  if (!value || Number.isNaN(resetAt.getTime())) return "";
+  const parts = Object.fromEntries(
+    CHAT_QUOTA_RESET_FORMATTER.formatToParts(resetAt)
+      .filter(({ type }) => type !== "literal")
+      .map(({ type, value: part }) => [type, part]),
+  );
+  return `${parts.hour}:${parts.minute} ${parts.day}/${parts.month}`;
+};
+
 export const getChatQuotaStatusLine = (quota) => {
   const presentation = getChatQuotaPresentation(quota);
   if (!presentation) return null;
-
-  const windows = normalizeQuotaWindows(quota);
-  const bindingWindow = selectBindingQuotaWindow(quota);
-  const resetAt = new Date(bindingWindow?.resetAt);
-  let resetLabel = "";
-  if (!Number.isNaN(resetAt.getTime())) {
-    const parts = Object.fromEntries(
-      CHAT_QUOTA_RESET_FORMATTER.formatToParts(resetAt)
-        .filter(({ type }) => type !== "literal")
-        .map(({ type, value }) => [type, value]),
-    );
-    resetLabel = ` · Làm mới ${parts.hour}:${parts.minute} ${parts.day}/${parts.month}`;
-  }
-
-  const remainingLabel =
-    windows.length > 1
-      ? windows
-          .map(
-            (window) =>
-              `${window.remaining}/${window.limit}${window.periodLabel ? ` ${window.periodLabel}` : ""}`,
-          )
-          .join(" · ")
-      : `${presentation.remaining}/${presentation.limit} lượt`;
-
+  const reset = formatChatQuotaReset(presentation.resetAt);
   return {
-    label: `Còn ${remainingLabel}${resetLabel}`,
+    label: `${presentation.label}${reset ? ` · Làm mới ${reset}` : ""}`,
     tone: presentation.tone,
   };
 };

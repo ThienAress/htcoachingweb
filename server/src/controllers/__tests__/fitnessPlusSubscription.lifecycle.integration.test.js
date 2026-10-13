@@ -83,7 +83,7 @@ describe("HT Fitness+ subscription lifecycle", () => {
       .select("+entitlementPolicyVersion +entitlementPolicySnapshot")
       .lean();
     expect(stored).toMatchObject({
-      entitlementPolicyVersion: "2026-08-28.1",
+      entitlementPolicyVersion: "2026-10-13.1",
       entitlementPolicySnapshot: {
         meal_scan: expect.objectContaining({
           windows: [

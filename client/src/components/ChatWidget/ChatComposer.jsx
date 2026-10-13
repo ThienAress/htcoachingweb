@@ -18,14 +18,18 @@ export default function ChatComposer({
   webSearchEnabled,
   onToggleWebSearch,
   canUseWebSearch,
+  smartSearchCost = null,
 }) {
   const fileInputRef = useRef(null);
   const hasContent = Boolean(value.trim() || selectedImage);
   const webSearchActive = canUseWebSearch && webSearchEnabled;
+  const costNote = Number.isSafeInteger(smartSearchCost)
+    ? ` (${smartSearchCost} credit/câu, hoàn phụ phí nếu không cần tra web)`
+    : "";
   const webSearchTitle = canUseWebSearch
     ? webSearchActive
-      ? "Đang bật: HT Assistant được tra cứu nguồn trên web khi cần"
-      : "Bật để HT Assistant tra cứu thông tin mới nhất trên web"
+      ? `Đang bật: HT Assistant được tra cứu nguồn trên web khi cần${costNote}`
+      : `Bật để HT Assistant tra cứu thông tin mới nhất trên web${costNote}`
     : "Đăng nhập để dùng Tìm kiếm thông minh";
 
   const handleKeyDown = (event) => {

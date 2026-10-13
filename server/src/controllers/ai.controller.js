@@ -385,14 +385,29 @@ const blockStagingAcceptanceSettlement = (req) => {
   if (req.stagingAiAcceptance) req.stagingAiAcceptanceSettlementBlocked = true;
 };
 
+const AI_QUOTA_SERVICE_KEY = "ai_credits";
+
 const refundAiQuota = async (req, stage) => {
-  if (!req.refundServiceUsage) return serializeRequestQuota(req, "ai_chat");
+  if (!req.refundServiceUsage) return serializeRequestQuota(req, AI_QUOTA_SERVICE_KEY);
   try {
     return await req.refundServiceUsage();
   } catch (error) {
     safeLog.error("ai.quota_refund_failed", error, { stage });
     blockStagingAcceptanceSettlement(req);
-    return serializeRequestQuota(req, "ai_chat");
+    return serializeRequestQuota(req, AI_QUOTA_SERVICE_KEY);
+  }
+};
+
+// Bật Tìm kiếm thông minh nhưng lượt này không tra web: trả lại phụ phí và báo quota mới.
+const refundUnusedSmartSearch = async (req, res) => {
+  if (!req.refundAiCreditSurcharge) return;
+  try {
+    const quota = await req.refundAiCreditSurcharge();
+    if (quota && !res.writableEnded) {
+      res.write(`data: ${JSON.stringify({ type: "quota", quota })}\n\n`);
+    }
+  } catch (error) {
+    safeLog.error("ai.smart_search_refund_failed", error);
   }
 };
 
@@ -1035,7 +1050,7 @@ export const chatStream = async (req, res) => {
       res.setHeader("X-Accel-Buffering", "no");
       res.setHeader("X-AI-Conversation-Id", String(conversation._id));
       res.flushHeaders();
-      const quota = serializeRequestQuota(req, "ai_chat");
+      const quota = serializeRequestQuota(req, AI_QUOTA_SERVICE_KEY);
       if (quota) {
         res.write(`data: ${JSON.stringify({ type: "quota", quota })}\n\n`);
       }
@@ -1070,7 +1085,7 @@ export const chatStream = async (req, res) => {
   res.setHeader("X-Accel-Buffering", "no");
   res.setHeader("X-AI-Conversation-Id", String(conversation._id));
   res.flushHeaders();
-  const quota = serializeRequestQuota(req, "ai_chat");
+  const quota = serializeRequestQuota(req, AI_QUOTA_SERVICE_KEY);
   if (quota) {
     res.write(`data: ${JSON.stringify({ type: "quota", quota })}\n\n`);
   }
@@ -1560,11 +1575,14 @@ export const chatStream = async (req, res) => {
         });
       }
     }
+    const webSearchAllowed =
+      Boolean(userId) &&
+      externalKnowledgeQuery.eligible &&
+      routingDecision.maxWebSearchCalls > 0;
+    if (webSearchAllowed) req.aiWebSearchAllowed = true;
+    else await refundUnusedSmartSearch(req, res);
     systemPrompt += buildRequestRoutingBlock(routingDecision, {
-      canUseWebSearch:
-        Boolean(userId) &&
-        externalKnowledgeQuery.eligible &&
-        routingDecision.maxWebSearchCalls > 0,
+      canUseWebSearch: webSearchAllowed,
     });
 
     const llmMessages = [

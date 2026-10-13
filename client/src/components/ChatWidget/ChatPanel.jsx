@@ -1,11 +1,14 @@
 import { lazy, Suspense, useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { Link, useLocation } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { Bot, X, PanelLeftOpen, ArrowUp, Maximize2, Sun, Moon } from "lucide-react";
 import { toast } from "react-toastify";
 import { useAuth } from "../../context/AuthContext";
 import useAiChat from "../../hooks/useAiChat";
 import ChatBubble from "./ChatBubble";
 import ChatComposer from "./ChatComposer";
+import ChatCreditBadge from "./ChatCreditBadge";
+import { aiCreditsQueryOptions } from "../../queries/aiCredits.queries";
 import ChatPanelSidebar from "./ChatPanelSidebar";
 import ConversationNavigator from "./ConversationNavigator";
 import TdeeFormCard from "./cards/TdeeFormCard";
@@ -108,6 +111,10 @@ export default function ChatPanel({ initiallyOpen = false }) {
     webSearchEnabled: Boolean(user) && webSearchEnabled,
   });
   const authenticatedUserId = user?._id || user?.id || null;
+  const creditsQuery = useQuery(aiCreditsQueryOptions(authenticatedUserId, isOpen));
+  // Quota từ SSE là trạng thái mới nhất sau mỗi lượt; khi chưa hỏi gì thì dùng số đọc từ server.
+  const creditQuota = quota?.serviceKey === "ai_credits" ? quota : creditsQuery.data?.quota;
+  const creditCosts = creditsQuery.data?.costs || null;
   const displayMessages = useMemo(() => bindTurnCitationCards(messages), [messages]);
   const conversationQuestionItems = useMemo(
     () => buildConversationQuestionItems(displayMessages),
@@ -405,7 +412,7 @@ export default function ChatPanel({ initiallyOpen = false }) {
     setChatTheme(prev => prev === 'dark' ? 'light' : 'dark');
   };
 
-  const quotaStatusLine = getChatQuotaStatusLine(quota);
+  const quotaStatusLine = getChatQuotaStatusLine(creditQuota);
 
   const renderInputArea = () => (
     <div className="relative w-full max-w-3xl mx-auto flex flex-col gap-2">
@@ -423,6 +430,11 @@ export default function ChatPanel({ initiallyOpen = false }) {
         webSearchEnabled={webSearchEnabled}
         onToggleWebSearch={toggleWebSearch}
         canUseWebSearch={Boolean(user)}
+        smartSearchCost={
+          creditCosts
+            ? creditCosts.chat + creditCosts.smart_search_surcharge
+            : null
+        }
       />
       {quotaStatusLine && (
         <p
@@ -583,6 +595,7 @@ export default function ChatPanel({ initiallyOpen = false }) {
                 )}
               </div>
               <div className="pointer-events-auto flex items-center justify-end gap-2">
+                <ChatCreditBadge quota={creditQuota} costs={creditCosts} />
                 <button
                   type="button"
                   onClick={toggleTheme}
@@ -620,7 +633,7 @@ export default function ChatPanel({ initiallyOpen = false }) {
 
                   {!user && (
                     <div className="mb-6 flex max-w-xl flex-col items-center justify-center gap-1 text-center text-sm text-gray-600 dark:text-gray-300">
-                      <span>Bạn đang dùng chế độ khách với số lượt hỏi giới hạn.</span>
+                      <span>Bạn đang dùng chế độ khách với số credit giới hạn.</span>
                       <Link
                         to="/login"
                         onClick={() => setIsOpen(false)}

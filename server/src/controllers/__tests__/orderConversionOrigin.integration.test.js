@@ -138,7 +138,7 @@ describe("Order explicit conversion origin", () => {
     expect(approved.body.data).not.toHaveProperty("entitlementPolicySnapshot");
     expect(stored).toMatchObject({
       status: "approved",
-      entitlementPolicyVersion: "2026-08-28.1",
+      entitlementPolicyVersion: "2026-10-13.1",
       entitlementPolicySnapshot: {
         meal_scan: expect.objectContaining({
           windows: [

@@ -35,6 +35,7 @@
     "remaining": "Còn {{remaining}}/{{limit}} lượt quét",
     "remaining_window": "Còn {{remaining}}/{{limit}} lượt · {{period}}",
     "reset": "Làm mới {{time}}",
+    "credits": "Còn {{remaining}} credit AI (dùng chung với HT Assistant)",
     "periods": {
       "lifetime": "dùng thử một lần",
       "rolling_day": "trong ngày",

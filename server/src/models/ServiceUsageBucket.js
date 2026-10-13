@@ -23,7 +23,7 @@ const serviceUsageBucketSchema = new mongoose.Schema(
     },
     serviceKey: {
       type: String,
-      enum: ["ai_chat", "meal_scan", "practice_email"],
+      enum: ["ai_chat", "ai_credits", "meal_scan", "practice_email"],
       required: true,
       immutable: true,
     },

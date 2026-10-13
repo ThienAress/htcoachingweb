@@ -9,11 +9,11 @@
   "evalScenarios": 49,
   "testFiles": {
     "client": 174,
-    "server": 357,
+    "server": 358,
     "e2e": 27
   },
   "serverModules": {
-    "models": 81,
+    "models": 82,
     "controllers": 62,
     "routes": 51
   }
