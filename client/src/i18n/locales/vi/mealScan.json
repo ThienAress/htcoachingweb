@@ -85,8 +85,9 @@
   },
   "confirm_analysis": {
     "title": "Xác nhận gửi ảnh tới HT COACHING",
-    "description": "Khi xác nhận gửi ảnh, bạn sẽ sử dụng 1 lượt phân tích ảnh. HT COACHING không lưu ảnh vào hồ sơ; vui lòng không gửi ảnh có người, thông tin cá nhân hoặc dữ liệu nhạy cảm.",
-    "provider_consent": "Tôi đồng ý gửi ảnh này tới Google Gemini để phân tích. Nếu hệ thống dùng gói Free/Unpaid, Google có thể dùng dữ liệu đã gửi để cải thiện sản phẩm hoặc cho người đánh giá xử lý.",
+    "description": "HT COACHING không lưu ảnh vào hồ sơ. Ảnh được gửi tới Google Gemini để phân tích; vui lòng không gửi ảnh có người, thông tin cá nhân hoặc dữ liệu nhạy cảm.",
+    "provider_consent": "Tôi đồng ý chia sẻ ảnh này với hệ thống để phân tích hình ảnh. Lượt này sẽ bị trừ {{cost}} credit.",
+    "provider_consent_trial": "Tôi đồng ý chia sẻ ảnh này với hệ thống để phân tích hình ảnh. Đây là lượt dùng thử miễn phí, tương đương {{cost}} credit.",
     "cancel": "Quay lại điều chỉnh",
     "confirm": "Tôi hiểu và đồng ý"
   },  "result": {
@@ -164,7 +165,7 @@
     "transparent_title": "Ước tính có kiểm soát",
     "transparent_desc": "Luôn hiển thị theo khoảng và tách rõ thông tin bạn khai báo khỏi phần AI ước tính.",
     "privacy_title": "Không lưu tại HTCOACHING",
-    "privacy_desc": "HTCOACHING không lưu ảnh. Trước mỗi lượt, bạn xác nhận gửi ảnh và sử dụng 1 lượt phân tích."
+    "privacy_desc": "HTCOACHING không lưu ảnh. Trước mỗi lượt, bạn xác nhận gửi ảnh và số credit sẽ được trừ."
   },
   "links": {
     "eyebrow": "Tiếp theo",

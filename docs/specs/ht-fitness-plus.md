@@ -40,14 +40,15 @@ Không dùng “VIP” cho HT Fitness+ vì plan không bao gồm HLV riêng. Kh�
 
 ### Quota beta
 
-| Plan | Credit AI (HT Assistant + Meal Scan) | Cổng lượt Meal Scan |
-|---|---:|---:|
-| Nền tảng | 30 credit/giờ + 360 credit/30 ngày | 5 lượt/ngày + 120 lượt/30 ngày |
-| Tăng tốc | 50 credit/giờ + 720 credit/30 ngày | 10 lượt/ngày + 210 lượt/30 ngày |
-| Toàn diện | 80 credit/giờ + 1.200 credit/30 ngày | 15 lượt/ngày + 300 lượt/30 ngày |
+| Plan | Credit AI (HT Assistant + Meal Scan) |
+|---|---:|
+| Nền tảng | 30 credit/giờ + 360 credit/30 ngày |
+| Tăng tốc | 50 credit/giờ + 720 credit/30 ngày |
+| Toàn diện | 80 credit/giờ + 1.200 credit/30 ngày |
 
-Từ policy `2026-10-13.1`, HT Assistant trừ credit theo thao tác (1 / 2 kèm ảnh / 5 với Tìm kiếm thông minh) và
-Meal Scan trừ 2 credit ngoài cổng lượt; chi tiết ở `docs/specs/service-access-policy.md`.
+Từ policy `2026-10-13.2`, HT Assistant trừ credit theo thao tác (1 / 2 kèm ảnh / 5 với Tìm kiếm thông minh) và
+Meal Scan trừ 2 credit mỗi lượt từ cùng pool, không còn hạn mức lượt riêng; chi tiết ở
+`docs/specs/service-access-policy.md`.
 
 Meal Plan dùng cùng entitlement nhưng quota hiện tại được mô tả riêng trong registry; TDEE và thư viện bài tập không giới hạn. Quota server trả field tương thích `serviceKey`, `tier`, `limit`, `remaining`, `resetAt` và `windows[]`.
 

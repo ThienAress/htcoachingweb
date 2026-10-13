@@ -210,18 +210,6 @@ export default function FitnessPlusPlans({ billingCycle, onBillingCycleChange })
                       })}
                     </span>
                   </li>
-                  <li className="flex items-start gap-2 border-b border-gray-700 pb-1">
-                    <span className="text-primary">{"\u2713"}</span>
-                    <span>
-                      {t("pricing.fitness_plus.meal_scan_quota", {
-                        daily: getQuotaWindowLimit(plan.quotas.mealScan, "daily"),
-                        monthly: getQuotaWindowLimit(
-                          plan.quotas.mealScan,
-                          "monthly",
-                        ),
-                      })}
-                    </span>
-                  </li>
                 </ul>
 
                 <div className="mt-4 mb-4">

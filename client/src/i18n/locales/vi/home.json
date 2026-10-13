@@ -152,7 +152,6 @@
       "retry": "Thử tải lại",
       "quota_title": "Hạn mức công cụ",
       "ai_credit_quota": "{{monthly}} credit AI / 30 ngày (tối đa {{burst}} credit / giờ) cho HT Assistant và Meal Scan",
-      "meal_scan_quota": "{{daily}} lượt Meal Scan / ngày + {{monthly}} lượt / 30 ngày",
       "current": "Đang sử dụng",
       "checkout_title": "Đăng ký HT Fitness+",
       "checkout_failed": "Không thể kích hoạt gói lúc này.",

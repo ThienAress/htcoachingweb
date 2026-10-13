@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import {
   ArrowRight,
@@ -15,6 +16,8 @@ import SEO from "../../components/SEO";
 import { useAuth } from "../../context/AuthContext";
 import { analyzeMeal } from "../../services/mealScan.service";
 import { compressChatImage } from "../../utils/compressChatImage";
+import { getChatQuotaPresentation } from "../../components/ChatWidget/chatPanelRuntime";
+import { aiCreditsQueryOptions } from "../../queries/aiCredits.queries";
 import MealScanAnalyzeDialog from "./MealScanAnalyzeDialog";
 import MealScanIngredientSetup from "./MealScanIngredientSetup";
 import MealScanResult from "./MealScanResult";
@@ -69,6 +72,15 @@ export default function MealScan() {
   const [quota, setQuota] = useState(null);
   const [credits, setCredits] = useState(null);
   const [scanErrorCode, setScanErrorCode] = useState("");
+  const authenticatedUserId = user?._id || user?.id || null;
+  const creditsQuery = useQuery(
+    aiCreditsQueryOptions(authenticatedUserId, Boolean(authenticatedUserId)),
+  );
+  // Số dư mới nhất từ lần quét; chưa quét thì dùng số đọc từ server.
+  const creditPresentation = getChatQuotaPresentation(
+    credits || creditsQuery.data?.quota,
+  );
+  const mealScanCreditCost = creditsQuery.data?.costs?.meal_scan ?? 2;
 
   useEffect(
     () => () => {
@@ -372,42 +384,12 @@ export default function MealScan() {
                   {t("steps.upload")}
                 </span>
               </p>
-              {quota && (
-                <div
-                  className="mb-3 flex flex-wrap justify-center gap-x-3 gap-y-1 text-center text-sm font-semibold text-slate-700"
+              {creditPresentation && (
+                <p
+                  className="mb-3 text-center text-sm font-bold text-slate-900"
                   role="status"
                 >
-                  {(quota.windows?.length ? quota.windows : [quota]).map(
-                    (window) => (
-                      <span key={window.key || window.period || "primary"}>
-                        {t("quota.remaining_window", {
-                          remaining: window.remaining,
-                          limit: window.limit,
-                          period: t(`quota.periods.${window.period}`, {
-                            defaultValue: window.periodLabel || "",
-                          }),
-                        })}
-                        {window.resetAt && (
-                          <span className="font-normal text-slate-500">
-                            {" · "}
-                            {t("quota.reset", {
-                              time: new Intl.DateTimeFormat(i18n.language, {
-                                day: "2-digit",
-                                month: "2-digit",
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              }).format(new Date(window.resetAt)),
-                            })}
-                          </span>
-                        )}
-                      </span>
-                    ),
-                  )}
-                </div>
-              )}
-              {Number.isSafeInteger(credits?.remaining) && (
-                <p className="mb-3 text-center text-sm text-slate-600" role="status">
-                  {t("quota.credits", { remaining: credits.remaining })}
+                  {t("quota.credits", { remaining: creditPresentation.remaining })}
                 </p>
               )}
               <MealScanUploader
@@ -555,6 +537,8 @@ export default function MealScan() {
         onAcceptedChange={setProviderDataUseAccepted}
         onCancel={() => setConfirmAnalysisOpen(false)}
         onConfirm={handleConfirmAnalysis}
+        creditCost={mealScanCreditCost}
+        chargesCredits={Boolean(authenticatedUserId)}
       />
     </>
   );

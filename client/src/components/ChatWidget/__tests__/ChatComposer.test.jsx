@@ -66,19 +66,19 @@ describe("smart search preference storage", () => {
     return { getItem: (key) => values.get(key) ?? null, setItem: (key, value) => values.set(key, value) };
   };
 
-  it("defaults to off and round-trips the user's choice", () => {
+  it("defaults to on and remembers when the user turns it off", () => {
     const storage = memoryStorage();
-    expect(resolveInitialWebSearch(storage)).toBe(false);
-    persistWebSearch(true, storage);
-    expect(storage.getItem(CHAT_WEB_SEARCH_STORAGE_KEY)).toBe("on");
     expect(resolveInitialWebSearch(storage)).toBe(true);
     persistWebSearch(false, storage);
+    expect(storage.getItem(CHAT_WEB_SEARCH_STORAGE_KEY)).toBe("off");
     expect(resolveInitialWebSearch(storage)).toBe(false);
+    persistWebSearch(true, storage);
+    expect(resolveInitialWebSearch(storage)).toBe(true);
   });
 
-  it("falls back to off when storage throws", () => {
+  it("falls back to on when storage throws", () => {
     const broken = { getItem: () => { throw new Error("blocked"); }, setItem: () => { throw new Error("blocked"); } };
-    expect(resolveInitialWebSearch(broken)).toBe(false);
+    expect(resolveInitialWebSearch(broken)).toBe(true);
     expect(() => persistWebSearch(true, broken)).not.toThrow();
   });
 });

@@ -9,8 +9,8 @@ describe("Meal Scan photo confirmation copy", () => {
     expect(en.confirm_analysis.title).toBe(
       "Confirm sending the photo to HT COACHING",
     );
-    expect(vi.confirm_analysis.description).toMatch(/1 lượt phân tích ảnh/i);
-    expect(en.confirm_analysis.description).toMatch(/1 photo analysis/i);
+    expect(vi.confirm_analysis.description).toMatch(/không lưu ảnh vào hồ sơ/i);
+    expect(en.confirm_analysis.description).toMatch(/does not save the photo/i);
     expect(vi.confirm_analysis.description).not.toMatch(/quota/i);
     expect(en.confirm_analysis.description).not.toMatch(/quota/i);
   });
@@ -24,13 +24,16 @@ describe("Meal Scan photo confirmation copy", () => {
     expect(en.uploader.privacy).toMatch(/does not save the photo/i);
   });
 
-  test("discloses the worst-case Gemini Free/Unpaid data use before consent", () => {
+  test("states the credit cost in the consent line and names the provider in the body", () => {
     expect(vi.confirm_analysis.provider_consent).toMatch(
-      /Google Gemini.*Free\/Unpaid.*cải thiện sản phẩm.*người đánh giá/i,
+      /Lượt này sẽ bị trừ \{\{cost\}\} credit/i,
     );
     expect(en.confirm_analysis.provider_consent).toMatch(
-      /Google Gemini.*Free\/Unpaid.*improve.*human reviewers/i,
+      /will use \{\{cost\}\} credits/i,
     );
+    expect(vi.confirm_analysis.provider_consent_trial).toMatch(/dùng thử miễn phí/i);
+    expect(vi.confirm_analysis.description).toMatch(/Google Gemini/i);
+    expect(en.confirm_analysis.description).toMatch(/Google Gemini/i);
   });
 
   test("describes the one guest scan plus one account scan funnel", () => {

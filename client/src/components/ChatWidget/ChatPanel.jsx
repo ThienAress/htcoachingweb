@@ -5,6 +5,7 @@ import { Bot, X, PanelLeftOpen, ArrowUp, Maximize2, Sun, Moon } from "lucide-rea
 import { toast } from "react-toastify";
 import { useAuth } from "../../context/AuthContext";
 import useAiChat from "../../hooks/useAiChat";
+import useScrollDockHidden from "../../hooks/useScrollDockHidden";
 import ChatBubble from "./ChatBubble";
 import ChatComposer from "./ChatComposer";
 import ChatCreditBadge from "./ChatCreditBadge";
@@ -109,6 +110,9 @@ export default function ChatPanel({ initiallyOpen = false }) {
   } = useAiChat({
     persistenceEnabled: Boolean(user),
     webSearchEnabled: Boolean(user) && webSearchEnabled,
+  });
+  const dockHiddenByScroll = useScrollDockHidden({
+    disabled: isOpen || pillExpanded,
   });
   const authenticatedUserId = user?._id || user?.id || null;
   const creditsQuery = useQuery(aiCreditsQueryOptions(authenticatedUserId, isOpen));
@@ -476,7 +480,9 @@ export default function ChatPanel({ initiallyOpen = false }) {
           }}
           className={`pill-bar-wrapper focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/80 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950 focus-within:ring-1 focus-within:ring-emerald-400/60 ${
             isOpen ? "hidden-state" : "visible-state"
-          } ${pillExpanded ? "pill-expanded" : "pill-collapsed"}`}
+          } ${pillExpanded ? "pill-expanded" : "pill-collapsed"} ${
+            dockHiddenByScroll ? "dock-scroll-hidden" : ""
+          }`}
         >
           <div className="flex items-center gap-3 flex-1 min-w-0">
             <div className="relative w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 via-emerald-400 to-cyan-400 flex items-center justify-center shadow-md shadow-emerald-500/10 shrink-0">

@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { X } from "lucide-react";
+import useScrollDockHidden from "../hooks/useScrollDockHidden";
 
 // ======================= CÁC ICON MẠNG XÃ HỘI =======================
 const ZaloIcon = () => (
@@ -89,7 +90,6 @@ const getUiConfig = (width) => {
 const ChatIcons = () => {
   const [open, setOpen] = useState(false);
   const [chatWidgetOpen, setChatWidgetOpen] = useState(false);
-  const [hiddenByScroll, setHiddenByScroll] = useState(false);
   const [currentIconIdx, setCurrentIconIdx] = useState(0);
   const wrapperRef = useRef(null);
 
@@ -129,19 +129,6 @@ const ChatIcons = () => {
     };
   }, [viewportWidth]);
 
-  // Ẩn khi cuộn qua 40% trang (chỉ mobile)
-  useEffect(() => {
-    if (viewportWidth >= 640) return;
-    const handleScroll = () => {
-      const scrolled = window.scrollY;
-      const total = document.documentElement.scrollHeight - window.innerHeight;
-      if (total <= 0) return;
-      setHiddenByScroll(scrolled / total > 0.4);
-    };
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, [viewportWidth]);
-
   // Click outside and Escape key handling
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -160,7 +147,8 @@ const ChatIcons = () => {
     };
   }, []);
 
-  const isHidden = chatWidgetOpen || (viewportWidth < 640 && hiddenByScroll);
+  const hiddenByScroll = useScrollDockHidden({ disabled: open });
+  const isHidden = chatWidgetOpen;
 
   return (
     <div
@@ -170,8 +158,14 @@ const ChatIcons = () => {
         right: `${ui.right}px`,
         bottom: `calc(${ui.bottom}px + env(safe-area-inset-bottom, 0px))`,
         opacity: isHidden ? 0 : 1,
-        pointerEvents: isHidden ? "none" : "auto",
-        transition: "opacity 0.3s ease",
+        pointerEvents: isHidden || hiddenByScroll ? "none" : "auto",
+        // Cuộn xuống: trượt xuống khỏi màn hình; cuộn lên hoặc đứng yên: trượt lại.
+        transform: hiddenByScroll
+          ? `translateY(calc(100% + ${ui.bottom + 40}px))`
+          : "translateY(0)",
+        transition: hiddenByScroll
+          ? "transform 380ms cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease"
+          : "transform 460ms cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease",
       }}
     >
       <div

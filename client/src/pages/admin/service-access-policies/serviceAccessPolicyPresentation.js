@@ -9,6 +9,7 @@ const policySignature = (policy) =>
     scopeLabel: policy?.scopeLabel,
     enforcement: policy?.enforcement,
     windows: policy?.windows,
+    note: policy?.note,
   });
 
 export const formatPolicy = (policy) => {
@@ -16,6 +17,10 @@ export const formatPolicy = (policy) => {
     return { primary: "Chưa khả dụng", secondary: "" };
   }
   if (policy.mode === "unlimited") {
+    // Dịch vụ không có cổng riêng mà trừ credit AI dùng chung: hiển thị giá credit.
+    if (typeof policy.note === "string" && policy.note) {
+      return { primary: policy.note, secondary: "Trong pool Credit AI" };
+    }
     return { primary: "Không giới hạn", secondary: "" };
   }
 
