@@ -8,6 +8,8 @@ export default function MealScanAnalyzeDialog({
   onAcceptedChange,
   onCancel,
   onConfirm,
+  creditCost = 2,
+  chargesCredits = true,
 }) {
   const { t } = useTranslation("mealScan");
   const consentRef = useRef(null);
@@ -90,7 +92,14 @@ export default function MealScanAnalyzeDialog({
             onChange={(event) => onAcceptedChange(event.target.checked)}
             className="mt-1 h-4 w-4 shrink-0 accent-primary"
           />
-          <span>{t("confirm_analysis.provider_consent")}</span>
+          <span>
+            {t(
+              chargesCredits
+                ? "confirm_analysis.provider_consent"
+                : "confirm_analysis.provider_consent_trial",
+              { cost: creditCost },
+            )}
+          </span>
         </label>
         <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
           <button

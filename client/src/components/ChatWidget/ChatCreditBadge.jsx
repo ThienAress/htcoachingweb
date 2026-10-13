@@ -26,20 +26,39 @@ const resolveCost = (costs, key) =>
     : costs?.[key];
 
 export default function ChatCreditBadge({ quota, costs }) {
-  const [open, setOpen] = useState(false);
+  // Di chuột/focus vào badge là hiện chi tiết; bấm để ghim (dành cho cảm ứng).
+  const [pinned, setPinned] = useState(false);
+  const [hovered, setHovered] = useState(false);
   const containerRef = useRef(null);
+  const leaveTimerRef = useRef(null);
   const popoverId = useId();
   const presentation = getChatQuotaPresentation(quota);
+  const open = pinned || hovered;
+
+  const showDetails = () => {
+    window.clearTimeout(leaveTimerRef.current);
+    setHovered(true);
+  };
+  const hideDetails = () => {
+    window.clearTimeout(leaveTimerRef.current);
+    leaveTimerRef.current = window.setTimeout(() => setHovered(false), 120);
+  };
+
+  useEffect(() => () => window.clearTimeout(leaveTimerRef.current), []);
 
   useEffect(() => {
     if (!open) return;
+    const close = () => {
+      setPinned(false);
+      setHovered(false);
+    };
     const handlePointer = (event) => {
-      if (!containerRef.current?.contains(event.target)) setOpen(false);
+      if (!containerRef.current?.contains(event.target)) close();
     };
     const handleKey = (event) => {
       if (event.key === "Escape") {
         event.stopPropagation();
-        setOpen(false);
+        close();
       }
     };
     document.addEventListener("mousedown", handlePointer);
@@ -54,10 +73,19 @@ export default function ChatCreditBadge({ quota, costs }) {
   const windows = getChatQuotaWindows(quota);
 
   return (
-    <div ref={containerRef} className="relative">
+    <div
+      ref={containerRef}
+      className="relative"
+      onMouseEnter={showDetails}
+      onMouseLeave={hideDetails}
+      onFocus={showDetails}
+      onBlur={(event) => {
+        if (!containerRef.current?.contains(event.relatedTarget)) hideDetails();
+      }}
+    >
       <button
         type="button"
-        onClick={() => setOpen((value) => !value)}
+        onClick={() => setPinned((value) => !value)}
         aria-expanded={open}
         aria-controls={popoverId}
         aria-label={`${presentation.label}. Xem chi tiết credit`}

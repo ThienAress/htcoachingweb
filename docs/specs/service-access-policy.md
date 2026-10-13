@@ -29,10 +29,10 @@ mạnh nhất theo từng service; mua thêm entitlement không được làm qu
 
 | Dịch vụ | Guest | User thường | Khách coaching | HLV | Admin | HT Fitness+ Nền tảng | HT Fitness+ Tăng tốc | HT Fitness+ Toàn diện |
 |---|---|---|---|---|---|---|---|---|
-| Meal Scan | 1 lượt / lifetime / trình duyệt | 1 lượt / lifetime / tài khoản | 10 lượt/ngày + 300 lượt/30 ngày | 20 lượt/ngày + 600 lượt/30 ngày | 20 lượt/ngày + 600 lượt/30 ngày | 5 lượt/ngày + 120 lượt/30 ngày | 10 lượt/ngày + 210 lượt/30 ngày | 15 lượt/ngày + 300 lượt/30 ngày |
+| Meal Scan | 2 credit dùng thử / trình duyệt | 2 credit dùng thử / tài khoản | Trừ 2 credit/lượt từ pool Credit AI | Trừ 2 credit/lượt từ pool Credit AI | Trừ 2 credit/lượt từ pool Credit AI | Trừ 2 credit/lượt từ pool Credit AI | Trừ 2 credit/lượt từ pool Credit AI | Trừ 2 credit/lượt từ pool Credit AI |
 | Credit AI (`ai_credits`) | 5 credit/24 giờ / IP | 20 credit/24 giờ + 80 credit/30 ngày | 40 credit/giờ + 1.200 credit/30 ngày | 40 credit/giờ + 2.400 credit/30 ngày | 40 credit/giờ + 2.400 credit/30 ngày | 30 credit/giờ + 360 credit/30 ngày | 50 credit/giờ + 720 credit/30 ngày | 80 credit/giờ + 1.200 credit/30 ngày |
 
-### Credit AI (từ policy `2026-10-13.1`)
+### Credit AI (từ policy `2026-10-13.2`)
 
 HT Assistant và Meal Scan trừ vào một pool credit chung `ai_credits`. Giá mỗi thao tác nằm ở `AI_CREDIT_COSTS`
 trong registry: câu hỏi thường 1, câu hỏi kèm ảnh 2, Tìm kiếm thông minh thêm phụ phí 4 (tổng 5), Meal Scan 2.
@@ -40,8 +40,13 @@ trong registry: câu hỏi thường 1, câu hỏi kèm ảnh 2, Tìm kiếm th�
 - Phụ phí tìm kiếm được trừ riêng theo operation `requestId:web`. Nếu lượt đó không được phép tra web (không cần
   nguồn mới, privacy chặn, trả lời cố định, lỗi sớm) thì server hoàn phụ phí và gửi SSE `quota` mới.
 - Không đủ credit cho phụ phí thì từ chối 429 `AI_CREDITS_INSUFFICIENT_SMART_SEARCH` và hoàn phần cơ bản.
-- Meal Scan vẫn giữ hạn mức lượt ở bảng trên làm cổng dùng thử (user thường 1 lượt lifetime) và trừ thêm credit cho
-  tài khoản đăng nhập. Guest Meal Scan chỉ dùng cổng lượt theo cookie, không trừ credit.
+- Meal Scan không còn hạn mức theo lượt, mọi con số đều tính bằng credit. Guest và user thường có một lượt dùng thử
+  trị giá 2 credit (lifetime, theo trình duyệt/tài khoản, giá trị `limit: 2` đơn vị `credit`); các nhóm còn lại không
+  có cổng riêng mà chỉ trừ 2 credit trong pool `ai_credits` (`mode: unlimited` kèm `note`). Guest không bị trừ
+  credit pool vì dùng thử theo cookie. Snapshot cũ theo lượt vẫn được tôn trọng (cost 1) nhưng bị policy mới
+  `unlimited` thay thế khi runtime chọn policy mạnh nhất.
+- Trang Meal Scan chỉ hiển thị một dòng in đậm "Còn N credit AI"; hộp xác nhận ghi rõ "Lượt này sẽ bị trừ N credit"
+  (lượt dùng thử của guest ghi "lượt dùng thử miễn phí, tương đương N credit").
 - Ngân sách credit quy đổi từ quota cũ theo công thức tin chat × 1 + lượt Meal Scan × 2 để không ai bị giảm quyền lợi
   30 ngày. Snapshot quyền lợi cũ chỉ có `ai_chat` nên runtime dùng registry hiện tại cho `ai_credits`.
 - Chi phí provider thực tế mỗi lượt được đo bằng `AiUsageRecord` (xem runbook provider usage monitoring) để điều

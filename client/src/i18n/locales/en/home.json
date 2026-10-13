@@ -152,7 +152,6 @@
       "retry": "Try again",
       "quota_title": "Tool quota",
       "ai_credit_quota": "{{monthly}} AI credits / 30 days (up to {{burst}} / hour) for HT Assistant and Meal Scan",
-      "meal_scan_quota": "{{daily}} Meal Scans / day + {{monthly}} / 30 days",
       "current": "Current plan",
       "checkout_title": "Subscribe to HT Fitness+",
       "checkout_failed": "This plan could not be activated right now.",

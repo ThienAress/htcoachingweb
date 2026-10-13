@@ -86,8 +86,9 @@
   },
   "confirm_analysis": {
     "title": "Confirm sending the photo to HT COACHING",
-    "description": "Confirming will use 1 photo analysis. HT COACHING does not save the photo to your profile; do not submit photos containing people, personal information, or sensitive data.",
-    "provider_consent": "I agree to send this photo to Google Gemini for analysis. If the system uses the Free/Unpaid tier, Google may use submitted data to improve its products or have human reviewers process it.",
+    "description": "HT COACHING does not save the photo to your profile. The photo is sent to Google Gemini for analysis; do not submit photos containing people, personal information, or sensitive data.",
+    "provider_consent": "I agree to share this photo with the system for image analysis. This scan will use {{cost}} credits.",
+    "provider_consent_trial": "I agree to share this photo with the system for image analysis. This is a free trial scan, equal to {{cost}} credits.",
     "cancel": "Go back and edit",
     "confirm": "I understand and agree"
   },  "result": {
@@ -165,7 +166,7 @@
     "transparent_title": "Controlled estimates",
     "transparent_desc": "Always see ranges and a clear separation between your declarations and the AI estimate.",
     "privacy_title": "Not stored by HTCOACHING",
-    "privacy_desc": "HTCOACHING does not save the photo. Before each scan, you confirm sending the photo and using 1 photo analysis."
+    "privacy_desc": "HTCOACHING does not save the photo. Before each scan, you confirm sending the photo and the credits that will be used."
   },
   "links": {
     "eyebrow": "Next",

@@ -138,7 +138,7 @@ const confirmAnalysis = async (page) => {
   await expect(confirmButton).toBeDisabled();
   await dialog
     .getByRole("checkbox", {
-      name: /Tôi đồng ý gửi ảnh này tới Google Gemini/,
+      name: /Tôi đồng ý chia sẻ ảnh này với hệ thống/,
     })
     .check();
   await expect(confirmButton).toBeEnabled();

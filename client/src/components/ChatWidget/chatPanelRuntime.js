@@ -27,11 +27,12 @@ export const persistChatTheme = (theme, storage) => {
 
 export const CHAT_WEB_SEARCH_STORAGE_KEY = "ht_chat_web_search_v1";
 
+// Mặc định bật; chỉ tắt khi chính khách đã tắt và trình duyệt nhớ lựa chọn đó.
 export const resolveInitialWebSearch = (storage) => {
   try {
-    return resolveStorage(storage)?.getItem(CHAT_WEB_SEARCH_STORAGE_KEY) === "on";
+    return resolveStorage(storage)?.getItem(CHAT_WEB_SEARCH_STORAGE_KEY) !== "off";
   } catch {
-    return false;
+    return true;
   }
 };
 
