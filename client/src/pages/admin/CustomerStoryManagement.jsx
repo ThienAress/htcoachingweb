@@ -964,7 +964,7 @@ const CustomerStoryManagement = () => {
                   </button>
                 </div>
               </div>
-              <button
+              <button aria-label="Đóng"
                 type="button"
                 onClick={closeModal}
                 className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 self-start"

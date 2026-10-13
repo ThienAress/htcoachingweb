@@ -32,6 +32,7 @@ import {
   effectiveCoachOrderFilter,
   resolveOrderCoach,
 } from "../services/effectiveCoach.service.js";
+import { errorHandler } from "../middlewares/errorHandler.js";
 
 const orderError = (status, code, message, data = null) =>
   Object.assign(new Error(message), {
@@ -281,11 +282,7 @@ export const getOrders = async (req, res) => {
       },
     });
   } catch (err) {
-    safeLog.error("order.list_failed", err);
-    res.status(500).json({
-      success: false,
-      message: err.message,
-    });
+    return errorHandler(err, req, res);
   }
 };
 
@@ -393,10 +390,11 @@ export const approveOrder = async (req, res) => {
     });
   } catch (err) {
     safeLog.error("order.approve_failed", err);
-    res.status(err?.status || err?.statusCode || 500).json({
+    const status = err?.status || err?.statusCode || 500;
+    res.status(status).json({
       success: false,
       code: err?.code || err?.codeName || "ORDER_APPROVE_FAILED",
-      message: err.message,
+      message: status >= 500 ? "Lỗi xác nhận đơn" : err.message,
     });
   } finally {
     await session.endSession();

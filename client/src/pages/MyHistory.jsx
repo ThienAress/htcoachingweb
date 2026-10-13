@@ -271,7 +271,7 @@ const MyHistory = () => {
 
             {totalPages > 1 && (
               <div className="flex justify-center items-center gap-3 py-4 border-t border-gray-800 bg-gray-900/50">
-                <button
+                <button aria-label={t("common:a11y.previous_page")}
                   onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                   disabled={currentPage === 1}
                   className="p-2 rounded-lg border border-gray-700 text-gray-400 bg-gray-800 hover:bg-gray-700 hover:text-white transition disabled:opacity-30 disabled:cursor-not-allowed"
@@ -281,7 +281,7 @@ const MyHistory = () => {
                 <span className="text-sm text-gray-300">
                   {t("my_history.page_info", { current: currentPage, total: totalPages })}
                 </span>
-                <button
+                <button aria-label={t("common:a11y.next_page")}
                   onClick={() =>
                     setCurrentPage((p) => Math.min(totalPages, p + 1))
                   }

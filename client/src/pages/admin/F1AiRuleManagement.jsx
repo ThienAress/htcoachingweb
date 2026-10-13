@@ -227,7 +227,7 @@ const F1AiRuleManagement = () => {
               <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2 uppercase">
                 {editingId ? <><Edit size={20} className="text-indigo-600"/> Sửa Rule</> : <><Plus size={20} className="text-indigo-600"/> Thêm Rule Mới</>}
               </h2>
-              <button onClick={resetModal} className="p-1 rounded-full hover:bg-gray-100 transition"><X size={20} className="text-gray-500" /></button>
+              <button aria-label="Đóng" onClick={resetModal} className="p-1 rounded-full hover:bg-gray-100 transition"><X size={20} className="text-gray-500" /></button>
             </div>
             
             <form onSubmit={handleSubmit} className="p-6 overflow-y-auto space-y-5">

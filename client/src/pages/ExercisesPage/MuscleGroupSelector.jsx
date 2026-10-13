@@ -52,7 +52,7 @@ export default function MuscleGroupSelector({
                 <CheckCircle className="w-5 h-5 text-primary" />
                 {t("muscle_selector.title")}
               </h3>
-              <button
+              <button aria-label={t("common:a11y.close")}
                 onClick={() => setShowCustomGroupModal(false)}
                 className="text-gray-400 hover:text-gray-200"
               >

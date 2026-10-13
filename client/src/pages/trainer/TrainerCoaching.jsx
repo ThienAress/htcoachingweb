@@ -689,7 +689,7 @@ const TrainerCoaching = ({ embedded = false }) => {
                                   <span className="text-sm font-bold text-white/90">{ex.name || "Bài tập mới"}</span>
                                 </div>
                                 {exercises.length > 1 && (
-                                  <button
+                                  <button aria-label="Xóa bài tập"
                                     type="button"
                                     onClick={() => handleRemoveExercise(idx)}
                                     className="text-gray-600 hover:text-red-400 transition-colors duration-200 p-1.5 rounded-lg hover:bg-red-500/10 cursor-pointer"

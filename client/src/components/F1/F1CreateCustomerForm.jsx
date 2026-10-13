@@ -180,7 +180,7 @@ const F1CreateCustomerForm = ({
 
         <form onSubmit={handleSubmit} className="space-y-6 px-6 py-8 md:px-8">
           <div className="grid gap-5 md:grid-cols-2">
-            <Input
+            <Input autoComplete="off"
               name="fullName"
               label="Họ và tên"
               value={createForm.fullName}
@@ -228,7 +228,7 @@ const F1CreateCustomerForm = ({
               error={errors.occupation}
             />
 
-            <Input
+            <Input autoComplete="off"
               name="phone"
               label="Số điện thoại"
               type="text"
@@ -245,7 +245,7 @@ const F1CreateCustomerForm = ({
               error={errors.phone}
             />
 
-            <Input
+            <Input autoComplete="off"
               name="email"
               label="Gmail"
               type="email"

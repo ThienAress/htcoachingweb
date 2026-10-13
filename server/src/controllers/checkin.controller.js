@@ -10,6 +10,7 @@ import {
   syncDailyJournalRetentionForClient,
 } from "../services/dailyJournalRetentionPolicy.service.js";
 import { isCheckinEmailEnabled } from "../services/notificationPreference.service.js";
+import { errorHandler } from "../middlewares/errorHandler.js";
 
 // Helper để parse time an toàn
 const parseSafeTime = (timeInput) => {
@@ -310,8 +311,7 @@ export const getCheckins = async (req, res) => {
       },
     });
   } catch (err) {
-    safeLog.error("checkin.list_failed", err);
-    res.status(500).json({ success: false, message: err.message });
+    return errorHandler(err, req, res);
   }
 };
 

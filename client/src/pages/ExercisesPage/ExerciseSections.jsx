@@ -115,7 +115,7 @@ export default function ExerciseSections({
                     </td>
                   ))}
                   <td className="p-2 text-center">
-                    <button
+                    <button aria-label={t("common:a11y.remove_exercise")}
                       onClick={() => handleDeleteExercise(record._id)}
                       className="text-red-400 hover:text-red-300 transition"
                     >
@@ -163,7 +163,7 @@ export default function ExerciseSections({
                   ({formatDate(new Date())})
                 </span>
               </div>
-              <button
+              <button aria-label={t("common:a11y.remove_muscle_group")}
                 onClick={() => toggleMuscleGroup(groupId)}
                 className="text-gray-400 hover:text-gray-200 transition"
               >

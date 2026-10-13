@@ -289,7 +289,7 @@ function RegisterPage() {
                   <label className="block text-gray-700 font-semibold mb-1">
                     {t("register.phone")}
                   </label>
-                  <input
+                  <input autoComplete="tel"
                     type="tel"
                     maxLength={10}
                     {...register("phone")}
@@ -306,7 +306,7 @@ function RegisterPage() {
                   <label className="block text-gray-700 font-semibold mb-1">
                     {t("register.email")}
                   </label>
-                  <input
+                  <input autoComplete="email"
                     type="email"
                     {...register("email")}
                     className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-primary"
@@ -388,7 +388,7 @@ function RegisterPage() {
                       <span className="text-gray-700">
                         {getDayTranslation(field.day)} {t("register.schedule_at")} {field.time}
                       </span>
-                      <button
+                      <button aria-label={t("common:a11y.remove_item")}
                         type="button"
                         onClick={() => remove(index)}
                         className="ml-auto text-red-500 hover:text-red-700"

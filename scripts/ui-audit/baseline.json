@@ -62,16 +62,7 @@
       "key": "71f77fb403af8cf3",
       "ruleId": "extreme-z-index",
       "file": "client/src/components/ChatWidget/AiMemorySettings.jsx",
-      "line": 130,
-      "confidence": "high",
-      "severity": "error",
-      "status": "fail"
-    },
-    {
-      "key": "91fa336301a10886",
-      "ruleId": "icon-button-accessible-name",
-      "file": "client/src/components/ChatWidget/ChatPanel.jsx",
-      "line": 344,
+      "line": 148,
       "confidence": "high",
       "severity": "error",
       "status": "fail"
@@ -80,43 +71,16 @@
       "key": "4da6cc5fdbcbadd6",
       "ruleId": "focus-visible-not-suppressed",
       "file": "client/src/components/ChatWidget/ChatPanel.jsx",
-      "line": 463,
+      "line": 540,
       "confidence": "medium",
       "severity": "warning",
-      "status": "fail"
-    },
-    {
-      "key": "e87ece72a8596bf4",
-      "ruleId": "icon-button-accessible-name",
-      "file": "client/src/components/ChatWidget/ChatPanel.jsx",
-      "line": 468,
-      "confidence": "high",
-      "severity": "error",
       "status": "fail"
     },
     {
       "key": "ca34d77d5edc8d8d",
       "ruleId": "extreme-z-index",
       "file": "client/src/components/ChatWidget/ChatPanelSidebar.jsx",
-      "line": 185,
-      "confidence": "high",
-      "severity": "error",
-      "status": "fail"
-    },
-    {
-      "key": "f3933ead803aab6e",
-      "ruleId": "icon-button-accessible-name",
-      "file": "client/src/components/ChatWidget/ChatWidget.jsx",
-      "line": 361,
-      "confidence": "high",
-      "severity": "error",
-      "status": "fail"
-    },
-    {
-      "key": "64b89a65bcb47d09",
-      "ruleId": "icon-button-accessible-name",
-      "file": "client/src/components/ChatWidget/ChatWidget.jsx",
-      "line": 408,
+      "line": 189,
       "confidence": "high",
       "severity": "error",
       "status": "fail"
@@ -135,33 +99,6 @@
       "ruleId": "transition-all",
       "file": "client/src/components/F1/F1CreateCustomerForm.jsx",
       "line": 33,
-      "confidence": "high",
-      "severity": "warning",
-      "status": "fail"
-    },
-    {
-      "key": "ebeef8f859ad9572",
-      "ruleId": "personal-input-autocomplete",
-      "file": "client/src/components/F1/F1CreateCustomerForm.jsx",
-      "line": 183,
-      "confidence": "high",
-      "severity": "warning",
-      "status": "fail"
-    },
-    {
-      "key": "8c4dc93b112d6f62",
-      "ruleId": "personal-input-autocomplete",
-      "file": "client/src/components/F1/F1CreateCustomerForm.jsx",
-      "line": 231,
-      "confidence": "high",
-      "severity": "warning",
-      "status": "fail"
-    },
-    {
-      "key": "95eaed096a095e0e",
-      "ruleId": "personal-input-autocomplete",
-      "file": "client/src/components/F1/F1CreateCustomerForm.jsx",
-      "line": 248,
       "confidence": "high",
       "severity": "warning",
       "status": "fail"
@@ -215,27 +152,9 @@
       "key": "684487347ac2cd42",
       "ruleId": "extreme-z-index",
       "file": "client/src/components/GlobalLoading.jsx",
-      "line": 206,
+      "line": 207,
       "confidence": "high",
       "severity": "error",
-      "status": "fail"
-    },
-    {
-      "key": "53ba5b9ea123ec21",
-      "ruleId": "focus-visible-not-suppressed",
-      "file": "client/src/components/ScrollToTop.jsx",
-      "line": 42,
-      "confidence": "medium",
-      "severity": "warning",
-      "status": "fail"
-    },
-    {
-      "key": "d2ec88e78632c944",
-      "ruleId": "transition-all",
-      "file": "client/src/components/ScrollToTop.jsx",
-      "line": 42,
-      "confidence": "high",
-      "severity": "warning",
       "status": "fail"
     },
     {
@@ -266,19 +185,10 @@
       "status": "advisory"
     },
     {
-      "key": "16800609c66e5b91",
-      "ruleId": "reduced-motion-strategy",
-      "file": "client/src/index.css",
-      "line": 333,
-      "confidence": "low",
-      "severity": "warning",
-      "status": "advisory"
-    },
-    {
       "key": "0d5c4a276e843f2d",
       "ruleId": "transition-all",
       "file": "client/src/layouts/AdminLayout.jsx",
-      "line": 157,
+      "line": 160,
       "confidence": "high",
       "severity": "warning",
       "status": "fail"
@@ -287,7 +197,7 @@
       "key": "4d772f9b37e59c49",
       "ruleId": "transition-all",
       "file": "client/src/layouts/CustomerDashboardLayout.jsx",
-      "line": 213,
+      "line": 237,
       "confidence": "high",
       "severity": "warning",
       "status": "fail"
@@ -296,7 +206,7 @@
       "key": "16f9a9c6a7fe563e",
       "ruleId": "transition-all",
       "file": "client/src/layouts/TrainerLayout.jsx",
-      "line": 251,
+      "line": 253,
       "confidence": "high",
       "severity": "warning",
       "status": "fail"
@@ -305,7 +215,7 @@
       "key": "462752ddb91412d4",
       "ruleId": "reduced-motion-strategy",
       "file": "client/src/pages/account/AccountPage.jsx",
-      "line": 54,
+      "line": 63,
       "confidence": "low",
       "severity": "warning",
       "status": "advisory"
@@ -356,15 +266,6 @@
       "status": "fail"
     },
     {
-      "key": "30a24105bdec592e",
-      "ruleId": "icon-button-accessible-name",
-      "file": "client/src/pages/account/components/OrdersTab.jsx",
-      "line": 35,
-      "confidence": "high",
-      "severity": "error",
-      "status": "fail"
-    },
-    {
       "key": "dd317512607e3a0c",
       "ruleId": "transition-all",
       "file": "client/src/pages/account/components/OrdersTab.jsx",
@@ -395,7 +296,7 @@
       "key": "a054c8c80e1f20bb",
       "ruleId": "transition-all",
       "file": "client/src/pages/account/components/OrdersTab.jsx",
-      "line": 85,
+      "line": 97,
       "confidence": "high",
       "severity": "warning",
       "status": "fail"
@@ -408,15 +309,6 @@
       "confidence": "low",
       "severity": "warning",
       "status": "advisory"
-    },
-    {
-      "key": "ec054db877ed6eb3",
-      "ruleId": "icon-button-accessible-name",
-      "file": "client/src/pages/account/components/ProfileTab.jsx",
-      "line": 50,
-      "confidence": "high",
-      "severity": "error",
-      "status": "fail"
     },
     {
       "key": "42058959c1b023a9",
@@ -441,42 +333,6 @@
       "ruleId": "transition-all",
       "file": "client/src/pages/account/components/ProfileTab.jsx",
       "line": 72,
-      "confidence": "high",
-      "severity": "warning",
-      "status": "fail"
-    },
-    {
-      "key": "c537a83bc42a1b13",
-      "ruleId": "focus-visible-not-suppressed",
-      "file": "client/src/pages/account/components/ProfileTab.jsx",
-      "line": 82,
-      "confidence": "medium",
-      "severity": "warning",
-      "status": "fail"
-    },
-    {
-      "key": "89a14b362cc6a367",
-      "ruleId": "transition-all",
-      "file": "client/src/pages/account/components/ProfileTab.jsx",
-      "line": 82,
-      "confidence": "high",
-      "severity": "warning",
-      "status": "fail"
-    },
-    {
-      "key": "ec054db877ed6eb3-2",
-      "ruleId": "icon-button-accessible-name",
-      "file": "client/src/pages/account/components/ProfileTab.jsx",
-      "line": 110,
-      "confidence": "high",
-      "severity": "error",
-      "status": "fail"
-    },
-    {
-      "key": "d47bf8868a12caef",
-      "ruleId": "personal-input-autocomplete",
-      "file": "client/src/pages/account/components/ProfileTab.jsx",
-      "line": 114,
       "confidence": "high",
       "severity": "warning",
       "status": "fail"
@@ -509,33 +365,6 @@
       "status": "fail"
     },
     {
-      "key": "c537a83bc42a1b13-2",
-      "ruleId": "focus-visible-not-suppressed",
-      "file": "client/src/pages/account/components/ProfileTab.jsx",
-      "line": 142,
-      "confidence": "medium",
-      "severity": "warning",
-      "status": "fail"
-    },
-    {
-      "key": "89a14b362cc6a367-2",
-      "ruleId": "transition-all",
-      "file": "client/src/pages/account/components/ProfileTab.jsx",
-      "line": 142,
-      "confidence": "high",
-      "severity": "warning",
-      "status": "fail"
-    },
-    {
-      "key": "ec054db877ed6eb3-3",
-      "ruleId": "icon-button-accessible-name",
-      "file": "client/src/pages/account/components/ProfileTab.jsx",
-      "line": 159,
-      "confidence": "high",
-      "severity": "error",
-      "status": "fail"
-    },
-    {
       "key": "42058959c1b023a9-3",
       "ruleId": "transition-all",
       "file": "client/src/pages/account/components/ProfileTab.jsx",
@@ -563,33 +392,6 @@
       "status": "fail"
     },
     {
-      "key": "c537a83bc42a1b13-3",
-      "ruleId": "focus-visible-not-suppressed",
-      "file": "client/src/pages/account/components/ProfileTab.jsx",
-      "line": 191,
-      "confidence": "medium",
-      "severity": "warning",
-      "status": "fail"
-    },
-    {
-      "key": "89a14b362cc6a367-3",
-      "ruleId": "transition-all",
-      "file": "client/src/pages/account/components/ProfileTab.jsx",
-      "line": 191,
-      "confidence": "high",
-      "severity": "warning",
-      "status": "fail"
-    },
-    {
-      "key": "ec054db877ed6eb3-4",
-      "ruleId": "icon-button-accessible-name",
-      "file": "client/src/pages/account/components/ProfileTab.jsx",
-      "line": 208,
-      "confidence": "high",
-      "severity": "error",
-      "status": "fail"
-    },
-    {
       "key": "9ad12549fe735849",
       "ruleId": "transition-all",
       "file": "client/src/pages/account/components/ProfileTab.jsx",
@@ -599,28 +401,10 @@
       "status": "fail"
     },
     {
-      "key": "c537a83bc42a1b13-4",
-      "ruleId": "focus-visible-not-suppressed",
-      "file": "client/src/pages/account/components/ProfileTab.jsx",
-      "line": 247,
-      "confidence": "medium",
-      "severity": "warning",
-      "status": "fail"
-    },
-    {
-      "key": "89a14b362cc6a367-4",
-      "ruleId": "transition-all",
-      "file": "client/src/pages/account/components/ProfileTab.jsx",
-      "line": 247,
-      "confidence": "high",
-      "severity": "warning",
-      "status": "fail"
-    },
-    {
       "key": "b49fb924d30044af",
       "ruleId": "transition-all",
       "file": "client/src/pages/admin/BlogManagement.jsx",
-      "line": 323,
+      "line": 321,
       "confidence": "high",
       "severity": "warning",
       "status": "fail"
@@ -629,142 +413,34 @@
       "key": "a9e92e7d7c3a997b",
       "ruleId": "focus-visible-not-suppressed",
       "file": "client/src/pages/admin/BlogManagement.jsx",
-      "line": 326,
+      "line": 324,
       "confidence": "medium",
       "severity": "warning",
-      "status": "fail"
-    },
-    {
-      "key": "529335dc6ecb14b3",
-      "ruleId": "icon-button-accessible-name",
-      "file": "client/src/pages/admin/BlogManagement.jsx",
-      "line": 607,
-      "confidence": "high",
-      "severity": "error",
-      "status": "fail"
-    },
-    {
-      "key": "f421a95fc0a7d2aa",
-      "ruleId": "icon-button-accessible-name",
-      "file": "client/src/pages/admin/BlogManagement.jsx",
-      "line": 611,
-      "confidence": "high",
-      "severity": "error",
       "status": "fail"
     },
     {
       "key": "545771760853c74e",
       "ruleId": "reduced-motion-strategy",
       "file": "client/src/pages/admin/Checkin.jsx",
-      "line": 245,
+      "line": 244,
       "confidence": "low",
       "severity": "warning",
       "status": "advisory"
     },
     {
-      "key": "a55ce75ddb99bbdd",
-      "ruleId": "icon-button-accessible-name",
-      "file": "client/src/pages/admin/Checkin.jsx",
-      "line": 422,
-      "confidence": "high",
-      "severity": "error",
-      "status": "fail"
-    },
-    {
       "key": "474ff16b302916d7",
       "ruleId": "transition-all",
       "file": "client/src/pages/admin/Checkin.jsx",
-      "line": 455,
+      "line": 454,
       "confidence": "high",
       "severity": "warning",
-      "status": "fail"
-    },
-    {
-      "key": "8a90ec1bbd18b964",
-      "ruleId": "icon-button-accessible-name",
-      "file": "client/src/pages/admin/Checkin.jsx",
-      "line": 622,
-      "confidence": "high",
-      "severity": "error",
-      "status": "fail"
-    },
-    {
-      "key": "59b00624e46390b8",
-      "ruleId": "icon-button-accessible-name",
-      "file": "client/src/pages/admin/Checkin.jsx",
-      "line": 632,
-      "confidence": "high",
-      "severity": "error",
-      "status": "fail"
-    },
-    {
-      "key": "0af8cf97037a2d94",
-      "ruleId": "icon-button-accessible-name",
-      "file": "client/src/pages/admin/CheckinHistory.jsx",
-      "line": 352,
-      "confidence": "high",
-      "severity": "error",
-      "status": "fail"
-    },
-    {
-      "key": "3d78f6b05845f6bc",
-      "ruleId": "icon-button-accessible-name",
-      "file": "client/src/pages/admin/CheckinHistory.jsx",
-      "line": 362,
-      "confidence": "high",
-      "severity": "error",
-      "status": "fail"
-    },
-    {
-      "key": "94b239aa65dd0d85",
-      "ruleId": "icon-button-accessible-name",
-      "file": "client/src/pages/admin/CheckinHistory.jsx",
-      "line": 382,
-      "confidence": "high",
-      "severity": "error",
-      "status": "fail"
-    },
-    {
-      "key": "d9511ae8c70edbc2",
-      "ruleId": "personal-input-autocomplete",
-      "file": "client/src/pages/admin/components/TrainerGrantPanel.jsx",
-      "line": 129,
-      "confidence": "high",
-      "severity": "warning",
-      "status": "fail"
-    },
-    {
-      "key": "bc2c00d6cb109b12",
-      "ruleId": "personal-input-autocomplete",
-      "file": "client/src/pages/admin/ContractEditModal.jsx",
-      "line": 233,
-      "confidence": "high",
-      "severity": "warning",
-      "status": "fail"
-    },
-    {
-      "key": "93454fa60a510a1b",
-      "ruleId": "personal-input-autocomplete",
-      "file": "client/src/pages/admin/ContractEditModal.jsx",
-      "line": 241,
-      "confidence": "high",
-      "severity": "warning",
-      "status": "fail"
-    },
-    {
-      "key": "d149f72abc7c57f8",
-      "ruleId": "icon-button-accessible-name",
-      "file": "client/src/pages/admin/CustomerStoryManagement.jsx",
-      "line": 968,
-      "confidence": "high",
-      "severity": "error",
       "status": "fail"
     },
     {
       "key": "bc25d7881d0e8acb",
       "ruleId": "transition-all",
       "file": "client/src/pages/admin/CustomerStoryManagement.jsx",
-      "line": 1275,
+      "line": 1274,
       "confidence": "high",
       "severity": "warning",
       "status": "fail"
@@ -773,7 +449,7 @@
       "key": "964c78e7803b82ba",
       "ruleId": "transition-all",
       "file": "client/src/pages/admin/ExerciseManagement.jsx",
-      "line": 238,
+      "line": 277,
       "confidence": "high",
       "severity": "warning",
       "status": "fail"
@@ -782,34 +458,16 @@
       "key": "a659dda940940ff7",
       "ruleId": "transition-all",
       "file": "client/src/pages/admin/ExerciseManagement.jsx",
-      "line": 244,
+      "line": 291,
       "confidence": "high",
       "severity": "warning",
-      "status": "fail"
-    },
-    {
-      "key": "85992e766de43da4",
-      "ruleId": "reduced-motion-strategy",
-      "file": "client/src/pages/admin/ExerciseManagement.jsx",
-      "line": 389,
-      "confidence": "low",
-      "severity": "warning",
-      "status": "advisory"
-    },
-    {
-      "key": "a203cbf56ea6dcda",
-      "ruleId": "icon-button-accessible-name",
-      "file": "client/src/pages/admin/ExerciseManagement.jsx",
-      "line": 538,
-      "confidence": "high",
-      "severity": "error",
       "status": "fail"
     },
     {
       "key": "49a79773ec7ab835",
       "ruleId": "transition-all",
       "file": "client/src/pages/admin/F1AiRuleManagement.jsx",
-      "line": 150,
+      "line": 149,
       "confidence": "high",
       "severity": "warning",
       "status": "fail"
@@ -818,55 +476,10 @@
       "key": "7bdaf6d97db6eb1e",
       "ruleId": "reduced-motion-strategy",
       "file": "client/src/pages/admin/F1AiRuleManagement.jsx",
-      "line": 226,
+      "line": 225,
       "confidence": "low",
       "severity": "warning",
       "status": "advisory"
-    },
-    {
-      "key": "3a45f8f00dde8660",
-      "ruleId": "icon-button-accessible-name",
-      "file": "client/src/pages/admin/F1AiRuleManagement.jsx",
-      "line": 231,
-      "confidence": "high",
-      "severity": "error",
-      "status": "fail"
-    },
-    {
-      "key": "36d9a5b0f68530bd",
-      "ruleId": "icon-button-accessible-name",
-      "file": "client/src/pages/admin/FoodManagement.jsx",
-      "line": 518,
-      "confidence": "high",
-      "severity": "error",
-      "status": "fail"
-    },
-    {
-      "key": "da4d1b86459705e1",
-      "ruleId": "icon-button-accessible-name",
-      "file": "client/src/pages/admin/FoodManagement.jsx",
-      "line": 528,
-      "confidence": "high",
-      "severity": "error",
-      "status": "fail"
-    },
-    {
-      "key": "3e0cfe573108a6e8",
-      "ruleId": "icon-button-accessible-name",
-      "file": "client/src/pages/admin/FoodManagement.jsx",
-      "line": 548,
-      "confidence": "high",
-      "severity": "error",
-      "status": "fail"
-    },
-    {
-      "key": "c05609b5961bc99a",
-      "ruleId": "icon-button-accessible-name",
-      "file": "client/src/pages/admin/FoodManagement.jsx",
-      "line": 1002,
-      "confidence": "high",
-      "severity": "error",
-      "status": "fail"
     },
     {
       "key": "239c79853441fcb8",
@@ -878,100 +491,19 @@
       "status": "advisory"
     },
     {
-      "key": "e6b9a19e9fdd5a37",
-      "ruleId": "icon-button-accessible-name",
-      "file": "client/src/pages/admin/GymManagement.jsx",
-      "line": 142,
-      "confidence": "high",
-      "severity": "error",
-      "status": "fail"
-    },
-    {
-      "key": "74b16469dafbef81",
-      "ruleId": "icon-button-accessible-name",
-      "file": "client/src/pages/admin/GymManagement.jsx",
-      "line": 145,
-      "confidence": "high",
-      "severity": "error",
-      "status": "fail"
-    },
-    {
       "key": "4092d726fff5ed89",
       "ruleId": "reduced-motion-strategy",
       "file": "client/src/pages/admin/KnowledgeBase.jsx",
-      "line": 533,
+      "line": 813,
       "confidence": "low",
       "severity": "warning",
       "status": "advisory"
-    },
-    {
-      "key": "0e6bed677765ea79",
-      "ruleId": "icon-button-accessible-name",
-      "file": "client/src/pages/admin/KnowledgeBase.jsx",
-      "line": 809,
-      "confidence": "high",
-      "severity": "error",
-      "status": "fail"
-    },
-    {
-      "key": "b2f427e5c1cd9ca4",
-      "ruleId": "icon-button-accessible-name",
-      "file": "client/src/pages/admin/KnowledgeBase.jsx",
-      "line": 940,
-      "confidence": "high",
-      "severity": "error",
-      "status": "fail"
-    },
-    {
-      "key": "3e6f4d9442529a7d",
-      "ruleId": "icon-button-accessible-name",
-      "file": "client/src/pages/admin/KnowledgeBase.jsx",
-      "line": 1014,
-      "confidence": "high",
-      "severity": "error",
-      "status": "fail"
-    },
-    {
-      "key": "91394f17d7e87deb",
-      "ruleId": "personal-input-autocomplete",
-      "file": "client/src/pages/admin/Orders.jsx",
-      "line": 684,
-      "confidence": "high",
-      "severity": "warning",
-      "status": "fail"
-    },
-    {
-      "key": "14e6e6dd160ac83c",
-      "ruleId": "personal-input-autocomplete",
-      "file": "client/src/pages/admin/Orders.jsx",
-      "line": 699,
-      "confidence": "high",
-      "severity": "warning",
-      "status": "fail"
-    },
-    {
-      "key": "3d460c11902fc158",
-      "ruleId": "icon-button-accessible-name",
-      "file": "client/src/pages/admin/RecipeEditModal.jsx",
-      "line": 164,
-      "confidence": "high",
-      "severity": "error",
-      "status": "fail"
     },
     {
       "key": "904cf95bf1cecbb3",
       "ruleId": "reduced-motion-strategy",
       "file": "client/src/pages/admin/RecipeEditModal.jsx",
-      "line": 409,
-      "confidence": "low",
-      "severity": "warning",
-      "status": "advisory"
-    },
-    {
-      "key": "5d3ba385556a3c77",
-      "ruleId": "reduced-motion-strategy",
-      "file": "client/src/pages/admin/RecipeManagement.jsx",
-      "line": 176,
+      "line": 424,
       "confidence": "low",
       "severity": "warning",
       "status": "advisory"
@@ -980,7 +512,7 @@
       "key": "0367691df49592d3",
       "ruleId": "transition-all",
       "file": "client/src/pages/admin/RecipeManagement.jsx",
-      "line": 248,
+      "line": 261,
       "confidence": "high",
       "severity": "warning",
       "status": "fail"
@@ -1022,15 +554,6 @@
       "status": "advisory"
     },
     {
-      "key": "b1d91aeea0bc5194",
-      "ruleId": "icon-button-accessible-name",
-      "file": "client/src/pages/admin/SetupProfileModal.jsx",
-      "line": 320,
-      "confidence": "high",
-      "severity": "error",
-      "status": "fail"
-    },
-    {
       "key": "66977c9c5a4f9054",
       "ruleId": "reduced-motion-strategy",
       "file": "client/src/pages/admin/SetupProfileModal.jsx",
@@ -1038,69 +561,6 @@
       "confidence": "low",
       "severity": "warning",
       "status": "advisory"
-    },
-    {
-      "key": "5ee50dcb8cb6162d",
-      "ruleId": "icon-button-accessible-name",
-      "file": "client/src/pages/admin/SetupProfileModal.jsx",
-      "line": 354,
-      "confidence": "high",
-      "severity": "error",
-      "status": "fail"
-    },
-    {
-      "key": "61a8b3332719b5fa",
-      "ruleId": "icon-button-accessible-name",
-      "file": "client/src/pages/admin/SetupProfileModal.jsx",
-      "line": 427,
-      "confidence": "high",
-      "severity": "error",
-      "status": "fail"
-    },
-    {
-      "key": "2bf9fbc448ceceee",
-      "ruleId": "icon-button-accessible-name",
-      "file": "client/src/pages/admin/SetupProfileModal.jsx",
-      "line": 469,
-      "confidence": "high",
-      "severity": "error",
-      "status": "fail"
-    },
-    {
-      "key": "6e75673b302525d0",
-      "ruleId": "icon-button-accessible-name",
-      "file": "client/src/pages/admin/SetupProfileModal.jsx",
-      "line": 541,
-      "confidence": "high",
-      "severity": "error",
-      "status": "fail"
-    },
-    {
-      "key": "d014327390175890",
-      "ruleId": "icon-button-accessible-name",
-      "file": "client/src/pages/admin/SetupProfileModal.jsx",
-      "line": 574,
-      "confidence": "high",
-      "severity": "error",
-      "status": "fail"
-    },
-    {
-      "key": "a11fc7d7363f2774",
-      "ruleId": "icon-button-accessible-name",
-      "file": "client/src/pages/admin/SetupProfileModal.jsx",
-      "line": 625,
-      "confidence": "high",
-      "severity": "error",
-      "status": "fail"
-    },
-    {
-      "key": "75f5ef67f615011a",
-      "ruleId": "icon-button-accessible-name",
-      "file": "client/src/pages/admin/SetupProfileModal.jsx",
-      "line": 691,
-      "confidence": "high",
-      "severity": "error",
-      "status": "fail"
     },
     {
       "key": "d4746978638c6825",
@@ -1133,7 +593,7 @@
       "key": "370801ad5d4b6efc",
       "ruleId": "transition-all",
       "file": "client/src/pages/admin/TrainerManagement.jsx",
-      "line": 352,
+      "line": 351,
       "confidence": "high",
       "severity": "warning",
       "status": "fail"
@@ -1142,34 +602,16 @@
       "key": "2e0870c1408c1e02",
       "ruleId": "transition-all",
       "file": "client/src/pages/admin/TrainerManagement.jsx",
-      "line": 359,
+      "line": 358,
       "confidence": "high",
       "severity": "warning",
-      "status": "fail"
-    },
-    {
-      "key": "4bc585d290a0988c",
-      "ruleId": "icon-button-accessible-name",
-      "file": "client/src/pages/admin/TrainerManagement.jsx",
-      "line": 574,
-      "confidence": "high",
-      "severity": "error",
-      "status": "fail"
-    },
-    {
-      "key": "8a8957645f5db142",
-      "ruleId": "icon-button-accessible-name",
-      "file": "client/src/pages/admin/TrainerManagement.jsx",
-      "line": 715,
-      "confidence": "high",
-      "severity": "error",
       "status": "fail"
     },
     {
       "key": "d81467b1055685ca",
       "ruleId": "transition-all",
       "file": "client/src/pages/admin/TrainerManagement.jsx",
-      "line": 795,
+      "line": 794,
       "confidence": "high",
       "severity": "warning",
       "status": "fail"
@@ -1193,73 +635,10 @@
       "status": "fail"
     },
     {
-      "key": "39720e487d962aa1",
-      "ruleId": "icon-button-accessible-name",
-      "file": "client/src/pages/admin/TrainerProfileEditor.jsx",
-      "line": 297,
-      "confidence": "high",
-      "severity": "error",
-      "status": "fail"
-    },
-    {
-      "key": "8cb9584b4c9bfd9c",
-      "ruleId": "icon-button-accessible-name",
-      "file": "client/src/pages/admin/TrainerProfileEditor.jsx",
-      "line": 382,
-      "confidence": "high",
-      "severity": "error",
-      "status": "fail"
-    },
-    {
-      "key": "e5291f5181cb159e",
-      "ruleId": "icon-button-accessible-name",
-      "file": "client/src/pages/admin/TrainerProfileEditor.jsx",
-      "line": 434,
-      "confidence": "high",
-      "severity": "error",
-      "status": "fail"
-    },
-    {
       "key": "ba51e8c9d1010bb8",
       "ruleId": "extreme-z-index",
       "file": "client/src/pages/admin/TrainerProfileEditor.jsx",
       "line": 530,
-      "confidence": "high",
-      "severity": "error",
-      "status": "fail"
-    },
-    {
-      "key": "4f8529ac81441d77",
-      "ruleId": "icon-button-accessible-name",
-      "file": "client/src/pages/admin/TrainerSubscriberManagement.jsx",
-      "line": 201,
-      "confidence": "high",
-      "severity": "error",
-      "status": "fail"
-    },
-    {
-      "key": "861d3be31bde71b9",
-      "ruleId": "icon-button-accessible-name",
-      "file": "client/src/pages/admin/TrainerSubscriberManagement.jsx",
-      "line": 211,
-      "confidence": "high",
-      "severity": "error",
-      "status": "fail"
-    },
-    {
-      "key": "e8363c1bc547465f",
-      "ruleId": "icon-button-accessible-name",
-      "file": "client/src/pages/admin/UserManagement.jsx",
-      "line": 153,
-      "confidence": "high",
-      "severity": "error",
-      "status": "fail"
-    },
-    {
-      "key": "b249ec7ac7419a49",
-      "ruleId": "icon-button-accessible-name",
-      "file": "client/src/pages/admin/UserManagement.jsx",
-      "line": 163,
       "confidence": "high",
       "severity": "error",
       "status": "fail"
@@ -1475,7 +854,7 @@
       "key": "48f53f66f2b5f7de",
       "ruleId": "reduced-motion-strategy",
       "file": "client/src/pages/ContractSign.jsx",
-      "line": 145,
+      "line": 151,
       "confidence": "low",
       "severity": "warning",
       "status": "advisory"
@@ -1508,15 +887,6 @@
       "status": "fail"
     },
     {
-      "key": "b2d8933b4af0c63f",
-      "ruleId": "icon-button-accessible-name",
-      "file": "client/src/pages/customer/BookTraining.jsx",
-      "line": 87,
-      "confidence": "high",
-      "severity": "error",
-      "status": "fail"
-    },
-    {
       "key": "bfa206fc6c18d44f",
       "ruleId": "transition-all",
       "file": "client/src/pages/customer/BookTraining.jsx",
@@ -1538,7 +908,7 @@
       "key": "88d58d617ce42280",
       "ruleId": "reduced-motion-strategy",
       "file": "client/src/pages/customer/OnlineCoaching.jsx",
-      "line": 468,
+      "line": 480,
       "confidence": "low",
       "severity": "warning",
       "status": "advisory"
@@ -1547,7 +917,7 @@
       "key": "c3d8738be20d72ca",
       "ruleId": "transition-all",
       "file": "client/src/pages/customer/OnlineCoaching.jsx",
-      "line": 638,
+      "line": 656,
       "confidence": "high",
       "severity": "warning",
       "status": "fail"
@@ -1556,7 +926,7 @@
       "key": "a43db7214e98cf2c",
       "ruleId": "transition-all",
       "file": "client/src/pages/customer/OnlineCoaching.jsx",
-      "line": 724,
+      "line": 742,
       "confidence": "high",
       "severity": "warning",
       "status": "fail"
@@ -1565,7 +935,7 @@
       "key": "e71ff55cf99e0a5e",
       "ruleId": "transition-all",
       "file": "client/src/pages/customer/OnlineCoaching.jsx",
-      "line": 762,
+      "line": 780,
       "confidence": "high",
       "severity": "warning",
       "status": "fail"
@@ -1574,7 +944,7 @@
       "key": "4e6ec3535f01c547",
       "ruleId": "transition-all",
       "file": "client/src/pages/customer/OnlineCoaching.jsx",
-      "line": 774,
+      "line": 792,
       "confidence": "high",
       "severity": "warning",
       "status": "fail"
@@ -1583,7 +953,7 @@
       "key": "a87535f3c7fb2520",
       "ruleId": "transition-all",
       "file": "client/src/pages/customer/OnlineCoaching.jsx",
-      "line": 822,
+      "line": 840,
       "confidence": "high",
       "severity": "warning",
       "status": "fail"
@@ -1592,7 +962,7 @@
       "key": "4a90492fc77abb74",
       "ruleId": "transition-all",
       "file": "client/src/pages/customer/OnlineCoaching.jsx",
-      "line": 878,
+      "line": 896,
       "confidence": "high",
       "severity": "warning",
       "status": "fail"
@@ -1601,7 +971,7 @@
       "key": "a8fd30ab91fdfbc2",
       "ruleId": "transition-all",
       "file": "client/src/pages/customer/OnlineCoaching.jsx",
-      "line": 888,
+      "line": 906,
       "confidence": "high",
       "severity": "warning",
       "status": "fail"
@@ -1616,24 +986,6 @@
       "status": "fail"
     },
     {
-      "key": "6d03db91059f5273",
-      "ruleId": "icon-button-accessible-name",
-      "file": "client/src/pages/ExercisesPage/ExerciseSections.jsx",
-      "line": 118,
-      "confidence": "high",
-      "severity": "error",
-      "status": "fail"
-    },
-    {
-      "key": "f28db253b58e2aff",
-      "ruleId": "icon-button-accessible-name",
-      "file": "client/src/pages/ExercisesPage/ExerciseSections.jsx",
-      "line": 166,
-      "confidence": "high",
-      "severity": "error",
-      "status": "fail"
-    },
-    {
       "key": "5185ed42ad702e17",
       "ruleId": "transition-all",
       "file": "client/src/pages/ExercisesPage/MuscleGroupSelector.jsx",
@@ -1643,19 +995,10 @@
       "status": "fail"
     },
     {
-      "key": "a50652000e5cee9b",
-      "ruleId": "icon-button-accessible-name",
-      "file": "client/src/pages/ExercisesPage/MuscleGroupSelector.jsx",
-      "line": 55,
-      "confidence": "high",
-      "severity": "error",
-      "status": "fail"
-    },
-    {
       "key": "b4dcc1a2ea488a92",
       "ruleId": "transition-all",
       "file": "client/src/pages/F1CustomersPage/F1Customers.jsx",
-      "line": 320,
+      "line": 321,
       "confidence": "high",
       "severity": "warning",
       "status": "fail"
@@ -1664,7 +1007,7 @@
       "key": "1915171075710438",
       "ruleId": "transition-all",
       "file": "client/src/pages/F1CustomersPage/F1Customers.jsx",
-      "line": 332,
+      "line": 333,
       "confidence": "high",
       "severity": "warning",
       "status": "fail"
@@ -1673,7 +1016,7 @@
       "key": "b8b95a5a0faaf564",
       "ruleId": "focus-visible-not-suppressed",
       "file": "client/src/pages/MealPlan/CustomMealBuilder.jsx",
-      "line": 258,
+      "line": 259,
       "confidence": "medium",
       "severity": "warning",
       "status": "fail"
@@ -1682,7 +1025,7 @@
       "key": "7a2badda1399f326",
       "ruleId": "transition-all",
       "file": "client/src/pages/MealPlan/CustomMealBuilder.jsx",
-      "line": 278,
+      "line": 279,
       "confidence": "high",
       "severity": "warning",
       "status": "fail"
@@ -1691,25 +1034,16 @@
       "key": "32d950b7ec462c3a",
       "ruleId": "reduced-motion-strategy",
       "file": "client/src/pages/MealPlan/CustomMealBuilder.jsx",
-      "line": 294,
+      "line": 295,
       "confidence": "low",
       "severity": "warning",
       "status": "advisory"
     },
     {
-      "key": "3a3f8d9d9c8e67f8",
-      "ruleId": "icon-button-accessible-name",
-      "file": "client/src/pages/MealPlan/CustomMealBuilder.jsx",
-      "line": 398,
-      "confidence": "high",
-      "severity": "error",
-      "status": "fail"
-    },
-    {
       "key": "6313af359fb57b21",
       "ruleId": "transition-all",
       "file": "client/src/pages/MealPlan/CustomMealBuilder.jsx",
-      "line": 444,
+      "line": 445,
       "confidence": "high",
       "severity": "warning",
       "status": "fail"
@@ -1718,7 +1052,7 @@
       "key": "4804fac5164e988a",
       "ruleId": "transition-all",
       "file": "client/src/pages/MealPlan/CustomMealBuilder.jsx",
-      "line": 530,
+      "line": 531,
       "confidence": "high",
       "severity": "warning",
       "status": "fail"
@@ -1751,15 +1085,6 @@
       "status": "fail"
     },
     {
-      "key": "debba8d2ab8738d4",
-      "ruleId": "icon-button-accessible-name",
-      "file": "client/src/pages/MealPlan/FoodSelectorModal.jsx",
-      "line": 76,
-      "confidence": "high",
-      "severity": "error",
-      "status": "fail"
-    },
-    {
       "key": "c3de9a76e2e488dc",
       "ruleId": "extreme-z-index",
       "file": "client/src/pages/MealPlan/LoginModal.jsx",
@@ -1781,7 +1106,7 @@
       "key": "79e90adf99920a77",
       "ruleId": "reduced-motion-strategy",
       "file": "client/src/pages/MealPlan/MealPlan.jsx",
-      "line": 357,
+      "line": 364,
       "confidence": "low",
       "severity": "warning",
       "status": "advisory"
@@ -1790,7 +1115,7 @@
       "key": "6b177bc5e557fe5f",
       "ruleId": "transition-all",
       "file": "client/src/pages/MealPlan/MealPlan.jsx",
-      "line": 543,
+      "line": 548,
       "confidence": "high",
       "severity": "warning",
       "status": "fail"
@@ -1799,7 +1124,7 @@
       "key": "cc7df727da0607bb",
       "ruleId": "transition-all",
       "file": "client/src/pages/MealPlan/MealPlan.jsx",
-      "line": 553,
+      "line": 558,
       "confidence": "high",
       "severity": "warning",
       "status": "fail"
@@ -1808,7 +1133,7 @@
       "key": "600ee5dcdb837c92",
       "ruleId": "transition-all",
       "file": "client/src/pages/MealPlan/MealPlan.jsx",
-      "line": 563,
+      "line": 568,
       "confidence": "high",
       "severity": "warning",
       "status": "fail"
@@ -1817,7 +1142,7 @@
       "key": "a259898555fdf604",
       "ruleId": "transition-all",
       "file": "client/src/pages/MealScan/MealScan.jsx",
-      "line": 494,
+      "line": 522,
       "confidence": "high",
       "severity": "warning",
       "status": "fail"
@@ -1826,7 +1151,7 @@
       "key": "640b1b9d57ba5670",
       "ruleId": "transition-all",
       "file": "client/src/pages/MealScan/MealScan.jsx",
-      "line": 505,
+      "line": 533,
       "confidence": "high",
       "severity": "warning",
       "status": "fail"
@@ -1835,7 +1160,7 @@
       "key": "436d41450710c6d5",
       "ruleId": "reduced-motion-strategy",
       "file": "client/src/pages/MealScan/MealScanResult.jsx",
-      "line": 37,
+      "line": 39,
       "confidence": "low",
       "severity": "warning",
       "status": "advisory"
@@ -1886,24 +1211,6 @@
       "status": "advisory"
     },
     {
-      "key": "08cb2b444a3a59e4",
-      "ruleId": "icon-button-accessible-name",
-      "file": "client/src/pages/MyHistory.jsx",
-      "line": 274,
-      "confidence": "high",
-      "severity": "error",
-      "status": "fail"
-    },
-    {
-      "key": "f04c09cafabc4ee7",
-      "ruleId": "icon-button-accessible-name",
-      "file": "client/src/pages/MyHistory.jsx",
-      "line": 284,
-      "confidence": "high",
-      "severity": "error",
-      "status": "fail"
-    },
-    {
       "key": "f54610c613527d19",
       "ruleId": "transition-all",
       "file": "client/src/pages/NotFound.jsx",
@@ -1922,19 +1229,10 @@
       "status": "fail"
     },
     {
-      "key": "630d2c97386faf0b",
-      "ruleId": "reduced-motion-strategy",
-      "file": "client/src/pages/progress/CoachingActivityPanel.jsx",
-      "line": 85,
-      "confidence": "low",
-      "severity": "warning",
-      "status": "advisory"
-    },
-    {
       "key": "1a329246e8261258",
       "ruleId": "reduced-motion-strategy",
       "file": "client/src/pages/progress/ProgressPage.jsx",
-      "line": 19,
+      "line": 22,
       "confidence": "low",
       "severity": "warning",
       "status": "advisory"
@@ -1961,7 +1259,7 @@
       "key": "54e559520dbdba86",
       "ruleId": "reduced-motion-strategy",
       "file": "client/src/pages/RecipeExplorer/RecipeDetail.jsx",
-      "line": 102,
+      "line": 131,
       "confidence": "low",
       "severity": "warning",
       "status": "advisory"
@@ -1992,33 +1290,6 @@
       "confidence": "low",
       "severity": "warning",
       "status": "advisory"
-    },
-    {
-      "key": "6fd2965f88769363",
-      "ruleId": "personal-input-autocomplete",
-      "file": "client/src/pages/RegisterPage/RegisterPage.jsx",
-      "line": 292,
-      "confidence": "high",
-      "severity": "warning",
-      "status": "fail"
-    },
-    {
-      "key": "baca935d392c2b6a",
-      "ruleId": "personal-input-autocomplete",
-      "file": "client/src/pages/RegisterPage/RegisterPage.jsx",
-      "line": 309,
-      "confidence": "high",
-      "severity": "warning",
-      "status": "fail"
-    },
-    {
-      "key": "22bd64fcbdbbb6d7",
-      "ruleId": "icon-button-accessible-name",
-      "file": "client/src/pages/RegisterPage/RegisterPage.jsx",
-      "line": 391,
-      "confidence": "high",
-      "severity": "error",
-      "status": "fail"
     },
     {
       "key": "a36a8faad1c0292f",
@@ -2114,7 +1385,7 @@
       "key": "f511e13b1ab1eb6d",
       "ruleId": "reduced-motion-strategy",
       "file": "client/src/pages/today-dashboard/CoachingCommentThread.jsx",
-      "line": 137,
+      "line": 150,
       "confidence": "low",
       "severity": "warning",
       "status": "advisory"
@@ -2123,7 +1394,7 @@
       "key": "7c0c1c550ae6b23f",
       "ruleId": "transition-all",
       "file": "client/src/pages/today-dashboard/TodayDashboard.jsx",
-      "line": 239,
+      "line": 247,
       "confidence": "high",
       "severity": "warning",
       "status": "fail"
@@ -2132,7 +1403,7 @@
       "key": "3ca2e67f8943e2fb",
       "ruleId": "transition-all",
       "file": "client/src/pages/today-dashboard/TodayDashboard.jsx",
-      "line": 267,
+      "line": 279,
       "confidence": "high",
       "severity": "warning",
       "status": "fail"
@@ -2141,7 +1412,7 @@
       "key": "5750a6ca8cb15bef",
       "ruleId": "reduced-motion-strategy",
       "file": "client/src/pages/today-dashboard/TodayDashboardDayLayout.jsx",
-      "line": 43,
+      "line": 44,
       "confidence": "low",
       "severity": "warning",
       "status": "advisory"
@@ -2150,7 +1421,7 @@
       "key": "5ca9462a8192ea64",
       "ruleId": "transition-all",
       "file": "client/src/pages/today-dashboard/TodayDashboardDayLayout.jsx",
-      "line": 345,
+      "line": 359,
       "confidence": "high",
       "severity": "warning",
       "status": "fail"
@@ -2159,7 +1430,7 @@
       "key": "e6a55fae91529157",
       "ruleId": "reduced-motion-strategy",
       "file": "client/src/pages/today-dashboard/WellnessTargetSummary.jsx",
-      "line": 26,
+      "line": 25,
       "confidence": "low",
       "severity": "warning",
       "status": "advisory"
@@ -2183,55 +1454,10 @@
       "status": "fail"
     },
     {
-      "key": "ada5f4fc1d6d12c6",
-      "ruleId": "icon-button-accessible-name",
-      "file": "client/src/pages/trainer/TrainerCheckinHistory.jsx",
-      "line": 212,
-      "confidence": "high",
-      "severity": "error",
-      "status": "fail"
-    },
-    {
-      "key": "ada5f4fc1d6d12c6-2",
-      "ruleId": "icon-button-accessible-name",
-      "file": "client/src/pages/trainer/TrainerCheckinHistory.jsx",
-      "line": 250,
-      "confidence": "high",
-      "severity": "error",
-      "status": "fail"
-    },
-    {
-      "key": "3b6eeba9a596aad3",
-      "ruleId": "icon-button-accessible-name",
-      "file": "client/src/pages/trainer/TrainerCheckinHistory.jsx",
-      "line": 299,
-      "confidence": "high",
-      "severity": "error",
-      "status": "fail"
-    },
-    {
-      "key": "931b2acf27f348dd",
-      "ruleId": "icon-button-accessible-name",
-      "file": "client/src/pages/trainer/TrainerCheckinHistory.jsx",
-      "line": 309,
-      "confidence": "high",
-      "severity": "error",
-      "status": "fail"
-    },
-    {
-      "key": "a9b4facfad858f48",
-      "ruleId": "icon-button-accessible-name",
-      "file": "client/src/pages/trainer/TrainerCheckinHistory.jsx",
-      "line": 329,
-      "confidence": "high",
-      "severity": "error",
-      "status": "fail"
-    },
-    {
       "key": "1517d3131536fac8",
       "ruleId": "reduced-motion-strategy",
       "file": "client/src/pages/trainer/TrainerClientOverview.jsx",
-      "line": 104,
+      "line": 508,
       "confidence": "low",
       "severity": "warning",
       "status": "advisory"
@@ -2240,7 +1466,7 @@
       "key": "520ddcc395cbc117",
       "ruleId": "reduced-motion-strategy",
       "file": "client/src/pages/trainer/TrainerClientWorkspace.jsx",
-      "line": 85,
+      "line": 114,
       "confidence": "low",
       "severity": "warning",
       "status": "advisory"
@@ -2249,7 +1475,7 @@
       "key": "550bb9f12f486adf",
       "ruleId": "transition-all",
       "file": "client/src/pages/trainer/TrainerCoaching.jsx",
-      "line": 436,
+      "line": 458,
       "confidence": "high",
       "severity": "warning",
       "status": "fail"
@@ -2258,7 +1484,7 @@
       "key": "83758a8a1b7f3d75",
       "ruleId": "reduced-motion-strategy",
       "file": "client/src/pages/trainer/TrainerCoaching.jsx",
-      "line": 444,
+      "line": 466,
       "confidence": "low",
       "severity": "warning",
       "status": "advisory"
@@ -2267,7 +1493,7 @@
       "key": "90109313d75d40e8",
       "ruleId": "transition-all",
       "file": "client/src/pages/trainer/TrainerCoaching.jsx",
-      "line": 457,
+      "line": 479,
       "confidence": "high",
       "severity": "warning",
       "status": "fail"
@@ -2276,7 +1502,7 @@
       "key": "50db1d64d5de6df6",
       "ruleId": "transition-all",
       "file": "client/src/pages/trainer/TrainerCoaching.jsx",
-      "line": 481,
+      "line": 503,
       "confidence": "high",
       "severity": "warning",
       "status": "fail"
@@ -2285,7 +1511,7 @@
       "key": "d5bc8f758ca5489c",
       "ruleId": "transition-all",
       "file": "client/src/pages/trainer/TrainerCoaching.jsx",
-      "line": 516,
+      "line": 538,
       "confidence": "high",
       "severity": "warning",
       "status": "fail"
@@ -2294,7 +1520,7 @@
       "key": "3e225762310bfa1b",
       "ruleId": "transition-all",
       "file": "client/src/pages/trainer/TrainerCoaching.jsx",
-      "line": 561,
+      "line": 583,
       "confidence": "high",
       "severity": "warning",
       "status": "fail"
@@ -2303,7 +1529,7 @@
       "key": "3303d18048632071",
       "ruleId": "transition-all",
       "file": "client/src/pages/trainer/TrainerCoaching.jsx",
-      "line": 570,
+      "line": 592,
       "confidence": "high",
       "severity": "warning",
       "status": "fail"
@@ -2312,7 +1538,7 @@
       "key": "3e225762310bfa1b-2",
       "ruleId": "transition-all",
       "file": "client/src/pages/trainer/TrainerCoaching.jsx",
-      "line": 575,
+      "line": 597,
       "confidence": "high",
       "severity": "warning",
       "status": "fail"
@@ -2321,7 +1547,7 @@
       "key": "508be0c7bb8b0432",
       "ruleId": "transition-all",
       "file": "client/src/pages/trainer/TrainerCoaching.jsx",
-      "line": 614,
+      "line": 636,
       "confidence": "high",
       "severity": "warning",
       "status": "fail"
@@ -2330,7 +1556,7 @@
       "key": "17712f4c22c55cd9",
       "ruleId": "transition-all",
       "file": "client/src/pages/trainer/TrainerCoaching.jsx",
-      "line": 627,
+      "line": 649,
       "confidence": "high",
       "severity": "warning",
       "status": "fail"
@@ -2339,7 +1565,7 @@
       "key": "36e934bf2049d29c",
       "ruleId": "transition-all",
       "file": "client/src/pages/trainer/TrainerCoaching.jsx",
-      "line": 645,
+      "line": 667,
       "confidence": "high",
       "severity": "warning",
       "status": "fail"
@@ -2348,25 +1574,16 @@
       "key": "95dedfd2e7ce584f",
       "ruleId": "transition-all",
       "file": "client/src/pages/trainer/TrainerCoaching.jsx",
-      "line": 655,
+      "line": 677,
       "confidence": "high",
       "severity": "warning",
-      "status": "fail"
-    },
-    {
-      "key": "238ea97173d56173",
-      "ruleId": "icon-button-accessible-name",
-      "file": "client/src/pages/trainer/TrainerCoaching.jsx",
-      "line": 670,
-      "confidence": "high",
-      "severity": "error",
       "status": "fail"
     },
     {
       "key": "9c5ea4c7e8e841f6",
       "ruleId": "transition-all",
       "file": "client/src/pages/trainer/TrainerCoaching.jsx",
-      "line": 690,
+      "line": 712,
       "confidence": "high",
       "severity": "warning",
       "status": "fail"
@@ -2375,7 +1592,7 @@
       "key": "9c5ea4c7e8e841f6-2",
       "ruleId": "transition-all",
       "file": "client/src/pages/trainer/TrainerCoaching.jsx",
-      "line": 703,
+      "line": 725,
       "confidence": "high",
       "severity": "warning",
       "status": "fail"
@@ -2384,7 +1601,7 @@
       "key": "9c5ea4c7e8e841f6-3",
       "ruleId": "transition-all",
       "file": "client/src/pages/trainer/TrainerCoaching.jsx",
-      "line": 713,
+      "line": 735,
       "confidence": "high",
       "severity": "warning",
       "status": "fail"
@@ -2393,7 +1610,7 @@
       "key": "9c5ea4c7e8e841f6-4",
       "ruleId": "transition-all",
       "file": "client/src/pages/trainer/TrainerCoaching.jsx",
-      "line": 723,
+      "line": 745,
       "confidence": "high",
       "severity": "warning",
       "status": "fail"
@@ -2402,7 +1619,7 @@
       "key": "5e02574c923c2e13",
       "ruleId": "transition-all",
       "file": "client/src/pages/trainer/TrainerCoaching.jsx",
-      "line": 739,
+      "line": 761,
       "confidence": "high",
       "severity": "warning",
       "status": "fail"
@@ -2411,7 +1628,7 @@
       "key": "aa52edb519b1973a",
       "ruleId": "transition-all",
       "file": "client/src/pages/trainer/TrainerCoaching.jsx",
-      "line": 741,
+      "line": 763,
       "confidence": "high",
       "severity": "warning",
       "status": "fail"
@@ -2420,7 +1637,7 @@
       "key": "5e02574c923c2e13-2",
       "ruleId": "transition-all",
       "file": "client/src/pages/trainer/TrainerCoaching.jsx",
-      "line": 811,
+      "line": 833,
       "confidence": "high",
       "severity": "warning",
       "status": "fail"
@@ -2429,7 +1646,7 @@
       "key": "aa52edb519b1973a-2",
       "ruleId": "transition-all",
       "file": "client/src/pages/trainer/TrainerCoaching.jsx",
-      "line": 813,
+      "line": 835,
       "confidence": "high",
       "severity": "warning",
       "status": "fail"
@@ -2438,7 +1655,7 @@
       "key": "435444b23d8c57f6",
       "ruleId": "transition-all",
       "file": "client/src/pages/trainer/TrainerCoaching.jsx",
-      "line": 889,
+      "line": 911,
       "confidence": "high",
       "severity": "warning",
       "status": "fail"
@@ -2447,7 +1664,7 @@
       "key": "3ccf80e471682040",
       "ruleId": "transition-all",
       "file": "client/src/pages/trainer/TrainerCoaching.jsx",
-      "line": 898,
+      "line": 920,
       "confidence": "high",
       "severity": "warning",
       "status": "fail"
@@ -2456,7 +1673,7 @@
       "key": "0f48eb0b71279e01",
       "ruleId": "transition-all",
       "file": "client/src/pages/trainer/TrainerCoaching.jsx",
-      "line": 948,
+      "line": 970,
       "confidence": "high",
       "severity": "warning",
       "status": "fail"
@@ -2465,7 +1682,7 @@
       "key": "c002bd31bb4cc8bc",
       "ruleId": "reduced-motion-strategy",
       "file": "client/src/pages/trainer/TrainerHabitManager.jsx",
-      "line": 126,
+      "line": 131,
       "confidence": "low",
       "severity": "warning",
       "status": "advisory"
@@ -2474,7 +1691,7 @@
       "key": "19fd374e4325a521",
       "ruleId": "reduced-motion-strategy",
       "file": "client/src/pages/trainer/TrainerWellnessTargetCard.jsx",
-      "line": 111,
+      "line": 107,
       "confidence": "low",
       "severity": "warning",
       "status": "advisory"
@@ -2502,15 +1719,6 @@
       "ruleId": "extreme-z-index",
       "file": "client/src/pages/trainer/TrainingSchedule.jsx",
       "line": 238,
-      "confidence": "high",
-      "severity": "error",
-      "status": "fail"
-    },
-    {
-      "key": "1333e277888a5615",
-      "ruleId": "icon-button-accessible-name",
-      "file": "client/src/pages/trainer/TrainingSchedule.jsx",
-      "line": 251,
       "confidence": "high",
       "severity": "error",
       "status": "fail"
@@ -2570,33 +1778,6 @@
       "status": "fail"
     },
     {
-      "key": "b623d7c0f0934715",
-      "ruleId": "icon-button-accessible-name",
-      "file": "client/src/pages/trainer/WorkoutPlan.jsx",
-      "line": 302,
-      "confidence": "high",
-      "severity": "error",
-      "status": "fail"
-    },
-    {
-      "key": "e230ccbb2283b5bc",
-      "ruleId": "icon-button-accessible-name",
-      "file": "client/src/pages/trainer/WorkoutPlan.jsx",
-      "line": 320,
-      "confidence": "high",
-      "severity": "error",
-      "status": "fail"
-    },
-    {
-      "key": "233edf3e7f9b5cff",
-      "ruleId": "icon-button-accessible-name",
-      "file": "client/src/pages/trainer/WorkoutPlan.jsx",
-      "line": 330,
-      "confidence": "high",
-      "severity": "error",
-      "status": "fail"
-    },
-    {
       "key": "6022e87a94e18a43",
       "ruleId": "reduced-motion-strategy",
       "file": "client/src/pages/trainer/WorkoutPlanClientTargetSummary.jsx",
@@ -2609,34 +1790,7 @@
       "key": "7c9c698876a646c7",
       "ruleId": "extreme-z-index",
       "file": "client/src/pages/trainer/WorkoutPlanDetail.jsx",
-      "line": 92,
-      "confidence": "high",
-      "severity": "error",
-      "status": "fail"
-    },
-    {
-      "key": "31a3ef2aeb99fd8c",
-      "ruleId": "icon-button-accessible-name",
-      "file": "client/src/pages/trainer/WorkoutPlanDetail.jsx",
-      "line": 99,
-      "confidence": "high",
-      "severity": "error",
-      "status": "fail"
-    },
-    {
-      "key": "70999e8c734100d3",
-      "ruleId": "icon-button-accessible-name",
-      "file": "client/src/pages/trainer/WorkoutPlanDetail.jsx",
-      "line": 325,
-      "confidence": "high",
-      "severity": "error",
-      "status": "fail"
-    },
-    {
-      "key": "0690d22aa1581daf",
-      "ruleId": "icon-button-accessible-name",
-      "file": "client/src/pages/trainer/WorkoutPlanDetail.jsx",
-      "line": 362,
+      "line": 93,
       "confidence": "high",
       "severity": "error",
       "status": "fail"
@@ -2645,7 +1799,7 @@
       "key": "78d2c21476ca264a",
       "ruleId": "transition-all",
       "file": "client/src/pages/trainer/WorkoutPlanDetail.jsx",
-      "line": 380,
+      "line": 382,
       "confidence": "high",
       "severity": "warning",
       "status": "fail"
@@ -2654,43 +1808,16 @@
       "key": "5c095a680e710225",
       "ruleId": "reduced-motion-strategy",
       "file": "client/src/pages/trainer/WorkoutPlanDetail.jsx",
-      "line": 555,
+      "line": 557,
       "confidence": "low",
       "severity": "warning",
       "status": "advisory"
     },
     {
-      "key": "f3c781ee08060972",
-      "ruleId": "icon-button-accessible-name",
-      "file": "client/src/pages/trainer/WorkoutPlanDetail.jsx",
-      "line": 580,
-      "confidence": "high",
-      "severity": "error",
-      "status": "fail"
-    },
-    {
-      "key": "5c19a3cc824c6a0d",
-      "ruleId": "icon-button-accessible-name",
-      "file": "client/src/pages/trainer/WorkoutPlanDetail.jsx",
-      "line": 602,
-      "confidence": "high",
-      "severity": "error",
-      "status": "fail"
-    },
-    {
-      "key": "28b6b1a5ccc14606",
-      "ruleId": "icon-button-accessible-name",
-      "file": "client/src/pages/trainer/WorkoutPlanDetail.jsx",
-      "line": 608,
-      "confidence": "high",
-      "severity": "error",
-      "status": "fail"
-    },
-    {
       "key": "a8629452603cccd5",
       "ruleId": "transition-all",
       "file": "client/src/pages/trainer/WorkoutPlanDetail.jsx",
-      "line": 619,
+      "line": 621,
       "confidence": "high",
       "severity": "warning",
       "status": "fail"
@@ -2699,7 +1826,7 @@
       "key": "a61a6f36d7d63981",
       "ruleId": "transition-all",
       "file": "client/src/pages/trainer/WorkoutPlanDetail.jsx",
-      "line": 626,
+      "line": 628,
       "confidence": "high",
       "severity": "warning",
       "status": "fail"
@@ -2708,7 +1835,7 @@
       "key": "a8629452603cccd5-2",
       "ruleId": "transition-all",
       "file": "client/src/pages/trainer/WorkoutPlanDetail.jsx",
-      "line": 638,
+      "line": 640,
       "confidence": "high",
       "severity": "warning",
       "status": "fail"
@@ -2717,7 +1844,7 @@
       "key": "de86d426d4610d59",
       "ruleId": "transition-all",
       "file": "client/src/pages/trainer/WorkoutPlanDetail.jsx",
-      "line": 645,
+      "line": 647,
       "confidence": "high",
       "severity": "warning",
       "status": "fail"
@@ -2726,7 +1853,7 @@
       "key": "18bc3a85e58ba79f",
       "ruleId": "transition-all",
       "file": "client/src/pages/trainer/WorkoutPlanDetail.jsx",
-      "line": 713,
+      "line": 715,
       "confidence": "high",
       "severity": "warning",
       "status": "fail"
@@ -2735,7 +1862,7 @@
       "key": "31281da3fd8983e9",
       "ruleId": "transition-all",
       "file": "client/src/pages/trainer/WorkoutPlanDetail.jsx",
-      "line": 739,
+      "line": 741,
       "confidence": "high",
       "severity": "warning",
       "status": "fail"
@@ -2744,16 +1871,7 @@
       "key": "7c9c698876a646c7-2",
       "ruleId": "extreme-z-index",
       "file": "client/src/pages/trainer/WorkoutPlanDetail.jsx",
-      "line": 816,
-      "confidence": "high",
-      "severity": "error",
-      "status": "fail"
-    },
-    {
-      "key": "0c4e65da87ef6846",
-      "ruleId": "icon-button-accessible-name",
-      "file": "client/src/pages/trainer/WorkoutPlanModal.jsx",
-      "line": 46,
+      "line": 818,
       "confidence": "high",
       "severity": "error",
       "status": "fail"
@@ -2768,208 +1886,10 @@
       "status": "fail"
     },
     {
-      "key": "0558797386b6ba00",
-      "ruleId": "icon-button-accessible-name",
-      "file": "client/src/pages/trainer/WorkoutPlanModal.jsx",
-      "line": 133,
-      "confidence": "high",
-      "severity": "error",
-      "status": "fail"
-    },
-    {
       "key": "c7019444661482e2",
       "ruleId": "transition-all",
       "file": "client/src/pages/trainer/WorkoutPlanModal.jsx",
       "line": 217,
-      "confidence": "high",
-      "severity": "warning",
-      "status": "fail"
-    },
-    {
-      "key": "dab0a28d3eb0f5cb",
-      "ruleId": "icon-button-accessible-name",
-      "file": "client/src/pages/TrainerProfile.jsx",
-      "line": 70,
-      "confidence": "high",
-      "severity": "error",
-      "status": "fail"
-    },
-    {
-      "key": "6b3d302ffaf58fd8",
-      "ruleId": "icon-button-accessible-name",
-      "file": "client/src/pages/TrainerProfile.jsx",
-      "line": 76,
-      "confidence": "high",
-      "severity": "error",
-      "status": "fail"
-    },
-    {
-      "key": "14c3b87777d2c986",
-      "ruleId": "transition-all",
-      "file": "client/src/pages/TrainerProfile.jsx",
-      "line": 100,
-      "confidence": "high",
-      "severity": "warning",
-      "status": "fail"
-    },
-    {
-      "key": "29cdc26833c362c8",
-      "ruleId": "transition-all",
-      "file": "client/src/pages/TrainerProfile.jsx",
-      "line": 115,
-      "confidence": "high",
-      "severity": "warning",
-      "status": "fail"
-    },
-    {
-      "key": "2b6affd261adfef5",
-      "ruleId": "transition-all",
-      "file": "client/src/pages/TrainerProfile.jsx",
-      "line": 163,
-      "confidence": "high",
-      "severity": "warning",
-      "status": "fail"
-    },
-    {
-      "key": "18148da83b4def47",
-      "ruleId": "reduced-motion-strategy",
-      "file": "client/src/pages/TrainerProfile.jsx",
-      "line": 253,
-      "confidence": "low",
-      "severity": "warning",
-      "status": "advisory"
-    },
-    {
-      "key": "92a763a56add9a39",
-      "ruleId": "transition-all",
-      "file": "client/src/pages/TrainerProfile.jsx",
-      "line": 440,
-      "confidence": "high",
-      "severity": "warning",
-      "status": "fail"
-    },
-    {
-      "key": "88bb644b3354502d",
-      "ruleId": "transition-all",
-      "file": "client/src/pages/TrainerProfile.jsx",
-      "line": 445,
-      "confidence": "high",
-      "severity": "warning",
-      "status": "fail"
-    },
-    {
-      "key": "0a2e4bc1ef0d00dd",
-      "ruleId": "transition-all",
-      "file": "client/src/pages/TrainerProfile.jsx",
-      "line": 450,
-      "confidence": "high",
-      "severity": "warning",
-      "status": "fail"
-    },
-    {
-      "key": "534f202f910d79b5",
-      "ruleId": "transition-all",
-      "file": "client/src/pages/TrainerProfile.jsx",
-      "line": 455,
-      "confidence": "high",
-      "severity": "warning",
-      "status": "fail"
-    },
-    {
-      "key": "5c11029ad81f440e",
-      "ruleId": "transition-all",
-      "file": "client/src/pages/TrainerProfile.jsx",
-      "line": 460,
-      "confidence": "high",
-      "severity": "warning",
-      "status": "fail"
-    },
-    {
-      "key": "408aa1da6675a663",
-      "ruleId": "transition-all",
-      "file": "client/src/pages/TrainerProfile.jsx",
-      "line": 465,
-      "confidence": "high",
-      "severity": "warning",
-      "status": "fail"
-    },
-    {
-      "key": "d5238dca0d6c1b18",
-      "ruleId": "transition-all",
-      "file": "client/src/pages/TrainerProfile.jsx",
-      "line": 534,
-      "confidence": "high",
-      "severity": "warning",
-      "status": "fail"
-    },
-    {
-      "key": "d4ed5a18feae1932",
-      "ruleId": "transition-all",
-      "file": "client/src/pages/TrainerProfile.jsx",
-      "line": 544,
-      "confidence": "high",
-      "severity": "warning",
-      "status": "fail"
-    },
-    {
-      "key": "60a78ead7c1b6dd6",
-      "ruleId": "reduced-motion-strategy",
-      "file": "client/src/pages/wallet/MyWallet.jsx",
-      "line": 65,
-      "confidence": "low",
-      "severity": "warning",
-      "status": "advisory"
-    },
-    {
-      "key": "a2ded47a9a31888c",
-      "ruleId": "transition-all",
-      "file": "client/src/pages/wallet/MyWallet.jsx",
-      "line": 285,
-      "confidence": "high",
-      "severity": "warning",
-      "status": "fail"
-    },
-    {
-      "key": "9de3791cef0f1bf8",
-      "ruleId": "icon-button-accessible-name",
-      "file": "client/src/pages/wallet/MyWallet.jsx",
-      "line": 334,
-      "confidence": "high",
-      "severity": "error",
-      "status": "fail"
-    },
-    {
-      "key": "caf2be8d4cd00399",
-      "ruleId": "icon-button-accessible-name",
-      "file": "client/src/pages/wallet/MyWallet.jsx",
-      "line": 351,
-      "confidence": "high",
-      "severity": "error",
-      "status": "fail"
-    },
-    {
-      "key": "f61c30539b5b5e3f",
-      "ruleId": "transition-all",
-      "file": "client/src/pages/wallet/MyWallet.jsx",
-      "line": 365,
-      "confidence": "high",
-      "severity": "warning",
-      "status": "fail"
-    },
-    {
-      "key": "172a9125370a1d59",
-      "ruleId": "icon-button-accessible-name",
-      "file": "client/src/pages/wallet/MyWallet.jsx",
-      "line": 488,
-      "confidence": "high",
-      "severity": "error",
-      "status": "fail"
-    },
-    {
-      "key": "aa19ee270847ab01",
-      "ruleId": "transition-all",
-      "file": "client/src/pages/wallet/MyWallet.jsx",
-      "line": 552,
       "confidence": "high",
       "severity": "warning",
       "status": "fail"
@@ -3038,28 +1958,10 @@
       "status": "fail"
     },
     {
-      "key": "13d8152e0b24876a",
-      "ruleId": "personal-input-autocomplete",
-      "file": "client/src/sections/Contact.jsx",
-      "line": 282,
-      "confidence": "high",
-      "severity": "warning",
-      "status": "fail"
-    },
-    {
       "key": "9e602d119aed0e9c-2",
       "ruleId": "transition-all",
       "file": "client/src/sections/Contact.jsx",
       "line": 285,
-      "confidence": "high",
-      "severity": "warning",
-      "status": "fail"
-    },
-    {
-      "key": "9707826a58293842",
-      "ruleId": "personal-input-autocomplete",
-      "file": "client/src/sections/Contact.jsx",
-      "line": 297,
       "confidence": "high",
       "severity": "warning",
       "status": "fail"
@@ -3122,7 +2024,7 @@
       "key": "31ea5e1505137b35",
       "ruleId": "transition-all",
       "file": "client/src/sections/Footer/Footer.jsx",
-      "line": 89,
+      "line": 85,
       "confidence": "high",
       "severity": "warning",
       "status": "fail"
@@ -3131,7 +2033,7 @@
       "key": "31ea5e1505137b35-2",
       "ruleId": "transition-all",
       "file": "client/src/sections/Footer/Footer.jsx",
-      "line": 94,
+      "line": 90,
       "confidence": "high",
       "severity": "warning",
       "status": "fail"
@@ -3140,7 +2042,7 @@
       "key": "31ea5e1505137b35-3",
       "ruleId": "transition-all",
       "file": "client/src/sections/Footer/Footer.jsx",
-      "line": 99,
+      "line": 95,
       "confidence": "high",
       "severity": "warning",
       "status": "fail"
@@ -3149,7 +2051,7 @@
       "key": "31ea5e1505137b35-4",
       "ruleId": "transition-all",
       "file": "client/src/sections/Footer/Footer.jsx",
-      "line": 104,
+      "line": 100,
       "confidence": "high",
       "severity": "warning",
       "status": "fail"
@@ -3158,7 +2060,7 @@
       "key": "31ea5e1505137b35-5",
       "ruleId": "transition-all",
       "file": "client/src/sections/Footer/Footer.jsx",
-      "line": 109,
+      "line": 105,
       "confidence": "high",
       "severity": "warning",
       "status": "fail"
@@ -3167,7 +2069,7 @@
       "key": "f76a9f93e7a1583f",
       "ruleId": "transition-all",
       "file": "client/src/sections/Footer/Footer.jsx",
-      "line": 114,
+      "line": 110,
       "confidence": "high",
       "severity": "warning",
       "status": "fail"
@@ -3176,7 +2078,7 @@
       "key": "31ea5e1505137b35-6",
       "ruleId": "transition-all",
       "file": "client/src/sections/Footer/Footer.jsx",
-      "line": 119,
+      "line": 115,
       "confidence": "high",
       "severity": "warning",
       "status": "fail"
@@ -3185,7 +2087,7 @@
       "key": "31ea5e1505137b35-7",
       "ruleId": "transition-all",
       "file": "client/src/sections/Footer/Footer.jsx",
-      "line": 135,
+      "line": 131,
       "confidence": "high",
       "severity": "warning",
       "status": "fail"
@@ -3194,7 +2096,7 @@
       "key": "31ea5e1505137b35-8",
       "ruleId": "transition-all",
       "file": "client/src/sections/Footer/Footer.jsx",
-      "line": 143,
+      "line": 139,
       "confidence": "high",
       "severity": "warning",
       "status": "fail"
@@ -3203,7 +2105,7 @@
       "key": "31ea5e1505137b35-9",
       "ruleId": "transition-all",
       "file": "client/src/sections/Footer/Footer.jsx",
-      "line": 151,
+      "line": 147,
       "confidence": "high",
       "severity": "warning",
       "status": "fail"
@@ -3212,16 +2114,7 @@
       "key": "50d444bdff435685",
       "ruleId": "transition-all",
       "file": "client/src/sections/Header/Header.jsx",
-      "line": 228,
-      "confidence": "high",
-      "severity": "warning",
-      "status": "fail"
-    },
-    {
-      "key": "8d927278cf30a52c",
-      "ruleId": "transition-all",
-      "file": "client/src/sections/Header/Header.jsx",
-      "line": 243,
+      "line": 210,
       "confidence": "high",
       "severity": "warning",
       "status": "fail"
@@ -3230,7 +2123,7 @@
       "key": "6392368b0f42c6df",
       "ruleId": "transition-all",
       "file": "client/src/sections/Header/Header.jsx",
-      "line": 273,
+      "line": 252,
       "confidence": "high",
       "severity": "warning",
       "status": "fail"
@@ -3239,7 +2132,7 @@
       "key": "48495fc0df787f30",
       "ruleId": "transition-all",
       "file": "client/src/sections/Header/Header.jsx",
-      "line": 307,
+      "line": 286,
       "confidence": "high",
       "severity": "warning",
       "status": "fail"
@@ -3248,7 +2141,7 @@
       "key": "8b768ecafdde775e",
       "ruleId": "transition-all",
       "file": "client/src/sections/Header/Header.jsx",
-      "line": 441,
+      "line": 420,
       "confidence": "high",
       "severity": "warning",
       "status": "fail"
@@ -3257,7 +2150,7 @@
       "key": "b3b876a3a7423f43",
       "ruleId": "transition-all",
       "file": "client/src/sections/Header/Header.jsx",
-      "line": 447,
+      "line": 426,
       "confidence": "high",
       "severity": "warning",
       "status": "fail"
@@ -3266,7 +2159,7 @@
       "key": "064a6cd1379df361",
       "ruleId": "transition-all",
       "file": "client/src/sections/Header/Header.jsx",
-      "line": 450,
+      "line": 429,
       "confidence": "high",
       "severity": "warning",
       "status": "fail"
@@ -3275,7 +2168,7 @@
       "key": "a8f833f1e1a0c0f8",
       "ruleId": "transition-all",
       "file": "client/src/sections/Header/Header.jsx",
-      "line": 453,
+      "line": 432,
       "confidence": "high",
       "severity": "warning",
       "status": "fail"
@@ -3284,7 +2177,7 @@
       "key": "d151a1f4d6cb2421",
       "ruleId": "transition-all",
       "file": "client/src/sections/Header/Header.jsx",
-      "line": 523,
+      "line": 502,
       "confidence": "high",
       "severity": "warning",
       "status": "fail"
@@ -3293,16 +2186,7 @@
       "key": "ead044e9042b353b",
       "ruleId": "transition-all",
       "file": "client/src/sections/Header/Header.jsx",
-      "line": 547,
-      "confidence": "high",
-      "severity": "warning",
-      "status": "fail"
-    },
-    {
-      "key": "ead044e9042b353b-2",
-      "ruleId": "transition-all",
-      "file": "client/src/sections/Header/Header.jsx",
-      "line": 573,
+      "line": 526,
       "confidence": "high",
       "severity": "warning",
       "status": "fail"
@@ -3344,55 +2228,10 @@
       "status": "fail"
     },
     {
-      "key": "493d532165512a8f",
-      "ruleId": "transition-all",
-      "file": "client/src/sections/Pricing.jsx",
-      "line": 493,
-      "confidence": "high",
-      "severity": "warning",
-      "status": "fail"
-    },
-    {
-      "key": "e489c3007897dbe0",
-      "ruleId": "transition-all",
-      "file": "client/src/sections/Pricing.jsx",
-      "line": 508,
-      "confidence": "high",
-      "severity": "warning",
-      "status": "fail"
-    },
-    {
-      "key": "0789c87089cb58bc",
-      "ruleId": "transition-all",
-      "file": "client/src/sections/Pricing.jsx",
-      "line": 514,
-      "confidence": "high",
-      "severity": "warning",
-      "status": "fail"
-    },
-    {
-      "key": "c10cb1f658955dc4",
-      "ruleId": "transition-all",
-      "file": "client/src/sections/Pricing.jsx",
-      "line": 521,
-      "confidence": "high",
-      "severity": "warning",
-      "status": "fail"
-    },
-    {
-      "key": "a421398159a98cb2",
-      "ruleId": "transition-all",
-      "file": "client/src/sections/Pricing.jsx",
-      "line": 550,
-      "confidence": "high",
-      "severity": "warning",
-      "status": "fail"
-    },
-    {
       "key": "1307754c2a61da59",
       "ruleId": "transition-all",
       "file": "client/src/sections/Pricing.jsx",
-      "line": 592,
+      "line": 562,
       "confidence": "high",
       "severity": "warning",
       "status": "fail"
@@ -3401,7 +2240,7 @@
       "key": "f02f0bf67a4ddb30",
       "ruleId": "transition-all",
       "file": "client/src/sections/Pricing.jsx",
-      "line": 681,
+      "line": 651,
       "confidence": "high",
       "severity": "warning",
       "status": "fail"
@@ -3410,7 +2249,7 @@
       "key": "da5b8c50325c151b",
       "ruleId": "transition-all",
       "file": "client/src/sections/Pricing.jsx",
-      "line": 703,
+      "line": 673,
       "confidence": "high",
       "severity": "warning",
       "status": "fail"
@@ -3419,70 +2258,16 @@
       "key": "7d11bebe6ec878c9",
       "ruleId": "transition-all",
       "file": "client/src/sections/Pricing.jsx",
-      "line": 774,
+      "line": 744,
       "confidence": "high",
       "severity": "warning",
-      "status": "fail"
-    },
-    {
-      "key": "cc7e1dc9450fdf6f",
-      "ruleId": "icon-button-accessible-name",
-      "file": "client/src/sections/Pricing.jsx",
-      "line": 796,
-      "confidence": "high",
-      "severity": "error",
-      "status": "fail"
-    },
-    {
-      "key": "f3f314573a57dc03",
-      "ruleId": "icon-button-accessible-name",
-      "file": "client/src/sections/Pricing.jsx",
-      "line": 831,
-      "confidence": "high",
-      "severity": "error",
-      "status": "fail"
-    },
-    {
-      "key": "c81e637e0ba3b480",
-      "ruleId": "icon-button-accessible-name",
-      "file": "client/src/sections/Pricing.jsx",
-      "line": 876,
-      "confidence": "high",
-      "severity": "error",
-      "status": "fail"
-    },
-    {
-      "key": "a000f1591c6908c1",
-      "ruleId": "icon-button-accessible-name",
-      "file": "client/src/sections/Pricing.jsx",
-      "line": 953,
-      "confidence": "high",
-      "severity": "error",
-      "status": "fail"
-    },
-    {
-      "key": "c89e9c4416a94b53",
-      "ruleId": "reduced-motion-strategy",
-      "file": "client/src/sections/Pricing.jsx",
-      "line": 1040,
-      "confidence": "low",
-      "severity": "warning",
-      "status": "advisory"
-    },
-    {
-      "key": "4e42c149f1a38c2c",
-      "ruleId": "icon-button-accessible-name",
-      "file": "client/src/sections/Pricing.jsx",
-      "line": 1049,
-      "confidence": "high",
-      "severity": "error",
       "status": "fail"
     },
     {
       "key": "d62d73816b3ad596",
       "ruleId": "transition-all",
       "file": "client/src/sections/Pricing.jsx",
-      "line": 1110,
+      "line": 1085,
       "confidence": "high",
       "severity": "warning",
       "status": "fail"
@@ -3491,16 +2276,7 @@
       "key": "3ef876a635de1294",
       "ruleId": "transition-all",
       "file": "client/src/sections/Pricing.jsx",
-      "line": 1223,
-      "confidence": "high",
-      "severity": "warning",
-      "status": "fail"
-    },
-    {
-      "key": "9280f39b29ba0687",
-      "ruleId": "transition-all",
-      "file": "client/src/sections/Tools.jsx",
-      "line": 129,
+      "line": 1198,
       "confidence": "high",
       "severity": "warning",
       "status": "fail"
@@ -3530,24 +2306,6 @@
       "line": 276,
       "confidence": "high",
       "severity": "warning",
-      "status": "fail"
-    },
-    {
-      "key": "8254bb163580fdb3",
-      "ruleId": "icon-button-accessible-name",
-      "file": "client/src/sections/Trainers.jsx",
-      "line": 298,
-      "confidence": "high",
-      "severity": "error",
-      "status": "fail"
-    },
-    {
-      "key": "38ea128862bf13ca",
-      "ruleId": "icon-button-accessible-name",
-      "file": "client/src/sections/Trainers.jsx",
-      "line": 305,
-      "confidence": "high",
-      "severity": "error",
       "status": "fail"
     },
     {

@@ -297,7 +297,7 @@ const ContractEditModal = ({ contract, onClose }) => {
                 <div><label className={labelCls}>Năm sinh *</label><input aria-label="Năm sinh HLV" className={inputCls} placeholder="VD: 1999" value={form.trainerBirthYear} onChange={e => setForm({ ...form, trainerBirthYear: e.target.value.replace(/\D/g, "").slice(0, 4) })} />{errors.trainerBirthYear && <p className={errCls}>{errors.trainerBirthYear}</p>}</div>
                 <div className="sm:col-span-2"><label className={labelCls}>Địa chỉ *</label><input aria-label="Địa chỉ HLV" className={inputCls} value={form.trainerAddress} onChange={e => setForm({ ...form, trainerAddress: e.target.value })} />{errors.trainerAddress && <p className={errCls}>{errors.trainerAddress}</p>}</div>
                 <div><label className={labelCls}>SĐT *</label><input aria-label="Số điện thoại HLV" className={inputCls} inputMode="numeric" value={form.trainerPhone} onChange={handlePhoneChange("trainerPhone")} />{errors.trainerPhone && <p className={errCls}>{errors.trainerPhone}</p>}</div>
-                <div><label className={labelCls}>Email *</label><input aria-label="Email HLV" className={inputCls} type="email" value={form.trainerEmail} onChange={e => setForm({ ...form, trainerEmail: e.target.value })} />{errors.trainerEmail && <p className={errCls}>{errors.trainerEmail}</p>}</div>
+                <div><label className={labelCls}>Email *</label><input autoComplete="off" aria-label="Email HLV" className={inputCls} type="email" value={form.trainerEmail} onChange={e => setForm({ ...form, trainerEmail: e.target.value })} />{errors.trainerEmail && <p className={errCls}>{errors.trainerEmail}</p>}</div>
               </div>
             </div>
             <div>
@@ -305,7 +305,7 @@ const ContractEditModal = ({ contract, onClose }) => {
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="sm:col-span-2"><label className={labelCls}>Họ và tên *</label><input aria-label="Họ và tên khách hàng" className={inputCls} value={form.clientName} onChange={e => setForm({ ...form, clientName: e.target.value })} />{errors.clientName && <p className={errCls}>{errors.clientName}</p>}</div>
                 <div><label className={labelCls}>SĐT *</label><input aria-label="Số điện thoại khách hàng" className={inputCls} inputMode="numeric" value={form.clientPhone} onChange={handlePhoneChange("clientPhone")} />{errors.clientPhone && <p className={errCls}>{errors.clientPhone}</p>}</div>
-                <div><label className={labelCls}>Email *</label><input aria-label="Email khách hàng" className={inputCls} type="email" value={form.clientEmail} onChange={e => setForm({ ...form, clientEmail: e.target.value })} />{errors.clientEmail && <p className={errCls}>{errors.clientEmail}</p>}</div>
+                <div><label className={labelCls}>Email *</label><input autoComplete="off" aria-label="Email khách hàng" className={inputCls} type="email" value={form.clientEmail} onChange={e => setForm({ ...form, clientEmail: e.target.value })} />{errors.clientEmail && <p className={errCls}>{errors.clientEmail}</p>}</div>
               </div>
             </div>
             <div>

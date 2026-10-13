@@ -683,7 +683,7 @@ const Orders = ({ embedded = false }) => {
                     <Mail className="w-4 h-4" /> Email{" "}
                     <span className="text-red-500">*</span>
                   </label>
-                  <input
+                  <input autoComplete="off"
                     id="order-email"
                     {...register("email")}
                     readOnly={isTrainerEditingApproved}
@@ -698,7 +698,7 @@ const Orders = ({ embedded = false }) => {
                   <label htmlFor="order-phone" className="text-sm font-medium text-gray-700 flex items-center gap-2">
                     <Phone className="w-4 h-4" /> Số điện thoại
                   </label>
-                  <input
+                  <input autoComplete="off"
                     id="order-phone"
                     {...register("phone")}
                     placeholder="0901234567"

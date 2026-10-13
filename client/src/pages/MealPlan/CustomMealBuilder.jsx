@@ -396,7 +396,7 @@ export default function CustomMealBuilder({
               <h3 className="text-lg font-bold text-white uppercase">
                 {t("builder.add_type", { type: activeCell?.type === 'carbFood' ? t("builder.carb") : activeCell?.type === 'proteinFood' ? t("builder.protein") : t("builder.fat") })}
               </h3>
-              <button onClick={() => setModalOpen(false)} className="text-gray-400 hover:text-white transition bg-gray-800 hover:bg-gray-700 rounded-full p-1.5">
+              <button aria-label={t("common:a11y.close")} onClick={() => setModalOpen(false)} className="text-gray-400 hover:text-white transition bg-gray-800 hover:bg-gray-700 rounded-full p-1.5">
                 <X className="w-5 h-5" />
               </button>
             </div>

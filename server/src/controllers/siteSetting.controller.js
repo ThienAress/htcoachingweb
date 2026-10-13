@@ -2,6 +2,7 @@ import path from "path";
 import SiteSetting from "../models/SiteSetting.js";
 import { uploadBufferToCloudinary } from "../utils/cloudinaryUpload.js";
 import { safeLog } from "../utils/safeLogger.js";
+import { errorHandler } from "../middlewares/errorHandler.js";
 
 const ITEM_KEY_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const MAX_ITEM_KEY_LENGTH = 64;
@@ -66,7 +67,7 @@ export const getSiteSettings = async (req, res) => {
     const settings = await getSettings();
     res.json({ success: true, data: settings });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    return errorHandler(error, req, res);
   }
 };
 

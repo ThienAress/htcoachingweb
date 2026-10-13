@@ -1,4 +1,5 @@
 import User from "../models/User.js";
+import { escapeRegex } from "../utils/escapeRegex.js";
 import { deleteAccountData } from "../services/accountDeletion.service.js";
 import { safeLog } from "../utils/safeLogger.js";
 
@@ -11,8 +12,8 @@ export const getUsers = async (req, res) => {
     const query = { role: "user" };
     if (req.query.search) {
       query.$or = [
-        { name: { $regex: req.query.search, $options: "i" } },
-        { email: { $regex: req.query.search, $options: "i" } },
+        { name: { $regex: escapeRegex(req.query.search), $options: "i" } },
+        { email: { $regex: escapeRegex(req.query.search), $options: "i" } },
       ];
     }
 

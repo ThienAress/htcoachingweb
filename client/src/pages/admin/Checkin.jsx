@@ -418,7 +418,7 @@ const Checkin = () => {
                             className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs bg-primary/20 text-primary border border-primary/30"
                           >
                             {m}
-                            <button
+                            <button aria-label={`Bỏ nhóm cơ ${m}`}
                               type="button"
                               onClick={() => toggleMuscle(m)}
                               className="hover:text-red-400 transition-colors ml-1"
@@ -618,7 +618,7 @@ const Checkin = () => {
               </div>
               {pagination.totalPages > 1 && (
                 <div className="flex justify-center items-center gap-3 py-4 border-t border-gray-800 bg-gray-900/50">
-                  <button
+                  <button aria-label="Trang trước"
                     onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                     disabled={pagination.page === 1}
                     className="p-2 rounded-lg border border-gray-700 text-gray-400 bg-gray-800 hover:bg-gray-700 hover:text-white transition disabled:opacity-30 disabled:cursor-not-allowed"
@@ -628,7 +628,7 @@ const Checkin = () => {
                   <span className="text-sm text-gray-300">
                     Trang {pagination.page} / {pagination.totalPages}
                   </span>
-                  <button
+                  <button aria-label="Trang sau"
                     onClick={() =>
                       setCurrentPage((p) => Math.min(pagination.totalPages, Number(p) + 1))
                     }

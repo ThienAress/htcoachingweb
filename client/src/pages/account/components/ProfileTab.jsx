@@ -47,7 +47,7 @@ function ProfileTab({
               <div className="p-5 sm:p-6 bg-white/5 space-y-4">
                 <div className="flex justify-between items-center">
                   <span className="text-xs font-bold text-orange-400 uppercase tracking-wider">{t("profile.full_name")}</span>
-                  <button onClick={() => setEditingField(null)} className="text-gray-400 hover:text-white">
+                  <button aria-label={t("common:a11y.cancel_edit")} onClick={() => setEditingField(null)} className="text-gray-400 hover:text-white">
                     <X size={16} />
                   </button>
                 </div>
@@ -79,7 +79,7 @@ function ProfileTab({
             ) : (
               <button
                 onClick={() => setEditingField("name")}
-                className="w-full flex items-center justify-between p-5 text-left hover:bg-white/5 transition-all outline-none"
+                className="w-full flex items-center justify-between p-5 text-left hover:bg-white/5 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-orange-500"
               >
                 <div>
                   <span className="text-xs font-bold text-gray-400 block uppercase tracking-wider">{t("profile.full_name")}</span>
@@ -107,11 +107,11 @@ function ProfileTab({
               <div className="p-5 sm:p-6 bg-white/5 space-y-4">
                 <div className="flex justify-between items-center">
                   <span className="text-xs font-bold text-orange-400 uppercase tracking-wider">{t("profile.phone")}</span>
-                  <button onClick={() => setEditingField(null)} className="text-gray-400 hover:text-white">
+                  <button aria-label={t("common:a11y.cancel_edit")} onClick={() => setEditingField(null)} className="text-gray-400 hover:text-white">
                     <X size={16} />
                   </button>
                 </div>
-                <input
+                <input autoComplete="tel"
                   type="tel"
                   value={editValues.phone}
                   onChange={(e) => setEditValues({ ...editValues, phone: e.target.value })}
@@ -139,7 +139,7 @@ function ProfileTab({
             ) : (
               <button
                 onClick={() => setEditingField("phone")}
-                className="w-full flex items-center justify-between p-5 text-left hover:bg-white/5 transition-all outline-none"
+                className="w-full flex items-center justify-between p-5 text-left hover:bg-white/5 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-orange-500"
               >
                 <div>
                   <span className="text-xs font-bold text-gray-400 block uppercase tracking-wider">{t("profile.phone")}</span>
@@ -156,7 +156,7 @@ function ProfileTab({
               <div className="p-5 sm:p-6 bg-white/5 space-y-4">
                 <div className="flex justify-between items-center">
                   <span className="text-xs font-bold text-orange-400 uppercase tracking-wider">{t("profile.address")}</span>
-                  <button onClick={() => setEditingField(null)} className="text-gray-400 hover:text-white">
+                  <button aria-label={t("common:a11y.cancel_edit")} onClick={() => setEditingField(null)} className="text-gray-400 hover:text-white">
                     <X size={16} />
                   </button>
                 </div>
@@ -188,7 +188,7 @@ function ProfileTab({
             ) : (
               <button
                 onClick={() => setEditingField("address")}
-                className="w-full flex items-center justify-between p-5 text-left hover:bg-white/5 transition-all outline-none"
+                className="w-full flex items-center justify-between p-5 text-left hover:bg-white/5 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-orange-500"
               >
                 <div>
                   <span className="text-xs font-bold text-gray-400 block uppercase tracking-wider">{t("profile.address")}</span>
@@ -205,7 +205,7 @@ function ProfileTab({
               <div className="p-5 sm:p-6 bg-white/5 space-y-4">
                 <div className="flex justify-between items-center">
                   <span className="text-xs font-bold text-orange-400 uppercase tracking-wider">{t("profile.avatar_title")}</span>
-                  <button onClick={() => setEditingField(null)} className="text-gray-400 hover:text-white">
+                  <button aria-label={t("common:a11y.cancel_edit")} onClick={() => setEditingField(null)} className="text-gray-400 hover:text-white">
                     <X size={16} />
                   </button>
                 </div>
@@ -244,7 +244,7 @@ function ProfileTab({
             ) : (
               <button
                 onClick={() => setEditingField("avatar")}
-                className="w-full flex items-center justify-between p-5 text-left hover:bg-white/5 transition-all outline-none"
+                className="w-full flex items-center justify-between p-5 text-left hover:bg-white/5 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-orange-500"
               >
                 <div>
                   <span className="text-xs font-bold text-gray-400 block uppercase tracking-wider">{t("profile.avatar_title")}</span>

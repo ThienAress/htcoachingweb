@@ -1,4 +1,5 @@
 import ContactMessage from "../models/ContactMessage.js";
+import { escapeRegex } from "../utils/escapeRegex.js";
 import { normalizeLeadAttribution } from "../models/leadAttribution.schema.js";
 import { sendContactNotificationToAdmin } from "../utils/sendMail.js";
 import { safeLog } from "../utils/safeLogger.js";
@@ -59,7 +60,7 @@ export const getContactMessages = async (req, res) => {
       filter.status = status;
     }
     if (search) {
-      filter.name = { $regex: search, $options: "i" };
+      filter.name = { $regex: escapeRegex(search), $options: "i" };
     }
 
     const total = await ContactMessage.countDocuments(filter);

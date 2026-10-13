@@ -299,7 +299,7 @@ const WorkoutPlan = ({ embedded = false }) => {
                           >
                             <Copy className="w-3.5 h-3.5" /> {i18n.language === "vi" ? "Nhân bản" : "Duplicate"}
                           </button>
-                          <button
+                          <button aria-label={t("common:a11y.delete_workout_plan")}
                             onClick={(e) => { e.stopPropagation(); handleDelete(plan); }}
                             className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium text-red-400 hover:bg-red-500/10 transition-colors ml-auto"
                           >
@@ -317,7 +317,7 @@ const WorkoutPlan = ({ embedded = false }) => {
           {/* ===== PAGINATION ===== */}
           {pagination.totalPages > 1 && (
             <div className="flex justify-center items-center gap-3 mt-8">
-              <button
+              <button aria-label={t("common:a11y.previous_page")}
                 onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                 disabled={currentPage === 1}
                 className="p-2 rounded-lg border border-gray-700 text-gray-400 hover:bg-gray-700 disabled:opacity-30"
@@ -327,7 +327,7 @@ const WorkoutPlan = ({ embedded = false }) => {
               <span className="text-sm text-gray-400">
                 Trang {currentPage} / {pagination.totalPages}
               </span>
-              <button
+              <button aria-label={t("common:a11y.next_page")}
                 onClick={() => setCurrentPage((p) => Math.min(pagination.totalPages, p + 1))}
                 disabled={currentPage === pagination.totalPages}
                 className="p-2 rounded-lg border border-gray-700 text-gray-400 hover:bg-gray-700 disabled:opacity-30"

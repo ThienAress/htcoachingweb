@@ -348,7 +348,7 @@ const CheckinHistory = () => {
 
       {pagination.totalPages > 1 && (
         <div className="flex justify-center items-center gap-2 pt-2">
-          <button
+          <button aria-label="Trang trước"
             onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
             disabled={pagination.page === 1}
             className="p-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -358,7 +358,7 @@ const CheckinHistory = () => {
           <span className="text-sm text-slate-600">
             Trang {pagination.page} / {pagination.totalPages}
           </span>
-          <button
+          <button aria-label="Trang sau"
             onClick={() =>
               setCurrentPage((p) => Math.min(pagination.totalPages, Number(p) + 1))
             }
@@ -378,7 +378,7 @@ const CheckinHistory = () => {
                 <Edit className="w-5 h-5 text-indigo-600" />
                 Sửa thông tin check-in
               </h2>
-              <button
+              <button aria-label="Đóng"
                 onClick={() => setShowModal(false)}
                 className="p-1 hover:bg-slate-100 rounded-lg"
               >

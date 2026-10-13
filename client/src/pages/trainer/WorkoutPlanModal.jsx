@@ -43,7 +43,7 @@ const SectionBlock = ({ section, onUpdate, onRemove }) => {
         placeholder="Tên Section (vd: WARM UP)"
         className="flex-1 bg-transparent text-white font-semibold text-sm focus:outline-none focus:border-b border-primary px-1"
       />
-      <button type="button" onClick={onRemove} className="p-1.5 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded transition-colors ml-auto">
+      <button aria-label="Xóa bài tập" type="button" onClick={onRemove} className="p-1.5 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded transition-colors ml-auto">
         <Trash2 className="w-4 h-4" />
       </button>
     </div>
@@ -130,7 +130,7 @@ const PlanModal = ({ clients, initialClientId, initialDate, onClose, onSaved }) 
           <h2 className="text-xl font-bold text-white flex items-center gap-2">
             <span className="text-primary">✦</span> Tạo giáo án mới
           </h2>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-800 text-gray-400 hover:text-white transition-colors">
+          <button aria-label="Đóng" onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-800 text-gray-400 hover:text-white transition-colors">
             <X className="w-5 h-5" />
           </button>
         </div>

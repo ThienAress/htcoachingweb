@@ -164,14 +164,14 @@ async function requestEmbedding(preparedText, cacheKey) {
   );
   const linked = createLinkedSignal(undefined, providerTimeoutMs);
   const apiKey = process.env.GEMINI_API_KEY;
-  const url = `${EMBEDDING_BASE_URL}/models/${EMBEDDING_MODEL}:embedContent?key=${apiKey}`;
+  const url = `${EMBEDDING_BASE_URL}/models/${EMBEDDING_MODEL}:embedContent`;
   let usage = {};
 
   try {
     recordGeminiRequest("embedding");
     const response = await fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
       body: JSON.stringify({
         model: `models/${EMBEDDING_MODEL}`,
         content: { parts: [{ text: preparedText }] },

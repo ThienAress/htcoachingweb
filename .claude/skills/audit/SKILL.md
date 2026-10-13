@@ -54,8 +54,8 @@ Map untrusted input → validation → authorization → sink. Candidate chỉ t
 kiểm soát, reachability và impact thực tế; thiếu proof ghi `proof gap`. Finding bị loại ghi lý do để không báo lại.
 Với `/audit security` hoặc quick audit chạm critical path, thêm ledger theo
 [security coverage ledger](references/security-coverage-ledger.md). Không tuyên bố "full coverage" khi còn vùng deferred.
-Có thể giao `security-reviewer` subagent cho phần trace độc lập. Scan trả phí (`npm run security:codex`,
-runbook `docs/operations/runbooks/codex-security-scan.md`) không chạy mặc định; chỉ khi user cấp scope và chi phí.
+Có thể giao `security-reviewer` subagent cho phần trace độc lập. Scan bên ngoài có trả phí không chạy mặc định;
+chỉ khi user cấp scope và chi phí.
 
 ## 4. Vet và xếp hạng
 
