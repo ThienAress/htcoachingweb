@@ -42,6 +42,7 @@ import {
   confirmAiTool,
 } from "../controllers/aiToolConfirmation.controller.js";
 import { replaceMealItem } from "../controllers/aiMeal.controller.js";
+import { meterAiUsage } from "../middlewares/aiUsageMeter.js";
 
 const router = express.Router();
 
@@ -57,6 +58,7 @@ router.post(
   aiGuestChatLimiter,
   aiChatLimiter,
   enforceSharedServiceUsage("ai_chat"),
+  meterAiUsage("ai_chat"),
   settleStagingAiAcceptanceHandler(chatStream),
 );
 router.get("/history", protect, getHistory);

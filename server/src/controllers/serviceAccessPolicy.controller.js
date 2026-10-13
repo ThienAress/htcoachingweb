@@ -1,6 +1,10 @@
 import { getAdminServiceAccessPolicyMatrix } from "../services/serviceAccessPolicy.service.js";
 import { buildCommunityFeatureReport } from "../services/communityFeatureReport.service.js";
 import { generateCommunityFeatureReportPdf } from "../services/communityFeatureReportPdf.service.js";
+import {
+  getAiUsageSummary,
+  parseAiUsageReportDays,
+} from "../services/aiUsageReport.service.js";
 import { safeLog } from "../utils/safeLogger.js";
 
 const sendReportError = (res, error) => {
@@ -28,6 +32,31 @@ export const getServiceAccessPolicies = (_req, res) => {
       success: false,
       code: "SERVICE_ACCESS_POLICY_READ_FAILED",
       message: "Không thể tải quyền và hạn mức dịch vụ",
+    });
+  }
+};
+
+export const getAiUsageReport = async (req, res) => {
+  res.setHeader("Cache-Control", "private, no-store");
+  const days = parseAiUsageReportDays(req.query.days);
+  if (days === null) {
+    return res.status(400).json({
+      success: false,
+      code: "AI_USAGE_REPORT_INVALID_DAYS",
+      message: "Số ngày thống kê không hợp lệ",
+    });
+  }
+  try {
+    return res.status(200).json({
+      success: true,
+      data: await getAiUsageSummary({ days }),
+    });
+  } catch (error) {
+    safeLog.error("ai_usage_report.read_failed", error);
+    return res.status(500).json({
+      success: false,
+      code: "AI_USAGE_REPORT_FAILED",
+      message: "Không thể tải báo cáo chi phí AI",
     });
   }
 };

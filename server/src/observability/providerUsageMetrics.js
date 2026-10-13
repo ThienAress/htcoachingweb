@@ -1,4 +1,5 @@
 import { incrementMetric } from "./metrics.js";
+import { meterDeepSeekUsage, meterGeminiUsage } from "./aiUsageMeter.js";
 
 const GEMINI_SURFACES = new Set([
   "chat",
@@ -38,6 +39,7 @@ export const recordDeepSeekRequest = (surface) => {
 export const recordDeepSeekResult = (surface, { success, usage = {} } = {}) => {
   if (!DEEPSEEK_SURFACES.has(surface)) throw new Error("Unknown DeepSeek surface");
   incrementMetric(`provider.deepseek_${surface}_${success ? "succeeded" : "failed"}`);
+  meterDeepSeekUsage(surface, usage);
   const tokens = {
     prompt_tokens: deepseekTokens(usage?.prompt_tokens),
     output_tokens: deepseekTokens(usage?.completion_tokens),
@@ -58,6 +60,7 @@ export const recordGeminiResult = (surface, { success, usage = {} } = {}) => {
   incrementMetric(
     `provider.gemini_${surface}_${success ? "succeeded" : "failed"}`,
   );
+  meterGeminiUsage(surface, usage);
   const values = {
     prompt_tokens: positiveInteger(
       usage.promptTokens ?? usage.promptTokenCount,
