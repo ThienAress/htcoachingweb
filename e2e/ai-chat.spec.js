@@ -24,7 +24,7 @@ test.describe("AI chat", () => {
     await page.goto("/");
     const historyResponse = page.waitForResponse("**/api/ai/history");
     await page.getByRole("button", { name: "Mở HT Assistant" }).click();
-    const input = page.getByPlaceholder("Hỏi về tập luyện, dinh dưỡng...").first();
+    const input = page.getByPlaceholder("Nhắn tin cho HT Assistant").first();
     const chatResponse = page.waitForResponse(
       (response) =>
         response.request().method() === "POST" &&
@@ -59,7 +59,7 @@ test.describe("AI chat", () => {
     await page.getByRole("button", { name: "Mở HT Assistant" }).click();
     await historyResponse;
 
-    const input = page.getByPlaceholder("Hỏi về tập luyện, dinh dưỡng...").first();
+    const input = page.getByPlaceholder("Nhắn tin cho HT Assistant").first();
     const chatResponse = page.waitForResponse(
       (response) =>
         response.request().method() === "POST" &&
@@ -101,7 +101,7 @@ test.describe("AI chat", () => {
     await expect(page.getByText("Phiên A", { exact: true })).toBeVisible();
 
     const input = page
-      .getByPlaceholder("Hỏi về tập luyện, dinh dưỡng...")
+      .getByPlaceholder("Nhắn tin cho HT Assistant")
       .first();
     await input.fill("Tiếp tục trả lời ở phiên A");
     await input.press("Enter");
@@ -149,7 +149,7 @@ test.describe("AI chat", () => {
     await page.goto("/");
     await page.getByRole("button", { name: "Mở HT Assistant" }).click();
     const input = page
-      .getByPlaceholder("Hỏi về tập luyện, dinh dưỡng...")
+      .getByPlaceholder("Nhắn tin cho HT Assistant")
       .first();
     await input.fill("Dừng câu trả lời đang phát");
     await input.press("Enter");
@@ -223,7 +223,7 @@ test.describe("AI chat", () => {
       await page.goto("/");
       await page.getByRole("button", { name: "Mở HT Assistant" }).click();
       const input = page
-        .getByPlaceholder("Hỏi về tập luyện, dinh dưỡng...")
+        .getByPlaceholder("Nhắn tin cho HT Assistant")
         .first();
       await input.fill(recovery.initialQuestion);
       await input.press("Enter");
@@ -291,7 +291,7 @@ test.describe("AI chat", () => {
     await page.goto("/");
     await page.getByRole("button", { name: "Mở HT Assistant" }).click();
     const input = page
-      .getByPlaceholder("Hỏi về tập luyện, dinh dưỡng...")
+      .getByPlaceholder("Nhắn tin cho HT Assistant")
       .first();
     await input.fill("Thực hiện hành động đã kiểm tra");
     await input.press("Enter");
