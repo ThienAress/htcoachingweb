@@ -1,10 +1,11 @@
 import { lazy, Suspense, useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Bot, Send, X, Square, PanelLeftOpen, Plus, ArrowUp, Maximize2, Sun, Moon, ImageIcon, Wand2 } from "lucide-react";
+import { Bot, X, PanelLeftOpen, ArrowUp, Maximize2, Sun, Moon } from "lucide-react";
 import { toast } from "react-toastify";
 import { useAuth } from "../../context/AuthContext";
 import useAiChat from "../../hooks/useAiChat";
 import ChatBubble from "./ChatBubble";
+import ChatComposer from "./ChatComposer";
 import ChatPanelSidebar from "./ChatPanelSidebar";
 import ConversationNavigator from "./ConversationNavigator";
 import TdeeFormCard from "./cards/TdeeFormCard";
@@ -23,7 +24,9 @@ import {
   isChatNearBottom,
   isTdeeQuickAction,
   persistChatTheme,
+  persistWebSearch,
   resolveInitialChatTheme,
+  resolveInitialWebSearch,
   runChatActionWithAutoFollow,
 } from "./chatPanelRuntime";
 import { submitAiFeedback } from "../../services/ai.service";
@@ -67,7 +70,7 @@ export default function ChatPanel({ initiallyOpen = false }) {
   const [mobileViewport, setMobileViewport] = useState(null);
   const [input, setInput] = useState("");
   const [selectedImage, setSelectedImage] = useState(null);
-  const [showAttachMenu, setShowAttachMenu] = useState(false);
+  const [webSearchEnabled, setWebSearchEnabled] = useState(resolveInitialWebSearch);
   const [memorySettingsOpen, setMemorySettingsOpen] = useState(false);
   const [showTdeeForm, setShowTdeeForm] = useState(false);
   const [streamAnnouncement, setStreamAnnouncement] = useState("");
@@ -76,12 +79,10 @@ export default function ChatPanel({ initiallyOpen = false }) {
   const inputRef = useRef(null);
   const pillInputRef = useRef(null);
   const pillRef = useRef(null);
-  const fileInputRef = useRef(null);
   const messagesEndRef = useRef(null);
   const messagesScrollRef = useRef(null);
   const messagesContentRef = useRef(null);
   const questionTargetRefs = useRef(new Map());
-  const attachMenuRef = useRef(null);
   const historyLoadGateRef = useRef(null);
   const wasOpenRef = useRef(initiallyOpen);
   const shouldFollowMessagesRef = useRef(true);
@@ -102,7 +103,10 @@ export default function ChatPanel({ initiallyOpen = false }) {
     conversations, pendingConversationIds, sendMessage, loadHistory, loadConversations,
     clearHistory, switchConversation, removeConversation, cancelRequest,
     retryLastMessage, editMessage, updateMessageFeedback,
-  } = useAiChat({ persistenceEnabled: Boolean(user) });
+  } = useAiChat({
+    persistenceEnabled: Boolean(user),
+    webSearchEnabled: Boolean(user) && webSearchEnabled,
+  });
   const authenticatedUserId = user?._id || user?.id || null;
   const displayMessages = useMemo(() => bindTurnCitationCards(messages), [messages]);
   const conversationQuestionItems = useMemo(
@@ -155,6 +159,10 @@ export default function ChatPanel({ initiallyOpen = false }) {
   useEffect(() => {
     persistChatTheme(chatTheme);
   }, [chatTheme]);
+
+  useEffect(() => {
+    persistWebSearch(webSearchEnabled);
+  }, [webSearchEnabled]);
 
   useEffect(() => {
     const handleResize = () => {
@@ -258,17 +266,6 @@ export default function ChatPanel({ initiallyOpen = false }) {
   }, [pillExpanded]);
 
   useEffect(() => {
-    if (!showAttachMenu) return;
-    const handleOutside = (e) => {
-      if (attachMenuRef.current && !attachMenuRef.current.contains(e.target)) {
-        setShowAttachMenu(false);
-      }
-    };
-    document.addEventListener("mousedown", handleOutside);
-    return () => document.removeEventListener("mousedown", handleOutside);
-  }, [showAttachMenu]);
-
-  useEffect(() => {
     if (!isOpen) return;
 
     const body = document.body;
@@ -335,11 +332,8 @@ export default function ChatPanel({ initiallyOpen = false }) {
     e.target.value = "";
   };
 
-  const handleKeyDown = (e) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    }
+  const toggleWebSearch = () => {
+    setWebSearchEnabled((enabled) => !enabled);
   };
 
   const handleNewConversation = () => {
@@ -415,66 +409,21 @@ export default function ChatPanel({ initiallyOpen = false }) {
 
   const renderInputArea = () => (
     <div className="relative w-full max-w-3xl mx-auto flex flex-col gap-2">
-      {selectedImage && (
-        <div className="relative w-16 h-16 rounded-lg overflow-hidden border border-gray-300 dark:border-white/20 group shadow-md ml-2">
-          <img src={selectedImage} alt="Upload preview" className="w-full h-full object-cover" />
-          <button aria-label="Xóa ảnh đã chọn"
-            onClick={() => setSelectedImage(null)}
-            className="absolute top-1 right-1 p-0.5 bg-black/60 rounded-full text-white opacity-0 group-hover:opacity-100 transition-opacity"
-          >
-            <X size={12} />
-          </button>
-        </div>
-      )}
-
-      <div className="flex items-end gap-2 bg-gray-100 dark:bg-white/5 rounded-3xl border border-gray-200 dark:border-white/10 px-4 py-3 focus-within:border-emerald-500/40 focus-within:bg-white dark:focus-within:bg-white/10 transition-[border-color,background-color,box-shadow] duration-150 motion-reduce:transition-none shadow-sm">
-        {user && (
-          <>
-            <input
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              ref={fileInputRef}
-              onChange={handleImageUpload}
-              className="hidden"
-            />
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isLoading}
-              title="Đính kèm ảnh"
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-200 hover:text-emerald-500 disabled:opacity-40 dark:text-gray-400 dark:hover:bg-white/10 dark:hover:text-emerald-400"
-            >
-              <Plus size={20} />
-            </button>
-          </>
-        )}
-
-        <textarea
-          ref={inputRef}
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder="Hỏi về tập luyện, dinh dưỡng..."
-          rows={1}
-          disabled={isLoading}
-          className="flex-1 bg-transparent text-base text-gray-900 dark:text-white placeholder-gray-500 resize-none outline-none min-h-[24px] max-h-[200px] leading-relaxed py-1.5 disabled:opacity-50"
-          style={{ fieldSizing: "content" }}
-        />
-        <button
-          onClick={isLoading ? cancelRequest : handleSend}
-          disabled={!isLoading && !input.trim() && !selectedImage}
-          aria-label={isLoading ? "Dừng phản hồi" : "Gửi tin nhắn"}
-          title={isLoading ? "Dừng phản hồi" : "Gửi tin nhắn"}
-          className={`shrink-0 p-2 flex items-center justify-center transition-colors bg-transparent ${
-            isLoading
-              ? "text-red-500 hover:text-red-600"
-              : (input.trim() || selectedImage)
-              ? "text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300"
-              : "text-gray-400 dark:text-gray-600 cursor-not-allowed"
-          }`}
-        >
-          {isLoading ? <Square size={14} /> : <Send size={16} className="ml-1" />}
-        </button>
-      </div>
+      <ChatComposer
+        inputRef={inputRef}
+        value={input}
+        onChange={setInput}
+        onSend={handleSend}
+        onStop={cancelRequest}
+        isLoading={isLoading}
+        selectedImage={selectedImage}
+        onSelectImage={handleImageUpload}
+        onRemoveImage={() => setSelectedImage(null)}
+        canAttach={Boolean(user)}
+        webSearchEnabled={webSearchEnabled}
+        onToggleWebSearch={toggleWebSearch}
+        canUseWebSearch={Boolean(user)}
+      />
       {quotaStatusLine && (
         <p
           className={`px-3 text-xs ${QUOTA_STATUS_TONE_CLASSES[quotaStatusLine.tone]}`}

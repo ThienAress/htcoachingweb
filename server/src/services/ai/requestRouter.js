@@ -646,6 +646,24 @@ export function routeAiRequest(message, { contextualQuery = message } = {}) {
   });
 }
 
+export const WEB_SEARCH_DISABLED_REASON = "web_search_disabled_by_user";
+
+/**
+ * User tắt "Tìm kiếm thông minh": giữ evidence=web_required để không khẳng định từ trí nhớ,
+ * nhưng không gọi web search. webSearch=null (client cũ) giữ nguyên decision.
+ */
+export function applyWebSearchPreference(decision, webSearch) {
+  if (webSearch !== false || !isValidDecision(decision) || !decision.webSearchRequired) {
+    return decision;
+  }
+  return freezeDecision({
+    ...decision,
+    preferredTool: null,
+    maxWebSearchCalls: 0,
+    reasonCodes: Object.freeze([...decision.reasonCodes, WEB_SEARCH_DISABLED_REASON]),
+  });
+}
+
 export function getAllowedToolNamesForRoute(decision) {
   if (!isValidDecision(decision)) return Object.freeze([]);
   if (decision.risk === "disallowed" || decision.evidence === "model_prior") {
@@ -654,7 +672,11 @@ export function getAllowedToolNamesForRoute(decision) {
   if (decision.reasonCodes?.includes("source_backed_kb_hit")) {
     return Object.freeze([]);
   }
-  if (decision.webSearchRequired) return Object.freeze(["search_knowledge"]);
+  if (decision.webSearchRequired) {
+    return decision.maxWebSearchCalls > 0
+      ? Object.freeze(["search_knowledge"])
+      : Object.freeze([]);
+  }
   if (decision.reasonCodes?.includes("workout_creation")) {
     if (
       decision.preferredTool === "calculate_tdee" &&
@@ -719,7 +741,12 @@ export function buildRequestRoutingBlock(
   if (decision.risk === "disallowed") {
     lines.push("- Từ chối ngắn gọn phần yêu cầu không an toàn; không gọi function.");
   } else if (decision.evidence === "web_required") {
-    if (canUseWebSearch) {
+    if (decision.reasonCodes?.includes(WEB_SEARCH_DISABLED_REASON)) {
+      lines.push(
+        "- User đã tắt Tìm kiếm thông minh nên không có web search cho câu này.",
+        "- Không dùng trí nhớ model để khẳng định thông tin cần nguồn mới; đề nghị user bật Tìm kiếm thông minh rồi gửi lại.",
+      );
+    } else if (canUseWebSearch) {
       lines.push(
         "- Yêu cầu này BẮT BUỘC tra cứu bằng search_knowledge trước khi trả lời; gọi web search tối đa đúng 1 lần.",
         "- Chỉ khẳng định những gì nguồn hỗ trợ. Thư viện bài tập không chứng minh thói quen hoặc thành tích của người thật.",

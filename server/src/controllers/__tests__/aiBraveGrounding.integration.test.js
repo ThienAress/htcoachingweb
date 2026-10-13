@@ -422,3 +422,34 @@ describe("Vibi + Brave through owned chat SSE", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 });
+
+describe("Smart search toggle", () => {
+  it("never calls Brave when the user turned smart search off and asks to enable it", async () => {
+    const fetchMock = vi.fn(async (url) => {
+      if (url === "https://vibi.top/v1/chat/completions") {
+        return streamText("Người trưởng thành nên vận động 150 phút mỗi tuần.");
+      }
+      throw new Error("Unexpected egress");
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const { accessToken } = await createTestUser();
+    const response = await withAuth(request(app).post("/api/ai/chat"), accessToken)
+      .send({ message: prompt, webSearch: false });
+    expect(response.status).toBe(200);
+    const frames = parseFrames(response);
+    expect(frames.some((frame) => frame.type === "error")).toBe(false);
+    const text = frames.filter((frame) => frame.type === "text").map((frame) => frame.content).join("");
+    expect(text).toContain("Tìm kiếm thông minh");
+    expect(text).not.toContain("150 phút");
+    expect(fetchMock.mock.calls.map(([url]) => url))
+      .not.toContain("https://api.search.brave.com/res/v1/llm/context");
+  });
+
+  it("rejects a non-boolean smart search flag", async () => {
+    const { accessToken } = await createTestUser();
+    const response = await withAuth(request(app).post("/api/ai/chat"), accessToken)
+      .send({ message: prompt, webSearch: "yes" });
+    expect(response.status).toBe(400);
+    expect(response.body.success).toBe(false);
+  });
+});

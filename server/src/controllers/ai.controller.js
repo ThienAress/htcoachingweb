@@ -32,6 +32,8 @@ import {
   getAllowedToolNamesForRoute,
   getUrgentSafetyResponse,
   routeAiRequest,
+  applyWebSearchPreference,
+  WEB_SEARCH_DISABLED_REASON,
 } from "../services/ai/requestRouter.js";
 import { AI_PROMPT_CONTRACT_VERSION } from "../services/ai/promptContract.js";
 import {
@@ -911,6 +913,7 @@ export const chatStream = async (req, res) => {
     image,
     requestId,
     structuredAction,
+    webSearch,
   } = parsed.value;
   const requestKeyContract = buildConversationRequestKey({
     userId,
@@ -1163,6 +1166,9 @@ export const chatStream = async (req, res) => {
       routingDecision?.webSearchRequired &&
       (!webSearchEvidenceAvailable || webSearchSources.length === 0)
     ) {
+      if (userId && routingDecision.reasonCodes.includes(WEB_SEARCH_DISABLED_REASON)) {
+        return "Câu hỏi này cần thông tin mới nhất từ nguồn bên ngoài. Bạn bật **Tìm kiếm thông minh** ở ô nhập rồi gửi lại để mình tra cứu có nguồn nhé.";
+      }
       return userId
         ? "Mình chưa thể xác minh thông tin này bằng nguồn đáng tin cậy lúc này, nên chưa muốn khẳng định từ trí nhớ. Bạn thử lại sau nhé."
         : "Mình chưa thể xác minh thông tin mới nhất này trong chế độ khách. Bạn đăng nhập để dùng tra cứu có nguồn nhé.";
@@ -1226,9 +1232,10 @@ export const chatStream = async (req, res) => {
       message,
       priorMessages,
     );
-    routingDecision = routeAiRequest(message, {
-      contextualQuery: retrievalQuery,
-    });
+    routingDecision = applyWebSearchPreference(
+      routeAiRequest(message, { contextualQuery: retrievalQuery }),
+      webSearch,
+    );
     const activityFollowupResponse = !structuredAction
       ? activityIntakeFollowup(message, priorMessages, routingDecision)
       : null;
@@ -1489,7 +1496,7 @@ export const chatStream = async (req, res) => {
       routingDecision.risk !== "low" &&
       kbEntryIds.length === 0 &&
       routingDecision.preferredTool === "search_exercises";
-    if (routingDecision.webSearchRequired) {
+    if (routingDecision.webSearchRequired && routingDecision.maxWebSearchCalls > 0) {
       const missingRequiredPublicPersonBinding =
         routingDecision.reasonCodes.includes("public_person_claim") &&
         allowedPublicPersonNames.length === 0;

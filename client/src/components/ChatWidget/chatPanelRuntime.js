@@ -25,6 +25,24 @@ export const persistChatTheme = (theme, storage) => {
   }
 };
 
+export const CHAT_WEB_SEARCH_STORAGE_KEY = "ht_chat_web_search_v1";
+
+export const resolveInitialWebSearch = (storage) => {
+  try {
+    return resolveStorage(storage)?.getItem(CHAT_WEB_SEARCH_STORAGE_KEY) === "on";
+  } catch {
+    return false;
+  }
+};
+
+export const persistWebSearch = (enabled, storage) => {
+  try {
+    resolveStorage(storage)?.setItem(CHAT_WEB_SEARCH_STORAGE_KEY, enabled ? "on" : "off");
+  } catch {
+    // Storage can be unavailable in private browsing; keep the in-memory choice.
+  }
+};
+
 export const getChatVisualViewportBounds = (browser = globalThis.window) => {
   const visualViewport = browser?.visualViewport;
   const layoutHeight = Number(browser?.innerHeight);
