@@ -163,17 +163,17 @@ describe("shared service usage ledger", () => {
   });
 
   it("does not consume an AI request twice when its requestId is replayed", async () => {
-    const policy = getServiceAccessPolicy("ai_chat", "guest");
+    const policy = getServiceAccessPolicy("ai_credits", "guest");
     const guestKey = randomBytes(32).toString("hex");
     const first = await consumeServiceUsage({
-      serviceKey: "ai_chat",
+      serviceKey: "ai_credits",
       tier: "guest",
       policy,
       actor: { kind: "guest", guestKey },
       operationKey: "same-request-id",
     });
     const replay = await consumeServiceUsage({
-      serviceKey: "ai_chat",
+      serviceKey: "ai_credits",
       tier: "guest",
       policy,
       actor: { kind: "guest", guestKey },

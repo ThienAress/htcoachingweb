@@ -33,6 +33,23 @@ user ID, Cloudinary public ID, SePay payload/token hay Netlify hook URL.
 5. Khi scale nhiều instance, thiếu scrape của bất kỳ instance nào làm cost estimate không đầy đủ;
    đánh dấu partial thay vì coi là zero.
 
+## Chi phí AI theo lượt (`AiUsageRecord`)
+
+Mỗi lượt HT Assistant hoặc Meal Scan đã qua quota và có gọi provider sẽ lưu một bản ghi
+`AiUsageRecord` (TTL 90 ngày): loại thao tác (`chat`, `chat_image`, `chat_smart_search`,
+`meal_scan`), tier, số lần gọi và token DeepSeek (kèm cache hit/miss), token Gemini, số request
+Brave context/images và `estimatedCostUsd`. Bản ghi không chứa userId, guestKey, câu hỏi hay câu trả lời.
+
+- Admin xem tổng hợp: `GET /api/admin/service-access-policies/ai-usage?days=7` (1–90 ngày): số lượt,
+  tổng/trung bình/p50/p95/max chi phí theo thao tác và theo tier.
+- Đơn giá mặc định ở `server/src/config/aiPricing.js` (bảng giá công khai). Production đi qua Vibi nên
+  owner đặt env theo hóa đơn thật: `AI_PRICE_DEEPSEEK_INPUT_MISS_PER_M`,
+  `AI_PRICE_DEEPSEEK_INPUT_HIT_PER_M`, `AI_PRICE_DEEPSEEK_OUTPUT_PER_M`, `AI_PRICE_GEMINI_INPUT_PER_M`,
+  `AI_PRICE_GEMINI_OUTPUT_PER_M` (USD/1M token), `AI_PRICE_BRAVE_CONTEXT_PER_REQUEST`,
+  `AI_PRICE_BRAVE_IMAGE_PER_REQUEST` (USD/request).
+- `estimatedCostUsd` là ước tính để định giá credit, không thay hóa đơn provider. Call provider chạy sau
+  khi response đóng (nếu có) không được tính.
+
 ## Privacy và incident response
 
 - Không thêm recipient, actor, model prompt, asset key, bank reference hay URL làm metric label.

@@ -2,6 +2,7 @@ import { prepareExternalKnowledgeQuery } from "../knowledgePrivacy.js";
 import { selectWebEvidence } from "../webEvidence.js";
 import { synthesizeWebEvidence } from "../webGroundingSynthesis.js";
 import { safeLog } from "../../../utils/safeLogger.js";
+import { meterBraveRequest } from "../../../observability/aiUsageMeter.js";
 import { fetchFigureImages } from "./braveImages.adapter.js";
 
 const ENDPOINT = "https://api.search.brave.com/res/v1/llm/context";
@@ -61,6 +62,7 @@ export async function braveSearchKnowledge({ query }, context = {}) {
   let failureStage = null;
   try {
     requested = true;
+    meterBraveRequest("context");
     const response = await fetch(ENDPOINT, {
       method: "POST", redirect: "error", signal,
       headers: { "X-Subscription-Token": key, "Content-Type": "application/json", Accept: "application/json" },

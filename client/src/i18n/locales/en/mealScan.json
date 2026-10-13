@@ -35,6 +35,7 @@
     "remaining": "{{remaining}}/{{limit}} scans remaining",
     "remaining_window": "{{remaining}}/{{limit}} remaining · {{period}}",
     "reset": "Resets {{time}}",
+    "credits": "{{remaining}} AI credits left (shared with HT Assistant)",
     "periods": {
       "lifetime": "one-time trial",
       "rolling_day": "per day",

@@ -3,7 +3,6 @@ import { protect } from "../middlewares/auth.middleware.js";
 import { ensureAiActor } from "../middlewares/aiGuestSession.js";
 import { optionalAiAuth } from "../middlewares/optionalAiAuth.js";
 import { csrfProtection } from "../middlewares/csrf.js";
-import { enforceSharedServiceUsage } from "../middlewares/serviceUsageLedger.js";
 import { aiConfirmationLimiter } from "../middlewares/rateLimit.js";
 import { prepareAiChatRequest } from "../middlewares/aiChatRequest.js";
 import { prepareStagingAiAcceptance, settleStagingAiAcceptanceHandler } from "../middlewares/stagingAiAcceptance.js";
@@ -42,6 +41,9 @@ import {
   confirmAiTool,
 } from "../controllers/aiToolConfirmation.controller.js";
 import { replaceMealItem } from "../controllers/aiMeal.controller.js";
+import { meterAiUsage } from "../middlewares/aiUsageMeter.js";
+import { enforceAiCredits } from "../middlewares/aiCredits.js";
+import { getMyAiCredits } from "../controllers/aiCredits.controller.js";
 
 const router = express.Router();
 
@@ -56,9 +58,11 @@ router.post(
   resolveServiceAccessTierMiddleware,
   aiGuestChatLimiter,
   aiChatLimiter,
-  enforceSharedServiceUsage("ai_chat"),
+  enforceAiCredits("chat"),
+  meterAiUsage("ai_chat"),
   settleStagingAiAcceptanceHandler(chatStream),
 );
+router.get("/credits", optionalAiAuth, getMyAiCredits);
 router.get("/history", protect, getHistory);
 router.delete("/history", protect, csrfProtection, clearHistory);
 

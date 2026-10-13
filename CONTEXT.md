@@ -69,6 +69,12 @@ TDEE, thư viện bài tập và theo dõi tiến trình. Đây là product enti
 với Coaching Customer hoặc Trainer Subscription. Các plan hiển thị tiếng Việt là Nền tảng, Tăng tốc và Toàn diện;
 English locale dùng Essential, Smart và Max.
 
+### AI Credit
+
+Đơn vị hạn mức dùng chung cho HT Assistant và Meal Scan (service key `ai_credits`). Mỗi thao tác trừ số credit theo
+chi phí provider (câu hỏi thường, kèm ảnh, Tìm kiếm thông minh, Meal Scan); ngân sách credit cấp theo tier và tự làm
+mới theo cửa sổ rolling. Không phải tiền trong Wallet và chưa mua được bằng VND.
+
 ## Daily coaching data
 
 ### Today Dashboard

@@ -9,6 +9,12 @@ export const getCommunityFeatureReport = (filters, signal) =>
     signal,
   });
 
+export const getAiUsageReport = (days, signal) =>
+  api.get("/admin/service-access-policies/ai-usage", {
+    params: { days },
+    signal,
+  });
+
 export const downloadCommunityFeatureReportPdf = (filters) =>
   api.get("/admin/service-access-policies/community-features/report.pdf", {
     params: filters,

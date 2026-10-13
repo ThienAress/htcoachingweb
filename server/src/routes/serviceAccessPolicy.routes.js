@@ -2,6 +2,7 @@ import express from "express";
 
 import {
   downloadCommunityFeatureReportPdf,
+  getAiUsageReport,
   getCommunityFeatureReport,
   getServiceAccessPolicies,
 } from "../controllers/serviceAccessPolicy.controller.js";
@@ -21,6 +22,7 @@ router.get(
   requireRoles("admin"),
   getCommunityFeatureReport,
 );
+router.get("/ai-usage", protect, requireRoles("admin"), getAiUsageReport);
 router.get("/", protect, requireRoles("admin"), getServiceAccessPolicies);
 
 export default router;

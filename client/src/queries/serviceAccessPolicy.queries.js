@@ -1,6 +1,7 @@
 import { queryOptions } from "@tanstack/react-query";
 
 import {
+  getAiUsageReport,
   getCommunityFeatureReport,
   getServiceAccessPolicies,
 } from "../services/serviceAccessPolicy.service";
@@ -24,4 +25,13 @@ export const communityFeatureReportQueryOptions = (filters, enabled = true) =>
       ),
     enabled,
     staleTime: 5 * 60 * 1000,
+  });
+
+export const aiUsageReportQueryOptions = (days, enabled = true) =>
+  queryOptions({
+    queryKey: [...adminQueryKeys.serviceAccessPolicies.all(), "ai-usage", days],
+    queryFn: ({ signal }) =>
+      getAiUsageReport(days, signal).then((response) => response.data.data),
+    enabled,
+    staleTime: 60 * 1000,
   });

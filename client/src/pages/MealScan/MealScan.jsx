@@ -67,6 +67,7 @@ export default function MealScan() {
   const [confirmAnalysisOpen, setConfirmAnalysisOpen] = useState(false);
   const [providerDataUseAccepted, setProviderDataUseAccepted] = useState(false);
   const [quota, setQuota] = useState(null);
+  const [credits, setCredits] = useState(null);
   const [scanErrorCode, setScanErrorCode] = useState("");
 
   useEffect(
@@ -230,13 +231,14 @@ export default function MealScan() {
       setStatus("compressing");
       const image = await compressChatImage(file);
       setStatus("analyzing");
-      const { result: data, quota: nextQuota } = await analyzeMeal(
+      const { result: data, quota: nextQuota, credits: nextCredits } = await analyzeMeal(
         image,
         i18n.language,
         declaredIngredients,
         providerDataUseAccepted,
       );
       setQuota(nextQuota);
+      if (nextCredits) setCredits(nextCredits);
       setResult(data);
       setAdjustments(
         Object.fromEntries(
@@ -247,6 +249,8 @@ export default function MealScan() {
     } catch (scanError) {
       const responseQuota = scanError.response?.data?.meta?.quota;
       if (responseQuota) setQuota(responseQuota);
+      const responseCredits = scanError.response?.data?.meta?.credits;
+      if (responseCredits) setCredits(responseCredits);
       const errorCode = scanError.response?.data?.code;
       setScanErrorCode(errorCode || "");
       const errorKey =
@@ -400,6 +404,11 @@ export default function MealScan() {
                     ),
                   )}
                 </div>
+              )}
+              {Number.isSafeInteger(credits?.remaining) && (
+                <p className="mb-3 text-center text-sm text-slate-600" role="status">
+                  {t("quota.credits", { remaining: credits.remaining })}
+                </p>
               )}
               <MealScanUploader
                 user={user}

@@ -11,6 +11,7 @@ import {
 
 import SEO from "../../components/SEO";
 import { serviceAccessPoliciesQueryOptions } from "../../queries/serviceAccessPolicy.queries";
+import AiUsageCostTable from "./service-access-policies/AiUsageCostTable";
 import CommunityFeatureTable from "./service-access-policies/CommunityFeatureTable";
 import EmailNotificationTable from "./service-access-policies/EmailNotificationTable";
 import SystemDependencyTable from "./service-access-policies/SystemDependencyTable";
@@ -184,6 +185,7 @@ export default function ServiceAccessPoliciesPage() {
   const query = useQuery(serviceAccessPoliciesQueryOptions());
   const matrix = query.data;
   const [toolQuotaOpen, setToolQuotaOpen] = useState(true);
+  const [aiUsageOpen, setAiUsageOpen] = useState(false);
   const [trainerBenefitsOpen, setTrainerBenefitsOpen] = useState(true);
   const [communityFeaturesOpen, setCommunityFeaturesOpen] = useState(true);
   const [emailNotificationsOpen, setEmailNotificationsOpen] = useState(true);
@@ -289,6 +291,16 @@ export default function ServiceAccessPoliciesPage() {
             <ToolQuotaTable matrix={matrix} />
           </CollapsibleSection>
         )}
+
+        <CollapsibleSection
+          title="Chi phí AI ước tính"
+          description="Chi phí provider trung bình mỗi lượt HT Assistant và Meal Scan, dùng để định giá credit."
+          open={aiUsageOpen}
+          onToggle={() => setAiUsageOpen((current) => !current)}
+          panelId="ai-usage-panel"
+        >
+          {aiUsageOpen && <AiUsageCostTable />}
+        </CollapsibleSection>
 
         {matrix?.emailNotifications?.items?.length > 0 && (
           <CollapsibleSection

@@ -27,12 +27,12 @@ describe("HT Fitness+ catalog", () => {
     );
     expect(
       plans.map(({ quotas }) =>
-        quotas.aiChat.windows.map(({ key, limit }) => [key, limit]),
+        quotas.aiCredits.windows.map(({ key, limit }) => [key, limit]),
       ),
     ).toEqual([
-      [["burst", 20], ["monthly", 120]],
-      [["burst", 40], ["monthly", 300]],
-      [["burst", 60], ["monthly", 600]],
+      [["burst", 30], ["monthly", 360]],
+      [["burst", 50], ["monthly", 720]],
+      [["burst", 80], ["monthly", 1200]],
     ]);
     expect(
       plans.map(({ quotas }) =>
@@ -48,9 +48,9 @@ describe("HT Fitness+ catalog", () => {
   it("includes quota policy in the checkout catalog fingerprint", () => {
     const policyResolver = (aiLimit) => (serviceKey) => ({
       mode: "quota",
-      limit: serviceKey === "ai_chat" ? aiLimit : 15,
-      period: serviceKey === "ai_chat" ? "rolling_hour" : "rolling_30_days",
-      windowMs: serviceKey === "ai_chat" ? 3_600_000 : 2_592_000_000,
+      limit: serviceKey === "ai_credits" ? aiLimit : 15,
+      period: serviceKey === "ai_credits" ? "rolling_hour" : "rolling_30_days",
+      windowMs: serviceKey === "ai_credits" ? 3_600_000 : 2_592_000_000,
     });
 
     expect(

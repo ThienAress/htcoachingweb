@@ -32,6 +32,8 @@ import {
   getAllowedToolNamesForRoute,
   getUrgentSafetyResponse,
   routeAiRequest,
+  applyWebSearchPreference,
+  WEB_SEARCH_DISABLED_REASON,
 } from "../services/ai/requestRouter.js";
 import { AI_PROMPT_CONTRACT_VERSION } from "../services/ai/promptContract.js";
 import {
@@ -383,14 +385,29 @@ const blockStagingAcceptanceSettlement = (req) => {
   if (req.stagingAiAcceptance) req.stagingAiAcceptanceSettlementBlocked = true;
 };
 
+const AI_QUOTA_SERVICE_KEY = "ai_credits";
+
 const refundAiQuota = async (req, stage) => {
-  if (!req.refundServiceUsage) return serializeRequestQuota(req, "ai_chat");
+  if (!req.refundServiceUsage) return serializeRequestQuota(req, AI_QUOTA_SERVICE_KEY);
   try {
     return await req.refundServiceUsage();
   } catch (error) {
     safeLog.error("ai.quota_refund_failed", error, { stage });
     blockStagingAcceptanceSettlement(req);
-    return serializeRequestQuota(req, "ai_chat");
+    return serializeRequestQuota(req, AI_QUOTA_SERVICE_KEY);
+  }
+};
+
+// Bật Tìm kiếm thông minh nhưng lượt này không tra web: trả lại phụ phí và báo quota mới.
+const refundUnusedSmartSearch = async (req, res) => {
+  if (!req.refundAiCreditSurcharge) return;
+  try {
+    const quota = await req.refundAiCreditSurcharge();
+    if (quota && !res.writableEnded) {
+      res.write(`data: ${JSON.stringify({ type: "quota", quota })}\n\n`);
+    }
+  } catch (error) {
+    safeLog.error("ai.smart_search_refund_failed", error);
   }
 };
 
@@ -911,6 +928,7 @@ export const chatStream = async (req, res) => {
     image,
     requestId,
     structuredAction,
+    webSearch,
   } = parsed.value;
   const requestKeyContract = buildConversationRequestKey({
     userId,
@@ -1032,7 +1050,7 @@ export const chatStream = async (req, res) => {
       res.setHeader("X-Accel-Buffering", "no");
       res.setHeader("X-AI-Conversation-Id", String(conversation._id));
       res.flushHeaders();
-      const quota = serializeRequestQuota(req, "ai_chat");
+      const quota = serializeRequestQuota(req, AI_QUOTA_SERVICE_KEY);
       if (quota) {
         res.write(`data: ${JSON.stringify({ type: "quota", quota })}\n\n`);
       }
@@ -1067,7 +1085,7 @@ export const chatStream = async (req, res) => {
   res.setHeader("X-Accel-Buffering", "no");
   res.setHeader("X-AI-Conversation-Id", String(conversation._id));
   res.flushHeaders();
-  const quota = serializeRequestQuota(req, "ai_chat");
+  const quota = serializeRequestQuota(req, AI_QUOTA_SERVICE_KEY);
   if (quota) {
     res.write(`data: ${JSON.stringify({ type: "quota", quota })}\n\n`);
   }
@@ -1163,6 +1181,9 @@ export const chatStream = async (req, res) => {
       routingDecision?.webSearchRequired &&
       (!webSearchEvidenceAvailable || webSearchSources.length === 0)
     ) {
+      if (userId && routingDecision.reasonCodes.includes(WEB_SEARCH_DISABLED_REASON)) {
+        return "Câu hỏi này cần thông tin mới nhất từ nguồn bên ngoài. Bạn bật **Tìm kiếm thông minh** ở ô nhập rồi gửi lại để mình tra cứu có nguồn nhé.";
+      }
       return userId
         ? "Mình chưa thể xác minh thông tin này bằng nguồn đáng tin cậy lúc này, nên chưa muốn khẳng định từ trí nhớ. Bạn thử lại sau nhé."
         : "Mình chưa thể xác minh thông tin mới nhất này trong chế độ khách. Bạn đăng nhập để dùng tra cứu có nguồn nhé.";
@@ -1226,9 +1247,10 @@ export const chatStream = async (req, res) => {
       message,
       priorMessages,
     );
-    routingDecision = routeAiRequest(message, {
-      contextualQuery: retrievalQuery,
-    });
+    routingDecision = applyWebSearchPreference(
+      routeAiRequest(message, { contextualQuery: retrievalQuery }),
+      webSearch,
+    );
     const activityFollowupResponse = !structuredAction
       ? activityIntakeFollowup(message, priorMessages, routingDecision)
       : null;
@@ -1489,7 +1511,7 @@ export const chatStream = async (req, res) => {
       routingDecision.risk !== "low" &&
       kbEntryIds.length === 0 &&
       routingDecision.preferredTool === "search_exercises";
-    if (routingDecision.webSearchRequired) {
+    if (routingDecision.webSearchRequired && routingDecision.maxWebSearchCalls > 0) {
       const missingRequiredPublicPersonBinding =
         routingDecision.reasonCodes.includes("public_person_claim") &&
         allowedPublicPersonNames.length === 0;
@@ -1553,11 +1575,14 @@ export const chatStream = async (req, res) => {
         });
       }
     }
+    const webSearchAllowed =
+      Boolean(userId) &&
+      externalKnowledgeQuery.eligible &&
+      routingDecision.maxWebSearchCalls > 0;
+    if (webSearchAllowed) req.aiWebSearchAllowed = true;
+    else await refundUnusedSmartSearch(req, res);
     systemPrompt += buildRequestRoutingBlock(routingDecision, {
-      canUseWebSearch:
-        Boolean(userId) &&
-        externalKnowledgeQuery.eligible &&
-        routingDecision.maxWebSearchCalls > 0,
+      canUseWebSearch: webSearchAllowed,
     });
 
     const llmMessages = [

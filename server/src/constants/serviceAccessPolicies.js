@@ -13,7 +13,16 @@ export const SERVICE_ACCESS_TIERS = Object.freeze({
   FITNESS_PLUS_MAX: "fitness_plus_max",
 });
 
-export const SERVICE_ACCESS_POLICY_VERSION = "2026-08-28.1";
+export const SERVICE_ACCESS_POLICY_VERSION = "2026-10-13.1";
+
+// Credit trừ cho mỗi thao tác AI, dùng chung pool "ai_credits".
+// Tìm kiếm thông minh = câu hỏi thường + phụ phí, phụ phí được hoàn nếu lượt đó không tra web.
+export const AI_CREDIT_COSTS = Object.freeze({
+  chat: 1,
+  chat_image: 2,
+  smart_search_surcharge: 4,
+  meal_scan: 2,
+});
 
 const quotaWindow = ({ key, limit, period, periodLabel, windowMs = null }) => ({
   key,
@@ -173,14 +182,15 @@ export const SERVICE_ACCESS_POLICY_REGISTRY = deepFreeze([
     },
   },
   {
-    serviceKey: "ai_chat",
-    label: "AI Chat",
+    serviceKey: "ai_credits",
+    label: "Credit AI",
     category: "AI hỗ trợ",
-    description: "HT Assistant theo ngữ cảnh trang và dữ liệu được phép truy cập.",
+    description:
+      "Credit dùng chung cho HT Assistant và Meal Scan: câu hỏi 1, kèm ảnh 2, Tìm kiếm thông minh 5, Meal Scan 2.",
     policies: {
       guest: quota({
         limit: 5,
-        unitLabel: "tin",
+        unitLabel: "credit",
         period: "rolling_24_hours",
         periodLabel: "24 giờ",
         scope: "ip",
@@ -189,73 +199,73 @@ export const SERVICE_ACCESS_POLICY_REGISTRY = deepFreeze([
         windowMs: DAY_MS,
       }),
       user: quota({
-        unitLabel: "tin",
+        unitLabel: "credit",
         scope: "user",
         scopeLabel: "user",
         enforcement: "shared_usage_ledger",
         windows: [
-          quotaWindow({ key: "daily", limit: 15, period: "rolling_24_hours", periodLabel: "24 giờ", windowMs: DAY_MS }),
-          quotaWindow({ key: "monthly", limit: 60, period: "rolling_30_days", periodLabel: "30 ngày", windowMs: THIRTY_DAYS_MS }),
+          quotaWindow({ key: "daily", limit: 20, period: "rolling_24_hours", periodLabel: "24 giờ", windowMs: DAY_MS }),
+          quotaWindow({ key: "monthly", limit: 80, period: "rolling_30_days", periodLabel: "30 ngày", windowMs: THIRTY_DAYS_MS }),
         ],
       }),
       coaching_customer: quota({
-        unitLabel: "tin",
-        scope: "user",
-        scopeLabel: "user",
-        enforcement: "shared_usage_ledger",
-        windows: [
-          quotaWindow({ key: "burst", limit: 30, period: "rolling_hour", periodLabel: "giờ", windowMs: HOUR_MS }),
-          quotaWindow({ key: "monthly", limit: 600, period: "rolling_30_days", periodLabel: "30 ngày", windowMs: THIRTY_DAYS_MS }),
-        ],
-      }),
-      trainer: quota({
-        unitLabel: "tin",
-        scope: "user",
-        scopeLabel: "user",
-        enforcement: "shared_usage_ledger",
-        windows: [
-          quotaWindow({ key: "burst", limit: 30, period: "rolling_hour", periodLabel: "giờ", windowMs: HOUR_MS }),
-          quotaWindow({ key: "monthly", limit: 1200, period: "rolling_30_days", periodLabel: "30 ngày", windowMs: THIRTY_DAYS_MS }),
-        ],
-      }),
-      admin: quota({
-        unitLabel: "tin",
-        scope: "user",
-        scopeLabel: "user",
-        enforcement: "shared_usage_ledger",
-        windows: [
-          quotaWindow({ key: "burst", limit: 30, period: "rolling_hour", periodLabel: "giờ", windowMs: HOUR_MS }),
-          quotaWindow({ key: "monthly", limit: 1200, period: "rolling_30_days", periodLabel: "30 ngày", windowMs: THIRTY_DAYS_MS }),
-        ],
-      }),
-      fitness_plus_essential: quota({
-        unitLabel: "tin",
-        scope: "user",
-        scopeLabel: "user",
-        enforcement: "shared_usage_ledger",
-        windows: [
-          quotaWindow({ key: "burst", limit: 20, period: "rolling_hour", periodLabel: "giờ", windowMs: HOUR_MS }),
-          quotaWindow({ key: "monthly", limit: 120, period: "rolling_30_days", periodLabel: "30 ngày", windowMs: THIRTY_DAYS_MS }),
-        ],
-      }),
-      fitness_plus_smart: quota({
-        unitLabel: "tin",
+        unitLabel: "credit",
         scope: "user",
         scopeLabel: "user",
         enforcement: "shared_usage_ledger",
         windows: [
           quotaWindow({ key: "burst", limit: 40, period: "rolling_hour", periodLabel: "giờ", windowMs: HOUR_MS }),
-          quotaWindow({ key: "monthly", limit: 300, period: "rolling_30_days", periodLabel: "30 ngày", windowMs: THIRTY_DAYS_MS }),
+          quotaWindow({ key: "monthly", limit: 1200, period: "rolling_30_days", periodLabel: "30 ngày", windowMs: THIRTY_DAYS_MS }),
         ],
       }),
-      fitness_plus_max: quota({
-        unitLabel: "tin",
+      trainer: quota({
+        unitLabel: "credit",
         scope: "user",
         scopeLabel: "user",
         enforcement: "shared_usage_ledger",
         windows: [
-          quotaWindow({ key: "burst", limit: 60, period: "rolling_hour", periodLabel: "giờ", windowMs: HOUR_MS }),
-          quotaWindow({ key: "monthly", limit: 600, period: "rolling_30_days", periodLabel: "30 ngày", windowMs: THIRTY_DAYS_MS }),
+          quotaWindow({ key: "burst", limit: 40, period: "rolling_hour", periodLabel: "giờ", windowMs: HOUR_MS }),
+          quotaWindow({ key: "monthly", limit: 2400, period: "rolling_30_days", periodLabel: "30 ngày", windowMs: THIRTY_DAYS_MS }),
+        ],
+      }),
+      admin: quota({
+        unitLabel: "credit",
+        scope: "user",
+        scopeLabel: "user",
+        enforcement: "shared_usage_ledger",
+        windows: [
+          quotaWindow({ key: "burst", limit: 40, period: "rolling_hour", periodLabel: "giờ", windowMs: HOUR_MS }),
+          quotaWindow({ key: "monthly", limit: 2400, period: "rolling_30_days", periodLabel: "30 ngày", windowMs: THIRTY_DAYS_MS }),
+        ],
+      }),
+      fitness_plus_essential: quota({
+        unitLabel: "credit",
+        scope: "user",
+        scopeLabel: "user",
+        enforcement: "shared_usage_ledger",
+        windows: [
+          quotaWindow({ key: "burst", limit: 30, period: "rolling_hour", periodLabel: "giờ", windowMs: HOUR_MS }),
+          quotaWindow({ key: "monthly", limit: 360, period: "rolling_30_days", periodLabel: "30 ngày", windowMs: THIRTY_DAYS_MS }),
+        ],
+      }),
+      fitness_plus_smart: quota({
+        unitLabel: "credit",
+        scope: "user",
+        scopeLabel: "user",
+        enforcement: "shared_usage_ledger",
+        windows: [
+          quotaWindow({ key: "burst", limit: 50, period: "rolling_hour", periodLabel: "giờ", windowMs: HOUR_MS }),
+          quotaWindow({ key: "monthly", limit: 720, period: "rolling_30_days", periodLabel: "30 ngày", windowMs: THIRTY_DAYS_MS }),
+        ],
+      }),
+      fitness_plus_max: quota({
+        unitLabel: "credit",
+        scope: "user",
+        scopeLabel: "user",
+        enforcement: "shared_usage_ledger",
+        windows: [
+          quotaWindow({ key: "burst", limit: 80, period: "rolling_hour", periodLabel: "giờ", windowMs: HOUR_MS }),
+          quotaWindow({ key: "monthly", limit: 1200, period: "rolling_30_days", periodLabel: "30 ngày", windowMs: THIRTY_DAYS_MS }),
         ],
       }),
     },

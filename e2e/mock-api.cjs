@@ -1465,6 +1465,25 @@ const handleApi = (req, res, path) => {
   if (path === "/api/ai/conversations" || path === "/api/ai/history") {
     return sendJson(res, { success: true, data: [] });
   }
+  if (path === "/api/ai/credits" && req.method === "GET") {
+    return sendJson(res, {
+      success: true,
+      data: {
+        quota: {
+          serviceKey: "ai_credits",
+          tier: "user",
+          limit: 20,
+          remaining: 18,
+          resetAt: null,
+          windows: [
+            { key: "daily", limit: 20, remaining: 18, resetAt: null, periodLabel: "24 giờ" },
+            { key: "monthly", limit: 80, remaining: 78, resetAt: null, periodLabel: "30 ngày" },
+          ],
+        },
+        costs: { chat: 1, chat_image: 2, smart_search_surcharge: 4, meal_scan: 2 },
+      },
+    });
+  }
   if (
     path === "/api/ai/conversations/conversation-e2e" &&
     req.method === "GET"

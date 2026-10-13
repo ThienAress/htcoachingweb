@@ -1,3 +1,5 @@
+import { meterBraveRequest } from "../../../observability/aiUsageMeter.js";
+
 const ENDPOINT = "https://api.search.brave.com/res/v1/images/search";
 const THUMBNAIL_HOST = "imgs.search.brave.com";
 const MAX_RESPONSE_BYTES = 256 * 1024;
@@ -72,6 +74,7 @@ async function searchOneSubject(canonical, limit, { signal, fetchImpl }) {
   url.searchParams.set("count", "12");
   url.searchParams.set("safesearch", "strict");
   url.searchParams.set("spellcheck", "false");
+  meterBraveRequest("image");
   const response = await fetchImpl(url, {
     method: "GET",
     redirect: "error",

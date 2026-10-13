@@ -57,7 +57,10 @@ export const analyzeMealScan = async (req, res) => {
     return res.json({
       success: true,
       data: result,
-      meta: { quota: serializeRequestQuota(req, "meal_scan") },
+      meta: {
+        quota: serializeRequestQuota(req, "meal_scan"),
+        ...(req.aiCreditQuota ? { credits: req.aiCreditQuota } : {}),
+      },
     });
   } catch (error) {
     const status = Number(error?.status) || 500;
@@ -78,7 +81,9 @@ export const analyzeMealScan = async (req, res) => {
       message:
         errorMessageFor(code, req.mealScanImage?.locale) ||
         "Không thể phân tích ảnh lúc này. Vui lòng thử lại.",
-      ...(quota ? { meta: { quota } } : {}),
+      ...(quota
+        ? { meta: { quota, ...(req.aiCreditQuota ? { credits: req.aiCreditQuota } : {}) } }
+        : {}),
     });
   }
 };
