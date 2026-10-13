@@ -21,7 +21,7 @@ import { serializeRequestQuota } from "../../services/serviceAccessPolicy.servic
 import FitnessSubscription from "../../models/FitnessSubscription.js";
 import { resolveServiceAccessTierMiddleware } from "../resolveServiceAccessTier.js";
 import { enforceSharedServiceUsage } from "../serviceUsageLedger.js";
-import { enforceAiCredits } from "../aiCredits.js";
+import { enforceAiCredits, enforceMealScanTrial } from "../aiCredits.js";
 
 let app;
 
@@ -63,7 +63,7 @@ beforeAll(async () => {
     },
     resolveServiceAccessTierMiddleware,
     mealScanLimiter,
-    enforceSharedServiceUsage("meal_scan"),
+    enforceMealScanTrial,
     (req, res) => res.json({ quota: serializeRequestQuota(req, "meal_scan") }),
   );
   app.post(
@@ -180,12 +180,13 @@ describe("commercial quota ledger and Fitness+ quota", () => {
     for (let attempt = 1; attempt <= 6; attempt += 1) {
       meal.push((await request(app).post(`/fitness-meal/${user._id}`)).status);
     }
-    expect(meal).toEqual([...Array(5).fill(200), 429]);
+    // Meal Scan của gói không còn cổng lượt riêng: chỉ bị giới hạn bởi pool credit.
+    expect(meal).toEqual(Array(6).fill(200));
   });
 
   it.each([
-    { tier: "fitness_plus_smart", aiLimit: 50, mealLimit: 10 },
-  ])("enforces $tier boundaries from the registry", async ({ tier, aiLimit, mealLimit }) => {
+    { tier: "fitness_plus_smart", aiLimit: 50 },
+  ])("enforces $tier boundaries from the registry", async ({ tier, aiLimit }) => {
     const userId = new mongoose.Types.ObjectId();
     const ai = [];
     for (let attempt = 1; attempt <= aiLimit + 1; attempt += 1) {
@@ -194,9 +195,9 @@ describe("commercial quota ledger and Fitness+ quota", () => {
     expect(ai).toEqual([...Array(aiLimit).fill(200), 429]);
 
     const meal = [];
-    for (let attempt = 1; attempt <= mealLimit + 1; attempt += 1) {
+    for (let attempt = 1; attempt <= 12; attempt += 1) {
       meal.push((await request(app).post(`/fitness-meal/${userId}`).set("X-Test-Tier", tier)).status);
     }
-    expect(meal).toEqual([...Array(mealLimit).fill(200), 429]);
+    expect(meal).toEqual(Array(12).fill(200));
   });
 });

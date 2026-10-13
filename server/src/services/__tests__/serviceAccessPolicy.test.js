@@ -136,13 +136,13 @@ describe("service access policy registry", () => {
       },
     }).toEqual({
       mealScan: {
-        guest: [["lifetime", 1]],
-        user: [["lifetime", 1]],
-        coaching: [["daily", 10], ["monthly", 300]],
-        trainer: [["daily", 20], ["monthly", 600]],
-        essential: [["daily", 5], ["monthly", 120]],
-        smart: [["daily", 10], ["monthly", 210]],
-        max: [["daily", 15], ["monthly", 300]],
+        guest: [["lifetime", 2]],
+        user: [["lifetime", 2]],
+        coaching: [],
+        trainer: [],
+        essential: [],
+        smart: [],
+        max: [],
       },
       aiCredits: {
         guest: [["rolling_24_hours", 5]],
@@ -317,9 +317,10 @@ describe("resolveServiceAccessTier", () => {
       "meal_scan",
     );
 
-    expect({ ai: ai.tier, meal: meal.tier }).toEqual({
+    expect({ ai: ai.tier, mealMode: meal.policy.mode }).toEqual({
       ai: SERVICE_ACCESS_TIERS.FITNESS_PLUS_MAX,
-      meal: SERVICE_ACCESS_TIERS.FITNESS_PLUS_MAX,
+      // Meal Scan của người đã có gói chỉ trừ credit, không còn cổng lượt riêng.
+      mealMode: "unlimited",
     });
   });
 
