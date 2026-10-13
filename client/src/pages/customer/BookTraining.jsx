@@ -84,7 +84,7 @@ const BookingModal = ({ isOpen, onClose, onSubmit, initialData, isPending, train
             <CalendarDays className="w-5 h-5 text-primary" />
             {initialData ? t("modal.edit_title") : t("modal.create_title")}
           </h3>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-700 text-gray-400 hover:text-white transition-colors">
+          <button aria-label={t("common:a11y.close")} onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-700 text-gray-400 hover:text-white transition-colors">
             <X className="w-5 h-5" />
           </button>
         </div>

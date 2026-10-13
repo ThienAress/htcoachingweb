@@ -42,7 +42,7 @@
       "kind": "should_not_trigger",
       "prompt": "Review working-tree diff hiện tại theo standards, spec và security; không sửa code.",
       "expectedEvidence": [
-        "Định tuyến sang code-review và giữ thao tác read-only thay vì mở workflow impact mutation."
+        "Định tuyến sang /code-review và giữ thao tác read-only thay vì mở workflow impact mutation."
       ]
     },
     {

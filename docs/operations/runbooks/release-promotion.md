@@ -2,7 +2,7 @@
 
 Scope: CI → staging deploy identity → live acceptance → production approval →
 post-deploy observation. Canonical safety policy:
-`.agents/rules/workflow/release-promotion.md`.
+`.claude/rules/release-promotion.md`.
 
 ## 1. Required protected configuration
 

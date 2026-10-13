@@ -201,10 +201,10 @@ export default function FitnessPlusPlans({ billingCycle, onBillingCycleChange })
                   <li className="flex items-start gap-2 border-b border-gray-700 pb-1">
                     <span className="text-primary">{"\u2713"}</span>
                     <span>
-                      {t("pricing.fitness_plus.ai_chat_quota", {
-                        burst: getQuotaWindowLimit(plan.quotas.aiChat, "burst"),
+                      {t("pricing.fitness_plus.ai_credit_quota", {
+                        burst: getQuotaWindowLimit(plan.quotas.aiCredits, "burst"),
                         monthly: getQuotaWindowLimit(
-                          plan.quotas.aiChat,
+                          plan.quotas.aiCredits,
                           "monthly",
                         ),
                       })}

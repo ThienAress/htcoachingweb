@@ -168,7 +168,7 @@ const RecipeEditModal = ({ recipe, onClose }) => {
           <h2 className="text-xl font-bold text-gray-900">
             {isCreate ? "Tạo công thức" : "Cập nhật món ăn"}
           </h2>
-          <button
+          <button aria-label="Đóng"
             onClick={onClose}
             disabled={isSaving}
             className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition"

@@ -295,14 +295,14 @@ const Trainers = ({ previewData, imagesByKey, legacyImage }) => {
           </h2>
           {trainersList.length > 1 && (
             <div className="hidden md:flex gap-3">
-              <button
+              <button aria-label={t("common:a11y.previous")}
                 onClick={handlePrev}
                 disabled={isAnimating}
                 className="w-12 h-12 flex items-center justify-center rounded-full bg-slate-100 hover:bg-primary hover:text-white transition-colors text-slate-600 disabled:opacity-50"
               >
                 <ChevronLeft size={24} />
               </button>
-              <button
+              <button aria-label={t("common:a11y.next")}
                 onClick={handleNext}
                 disabled={isAnimating}
                 className="w-12 h-12 flex items-center justify-center rounded-full bg-slate-100 hover:bg-primary hover:text-white transition-colors text-slate-600 disabled:opacity-50"

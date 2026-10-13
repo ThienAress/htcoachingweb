@@ -37,9 +37,9 @@ const safeReportPath = (value) => {
 };
 const localTargetLabel = (target) => {
   const normalized = target.replaceAll("\\", "/");
-  const skill = normalized.match(/^\.agents\/skills\/([^/]+)\/SKILL\.md$/);
-  if (skill) return `$${skill[1]}`;
-  const rule = normalized.match(/^\.agents\/rules\/(?:[^/]+\/)*([^/]+)\.md$/);
+  const skill = normalized.match(/^\.(?:claude|agents)\/skills\/([^/]+)\/SKILL\.md$/);
+  if (skill) return `/${skill[1]}`;
+  const rule = normalized.match(/^\.(?:claude|agents)\/rules\/(?:[^/]+\/)*([^/]+)\.md$/);
   if (rule) return `${rule[1]} rule`;
   return path.basename(normalized).replace(/\.(?:mjs|md)$/i, "");
 };

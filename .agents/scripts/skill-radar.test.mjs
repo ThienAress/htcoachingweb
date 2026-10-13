@@ -19,7 +19,7 @@ const baseEntry = {
   skillsShUrl: "https://www.skills.sh/example/skills/example-skill",
   domain: "testing",
   summary: "Example upstream skill",
-  localTargets: [".agents/skills/qa/SKILL.md"],
+  localTargets: [".claude/skills/qa/SKILL.md"],
   trustTier: "expert",
   lifecycle: "active",
   reviewIntervalDays: 30,

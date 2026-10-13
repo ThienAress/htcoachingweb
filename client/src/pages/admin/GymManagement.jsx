@@ -139,10 +139,10 @@ const GymManagement = () => {
                   </td>
                   <td className="p-4 text-right">
                     <div className="flex items-center justify-end gap-2">
-                      <button onClick={() => openModal(gym)} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition">
+                      <button aria-label="Sửa phòng tập" onClick={() => openModal(gym)} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition">
                         <Pencil size={18} />
                       </button>
-                      <button onClick={() => handleDelete(gym._id)} className="p-1.5 text-red-600 hover:bg-red-50 rounded transition">
+                      <button aria-label="Xóa phòng tập" onClick={() => handleDelete(gym._id)} className="p-1.5 text-red-600 hover:bg-red-50 rounded transition">
                         <Trash2 size={18} />
                       </button>
                     </div>

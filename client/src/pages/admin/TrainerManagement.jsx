@@ -570,7 +570,7 @@ export default function TrainerManagement() {
                   </button>
                 </div>
               </div>
-              <button
+              <button aria-label="Đóng"
                 onClick={() => { setIsModalOpen(false); setIsPreviewOpen(false); }}
                 className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 self-start"
               >
@@ -711,7 +711,7 @@ export default function TrainerManagement() {
                               placeholder="Nhập tên chuyên môn..."
                               className="flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                             />
-                            <button
+                            <button aria-label="Xóa chuyên môn"
                               type="button"
                               onClick={() => setForm({ ...form, specialties: form.specialties.filter((_, i) => i !== index) })}
                               className="rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-500 transition-colors"

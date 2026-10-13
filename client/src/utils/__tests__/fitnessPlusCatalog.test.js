@@ -18,7 +18,7 @@ const catalogResponse = {
         billingCycles: ["month", "year"],
         features: ["core_tools"],
         quotas: {
-          aiChat: { limit: 20, windows: [{ key: "burst", limit: 20 }, { key: "monthly", limit: 120 }] },
+          aiCredits: { limit: 30, windows: [{ key: "burst", limit: 30 }, { key: "monthly", limit: 360 }] },
           mealScan: { limit: 5, windows: [{ key: "daily", limit: 5 }, { key: "monthly", limit: 120 }] },
         },
       },
@@ -32,7 +32,7 @@ const catalogResponse = {
         billingCycles: ["month", "year"],
         features: ["core_tools"],
         quotas: {
-          aiChat: { limit: 40, windows: [{ key: "burst", limit: 40 }, { key: "monthly", limit: 300 }] },
+          aiCredits: { limit: 50, windows: [{ key: "burst", limit: 50 }, { key: "monthly", limit: 720 }] },
           mealScan: { limit: 10, windows: [{ key: "daily", limit: 10 }, { key: "monthly", limit: 210 }] },
         },
       },
@@ -46,7 +46,7 @@ const catalogResponse = {
         billingCycles: ["month", "year"],
         features: ["core_tools"],
         quotas: {
-          aiChat: { limit: 60, windows: [{ key: "burst", limit: 60 }, { key: "monthly", limit: 600 }] },
+          aiCredits: { limit: 80, windows: [{ key: "burst", limit: 80 }, { key: "monthly", limit: 1200 }] },
           mealScan: { limit: 15, windows: [{ key: "daily", limit: 15 }, { key: "monthly", limit: 300 }] },
         },
       },
@@ -95,7 +95,7 @@ describe("HT Fitness+ catalog adapter", () => {
 
   it("fails closed when a commercial quota window is missing", () => {
     const response = structuredClone(catalogResponse);
-    response.data.data[0].quotas.aiChat.windows.pop();
+    response.data.data[0].quotas.aiCredits.windows.pop();
 
     expect(() => normalizeFitnessPlusCatalogResponse(response)).toThrow(
       "HT Fitness+ catalog response is incomplete",

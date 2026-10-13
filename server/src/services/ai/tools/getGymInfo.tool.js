@@ -1,6 +1,7 @@
 // Get Gym Info Tool — Query Gym model (read-only, public)
 
 import Gym from "../../../models/Gym.js";
+import { escapeRegex } from "../../../utils/escapeRegex.js";
 
 /**
  * Lấy thông tin phòng tập mà HLV HTCOACHING đang dạy
@@ -13,7 +14,7 @@ export async function getGymInfo(params) {
 
     const query = { status: "active" };
     if (district) {
-      query.district = { $regex: district, $options: "i" };
+      query.district = { $regex: escapeRegex(district), $options: "i" };
     }
 
     const gyms = await Gym.find(query)

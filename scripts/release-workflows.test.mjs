@@ -411,13 +411,8 @@ test("production promotion and observation workflows never run write acceptance"
   assert.match(source, /--mode=post-deploy/);
 });
 
-test("pre-deploy and ship point to the canonical promotion policy", async () => {
-  const [preDeploy, ship] = await Promise.all([
-    read(".agents/skills/pre-deploy/SKILL.md"),
-    read(".agents/skills/ship/SKILL.md"),
-  ]);
-  for (const skill of [preDeploy, ship]) {
-    assert.match(skill, /\.agents\/rules\/workflow\/release-promotion\.md/);
-    assert.match(skill, /docs\/operations\/runbooks\/release-promotion\.md/);
-  }
+test("release skill points to the canonical promotion policy", async () => {
+  const skill = await read(".claude/skills/release/SKILL.md");
+  assert.match(skill, /\.claude\/rules\/release-promotion\.md/);
+  assert.match(skill, /docs\/operations\/runbooks\/release-promotion\.md/);
 });

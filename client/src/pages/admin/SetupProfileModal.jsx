@@ -317,7 +317,7 @@ export default function SetupProfileModal({ trainers, initialTrainerId, onClose 
               </button>
             </div>
           </div>
-          <button
+          <button aria-label="Đóng"
             onClick={onClose}
             className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 self-start md:self-center"
           >
@@ -351,7 +351,7 @@ export default function SetupProfileModal({ trainers, initialTrainerId, onClose 
                           <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, index)} className="hidden" />
                         </label>
                         {index > 0 && (
-                          <button type="button" onClick={() => removeImage(index)} className="rounded-lg bg-red-500/80 p-2 text-white hover:bg-red-600 transition-colors backdrop-blur-sm">
+                          <button aria-label="Xóa ảnh" type="button" onClick={() => removeImage(index)} className="rounded-lg bg-red-500/80 p-2 text-white hover:bg-red-600 transition-colors backdrop-blur-sm">
                             <Trash2 size={16} />
                           </button>
                         )}
@@ -424,7 +424,7 @@ export default function SetupProfileModal({ trainers, initialTrainerId, onClose 
                         placeholder="Nhập thành tích..."
                         className="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-medium focus:border-primary focus:bg-white focus:outline-none focus:ring-1 focus:ring-primary"
                       />
-                      <button
+                      <button aria-label="Xóa thành tích"
                         type="button"
                         onClick={() => {
                           setForm({ ...form, achievements: form.achievements.filter((_, i) => i !== index) });
@@ -466,7 +466,7 @@ export default function SetupProfileModal({ trainers, initialTrainerId, onClose 
                         placeholder="VD: 500+ Khách hàng"
                         className="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-medium focus:border-primary focus:bg-white focus:outline-none focus:ring-1 focus:ring-primary"
                       />
-                      <button
+                      <button aria-label="Xóa chỉ số"
                         type="button"
                         onClick={() => setForm({ ...form, stats: form.stats.filter((_, i) => i !== index) })}
                         className="rounded-xl bg-red-50 p-2.5 text-red-500 hover:bg-red-100 transition-colors"
@@ -538,7 +538,7 @@ export default function SetupProfileModal({ trainers, initialTrainerId, onClose 
                       className="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-medium focus:border-primary focus:bg-white focus:outline-none focus:ring-1 focus:ring-primary"
                     />
                     {form.videoIntro && (
-                      <button
+                      <button aria-label="Xóa video giới thiệu"
                         type="button"
                         onClick={() => setForm({ ...form, videoIntro: '' })}
                         className="rounded-xl bg-red-50 p-2.5 text-red-500 hover:bg-red-100 transition-colors self-start"
@@ -571,7 +571,7 @@ export default function SetupProfileModal({ trainers, initialTrainerId, onClose 
                 <div className="mt-6 space-y-4">
                   {form.methodologies.map((item, index) => (
                     <div key={item._id} className="relative rounded-xl border border-slate-200 bg-slate-50 p-4 pt-8">
-                      <button
+                      <button aria-label="Xóa phương pháp"
                         type="button"
                         onClick={() => setForm({ ...form, methodologies: form.methodologies.filter((_, i) => i !== index) })}
                         className="absolute right-3 top-3 text-red-500 hover:text-red-600 transition-colors bg-white rounded-lg p-1.5 shadow-sm border border-slate-200"
@@ -622,7 +622,7 @@ export default function SetupProfileModal({ trainers, initialTrainerId, onClose 
                 <div className="mt-6 space-y-4">
                   {form.faqs.map((item, index) => (
                     <div key={item._id} className="relative rounded-xl border border-slate-200 bg-slate-50 p-4 pt-8">
-                      <button
+                      <button aria-label="Xóa câu hỏi"
                         type="button"
                         onClick={() => setForm({ ...form, faqs: form.faqs.filter((_, i) => i !== index) })}
                         className="absolute right-3 top-3 text-red-500 hover:text-red-600 transition-colors bg-white rounded-lg p-1.5 shadow-sm border border-slate-200"
@@ -688,7 +688,7 @@ export default function SetupProfileModal({ trainers, initialTrainerId, onClose 
                         placeholder={item.placeholder}
                         className="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-medium focus:border-primary focus:bg-white focus:outline-none focus:ring-1 focus:ring-primary"
                       />
-                      <button type="button" onClick={() => setForm({ ...form, socialLinks: { ...form.socialLinks, [item.key]: "" } })} className="rounded-xl bg-red-50 p-2.5 text-red-500 hover:bg-red-100 transition-colors">
+                      <button aria-label="Xóa liên kết mạng xã hội" type="button" onClick={() => setForm({ ...form, socialLinks: { ...form.socialLinks, [item.key]: "" } })} className="rounded-xl bg-red-50 p-2.5 text-red-500 hover:bg-red-100 transition-colors">
                         <Trash2 size={18} />
                       </button>
                     </div>

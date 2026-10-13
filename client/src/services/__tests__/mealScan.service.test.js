@@ -30,7 +30,7 @@ describe("mealScan service", () => {
         [{ name: "Dầu ô liu", grams: 15 }],
         true,
       ),
-    ).resolves.toEqual({ result, quota });
+    ).resolves.toEqual({ result, quota, credits: null });
     expect(api.post).toHaveBeenCalledWith("/meal-scans/analyze", {
       image: "data:image/webp;base64,YQ==",
       locale: "vi",

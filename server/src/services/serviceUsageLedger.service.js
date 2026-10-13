@@ -19,7 +19,7 @@ import {
 } from "./serviceUsageLedgerRuntime.js";
 
 const fallbackGuestSecret = randomBytes(32);
-const SERVICE_KEYS = new Set(["ai_chat", "meal_scan", "practice_email"]);
+const SERVICE_KEYS = new Set(["ai_chat", "ai_credits", "meal_scan", "practice_email"]);
 const HASH_PATTERN = /^[a-f0-9]{64}$/;
 
 const digest = (value) =>

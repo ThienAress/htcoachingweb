@@ -25,5 +25,6 @@ export const analyzeMeal = async (
   return {
     result: response.data.data,
     quota: response.data.meta?.quota || null,
+    credits: response.data.meta?.credits || null,
   };
 };

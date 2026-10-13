@@ -159,12 +159,12 @@ describe("trainer subscription lifecycle", () => {
     expect(subscription.planCode).toBe("free");
     expect(subscription.amount).toBe(0);
     expect(subscription).toMatchObject({
-      entitlementPolicyVersion: "2026-08-28.1",
+      entitlementPolicyVersion: "2026-10-13.1",
       entitlementPolicySnapshot: {
-        ai_chat: expect.objectContaining({
+        ai_credits: expect.objectContaining({
           windows: [
-            expect.objectContaining({ key: "burst", limit: 30 }),
-            expect.objectContaining({ key: "monthly", limit: 1200 }),
+            expect.objectContaining({ key: "burst", limit: 40 }),
+            expect.objectContaining({ key: "monthly", limit: 2400 }),
           ],
         }),
       },

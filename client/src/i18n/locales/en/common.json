@@ -69,5 +69,22 @@
   "language": {
     "vi": "Tiếng Việt",
     "en": "English"
+  },
+  "a11y": {
+    "close": "Close",
+    "cancel_edit": "Cancel editing",
+    "back": "Back",
+    "previous": "Previous",
+    "next": "Next",
+    "previous_page": "Previous page",
+    "next_page": "Next page",
+    "previous_day": "Previous day",
+    "next_day": "Next day",
+    "clear_search": "Clear search",
+    "remove_item": "Remove this item",
+    "remove_exercise": "Remove exercise",
+    "remove_section": "Remove section",
+    "remove_muscle_group": "Remove muscle group",
+    "delete_workout_plan": "Delete workout plan"
   }
 }

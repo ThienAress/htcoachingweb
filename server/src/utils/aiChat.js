@@ -226,6 +226,12 @@ export function parseChatRequest(body = {}) {
   const structuredAction = parseStructuredAction(body.structuredAction);
   if (structuredAction.error) return { error: structuredAction.error };
 
+  // null = client cũ chưa gửi lựa chọn, giữ định tuyến web tự động.
+  if (body.webSearch != null && typeof body.webSearch !== "boolean") {
+    return { error: "Tùy chọn tìm kiếm không hợp lệ" };
+  }
+  const webSearch = typeof body.webSearch === "boolean" ? body.webSearch : null;
+
   const context = {};
   for (const [key, maxLength] of [
     ["page", 300],
@@ -252,6 +258,7 @@ export function parseChatRequest(body = {}) {
       context,
       image,
       structuredAction: structuredAction.value,
+      webSearch,
     },
   };
 }

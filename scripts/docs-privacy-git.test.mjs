@@ -43,6 +43,115 @@ const credentialAssignment = (
 ) => `${name}${separator}${quote}${value}${quote}`;
 const bearerCredential = (value) => ["Bearer", value].join(" ");
 
+for (const directory of [".ci-verify", ".stage-clone"]) {
+  test(`secret scanner excludes the known root local clone ${directory}`, async () => {
+    await withFixtureDirectory(async (fixtureDirectory) => {
+      assert.equal(spawnSync("git", ["init", "--quiet"], {
+        cwd: fixtureDirectory,
+      }).status, 0);
+      await writeFile(
+        path.join(fixtureDirectory, ".gitignore"),
+        await readFile(new URL("../.gitignore", import.meta.url), "utf8"),
+      );
+      const cloneDirectory = path.join(fixtureDirectory, directory);
+      await mkdir(cloneDirectory);
+      assert.equal(spawnSync("git", ["init", "--quiet"], {
+        cwd: cloneDirectory,
+      }).status, 0);
+      await writeFile(path.join(cloneDirectory, "candidate.js"), "export default null;\n");
+      const scriptPath = fileURLToPath(new URL("./check-secrets.mjs", import.meta.url));
+
+      const result = spawnSync(process.execPath, [scriptPath], {
+        cwd: fixtureDirectory,
+        encoding: "utf8",
+      });
+
+      assert.deepEqual(
+        { status: result.status, passed: /Secret scan passed/.test(result.stdout) },
+        { status: 0, passed: true },
+      );
+    });
+  });
+}
+
+for (const directory of [".ci-verify", ".stage-clone"]) {
+  for (const scenario of ["nested source", "similar name", "tracked file"]) {
+    test(`local clone exclusion preserves secret detection for ${directory} ${scenario}`, async () => {
+      await withFixtureDirectory(async (fixtureDirectory) => {
+        assert.equal(spawnSync("git", ["init", "--quiet"], {
+          cwd: fixtureDirectory,
+        }).status, 0);
+        await writeFile(
+          path.join(fixtureDirectory, ".gitignore"),
+          await readFile(new URL("../.gitignore", import.meta.url), "utf8"),
+        );
+        const relative = scenario === "nested source"
+          ? `client/${directory}/candidate.js`
+          : scenario === "similar name"
+            ? `${directory}-candidate/candidate.js`
+            : `${directory}/candidate.js`;
+        const candidatePath = path.join(fixtureDirectory, relative);
+        const credential = ["sk", "proj", "Q".repeat(24)].join("-");
+        await mkdir(path.dirname(candidatePath), { recursive: true });
+        await writeFile(candidatePath, `export default "${credential}";\n`);
+        if (scenario === "tracked file") {
+          assert.equal(spawnSync("git", ["add", "--force", "--", relative], {
+            cwd: fixtureDirectory,
+          }).status, 0);
+          await writeFile(candidatePath, "export default null;\n");
+        }
+        const scriptPath = fileURLToPath(new URL("./check-secrets.mjs", import.meta.url));
+
+        const result = spawnSync(process.execPath, [scriptPath], {
+          cwd: fixtureDirectory,
+          encoding: "utf8",
+        });
+
+        assert.deepEqual(
+          {
+            status: result.status,
+            detected: /openai-key/.test(result.stderr),
+            leaked: `${result.stdout}${result.stderr}`.includes(credential),
+          },
+          { status: 1, detected: true, leaked: false },
+        );
+      });
+    });
+  }
+}
+
+test("local clone exclusions keep unknown nested repositories blocked", async () => {
+  await withFixtureDirectory(async (fixtureDirectory) => {
+    assert.equal(spawnSync("git", ["init", "--quiet"], {
+      cwd: fixtureDirectory,
+    }).status, 0);
+    await writeFile(
+      path.join(fixtureDirectory, ".gitignore"),
+      await readFile(new URL("../.gitignore", import.meta.url), "utf8"),
+    );
+    const cloneDirectory = path.join(fixtureDirectory, "unknown-clone");
+    await mkdir(cloneDirectory);
+    assert.equal(spawnSync("git", ["init", "--quiet"], {
+      cwd: cloneDirectory,
+    }).status, 0);
+    await writeFile(path.join(cloneDirectory, "candidate.js"), "export default null;\n");
+    const scriptPath = fileURLToPath(new URL("./check-secrets.mjs", import.meta.url));
+
+    const result = spawnSync(process.execPath, [scriptPath], {
+      cwd: fixtureDirectory,
+      encoding: "utf8",
+    });
+
+    assert.deepEqual(
+      {
+        status: result.status,
+        blocked: /non-canonical repository path/.test(result.stderr),
+      },
+      { status: 1, blocked: true },
+    );
+  });
+});
+
 test("default discovery includes untracked candidate documents in governed directories", async () => {
   await withFixtureDirectory(async (fixtureDirectory) => {
     spawnSync("git", ["init", "--quiet"], { cwd: fixtureDirectory });

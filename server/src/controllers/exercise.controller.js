@@ -13,6 +13,7 @@ import {
 import { destroyCloudinaryAsset } from "../utils/cloudinaryUpload.js";
 import { safeLog } from "../utils/safeLogger.js";
 import { scheduleNetlifyBuild } from "../utils/triggerBuild.js";
+import { errorHandler } from "../middlewares/errorHandler.js";
 
 const COMPLETE_TECHNICAL_DIFFICULTY_QUERY = {
   $and: TECHNICAL_DIFFICULTY_CRITERIA.map((criterion) => ({
@@ -114,8 +115,7 @@ export const getExercises = async (req, res) => {
       },
     });
   } catch (err) {
-    safeLog.error("exercise.list_failed", err);
-    res.status(500).json({ success: false, message: err.message });
+    return errorHandler(err, req, res);
   }
 };
 
@@ -130,7 +130,7 @@ export const getExerciseById = async (req, res) => {
     }
     res.json({ success: true, data: serializeExercise(exercise) });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    return errorHandler(err, req, res);
   }
 };
 
@@ -167,8 +167,7 @@ export const createExercise = async (req, res) => {
     scheduleNetlifyBuild("exercise_created");
     res.status(201).json({ success: true, data: serializeExercise(exercise) });
   } catch (err) {
-    safeLog.error("exercise.create_failed", err);
-    res.status(500).json({ success: false, message: err.message });
+    return errorHandler(err, req, res);
   }
 };
 
@@ -223,7 +222,7 @@ export const createManyExercises = async (req, res) => {
       message: `Thêm thành công ${results.success.length} / ${exercises.length} bài tập`,
     });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    return errorHandler(err, req, res);
   }
 };
 
@@ -299,7 +298,7 @@ export const updateExercise = async (req, res) => {
     }
     res.json({ success: true, data: serializeExercise(exercise) });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    return errorHandler(err, req, res);
   }
 };
 
@@ -336,6 +335,6 @@ export const deleteExercise = async (req, res) => {
     scheduleNetlifyBuild("exercise_deleted");
     res.json({ success: true, message: "Xóa thành công" });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    return errorHandler(err, req, res);
   }
 };

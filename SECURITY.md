@@ -1,8 +1,8 @@
 # Security context — HTCOACHINGWEB
 
-File này cung cấp threat model và security invariants cho review thủ công, Codex và Codex Security.
-Policy thực thi canonical nằm tại `.agents/rules/security/security.md`; build/test commands nằm trong
-`AGENTS.md` và `.agents/skills/qa/SKILL.md`.
+File này cung cấp threat model và security invariants cho review thủ công, Claude Code và scan bảo mật bên ngoài.
+Policy thực thi canonical nằm tại `.claude/rules/security.md`; build/test commands nằm trong
+`CLAUDE.md` và `.claude/skills/qa/SKILL.md`.
 
 ## System overview
 
@@ -78,7 +78,7 @@ thành confirmed finding.
 
 - Không report mixed quote style, file lớn/validation file đã biết hoặc backup file là security issue nếu
   không có exploit path cụ thể.
-- Một số CSP/cross-origin/OAuth URL patterns là intentional theo `.agents/skills/known-issues/SKILL.md`;
+- Một số CSP/cross-origin/OAuth URL patterns là intentional theo `.claude/rules/known-issues.md`;
   phải xác minh code và consumer trước khi đề xuất thay đổi.
 - Không coi secret scan, dependency audit hoặc Codex Security output là proof duy nhất; finding vẫn phải vet.
 
@@ -94,11 +94,10 @@ Security audit phải ghi:
 
 ## Scan và release policy
 
-- Routine changes dùng local/CI gates; không tự chạy paid Codex Security.
+- Routine changes dùng local/CI gates (secret scan, dependency audit, data boundary, test).
 - Auth/payment/wallet, release lớn hoặc trust boundary mới bắt đầu bằng diff/working-tree/path scan nhỏ.
-- Full/deep scan cần explicit scope, cost acknowledgement và user authority; không chạy tự động trong CI.
-- Dùng wrapper/runbook tại `docs/operations/runbooks/codex-security-scan.md`.
-- `--max-cost` chỉ là estimate guard; request đang chạy có thể vượt giá trị đó.
+- Scan bên ngoài có trả phí chỉ chạy khi có explicit scope, cost acknowledgement và user authority;
+  không chạy tự động trong CI. Wrapper Codex Security cũ đã gỡ ngày 2026-10-13.
 
 ## Verification commands
 

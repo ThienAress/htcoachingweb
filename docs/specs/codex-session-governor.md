@@ -1,5 +1,9 @@
 # Spec: Session Governor cho Codex trong HTCOACHINGWEB
 
+> **Đã ngừng (2026-10-13).** Project chuyển hẳn sang Claude Code; skill `codex-session-governor`, rule
+> `session-governance` và footer telemetry đã bị gỡ. Cấu hình hiện hành nằm ở `CLAUDE.md` và `.claude/`.
+> Giữ file này làm hồ sơ lịch sử.
+
 ## Scope
 
 Yêu cầu ngày 2026-09-09: footer sau mỗi lượt trả lời cuối trong project, đo

@@ -30,7 +30,23 @@ mạnh nhất theo từng service; mua thêm entitlement không được làm qu
 | Dịch vụ | Guest | User thường | Khách coaching | HLV | Admin | HT Fitness+ Nền tảng | HT Fitness+ Tăng tốc | HT Fitness+ Toàn diện |
 |---|---|---|---|---|---|---|---|---|
 | Meal Scan | 1 lượt / lifetime / trình duyệt | 1 lượt / lifetime / tài khoản | 10 lượt/ngày + 300 lượt/30 ngày | 20 lượt/ngày + 600 lượt/30 ngày | 20 lượt/ngày + 600 lượt/30 ngày | 5 lượt/ngày + 120 lượt/30 ngày | 10 lượt/ngày + 210 lượt/30 ngày | 15 lượt/ngày + 300 lượt/30 ngày |
-| AI Chat | 5 tin/24 giờ / IP | 15 tin/24 giờ + 60 tin/30 ngày | 30 tin/giờ + 600 tin/30 ngày | 30 tin/giờ + 1.200 tin/30 ngày | 30 tin/giờ + 1.200 tin/30 ngày | 20 tin/giờ + 120 tin/30 ngày | 40 tin/giờ + 300 tin/30 ngày | 60 tin/giờ + 600 tin/30 ngày |
+| Credit AI (`ai_credits`) | 5 credit/24 giờ / IP | 20 credit/24 giờ + 80 credit/30 ngày | 40 credit/giờ + 1.200 credit/30 ngày | 40 credit/giờ + 2.400 credit/30 ngày | 40 credit/giờ + 2.400 credit/30 ngày | 30 credit/giờ + 360 credit/30 ngày | 50 credit/giờ + 720 credit/30 ngày | 80 credit/giờ + 1.200 credit/30 ngày |
+
+### Credit AI (từ policy `2026-10-13.1`)
+
+HT Assistant và Meal Scan trừ vào một pool credit chung `ai_credits`. Giá mỗi thao tác nằm ở `AI_CREDIT_COSTS`
+trong registry: câu hỏi thường 1, câu hỏi kèm ảnh 2, Tìm kiếm thông minh thêm phụ phí 4 (tổng 5), Meal Scan 2.
+
+- Phụ phí tìm kiếm được trừ riêng theo operation `requestId:web`. Nếu lượt đó không được phép tra web (không cần
+  nguồn mới, privacy chặn, trả lời cố định, lỗi sớm) thì server hoàn phụ phí và gửi SSE `quota` mới.
+- Không đủ credit cho phụ phí thì từ chối 429 `AI_CREDITS_INSUFFICIENT_SMART_SEARCH` và hoàn phần cơ bản.
+- Meal Scan vẫn giữ hạn mức lượt ở bảng trên làm cổng dùng thử (user thường 1 lượt lifetime) và trừ thêm credit cho
+  tài khoản đăng nhập. Guest Meal Scan chỉ dùng cổng lượt theo cookie, không trừ credit.
+- Ngân sách credit quy đổi từ quota cũ theo công thức tin chat × 1 + lượt Meal Scan × 2 để không ai bị giảm quyền lợi
+  30 ngày. Snapshot quyền lợi cũ chỉ có `ai_chat` nên runtime dùng registry hiện tại cho `ai_credits`.
+- Chi phí provider thực tế mỗi lượt được đo bằng `AiUsageRecord` (xem runbook provider usage monitoring) để điều
+  chỉnh giá credit; đổi giá hoặc ngân sách phải bump policy version.
+- `GET /api/ai/credits` (optional auth, chỉ đọc) trả `{ quota, costs }` cho badge credit trong panel chat.
 | Meal Plan | 1 preview / session | 1 lượt / lifetime | Không giới hạn | Không giới hạn | Không giới hạn | Không giới hạn | Không giới hạn | Không giới hạn |
 | TDEE | Không giới hạn | Không giới hạn | Không giới hạn | Không giới hạn | Không giới hạn | Không giới hạn | Không giới hạn | Không giới hạn |
 | Trung tâm thực hành | Không truy cập | Không truy cập | Không truy cập | 2 email/24 giờ | 10 email/24 giờ | Không truy cập | Không truy cập | Không truy cập |
@@ -67,7 +83,7 @@ Document cũ chưa có snapshot fallback về registry hiện tại; rollout nà
   `remaining`, `resetAt` và mảng `windows[]` (`key`, `limit`, `remaining`, `resetAt`, `periodLabel`). Lifetime window có
   `resetAt: null`.
 - AI Chat gửi cùng quota metadata bằng SSE event; lỗi 429 trả metadata trong JSON để client vẫn cập nhật được.
-- Client chỉ hiển thị quota sau khi đã nhận metadata server-authoritative; không tự suy đoán số lượt còn lại. Badge quota nằm cạnh tên `HT Assistant`, chuyển trạng thái cảnh báo khi còn 1-2 lượt hoặc đã hết; thời điểm làm mới vẫn hiển thị dưới ô nhập.
+- Client chỉ hiển thị quota sau khi đã nhận metadata server-authoritative; không tự suy đoán số credit còn lại. Badge credit "✦ N" nằm góc trên bên phải panel chat (N là số còn lại nhỏ nhất giữa các cửa sổ), chuyển trạng thái cảnh báo khi còn ≤ 5 hoặc đã hết; bấm vào mở chi tiết từng cửa sổ và bảng giá thao tác; thời điểm làm mới vẫn hiển thị dưới ô nhập.
 - HT Assistant chỉ hỗ trợ fitness, tập luyện, dinh dưỡng, phục hồi, sức khỏe mang tính giáo dục và dịch vụ HTCOACHING. Tên/chủ thể mơ hồ được hỏi lại một câu; yêu cầu rõ ràng ngoài phạm vi bị từ chối ngắn, được nhắc là vẫn tính hạn mức và chuyển hướng tới câu hỏi phù hợp. Model không tự nêu số quota AI Chat chính xác.
 - Saved Meal Plan là dữ liệu cá nhân của tài khoản đã đăng nhập: create/revise/archive phụ thuộc auth, CSRF, ownership, feature flag, canonical Food, idempotency và version conflict; không phụ thuộc Order còn buổi hoặc đã có HLV. `trainerIdAtCreation` chỉ là metadata nullable khi có phân công hiện tại.
 

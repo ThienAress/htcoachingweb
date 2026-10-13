@@ -219,7 +219,7 @@ const TrainerCheckinHistory = () => {
                     </span>
                   </td>
                   <td className="px-4 py-3">
-                    <button
+                    <button aria-label="Sửa check-in"
                       onClick={() => handleEdit(c)}
                       className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg"
                     >
@@ -257,7 +257,7 @@ const TrainerCheckinHistory = () => {
                 <h3 className="font-semibold text-slate-800">{c.name}</h3>
                 <p className="text-sm text-slate-500">{c.package}</p>
               </div>
-              <button
+              <button aria-label="Sửa check-in"
                 onClick={() => handleEdit(c)}
                 className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg"
               >
@@ -362,7 +362,7 @@ const TrainerCheckinHistory = () => {
                 <Edit className="w-5 h-5 text-indigo-600" />
                 Sửa thông tin check-in
               </h2>
-              <button
+              <button aria-label="Đóng"
                 onClick={() => setShowModal(false)}
                 className="p-1 hover:bg-slate-100 rounded-lg"
               >

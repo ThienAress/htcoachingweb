@@ -601,11 +601,11 @@ const BlogManagement = () => {
       {/* Pagination */}
       {totalPages > 1 && (
         <div className="mt-4 flex items-center justify-center gap-2">
-          <button disabled={page <= 1} onClick={() => setPage((p) => p - 1)} className="rounded-lg border border-slate-200 p-2 text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-40">
+          <button aria-label="Trang trước" disabled={page <= 1} onClick={() => setPage((p) => p - 1)} className="rounded-lg border border-slate-200 p-2 text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-40">
             <ChevronLeft className="h-4 w-4" />
           </button>
           <span className="text-sm text-slate-600">Trang {page} / {totalPages}</span>
-          <button disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)} className="rounded-lg border border-slate-200 p-2 text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-40">
+          <button aria-label="Trang sau" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)} className="rounded-lg border border-slate-200 p-2 text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-40">
             <ChevronRight className="h-4 w-4" />
           </button>
         </div>

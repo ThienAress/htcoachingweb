@@ -3,6 +3,12 @@ import Cookies from "js-cookie";
 
 const API_URL = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? "http://localhost:5000/api" : "");
 
+// Số credit AI còn lại của user hoặc khách hiện tại
+export const getAiCredits = async (signal) => {
+  const res = await api.get("/ai/credits", { signal });
+  return res.data;
+};
+
 // Lấy lịch sử chat (conversation gần nhất — backward compat)
 export const getAiHistory = async () => {
   const res = await api.get("/ai/history");

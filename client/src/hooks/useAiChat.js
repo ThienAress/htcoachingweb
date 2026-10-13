@@ -118,8 +118,15 @@ function mergePersistedMessageIdentity(persistedMessages, localMessages) {
   return merged;
 }
 
-export default function useAiChat({ persistenceEnabled = true } = {}) {
+export default function useAiChat({
+  persistenceEnabled = true,
+  webSearchEnabled = false,
+} = {}) {
   const registryRef = useRef(null);
+  const webSearchEnabledRef = useRef(webSearchEnabled);
+  useEffect(() => {
+    webSearchEnabledRef.current = webSearchEnabled;
+  }, [webSearchEnabled]);
   if (!registryRef.current) {
     registryRef.current = createAiChatSessionRegistry();
   }
@@ -609,6 +616,7 @@ export default function useAiChat({ persistenceEnabled = true } = {}) {
             conversationId: targetConversationId,
             requestId,
             context: requestContext,
+            webSearch: webSearchEnabledRef.current,
             ...(structuredAction && { structuredAction }),
             ...(options.retryOfMessageId && {
               retryOfMessageId: options.retryOfMessageId,

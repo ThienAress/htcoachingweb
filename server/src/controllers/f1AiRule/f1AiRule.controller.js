@@ -1,4 +1,22 @@
 import F1AiRule from "../../models/F1AiRule.js";
+import { errorHandler } from "../../middlewares/errorHandler.js";
+
+// Chỉ nhận field nghiệp vụ; createdBy/updatedBy/_id/timestamps do server quản lý.
+const RULE_WRITABLE_FIELDS = [
+  "code",
+  "name",
+  "category",
+  "description",
+  "priority",
+  "isActive",
+  "conditions",
+  "recommendation",
+];
+
+const pickRuleFields = (body = {}) =>
+  Object.fromEntries(
+    RULE_WRITABLE_FIELDS.filter((field) => body[field] !== undefined).map((field) => [field, body[field]]),
+  );
 
 // @desc    Get all AI rules
 // @route   GET /api/f1-ai-rules
@@ -8,7 +26,7 @@ export const getAiRules = async (req, res) => {
     const rules = await F1AiRule.find().sort({ category: 1, priority: -1, createdAt: -1 });
     res.json({ success: true, data: rules });
   } catch (error) {
-    res.status(500).json({ success: false, message: "Lỗi khi lấy danh sách rule", error: error.message });
+    return errorHandler(error, req, res);
   }
 };
 
@@ -23,7 +41,7 @@ export const getAiRuleById = async (req, res) => {
     }
     res.json({ success: true, data: rule });
   } catch (error) {
-    res.status(500).json({ success: false, message: "Lỗi khi lấy rule", error: error.message });
+    return errorHandler(error, req, res);
   }
 };
 
@@ -38,15 +56,15 @@ export const createAiRule = async (req, res) => {
     }
 
     const rule = new F1AiRule({
-      ...req.body,
-      createdBy: req.user._id,
-      updatedBy: req.user._id,
+      ...pickRuleFields(req.body),
+      createdBy: req.user.id,
+      updatedBy: req.user.id,
     });
     
     const createdRule = await rule.save();
     res.status(201).json({ success: true, data: createdRule });
   } catch (error) {
-    res.status(500).json({ success: false, message: "Lỗi khi tạo rule", error: error.message });
+    return errorHandler(error, req, res);
   }
 };
 
@@ -67,14 +85,13 @@ export const updateAiRule = async (req, res) => {
       }
     }
 
-    // Merge updates
-    Object.assign(rule, req.body);
-    rule.updatedBy = req.user._id;
+    Object.assign(rule, pickRuleFields(req.body));
+    rule.updatedBy = req.user.id;
 
     const updatedRule = await rule.save();
     res.json({ success: true, data: updatedRule });
   } catch (error) {
-    res.status(500).json({ success: false, message: "Lỗi khi cập nhật rule", error: error.message });
+    return errorHandler(error, req, res);
   }
 };
 
@@ -91,6 +108,6 @@ export const deleteAiRule = async (req, res) => {
     await F1AiRule.deleteOne({ _id: req.params.id });
     res.json({ success: true, message: "Đã xoá rule" });
   } catch (error) {
-    res.status(500).json({ success: false, message: "Lỗi khi xoá rule", error: error.message });
+    return errorHandler(error, req, res);
   }
 };

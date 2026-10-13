@@ -117,10 +117,10 @@ const lookupUsda = async (gtin, options) => {
   if (!apiKey) return { attempted: false, reference: null };
 
   const payload = await fetchJson(
-    `${FDC_SEARCH_URL}?api_key=${encodeURIComponent(apiKey)}`,
+    FDC_SEARCH_URL,
     {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "X-Api-Key": apiKey },
       body: JSON.stringify({
         query: gtin,
         dataType: ["Branded"],

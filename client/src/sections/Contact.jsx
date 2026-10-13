@@ -279,7 +279,7 @@ const Contact = () => {
             </div>
 
             <div>
-              <input
+              <input autoComplete="email"
                 type="email"
                 placeholder={t("contact.email_placeholder")}
                 className="w-full px-4 py-3 rounded-md border border-gray-700 bg-[#1a1a1a] text-white focus:border-primary focus:ring-1  transition-all hover:scale-[1.01] "
@@ -294,7 +294,7 @@ const Contact = () => {
             </div>
 
             <div>
-              <input
+              <input autoComplete="tel"
                 type="tel"
                 placeholder={t("contact.phone_placeholder")}
                 maxLength="10"

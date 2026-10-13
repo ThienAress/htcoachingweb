@@ -46,5 +46,11 @@ server/.private/
 # Local Cloudflare Worker deployment config
 workers/production-watchdog/wrangler.toml
 
-# Local Codex worktrees are never release artifacts
+# Local agent worktrees and per-user Claude settings are never release artifacts
 .codex-worktrees/
+.claude/worktrees/
+.claude/settings.local.json
+
+# Local verification clones are separate repositories, not release source
+/.ci-verify/
+/.stage-clone/
