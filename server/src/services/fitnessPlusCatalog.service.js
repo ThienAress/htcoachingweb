@@ -25,7 +25,6 @@ const cloneQuotaPolicy = (policy) => ({
 
 const getPlanQuotas = (planCode, resolvePolicy = getServiceAccessPolicy) => ({
   aiCredits: cloneQuotaPolicy(resolvePolicy("ai_credits", planCode)),
-  mealScan: cloneQuotaPolicy(resolvePolicy("meal_scan", planCode)),
 });
 
 const clonePlan = (plan, resolvePolicy = getServiceAccessPolicy) => ({
