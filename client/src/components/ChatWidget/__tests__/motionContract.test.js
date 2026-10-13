@@ -8,7 +8,7 @@ describe("ChatWidget motion contract", () => {
   it("does not use transition-all in the ChatWidget pilot", () => {
     const sources = [
       "../ChatPanel.jsx",
-      "../ChatWidget.jsx",
+      "../DeferredChatPanel.jsx",
       "../ChatBubble.jsx",
       "../ConversationNavigator.jsx",
       "../cards/TdeeFormCard.jsx",

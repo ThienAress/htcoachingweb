@@ -205,10 +205,10 @@ export const fetchMealScanEstimate = async ({
 
   try {
     const providerUrl =
-      `${GEMINI_BASE_URL}/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`;
+      `${GEMINI_BASE_URL}/models/${model}:generateContent`;
     const requestOptions = {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
       signal: controller.signal,
       body: JSON.stringify({
         contents: [{

@@ -94,11 +94,10 @@ Security audit phải ghi:
 
 ## Scan và release policy
 
-- Routine changes dùng local/CI gates; không tự chạy paid Codex Security.
+- Routine changes dùng local/CI gates (secret scan, dependency audit, data boundary, test).
 - Auth/payment/wallet, release lớn hoặc trust boundary mới bắt đầu bằng diff/working-tree/path scan nhỏ.
-- Full/deep scan cần explicit scope, cost acknowledgement và user authority; không chạy tự động trong CI.
-- Dùng wrapper/runbook tại `docs/operations/runbooks/codex-security-scan.md`.
-- `--max-cost` chỉ là estimate guard; request đang chạy có thể vượt giá trị đó.
+- Scan bên ngoài có trả phí chỉ chạy khi có explicit scope, cost acknowledgement và user authority;
+  không chạy tự động trong CI. Wrapper Codex Security cũ đã gỡ ngày 2026-10-13.
 
 ## Verification commands
 

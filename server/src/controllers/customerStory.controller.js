@@ -1,5 +1,6 @@
 import path from "path";
 import CustomerStory from "../models/CustomerStory.js";
+import { escapeRegex } from "../utils/escapeRegex.js";
 import Trainer from "../models/Trainer.js";
 import { uploadBufferToCloudinary } from "../utils/cloudinaryUpload.js";
 import { triggerNetlifyBuild } from "../utils/triggerBuild.js";
@@ -195,9 +196,9 @@ export const getAdminCustomerStories = async (req, res) => {
     }
     if (search) {
       query.$or = [
-        { name: { $regex: search, $options: "i" } },
-        { slug: { $regex: search, $options: "i" } },
-        { job: { $regex: search, $options: "i" } },
+        { name: { $regex: escapeRegex(search), $options: "i" } },
+        { slug: { $regex: escapeRegex(search), $options: "i" } },
+        { job: { $regex: escapeRegex(search), $options: "i" } },
       ];
     }
 

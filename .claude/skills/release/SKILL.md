@@ -45,8 +45,8 @@ npm run security:audit --prefix client
 npm run security:audit --prefix server
 ```
 
-Không có lỗ hổng dependency mức `high`/`critical`. Scan trả phí (`npm run security:codex`) chỉ khi user cấp scope
-và chi phí; ghi đúng `SKIP`/`PREFLIGHT ONLY`/`COMPLETE`/`PARTIAL`, preflight không phải PASS.
+Không có lỗ hổng dependency mức `high`/`critical`. Scan bên ngoài có trả phí chỉ khi user cấp scope và chi phí;
+ghi đúng `SKIP`/`COMPLETE`/`PARTIAL`, kết quả thô chưa vet không phải PASS.
 
 ## Gate 3 — AI (skip nếu diff không chạm `server/src/services/ai/`, `client/src/components/ChatWidget/`, `client/src/hooks/useAiChat.js`)
 

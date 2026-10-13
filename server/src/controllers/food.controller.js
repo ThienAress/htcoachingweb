@@ -5,11 +5,20 @@ import {
   hasKnownFoodSource,
   normalizeFoodSource,
 } from "../services/foodProvenance.js";
-import { safeLog } from "../utils/safeLogger.js";
 import FoodPriceObservation from "../models/FoodPriceObservation.js";
 import { normalizeFoodAllergenProfile } from "../services/foodAllergen.service.js";
 import { getFoodMarketPriceMap } from "../services/foodPrice.service.js";
 import { FOOD_OPTIONAL_NUTRIENTS } from "../constants/foodNutrition.js";
+import { escapeRegex } from "../utils/escapeRegex.js";
+import { errorHandler } from "../middlewares/errorHandler.js";
+
+const FOOD_PAGE_DEFAULT_LIMIT = 50;
+const FOOD_PAGE_MAX_LIMIT = 100;
+
+const parsePositiveInt = (value, fallback) => {
+  const parsed = Number.parseInt(value, 10);
+  return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : fallback;
+};
 
 const optionalNutritionFields = (payload) =>
   Object.fromEntries(
@@ -59,7 +68,7 @@ const metadataErrorResponse = (res, error) =>
 // Lấy danh sách thực phẩm (có phân trang, tìm kiếm) – ai cũng xem được
 export const getFoods = async (req, res) => {
   try {
-    const search = req.query.search || "";
+    const search = escapeRegex(req.query.search);
 
     let query = {};
     if (search) {
@@ -83,8 +92,11 @@ export const getFoods = async (req, res) => {
         },
       });
     } else {
-      const page = parseInt(req.query.page) || 1;
-      const limit = parseInt(req.query.limit) || 50;
+      const page = parsePositiveInt(req.query.page, 1);
+      const limit = Math.min(
+        parsePositiveInt(req.query.limit, FOOD_PAGE_DEFAULT_LIMIT),
+        FOOD_PAGE_MAX_LIMIT,
+      );
       const skip = (page - 1) * limit;
 
       foods = await Food.find(query)
@@ -106,8 +118,7 @@ export const getFoods = async (req, res) => {
       });
     }
   } catch (err) {
-    safeLog.error("food.list_failed", err);
-    res.status(500).json({ success: false, message: err.message });
+    return errorHandler(err, req, res);
   }
 };
 
@@ -123,7 +134,7 @@ export const getFoodById = async (req, res) => {
     const [data] = await withMarketPrices([food]);
     res.json({ success: true, data });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    return errorHandler(err, req, res);
   }
 };
 
@@ -179,8 +190,7 @@ export const createFood = async (req, res) => {
     if (err?.code?.startsWith("FOOD_SOURCE_")) {
       return provenanceErrorResponse(res, err);
     }
-    safeLog.error("food.create_failed", err);
-    res.status(500).json({ success: false, message: err.message });
+    return errorHandler(err, req, res);
   }
 };
 
@@ -256,8 +266,7 @@ export const createManyFoods = async (req, res) => {
       message: `Thêm thành công ${results.success.length} / ${foods.length} thực phẩm`,
     });
   } catch (err) {
-    safeLog.error("food.batch_create_failed", err);
-    res.status(500).json({ success: false, message: err.message });
+    return errorHandler(err, req, res);
   }
 };
 
@@ -306,8 +315,7 @@ export const updateFood = async (req, res) => {
     if (err?.code?.startsWith("FOOD_SOURCE_")) {
       return provenanceErrorResponse(res, err);
     }
-    safeLog.error("food.update_failed", err);
-    res.status(500).json({ success: false, message: err.message });
+    return errorHandler(err, req, res);
   }
 };
 
@@ -323,7 +331,6 @@ export const deleteFood = async (req, res) => {
     await FoodPriceObservation.deleteMany({ foodId: food._id });
     res.json({ success: true, message: "Xóa thực phẩm thành công" });
   } catch (err) {
-    safeLog.error("food.delete_failed", err);
-    res.status(500).json({ success: false, message: err.message });
+    return errorHandler(err, req, res);
   }
 };

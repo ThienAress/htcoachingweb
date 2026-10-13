@@ -93,8 +93,8 @@ Dữ liệu sức khỏe, đánh giá cơ thể, ảnh/video, hội thoại AI, 
 - Chỉ xác nhận finding khi có đường đi do attacker kiểm soát, reachability/impact thực tế và evidence;
   thiếu proof thì ghi `proof gap`. Finding bị loại phải có lý do để không báo lại.
 - Finding được chấp nhận: patch nhỏ + regression test tập trung + re-validation.
-- Scan bảo mật trả phí (`npm run security:codex`) không chạy tự động hay trong CI; chỉ chạy khi user cấp scope
-  và chi phí rõ ràng. Preflight không phải PASS, raw candidate không phải lỗ hổng đã xác nhận.
+- Scan bảo mật bên ngoài có trả phí không chạy tự động hay trong CI; chỉ chạy khi user cấp scope và chi phí rõ ràng.
+  Raw candidate từ scanner không phải lỗ hổng đã xác nhận.
 
 ## File nhạy cảm — không sửa khi chưa được yêu cầu
 

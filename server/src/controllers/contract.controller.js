@@ -2,6 +2,7 @@ import * as contractService from "../services/contract.service.js";
 import { sendContractMail } from "../utils/sendMail.js";
 import { referencesSameDocument } from "../utils/mongooseReference.js";
 import { safeLog } from "../utils/safeLogger.js";
+import { errorHandler } from "../middlewares/errorHandler.js";
 
 const sendSigningError = (res, error) => {
   if (Number.isInteger(error?.statusCode) && error?.code) {
@@ -51,7 +52,7 @@ export const getContracts = async (req, res) => {
     });
     res.json({ success: true, data: contracts });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    return errorHandler(error, req, res);
   }
 };
 
@@ -65,7 +66,7 @@ export const getApprovedOrders = async (req, res) => {
     });
     res.json({ success: true, data: orders });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    return errorHandler(error, req, res);
   }
 };
 
@@ -91,7 +92,7 @@ export const getContractById = async (req, res) => {
 
     res.json({ success: true, data: contract });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    return errorHandler(error, req, res);
   }
 };
 
@@ -265,7 +266,7 @@ export const getMyContracts = async (req, res) => {
     const contracts = await contractService.getMyContracts(req.user.id);
     res.json({ success: true, data: contracts });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    return errorHandler(error, req, res);
   }
 };
 

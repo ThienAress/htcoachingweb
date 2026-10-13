@@ -1,5 +1,6 @@
 import path from "path";
 import Trainer from "../models/Trainer.js";
+import { escapeRegex } from "../utils/escapeRegex.js";
 import { uploadBufferToCloudinary } from "../utils/cloudinaryUpload.js";
 import { triggerNetlifyBuild } from "../utils/triggerBuild.js";
 import { createI18nResolver } from "../utils/i18n.js";
@@ -186,7 +187,7 @@ export const getAdminTrainers = async (req, res, next) => {
     const query = {};
 
     if (status) query.status = status;
-    if (search) query.name = { $regex: search, $options: "i" };
+    if (search) query.name = { $regex: escapeRegex(search), $options: "i" };
 
     const pageNumber = parseInt(page, 10);
     const limitNumber = parseInt(limit, 10);

@@ -315,14 +315,14 @@ export async function searchKnowledge({ query }, context = {}) {
 
   const url =
     `${GEMINI_BASE_URL}/models/${encodeURIComponent(searchModel)}` +
-    `:generateContent?key=${apiKey}`;
+    ":generateContent";
   let providerOutcomeRecorded = false;
 
   try {
     recordGeminiRequest("search_grounding");
     const response = await fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
       body: JSON.stringify(body),
       signal: context.signal,
     });

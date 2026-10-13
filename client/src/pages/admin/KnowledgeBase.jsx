@@ -1589,7 +1589,7 @@ export default function KnowledgeBase() {
                 <AlertTriangle size={20} />
                 <h3 className="text-lg font-bold">Phát hiện câu hỏi tương tự!</h3>
               </div>
-              <button onClick={() => setDuplicateWarning(null)} className="p-1 hover:bg-amber-100 rounded-md">
+              <button aria-label="Đóng" onClick={() => setDuplicateWarning(null)} className="p-1 hover:bg-amber-100 rounded-md">
                 <X size={18} className="text-amber-700" />
               </button>
             </div>
@@ -1663,7 +1663,7 @@ export default function KnowledgeBase() {
                 <GitMerge size={20} />
                 <h3 className="text-lg font-bold text-slate-800">Biến thể câu hỏi</h3>
               </div>
-              <button onClick={() => setViewingVariantsEntry(null)} className="p-1 hover:bg-slate-100 rounded-md">
+              <button aria-label="Đóng" onClick={() => setViewingVariantsEntry(null)} className="p-1 hover:bg-slate-100 rounded-md">
                 <X size={18} className="text-slate-400" />
               </button>
             </div>

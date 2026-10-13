@@ -588,7 +588,7 @@ const ExerciseManagement = () => {
                 <Upload size={20} className="text-emerald-600" /> Thêm nhiều bài
                 tập
               </h2>
-              <button
+              <button aria-label="Đóng"
                 onClick={() => setShowBatchModal(false)}
                 className="p-1 rounded-full hover:bg-gray-100"
               >

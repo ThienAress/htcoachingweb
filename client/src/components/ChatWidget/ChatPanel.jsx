@@ -418,7 +418,7 @@ export default function ChatPanel({ initiallyOpen = false }) {
       {selectedImage && (
         <div className="relative w-16 h-16 rounded-lg overflow-hidden border border-gray-300 dark:border-white/20 group shadow-md ml-2">
           <img src={selectedImage} alt="Upload preview" className="w-full h-full object-cover" />
-          <button
+          <button aria-label="Xóa ảnh đã chọn"
             onClick={() => setSelectedImage(null)}
             className="absolute top-1 right-1 p-0.5 bg-black/60 rounded-full text-white opacity-0 group-hover:opacity-100 transition-opacity"
           >
@@ -513,7 +513,7 @@ export default function ChatPanel({ initiallyOpen = false }) {
               setTimeout(() => pillInputRef.current?.focus(), 250);
             }
           }}
-          className={`pill-bar-wrapper focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/80 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950 ${
+          className={`pill-bar-wrapper focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/80 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950 focus-within:ring-1 focus-within:ring-emerald-400/60 ${
             isOpen ? "hidden-state" : "visible-state"
           } ${pillExpanded ? "pill-expanded" : "pill-collapsed"}`}
         >
@@ -542,7 +542,7 @@ export default function ChatPanel({ initiallyOpen = false }) {
             />
           </div>
           <div className={`pill-actions flex items-center gap-1.5 shrink-0 ${pillExpanded ? "" : "pill-hide"}`}>
-            <button
+            <button aria-label="Gửi tin nhắn"
               onClick={(e) => { e.stopPropagation(); handlePillSend(); }}
               disabled={!pillInput.trim()}
               className={`w-8 h-8 rounded-full flex items-center justify-center transition-[color,background-color,box-shadow] duration-150 motion-reduce:transition-none ${

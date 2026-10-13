@@ -477,7 +477,7 @@ const FoodManagement = () => {
 
         {pagination.totalPages > 1 && (
           <div className="flex justify-center items-center gap-2 pt-2">
-            <button
+            <button aria-label="Trang trước"
               onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
               disabled={currentPage === 1}
               className="p-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-50"
@@ -487,7 +487,7 @@ const FoodManagement = () => {
             <span className="text-sm text-slate-600">
               Trang {currentPage} / {pagination.totalPages}
             </span>
-            <button
+            <button aria-label="Trang sau"
               onClick={() =>
                 setCurrentPage((p) => Math.min(pagination.totalPages, p + 1))
               }
@@ -507,7 +507,7 @@ const FoodManagement = () => {
                   <Apple className="w-5 h-5 text-indigo-600" />
                   {editingFood ? "Cập nhật thực phẩm" : "Thêm thực phẩm mới"}
                 </h2>
-                <button
+                <button aria-label="Đóng"
                   onClick={closeModal}
                   className="p-1 hover:bg-slate-100 rounded-lg"
                 >
@@ -888,7 +888,7 @@ const FoodManagement = () => {
                   <Upload className="w-5 h-5 text-green-600" />
                   Nhập nhiều thực phẩm (JSON)
                 </h2>
-                <button
+                <button aria-label="Đóng"
                   onClick={closeBatchModal}
                   className="p-1 hover:bg-slate-100 rounded-lg"
                 >

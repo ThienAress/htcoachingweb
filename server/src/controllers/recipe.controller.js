@@ -15,6 +15,7 @@ import {
   isPinnedRecipePostStateEligible,
   isSearchIndexRecipeSlug,
 } from "../seo/recipeSearchIndexPolicy.js";
+import { errorHandler } from "../middlewares/errorHandler.js";
 
 // Whitelist fields cho admin update/create
 const ALLOWED_RECIPE_FIELDS = [
@@ -131,7 +132,7 @@ const normalizeRecipeData = (rawData, { forCreate = false } = {}) => {
   return data;
 };
 
-const sendRecipeWriteError = (res, error) => {
+const sendRecipeWriteError = (req, res, error) => {
   if (error.code === 11000) {
     return res
       .status(409)
@@ -144,7 +145,7 @@ const sendRecipeWriteError = (res, error) => {
   ) {
     return res.status(400).json({ success: false, message: error.message });
   }
-  return res.status(500).json({ success: false, message: error.message });
+  return errorHandler(error, req, res);
 };
 
 const rejectPinnedRecipeMutation = (res, code, message) =>
@@ -316,7 +317,7 @@ export const getRecipes = async (req, res) => {
       },
     });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    return errorHandler(err, req, res);
   }
 };
 
@@ -340,7 +341,7 @@ export const getRecipeBySlug = async (req, res) => {
       },
     });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    return errorHandler(err, req, res);
   }
 };
 
@@ -355,7 +356,7 @@ export const getRecipeCategories = async (req, res) => {
       data: categories.filter(Boolean).sort(),
     });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    return errorHandler(err, req, res);
   }
 };
 
@@ -374,7 +375,7 @@ export const getRecipeAreas = async (req, res) => {
     });
     res.json({ success: true, data: areas });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    return errorHandler(err, req, res);
   }
 };
 
@@ -418,7 +419,7 @@ export const toggleBookmark = async (req, res) => {
       message: index === -1 ? "Đã lưu công thức" : "Đã bỏ lưu công thức",
     });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    return errorHandler(err, req, res);
   }
 };
 
@@ -445,7 +446,7 @@ export const addBookmark = async (req, res) => {
       message: "Đã lưu công thức",
     });
   } catch (err) {
-    return res.status(500).json({ success: false, message: err.message });
+    return errorHandler(err, req, res);
   }
 };
 
@@ -462,7 +463,7 @@ export const removeBookmark = async (req, res) => {
       message: "Đã bỏ lưu công thức",
     });
   } catch (err) {
-    return res.status(500).json({ success: false, message: err.message });
+    return errorHandler(err, req, res);
   }
 };
 
@@ -486,7 +487,7 @@ export const getBookmarkedRecipes = async (req, res) => {
 
     res.json({ success: true, data: recipes });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    return errorHandler(err, req, res);
   }
 };
 
@@ -512,7 +513,7 @@ export const createRecipe = async (req, res) => {
     }
     res.status(201).json({ success: true, data: serializeAdminRecipe(recipe) });
   } catch (err) {
-    return sendRecipeWriteError(res, err);
+    return sendRecipeWriteError(req, res, err);
   }
 };
 
@@ -550,7 +551,7 @@ export const updateRecipe = async (req, res) => {
     void triggerNetlifyBuild();
     res.json({ success: true, data: serializeAdminRecipe(recipe) });
   } catch (err) {
-    return sendRecipeWriteError(res, err);
+    return sendRecipeWriteError(req, res, err);
   }
 };
 
@@ -582,7 +583,7 @@ export const deleteRecipe = async (req, res) => {
 
     res.json({ success: true, message: "Xóa công thức thành công" });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    return errorHandler(err, req, res);
   }
 };
 
@@ -634,7 +635,7 @@ export const getAdminRecipes = async (req, res) => {
       },
     });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    return errorHandler(err, req, res);
   }
 };
 
@@ -676,7 +677,7 @@ export const uploadThumbnail = async (req, res) => {
     });
   } catch (err) {
     await destroyCloudinaryAsset(uploadedPublicId);
-    return sendRecipeWriteError(res, err);
+    return sendRecipeWriteError(req, res, err);
   }
 };
 

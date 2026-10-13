@@ -91,7 +91,6 @@ nguồn canonical trước khi thay đổi code.
 - [Today Dashboard completion audit 2026-07-29](./audits/today-dashboard-completion-audit-2026-07-29.md)
 - [Security audit 2026-08-02](./audits/security-audit-2026-08-02.md)
 - [Security coverage ledger 2026-08-02](./audits/security-coverage-ledger-2026-08-02.md)
-- [Codex Security scan runbook](./operations/runbooks/codex-security-scan.md)
 - [Docker backend runtime runbook](./operations/runbooks/docker-runtime.md)
 - [Security workflow skill drift audit 2026-08-02](./audits/2026-08-02-security-workflow-skill-drift.md)
 - [Audit phản hồi submit/mutation 2026-08-29](./audits/2026-08-29-submit-feedback-audit.md)

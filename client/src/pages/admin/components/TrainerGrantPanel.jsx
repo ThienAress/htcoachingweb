@@ -126,7 +126,7 @@ const TrainerGrantPanel = () => {
       >
         <label className="space-y-1 text-sm font-medium text-slate-700">
           Email người nhận
-          <input
+          <input autoComplete="off"
             type="email"
             required
             maxLength={320}

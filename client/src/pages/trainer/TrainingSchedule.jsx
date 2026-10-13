@@ -248,7 +248,7 @@ const ScheduleModal = ({ isOpen, onClose, onSubmit, onDelete, initialData, isEdi
             <CalendarDays className="w-5 h-5 text-primary" />
             {isEditing ? "Chỉnh sửa lịch tập" : "Tạo lịch tập mới"}
           </h3>
-          <button
+          <button aria-label="Đóng"
             onClick={onClose}
             className="p-1.5 rounded-lg hover:bg-gray-700 text-gray-400 hover:text-white transition-colors"
           >

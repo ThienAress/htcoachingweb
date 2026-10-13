@@ -14,7 +14,8 @@ Tool có side effect: đọc thêm [Agentic mutation lifecycle](references/agent
 
 ```
 Frontend (client/src)                          Backend (server/src)
-components/ChatWidget/ChatWidget.jsx ── SSE ──▶ controllers/ai.controller.js  (agent loop, AI_RUNTIME_POLICY)
+components/ChatWidget/DeferredChatPanel.jsx     controllers/ai.controller.js  (agent loop, AI_RUNTIME_POLICY)
+  (mount trong App.jsx, lazy-load ChatPanel) ── SSE ──▶
   ChatPanel.jsx, ChatPanelSidebar.jsx            ├ services/ai/contentModeration.js
   ChatBubble.jsx (CARD_COMPONENTS)               ├ services/ai/systemPrompt.js
   cards/*.jsx (generative UI)                    ├ services/ai/providers/ (index, deepseek, gemini, mock)

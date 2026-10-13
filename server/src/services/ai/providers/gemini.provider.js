@@ -126,7 +126,10 @@ const fetchGeminiResponse = async (
       recordGeminiRequest("chat");
       response = await fetch(url, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "x-goog-api-key": process.env.GEMINI_API_KEY,
+        },
         body: JSON.stringify(body),
         signal,
       });
@@ -410,7 +413,7 @@ async function* streamGemini(
     },
   };
 
-  const url = `${GEMINI_BASE_URL}/models/${GEMINI_MODEL}:streamGenerateContent?alt=sse&key=${apiKey}`;
+  const url = `${GEMINI_BASE_URL}/models/${GEMINI_MODEL}:streamGenerateContent?alt=sse`;
 
   const retryBudget = { remaining: GEMINI_TRANSIENT_MAX_ATTEMPTS - 1 };
   let requestBody = body;

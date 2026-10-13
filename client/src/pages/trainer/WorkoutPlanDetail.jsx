@@ -72,6 +72,7 @@ const ExerciseNameInput = ({ value, onChange, readOnly, isLocked }) => {
 
 // ===== EXERCISE BROWSER MODAL =====
 const ExerciseBrowserModal = ({ isOpen, onClose }) => {
+  const { t } = useTranslation();
   const [search, setSearch] = useState("");
   const [selectedGroup, setSelectedGroup] = useState("");
 
@@ -96,7 +97,7 @@ const ExerciseBrowserModal = ({ isOpen, onClose }) => {
           <h3 className="text-lg font-bold text-white flex items-center gap-2">
             <Dumbbell className="w-5 h-5 text-primary" /> Danh sách bài tập
           </h3>
-          <button onClick={onClose} className="p-1.5 hover:bg-gray-800 rounded-lg text-gray-400 hover:text-white transition-colors">
+          <button aria-label={t("common:a11y.close")} onClick={onClose} className="p-1.5 hover:bg-gray-800 rounded-lg text-gray-400 hover:text-white transition-colors">
             <XIcon className="w-5 h-5" />
           </button>
         </div>
@@ -322,7 +323,7 @@ const ExerciseTable = ({ exercises, onChange, mode, isLocked }) => {
 
               {!isAssessment && !isLocked && (
                 <td className="py-1.5 px-1 text-center align-top pt-3">
-                  <button type="button" onClick={() => removeExercise(idx)} className="p-1 text-gray-500 hover:text-red-400 transition-colors">
+                  <button aria-label={t("common:a11y.remove_exercise")} type="button" onClick={() => removeExercise(idx)} className="p-1 text-gray-500 hover:text-red-400 transition-colors">
                     <Trash2 className="w-4 h-4" />
                   </button>
                 </td>
@@ -342,6 +343,7 @@ const ExerciseTable = ({ exercises, onChange, mode, isLocked }) => {
 
 // ===== SECTION COMPONENT =====
 const SectionBlock = ({ section, onUpdate, onRemove, isOpen, onToggle, mode, isLocked }) => {
+  const { t } = useTranslation();
   const updateField = (field, val) => onUpdate({ ...section, [field]: val });
 
   return (
@@ -359,7 +361,7 @@ const SectionBlock = ({ section, onUpdate, onRemove, isOpen, onToggle, mode, isL
           className={`flex-1 bg-transparent text-white font-bold text-fluid-sm focus:outline-none focus:ring-1 focus:ring-primary/50 rounded px-1 uppercase tracking-wide ${isLocked ? 'cursor-not-allowed opacity-80' : ''}`}
         />
         {mode === "training" && !isLocked && (
-          <button type="button" onClick={(e) => { e.stopPropagation(); onRemove(); }} className="p-1.5 text-gray-500 hover:text-red-400 bg-gray-900/50 rounded-md transition-colors">
+          <button aria-label={t("common:a11y.remove_section")} type="button" onClick={(e) => { e.stopPropagation(); onRemove(); }} className="p-1.5 text-gray-500 hover:text-red-400 bg-gray-900/50 rounded-md transition-colors">
             <Trash2 className="w-4 h-4" />
           </button>
         )}
@@ -577,7 +579,7 @@ const WorkoutPlanDetail = ({ embedded = false }) => {
         <div className={`bg-gray-900 border-b border-gray-800 sticky z-40 shadow-sm ${embedded ? "top-0" : "top-20"}`}>
           <div className="container-custom py-3 flex flex-wrap items-center justify-between gap-4">
             <div className="flex items-center gap-4">
-              <button onClick={() => navigate(getWorkoutPlanWorkspacePath(undefined, { embedded }))} className="p-2 hover:bg-gray-800 rounded-lg text-gray-400 hover:text-white transition-colors">
+              <button aria-label={t("common:a11y.back")} onClick={() => navigate(getWorkoutPlanWorkspacePath(undefined, { embedded }))} className="p-2 hover:bg-gray-800 rounded-lg text-gray-400 hover:text-white transition-colors">
                 <ArrowLeft className="w-5 h-5" />
               </button>
               <div>
@@ -599,13 +601,13 @@ const WorkoutPlanDetail = ({ embedded = false }) => {
             <div className="flex items-center gap-3">
               {/* Date Navigation */}
               <div className="flex items-center bg-gray-800 rounded-lg border border-gray-700 p-1">
-                <button onClick={() => handleDateChange(-1)} className="p-1.5 hover:bg-gray-700 rounded text-gray-400 hover:text-white transition-colors">
+                <button aria-label={t("common:a11y.previous_day")} onClick={() => handleDateChange(-1)} className="p-1.5 hover:bg-gray-700 rounded text-gray-400 hover:text-white transition-colors">
                   <ChevronLeft className="w-4 h-4" />
                 </button>
                 <div className="text-sm text-center px-4 font-medium min-w-[120px]">
                   {new Date(form.planDate).toLocaleDateString(i18n.language === "vi" ? "vi-VN" : "en-US", { day: "2-digit", month: "2-digit", year: "numeric" })}
                 </div>
-                <button onClick={() => handleDateChange(1)} className="p-1.5 hover:bg-gray-700 rounded text-gray-400 hover:text-white transition-colors">
+                <button aria-label={t("common:a11y.next_day")} onClick={() => handleDateChange(1)} className="p-1.5 hover:bg-gray-700 rounded text-gray-400 hover:text-white transition-colors">
                   <ChevronRight className="w-4 h-4" />
                 </button>
               </div>

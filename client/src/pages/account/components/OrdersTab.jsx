@@ -32,7 +32,7 @@ function OrdersTab({ filteredOrders, orderFilter, setOrderFilter, orderSearch, s
           className="w-full bg-black/50 border border-white/10 rounded-full py-2.5 pl-11 pr-4 text-sm text-white placeholder-gray-600 outline-none focus:border-orange-500 transition-all"
         />
         {orderSearch && (
-          <button onClick={() => setOrderSearch("")} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white">
+          <button aria-label={t("common:a11y.clear_search")} onClick={() => setOrderSearch("")} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white">
             <X size={14} />
           </button>
         )}

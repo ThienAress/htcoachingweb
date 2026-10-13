@@ -198,7 +198,7 @@ const TrainerSubscriberManagement = () => {
 
         {pagination.totalPages > 1 && (
           <div className="flex justify-center items-center gap-2 pt-2">
-            <button
+            <button aria-label="Trang trước"
               onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
               disabled={currentPage === 1}
               className="p-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-50"
@@ -208,7 +208,7 @@ const TrainerSubscriberManagement = () => {
             <span className="text-sm text-slate-600">
               Trang {currentPage} / {pagination.totalPages}
             </span>
-            <button
+            <button aria-label="Trang sau"
               onClick={() =>
                 setCurrentPage((p) => Math.min(pagination.totalPages, p + 1))
               }

@@ -1,6 +1,21 @@
 import path from "path";
 import Gym from "../models/Gym.js";
+import { escapeRegex } from "../utils/escapeRegex.js";
 import { uploadBufferToCloudinary } from "../utils/cloudinaryUpload.js";
+import { errorHandler } from "../middlewares/errorHandler.js";
+
+// Ảnh chỉ được đổi qua file upload; các field hệ thống (_id, timestamps) không nhận từ body.
+const GYM_UPDATABLE_FIELDS = [
+  "name",
+  "address",
+  "district",
+  "openingHours",
+  "googleMapsUrl",
+  "note",
+  "hasKickfit",
+  "status",
+  "sortOrder",
+];
 
 // GET /api/gyms — Public: lấy danh sách phòng tập active
 export const getGyms = async (req, res) => {
@@ -8,12 +23,12 @@ export const getGyms = async (req, res) => {
     const { district, search } = req.query;
     let query = { status: "active" };
     if (district) query.district = district;
-    if (search) query.name = { $regex: search, $options: "i" };
+    if (search) query.name = { $regex: escapeRegex(search), $options: "i" };
 
     const gyms = await Gym.find(query).sort({ sortOrder: 1, name: 1 });
     res.json({ success: true, data: gyms });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    return errorHandler(err, req, res);
   }
 };
 
@@ -23,7 +38,7 @@ export const getAllGyms = async (req, res) => {
     const gyms = await Gym.find().sort({ sortOrder: 1, name: 1 });
     res.json({ success: true, data: gyms });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    return errorHandler(err, req, res);
   }
 };
 
@@ -33,7 +48,7 @@ export const getDistricts = async (req, res) => {
     const districts = await Gym.distinct("district", { status: "active" });
     res.json({ success: true, data: districts.sort() });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    return errorHandler(err, req, res);
   }
 };
 
@@ -66,14 +81,19 @@ export const createGym = async (req, res) => {
     });
     res.status(201).json({ success: true, data: gym });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    return errorHandler(err, req, res);
   }
 };
 
 // PUT /api/gyms/:id — Admin: cập nhật phòng tập
 export const updateGym = async (req, res) => {
   try {
-    const updates = { ...req.body };
+    const updates = Object.fromEntries(
+      GYM_UPDATABLE_FIELDS.filter((field) => req.body[field] !== undefined).map((field) => [
+        field,
+        req.body[field],
+      ]),
+    );
     if (req.file) {
       const ext = path.extname(req.file.originalname || "").toLowerCase();
       const safeBaseName = path.basename(req.file.originalname || "gym", ext).replace(/[^a-zA-Z0-9-_]/g, "_").slice(0, 80);
@@ -95,7 +115,7 @@ export const updateGym = async (req, res) => {
     if (!gym) return res.status(404).json({ success: false, message: "Không tìm thấy" });
     res.json({ success: true, data: gym });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    return errorHandler(err, req, res);
   }
 };
 
@@ -106,7 +126,7 @@ export const deleteGym = async (req, res) => {
     if (!gym) return res.status(404).json({ success: false, message: "Không tìm thấy" });
     res.json({ success: true, message: "Đã xóa" });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    return errorHandler(err, req, res);
   }
 };
 
@@ -184,6 +204,6 @@ export const seedGyms = async (req, res) => {
     const result = await Gym.insertMany(prepared);
     res.status(201).json({ success: true, message: `Seed thành công ${result.length} phòng tập`, data: result });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    return errorHandler(err, req, res);
   }
 };

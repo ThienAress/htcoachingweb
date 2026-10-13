@@ -294,7 +294,7 @@ export default function TrainerProfileEditor() {
                     <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, index)} className="hidden" />
                   </label>
                   {index > 0 && (
-                    <button type="button" onClick={() => removeImage(index)} className="rounded-lg bg-red-500/80 p-2 text-white hover:bg-red-600 transition-colors backdrop-blur-sm">
+                    <button aria-label="Xóa ảnh" type="button" onClick={() => removeImage(index)} className="rounded-lg bg-red-500/80 p-2 text-white hover:bg-red-600 transition-colors backdrop-blur-sm">
                       <Trash2 size={16} />
                     </button>
                   )}
@@ -379,7 +379,7 @@ export default function TrainerProfileEditor() {
                   placeholder="Nhập thành tích..."
                   className="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-medium focus:border-primary focus:bg-white focus:outline-none focus:ring-1 focus:ring-primary"
                 />
-                <button
+                <button aria-label="Xóa thành tích"
                   type="button"
                   onClick={() => {
                     setForm({ ...form, achievements: form.achievements.filter((_, i) => i !== index) });
@@ -431,7 +431,7 @@ export default function TrainerProfileEditor() {
                   placeholder="VD: Khách hàng thay đổi"
                   className="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-medium focus:border-primary focus:bg-white focus:outline-none focus:ring-1 focus:ring-primary"
                 />
-                <button
+                <button aria-label="Xóa chỉ số"
                   type="button"
                   onClick={() => setForm({ ...form, stats: form.stats.filter((_, i) => i !== index) })}
                   className="rounded-xl bg-red-50 p-2.5 text-red-500 hover:bg-red-100 transition-colors"

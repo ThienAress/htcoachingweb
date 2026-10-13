@@ -1,6 +1,6 @@
 import ExerciseSuggestion from "../models/ExerciseSuggestion.js";
 import { escapeRegex } from "../utils/escapeRegex.js";
-import { safeLog } from "../utils/safeLogger.js";
+import { errorHandler } from "../middlewares/errorHandler.js";
 
 // Gửi góp ý (public, có thể có user)
 export const createSuggestion = async (req, res) => {
@@ -23,8 +23,7 @@ export const createSuggestion = async (req, res) => {
       message: "Cảm ơn bạn đã góp ý!",
     });
   } catch (err) {
-    safeLog.error("exercise_suggestion.create_failed", err);
-    res.status(500).json({ success: false, message: err.message });
+    return errorHandler(err, req, res);
   }
 };
 
@@ -56,7 +55,7 @@ export const getSuggestions = async (req, res) => {
       pagination: { total, page, limit, totalPages: Math.ceil(total / limit) },
     });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    return errorHandler(err, req, res);
   }
 };
 
@@ -76,7 +75,7 @@ export const updateSuggestionStatus = async (req, res) => {
         .json({ success: false, message: "Không tìm thấy" });
     res.json({ success: true, data: suggestion });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    return errorHandler(err, req, res);
   }
 };
 
@@ -91,6 +90,6 @@ export const deleteSuggestion = async (req, res) => {
         .json({ success: false, message: "Không tìm thấy" });
     res.json({ success: true, message: "Xóa thành công" });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    return errorHandler(err, req, res);
   }
 };

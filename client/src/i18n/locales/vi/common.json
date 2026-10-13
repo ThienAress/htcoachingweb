@@ -69,5 +69,22 @@
   "language": {
     "vi": "Tiếng Việt",
     "en": "English"
+  },
+  "a11y": {
+    "close": "Đóng",
+    "cancel_edit": "Hủy chỉnh sửa",
+    "back": "Quay lại",
+    "previous": "Trước",
+    "next": "Tiếp theo",
+    "previous_page": "Trang trước",
+    "next_page": "Trang sau",
+    "previous_day": "Ngày trước",
+    "next_day": "Ngày sau",
+    "clear_search": "Xóa tìm kiếm",
+    "remove_item": "Xóa mục này",
+    "remove_exercise": "Xóa bài tập",
+    "remove_section": "Xóa phần tập",
+    "remove_muscle_group": "Bỏ nhóm cơ",
+    "delete_workout_plan": "Xóa giáo án"
   }
 }

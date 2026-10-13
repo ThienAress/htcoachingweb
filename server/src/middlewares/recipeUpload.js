@@ -1,3 +1,4 @@
+import path from "path";
 import multer from "multer";
 import { CloudinaryStorage } from "multer-storage-cloudinary";
 import { v2 as cloudinary } from "cloudinary";
@@ -47,8 +48,20 @@ export const instrumentCloudinaryStorage = (storageEngine) => ({
 
 const storage = instrumentCloudinaryStorage(cloudinaryStorage);
 
+const allowedExtensions = new Set([".jpg", ".jpeg", ".png", ".webp"]);
+
+// Chặn file sai loại trước khi stream lên Cloudinary (allowed_formats chỉ chặn ở phía provider).
+const imageFileFilter = (_req, file, cb) => {
+  const ext = path.extname(file.originalname || "").toLowerCase();
+  if (!file.mimetype?.startsWith("image/") || !allowedExtensions.has(ext)) {
+    return cb(new Error("Chỉ chấp nhận ảnh jpg, jpeg, png hoặc webp"));
+  }
+  cb(null, true);
+};
+
 const upload = multer({
   storage: storage,
+  fileFilter: imageFileFilter,
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
 });
 

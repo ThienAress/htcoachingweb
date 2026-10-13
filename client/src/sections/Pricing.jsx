@@ -765,7 +765,7 @@ const Pricing = ({ isHeroAnimDone = false }) => {
                 <h3 className="text-xl font-bold text-yellow-400 flex items-center gap-2">
                   <Sparkles className="w-6 h-6" /> {t("pricing.special_gifts")}
                 </h3>
-                <button
+                <button aria-label={t("common:a11y.close")}
                   onClick={() => setGiftModalVisible(false)}
                   className="text-gray-400 hover:text-white"
                 >
@@ -800,7 +800,7 @@ const Pricing = ({ isHeroAnimDone = false }) => {
                 <h3 className="text-xl font-bold text-primary flex items-center gap-2">
                   <Sparkles className="w-6 h-6" /> {t("pricing.login_promo_title")}
                 </h3>
-                <button
+                <button aria-label={t("common:a11y.close")}
                   onClick={() => setShowLoginPrompt(false)}
                   className="text-gray-400 hover:text-white"
                 >
@@ -845,7 +845,7 @@ const Pricing = ({ isHeroAnimDone = false }) => {
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex justify-end p-3 pb-0">
-                <button
+                <button aria-label={t("common:a11y.close")}
                   onClick={() => setShowTrainerLoginPrompt(false)}
                   className="text-gray-400 hover:text-white transition"
                 >
@@ -922,7 +922,7 @@ const Pricing = ({ isHeroAnimDone = false }) => {
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex justify-end p-3 pb-0">
-                <button
+                <button aria-label={t("common:a11y.close")}
                   onClick={() => setShowAlreadySubscribed(false)}
                   className="text-gray-400 hover:text-white transition"
                 >
@@ -1021,7 +1021,7 @@ const Pricing = ({ isHeroAnimDone = false }) => {
                 onClick={(e) => e.stopPropagation()}
               >
                 {/* Nút đóng */}
-                <button
+                <button aria-label={t("common:a11y.close")}
                   onClick={handleClose}
                   className="absolute top-4 left-4 w-9 h-9 flex items-center justify-center rounded-full bg-[#222] border border-gray-700 text-gray-400 hover:text-white hover:border-gray-500 transition z-10"
                 >
