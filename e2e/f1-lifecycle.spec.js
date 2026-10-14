@@ -103,6 +103,35 @@ test("F1 create, intake, private media, assessment command and AI report", async
   await expect(page.getByTestId("f1-open-assessment")).toBeEnabled();
   await expect.poll(() => mediaUploads).toBe(2);
 
+  await page.getByTestId("f1-open-assessment").click();
+  await page
+    .getByRole("checkbox", { name: "Không có biểu hiện tư thế sai" })
+    .first()
+    .check();
+  await expect(
+    page
+      .getByRole("checkbox", { name: "Không có biểu hiện tư thế sai" })
+      .first(),
+  ).toBeChecked();
+
+  const pushCard = page
+    .getByTestId("f1-exercise-card")
+    .filter({ hasText: "Upper Push" });
+  // Gợi ý và bài tập chỉ hiện sau khi chọn cấp độ rồi chọn bài.
+  await expect(pushCard.getByText("Gợi ý khởi đầu")).toHaveCount(0);
+  await pushCard.getByLabel("Chọn cấp độ cho bài test").selectOption("easy");
+  await expect(pushCard.getByText("Gợi ý khởi đầu")).toHaveCount(0);
+  await pushCard
+    .getByLabel("Chọn bài tập")
+    .selectOption("Hít đất tường (Wall Push-Up)");
+  await expect(pushCard.getByText("Đã chọn 1/3 bài")).toBeVisible();
+  await expect(pushCard.getByText("Gợi ý khởi đầu")).toBeVisible();
+  await pushCard
+    .getByLabel("Tên bài test riêng của HLV")
+    .fill("Squat nhảy 30 giây");
+  await pushCard.getByRole("button", { name: "Thêm" }).click();
+  await expect(pushCard.getByText("Đã chọn 2/3 bài")).toBeVisible();
+
   const assessmentStatus = await page.evaluate(async (customerId) => {
     const response = await fetch(
       "http://127.0.0.1:5100/api/f1-customers/" +

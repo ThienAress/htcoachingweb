@@ -9,12 +9,12 @@ import {
 
 const decisionMeta = {
   keep_hold: {
-    label: "Giữ HOLD",
+    label: "Giữ hoãn đánh giá",
     className:
       "border-red-200 bg-red-50 text-red-700 hover:bg-red-100 ring-red-200",
     icon: TriangleAlert,
     description:
-      "Tiếp tục giữ khách ở trạng thái HOLD TEST. Chưa cho đi tiếp sang assessment.",
+      "Tiếp tục giữ khách ở trạng thái hoãn đánh giá. Chưa cho sang bước đánh giá thể chất.",
   },
   approve_modified_test: {
     label: "Duyệt Modified Test",
@@ -68,7 +68,7 @@ const F1TestPermissionReviewCard = ({
           rows={4}
           value={reviewNote}
           onChange={(e) => setReviewNote(e.target.value)}
-          placeholder="Ví dụ: Đã xem giới hạn từ bác sĩ. Cho phép modified test, tránh squat nặng và bài tăng áp lực cột sống."
+          placeholder="Ví dụ: Đã xem giới hạn từ bác sĩ. Cho phép đánh giá có điều chỉnh, tránh squat nặng và bài tăng áp lực cột sống."
           className="mt-2 w-full rounded-lg border border-slate-200 px-4 py-3 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
         />
       </div>

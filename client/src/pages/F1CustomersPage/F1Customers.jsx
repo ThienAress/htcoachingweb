@@ -236,11 +236,11 @@ const F1Customers = () => {
           [],
         lastIntakeId: updatedIntake?._id || prev?.lastIntakeId,
       }));
-      toast.success(res?.message || "PT review thành công");
+      toast.success(res?.message || "HLV đã xem xét thành công");
       await invalidateCustomers();
     } catch (error) {
       toast.error(
-        error?.response?.data?.message || "PT review test permission thất bại",
+        error?.response?.data?.message || "Xem xét quyền đánh giá thất bại",
       );
     }
   };

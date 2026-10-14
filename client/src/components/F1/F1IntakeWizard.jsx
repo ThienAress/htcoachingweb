@@ -314,13 +314,13 @@ const F1IntakeWizard = ({ customer, onBack, onSubmitted }) => {
     } catch (error) {
       toast.error(
         error?.code === "ERR_CANCELED"
-          ? "Đã hủy tải ảnh. Intake vẫn được lưu và có thể tải ảnh lại."
+          ? "Đã hủy tải ảnh. Kết quả khảo sát vẫn được lưu và có thể tải ảnh lại."
           : intakeSubmitted
             ? error?.response?.data?.message ||
-              "Intake đã lưu nhưng tải ảnh thất bại. Bạn có thể thử lại."
+              "Kết quả khảo sát đã lưu nhưng tải ảnh thất bại. Bạn có thể thử lại."
             : error?.response?.data?.message ||
               error?.response?.data?.errors?.[0]?.msg ||
-              "Submit intake thất bại",
+              "Lưu kết quả khảo sát thất bại",
       );
     } finally {
       uploadControllerRef.current = null;

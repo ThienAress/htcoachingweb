@@ -23,14 +23,14 @@ export const generateAiReport = async (req, res, next) => {
     if (!intake || intake.isDraft) {
       return res.status(400).json({
         success: false,
-        message: "Khách hàng chưa hoàn tất intake",
+        message: "Khách hàng chưa hoàn tất khảo sát",
       });
     }
 
     if (!assessment) {
       return res.status(400).json({
         success: false,
-        message: "Khách hàng chưa có đánh giá thể chất để sinh AI report",
+        message: "Khách hàng chưa có đánh giá thể chất để tạo phân tích AI",
       });
     }
     if (!intake.consent?.allowAiAnalysis || !intake.consent?.version) {
@@ -120,7 +120,7 @@ export const approveAiReport = async (req, res, next) => {
     if (!report) {
       return res.status(404).json({
         success: false,
-        message: "Không tìm thấy AI report",
+        message: "Không tìm thấy phân tích AI",
       });
     }
 
@@ -131,7 +131,7 @@ export const approveAiReport = async (req, res, next) => {
     return res.json({
       success: true,
       data: report,
-      message: "Cập nhật AI report thành công",
+      message: "Cập nhật phân tích AI thành công",
     });
   } catch (error) {
     return next(error);

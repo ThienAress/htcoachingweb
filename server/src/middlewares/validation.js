@@ -651,6 +651,30 @@ export const validateDeleteF1Media = [
 // ASSESSMENT & AI REPORT VALIDATIONS
 // ============================================================================
 
+// Mỗi thẻ đánh giá chỉ được có tối đa 3 bài test; tên bài tối đa 80 ký tự.
+const MAX_ASSESSMENT_EXERCISES = 3;
+const MAX_EXERCISE_NAME_LENGTH = 80;
+const validateMetricExercises = (assessment) => {
+  if (!assessment || typeof assessment !== "object") return true;
+  for (const metric of Object.values(assessment)) {
+    const exercises = metric?.exercises;
+    if (exercises === undefined) continue;
+    if (!Array.isArray(exercises)) {
+      throw new Error("exercises phải là mảng");
+    }
+    if (exercises.length > MAX_ASSESSMENT_EXERCISES) {
+      throw new Error("Mỗi mục chỉ được chọn tối đa 3 bài test");
+    }
+    const tooLong = exercises.some(
+      (item) => String(item?.name || "").trim().length > MAX_EXERCISE_NAME_LENGTH,
+    );
+    if (tooLong) {
+      throw new Error("Tên bài test tối đa 80 ký tự");
+    }
+  }
+  return true;
+};
+
 export const validateCreateAssessment = [
   param("id").isMongoId().withMessage("ID khách hàng F1 không hợp lệ"),
 
@@ -667,17 +691,23 @@ export const validateCreateAssessment = [
   body("strengthAssessment")
     .optional()
     .isObject()
-    .withMessage("strengthAssessment phải là object"),
+    .withMessage("strengthAssessment phải là object")
+    .bail()
+    .custom(validateMetricExercises),
 
   body("enduranceAssessment")
     .optional()
     .isObject()
-    .withMessage("enduranceAssessment phải là object"),
+    .withMessage("enduranceAssessment phải là object")
+    .bail()
+    .custom(validateMetricExercises),
 
   body("cardioAssessment")
     .optional()
     .isObject()
-    .withMessage("cardioAssessment phải là object"),
+    .withMessage("cardioAssessment phải là object")
+    .bail()
+    .custom(validateMetricExercises),
 
   body("overallPhysicalLevel")
     .optional()
@@ -720,17 +750,23 @@ export const validateUpdateAssessment = [
   body("strengthAssessment")
     .optional()
     .isObject()
-    .withMessage("strengthAssessment phải là object"),
+    .withMessage("strengthAssessment phải là object")
+    .bail()
+    .custom(validateMetricExercises),
 
   body("enduranceAssessment")
     .optional()
     .isObject()
-    .withMessage("enduranceAssessment phải là object"),
+    .withMessage("enduranceAssessment phải là object")
+    .bail()
+    .custom(validateMetricExercises),
 
   body("cardioAssessment")
     .optional()
     .isObject()
-    .withMessage("cardioAssessment phải là object"),
+    .withMessage("cardioAssessment phải là object")
+    .bail()
+    .custom(validateMetricExercises),
 
   body("overallPhysicalLevel")
     .optional()

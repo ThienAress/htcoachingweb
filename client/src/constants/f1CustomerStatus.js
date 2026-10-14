@@ -3,7 +3,7 @@ export const F1_CUSTOMER_STATUS_LABELS = Object.freeze({
   intake_in_progress: "Đang khảo sát",
   intake_completed: "Đã khảo sát",
   assessment_completed: "Đã đánh giá thể chất",
-  ai_report_generated: "Đã có AI report",
+  ai_report_generated: "Đã có phân tích AI",
   program_started: "Đã bắt đầu lộ trình",
   archived: "Đã lưu trữ",
 });

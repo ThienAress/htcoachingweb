@@ -43,7 +43,7 @@ const PAIN_FLAG_LABELS = {
   severe: "Đau mức nghiêm trọng",
 };
 const PHASE_LABELS = {
-  pending_review: "Chờ review thêm trước khi vào phase huấn luyện",
+  pending_review: "Chờ HLV xem xét thêm trước khi vào giai đoạn huấn luyện",
   phase_1: "Cấp độ 1 · Phase 1 - Stabilization Endurance",
   phase_2: "Cấp độ 2 · Phase 2 - Strength Endurance",
   phase_3: "Cấp độ 2 · Phase 3 - Muscular Development / Hypertrophy",
@@ -309,7 +309,7 @@ const buildFallbackSummary = (report) => {
   const phase = report?.recommendations?.recommendedStartPhase || "phase_1";
   const headlineMap = {
     pending_review:
-      "Khách hiện chưa phù hợp để vào block huấn luyện chính thức. Cần review thêm yếu tố sức khỏe và an toàn vận động.",
+      "Khách hiện chưa phù hợp để vào block huấn luyện chính thức. Cần xem xét thêm yếu tố sức khỏe và an toàn vận động.",
     phase_1:
       "Khách nên bắt đầu từ Cấp độ 1 · Phase 1 - Stabilization Endurance để ưu tiên ổn định, kiểm soát chuyển động và xây nền an toàn.",
     phase_2:
@@ -379,10 +379,10 @@ const F1AiReportPanel = ({ customer, onBack, onGenerated, onOpenResultPrediction
       });
       requestIdRef.current = crypto.randomUUID();
       setReport(res?.data || null);
-      toast.success("Tạo AI Report thành công");
+      toast.success("Tạo phân tích AI thành công");
       onGenerated?.(res?.data);
     } catch (error) {
-      toast.error(error?.response?.data?.message || "Tạo AI Report thất bại");
+      toast.error(error?.response?.data?.message || "Tạo phân tích AI thất bại");
     } finally {
       setGenerating(false);
     }
@@ -448,7 +448,7 @@ const F1AiReportPanel = ({ customer, onBack, onGenerated, onOpenResultPrediction
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
               <p className="text-sm text-slate-500">
-                AI Report NASM • {customer?.code || "--"}
+                Phân tích AI theo NASM • {customer?.code || "--"}
               </p>
               <h2 className="text-2xl font-extrabold text-slate-800 uppercase">
                 {customer?.fullName}
@@ -466,10 +466,10 @@ const F1AiReportPanel = ({ customer, onBack, onGenerated, onOpenResultPrediction
             >
               {report ? <RefreshCcw size={18} /> : <Sparkles size={18} />}
               {generating
-                ? "Đang tạo AI Report..."
+                ? "Đang tạo phân tích AI..."
                 : report
-                  ? "Tạo lại AI Report"
-                  : "Tạo AI Report"}
+                  ? "Tạo lại phân tích AI"
+                  : "Tạo phân tích AI"}
             </button>
           </div>
         </div>
@@ -477,13 +477,13 @@ const F1AiReportPanel = ({ customer, onBack, onGenerated, onOpenResultPrediction
         <div className="px-6 py-6 md:px-8">
           {loadingLatest ? (
             <div className="rounded-xl border border-slate-200 bg-slate-50 p-6 text-center text-slate-500">
-              Đang tải AI Report...
+              Đang tải phân tích AI...
             </div>
           ) : !report ? (
             <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
               <Brain size={40} className="mx-auto text-slate-400" />
               <p className="mt-3 font-semibold text-slate-700">
-                Chưa có AI Report cho khách hàng này
+                Chưa có phân tích AI cho khách hàng này
               </p>
               <p className="mt-1 text-sm text-slate-500">
                 Bấm nút tạo để hệ thống tổng hợp dữ liệu từ intake và đánh giá

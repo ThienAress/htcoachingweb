@@ -1,16 +1,9 @@
 // CardioAssessmentSection.jsx
-import React, { useCallback, useEffect } from "react";
-import { Heart, Activity, Clock } from "lucide-react";
-import { scoreToLevel, round1, clamp } from "../../../utils/assessment.helpers";
-
-const levelOptions = [
-  { label: "Chọn mức", value: "" },
-  { label: "Yếu", value: "low" },
-  { label: "Dưới trung bình", value: "below_average" },
-  { label: "Trung bình", value: "average" },
-  { label: "Tốt", value: "good" },
-];
-
+import { useCallback } from "react";
+import { Heart, Activity } from "lucide-react";
+import { round1, clamp } from "../../../utils/assessment.helpers";
+import ExerciseTestCard from "./ExerciseTestCard";
+import { pickSuggestion } from "../../../utils/assessmentExercises";
 
 const computeCardioCapacityScore = (resultMinutes) => {
   const value = Number(resultMinutes || 0);
@@ -38,150 +31,12 @@ const computeRecoveryScore = (hrDrop) => {
   return String(round1(10 * (0.7 * baselineRatio + 0.3 * bonusRatio)));
 };
 
-const SuggestionBlock = ({ suggestion, loading }) => {
-  if (loading)
-    return (
-      <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-500">
-        Đang tải gợi ý...
-      </div>
-    );
-  if (!suggestion)
-    return (
-      <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-500">
-        Chưa có gợi ý bài tập.
-      </div>
-    );
-  return (
-    <div className="rounded-xl border border-orange-200 bg-orange-50/40 p-4">
-      <p className="font-bold text-slate-800">
-        {suggestion.title || suggestion.name}
-      </p>
-      {suggestion.target && (
-        <p className="mt-1 text-xs font-semibold uppercase tracking-wider text-orange-600">
-          {suggestion.target}
-        </p>
-      )}
-      {suggestion.reason && (
-        <p className="mt-2 text-sm text-slate-600">{suggestion.reason}</p>
-      )}
-      {suggestion.dosage && (
-        <div className="mt-2 rounded-lg border border-orange-200 bg-white px-3 py-2 text-sm text-slate-700">
-          <span className="font-semibold">Gợi ý khởi đầu:</span>{" "}
-          {suggestion.dosage}
-        </div>
-      )}
-    </div>
-  );
-};
-
-const MetricCard = ({
-  title,
-  value = {},
-  onChange,
-  suggestion,
-  loadingSuggestion = false,
-  placeholder = "Ví dụ: 24",
-  resultLabel = "Kết quả",
-  computeScore,
-}) => {
-  useEffect(() => {
-    const nextScore = computeScore(value.result);
-    if (nextScore === "") {
-      if (value.score !== "") onChange("score", "");
-      if (value.level !== "") onChange("level", "");
-      return;
-    }
-    const nextLevel = scoreToLevel(nextScore);
-    if (String(value.score ?? "") !== String(nextScore))
-      onChange("score", nextScore);
-    if (value.level !== nextLevel) onChange("level", nextLevel);
-  }, [computeScore, onChange, value.level, value.result, value.score]);
-
-  return (
-    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md">
-      <div className="border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white px-5 py-4">
-        <div className="flex items-center gap-2">
-          <Heart size={18} className="text-orange-600" />
-          <h4 className="font-bold text-slate-800">{title}</h4>
-        </div>
-      </div>
-      <div className="p-5 space-y-4">
-        <SuggestionBlock suggestion={suggestion} loading={loadingSuggestion} />
-        <div className="rounded-xl bg-slate-50/50 p-4 space-y-3">
-          <p className="text-sm font-semibold text-slate-700">
-            Đánh giá tim mạch
-          </p>
-          <label className="block">
-            <span className="mb-1.5 block text-sm font-medium text-slate-600">
-              {resultLabel}
-            </span>
-            <input
-              type="number"
-              min="1"
-              value={value.result ?? ""}
-              onChange={(e) => {
-                const val = e.target.value;
-                if (val !== "" && Number(val) < 1) return;
-                onChange("result", val);
-              }}
-              className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-slate-800 outline-none transition focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
-              placeholder={placeholder}
-            />
-          </label>
-          <label className="block">
-            <span className="mb-1.5 block text-sm font-medium text-slate-600">
-              Điểm
-            </span>
-            <input
-              type="number"
-              value={value.score ?? ""}
-              readOnly
-              className="w-full rounded-lg border border-slate-200 bg-slate-100 px-4 py-2.5 text-slate-600 outline-none"
-              placeholder="Hệ thống tự tính"
-            />
-          </label>
-          <label className="block">
-            <span className="mb-1.5 block text-sm font-medium text-slate-600">
-              Mức đánh giá
-            </span>
-            <input
-              type="text"
-              value={
-                levelOptions.find((item) => item.value === value.level)
-                  ?.label || ""
-              }
-              readOnly
-              className="w-full rounded-lg border border-slate-200 bg-slate-100 px-4 py-2.5 text-slate-600 outline-none"
-              placeholder="Hệ thống tự chọn"
-            />
-          </label>
-          <label className="block">
-            <span className="mb-1.5 block text-sm font-medium text-slate-600">
-              Ghi chú
-            </span>
-            <textarea
-              rows={3}
-              value={value.notes || ""}
-              onChange={(e) => onChange("notes", e.target.value)}
-              className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-slate-800 outline-none transition focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
-              placeholder="Ví dụ: hồi phục nhịp tim chậm, nền tim mạch thấp."
-            />
-          </label>
-        </div>
-      </div>
-    </div>
-  );
-};
-
 const CardioAssessmentSection = ({
   value,
   onMetricChange,
   suggestions = [],
   loadingSuggestions = false,
 }) => {
-  const cardioCapacitySuggestion = suggestions[0] || null;
-  const recoveryHeartRateSuggestion = suggestions[1] || null;
-
   const handleCardioCapacityChange = useCallback(
     (field, next) => onMetricChange("cardioCapacity", field, next),
     [onMetricChange],
@@ -197,34 +52,38 @@ const CardioAssessmentSection = ({
       <div className="flex items-center gap-2 border-b border-orange-200 pb-3">
         <Activity size={20} className="text-orange-600" />
         <div>
-          <h3 className="text-xl font-bold text-slate-800">Tim mạch</h3>
+          <h3 className="text-xl font-bold text-slate-800">Tim mạch (Cardio)</h3>
           <p className="text-sm text-slate-500">
-            Nhịp tim nghỉ được lấy tự động từ intake. Phần này chỉ đánh giá năng
-            lực tim mạch và khả năng hồi phục.
+            Nhịp tim nghỉ được lấy tự động từ khảo sát. Phần này chỉ đánh giá
+            năng lực tim mạch và khả năng hồi phục.
           </p>
         </div>
       </div>
 
       <div className="grid gap-5 md:grid-cols-2">
-        <MetricCard
-          title="Năng lực tim mạch"
+        <ExerciseTestCard
+          title="Năng lực tim mạch (Cardio Capacity)"
+          icon={Heart}
+          scoring="result"
           value={value.cardioCapacity}
-          suggestion={cardioCapacitySuggestion}
+          suggestion={pickSuggestion(suggestions, "cardioCapacity", 0)}
           loadingSuggestion={loadingSuggestions}
           onChange={handleCardioCapacityChange}
           resultLabel="Kết quả (phút)"
-          placeholder="Ví dụ: 24"
-          computeScore={computeCardioCapacityScore}
+          resultPlaceholder="Ví dụ: 24"
+          computeResultScore={computeCardioCapacityScore}
         />
-        <MetricCard
-          title="Khả năng hồi phục nhịp tim"
+        <ExerciseTestCard
+          title="Hồi phục nhịp tim (Heart Rate Recovery)"
+          icon={Heart}
+          scoring="result"
           value={value.recoveryHeartRate}
-          suggestion={recoveryHeartRateSuggestion}
+          suggestion={pickSuggestion(suggestions, "recoveryHeartRate", 1)}
           loadingSuggestion={loadingSuggestions}
           onChange={handleRecoveryHeartRateChange}
-          resultLabel="Kết quả (HR drop sau 1 phút)"
-          placeholder="Ví dụ: 15"
-          computeScore={computeRecoveryScore}
+          resultLabel="Kết quả (nhịp tim giảm sau 1 phút)"
+          resultPlaceholder="Ví dụ: 15"
+          computeResultScore={computeRecoveryScore}
         />
       </div>
     </div>
