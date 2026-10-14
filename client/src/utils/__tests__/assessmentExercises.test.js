@@ -3,12 +3,14 @@ import {
   aggregateExercises,
   canAddExercise,
   createExercise,
+  describeTopResult,
   getSuggestionTiers,
   levelToScore,
   parseTieredSuggestion,
+  pickProtocol,
   pickSuggestion,
 } from "../assessmentExercises";
-import { scoreToLevel } from "../assessment.helpers";
+import { scoreAgainstProtocol, scoreToLevel } from "../assessment.helpers";
 
 describe("parseTieredSuggestion", () => {
   it("reads the three tiers from the server title format", () => {
@@ -88,5 +90,39 @@ describe("aggregateExercises", () => {
     for (const level of ["low", "below_average", "average", "good"]) {
       expect(scoreToLevel(levelToScore(level))).toBe(level);
     }
+  });
+});
+
+describe("default protocol scoring", () => {
+  const score = (mode, sets, value) => {
+    const protocol = pickProtocol(mode, []);
+    return scoreAgainstProtocol({
+      selectedProtocol: protocol,
+      sets,
+      reps: mode === "reps" ? value : "",
+      durationSec: mode === "time" ? value : "",
+    });
+  };
+
+  it("rates a full 3 sets x 10 reps as good and lowers the level with less work", () => {
+    expect(scoreToLevel(score("reps", 3, 10))).toBe("good");
+    expect(scoreToLevel(score("reps", 3, 8))).toBe("good");
+    expect(scoreToLevel(score("reps", 2, 8))).toBe("average");
+    expect(scoreToLevel(score("reps", 1, 5))).toBe("below_average");
+    expect(scoreToLevel(score("reps", 1, 2))).toBe("low");
+  });
+
+  it("scores timed work against 20-30 second holds", () => {
+    expect(scoreToLevel(score("time", 3, 30))).toBe("good");
+    expect(scoreToLevel(score("time", 2, 10))).not.toBe("good");
+  });
+
+  it("prefers the suggestion protocol and describes the top result", () => {
+    const own = { mode: "reps", setsMin: 3, setsMax: 4, valueMin: 12, valueMax: 15 };
+
+    expect(pickProtocol("reps", [own])).toBe(own);
+    expect(pickProtocol("", [own])).toBeNull();
+    expect(describeTopResult(pickProtocol("reps", []))).toBe("3 hiệp × 10 lần");
+    expect(describeTopResult(pickProtocol("time", []))).toBe("3 hiệp × 30 giây");
   });
 });

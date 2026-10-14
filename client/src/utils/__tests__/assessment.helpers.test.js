@@ -263,6 +263,30 @@ describe("computeCardioLevel", () => {
   });
 });
 
+describe("computeOverallPhysicalLevel from exercise scores", () => {
+  const metric = (score) => ({ score: String(score), level: "" });
+
+  it("averages every scored card instead of counting empty ones as weak", () => {
+    const assessment = {
+      strengthAssessment: { upperBodyPush: metric(9), lowerBody: metric(8) },
+      enduranceAssessment: {},
+      cardioAssessment: {},
+    };
+
+    expect(computeOverallPhysicalLevel(assessment)).toBe("good");
+  });
+
+  it("drops the level when the scored cards are weak", () => {
+    const assessment = {
+      strengthAssessment: { upperBodyPush: metric(3), lowerBody: metric(4) },
+      enduranceAssessment: { coreEndurance: metric(5) },
+      cardioAssessment: { restingHeartRate: 70 },
+    };
+
+    expect(computeOverallPhysicalLevel(assessment)).toBe("below_average");
+  });
+});
+
 describe("computeOverallPhysicalLevel", () => {
   it('trả về "good" khi tất cả domains đều tốt', () => {
     const assessment = {

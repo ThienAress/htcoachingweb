@@ -57,23 +57,6 @@ const CheckboxGroup = ({
       <div className="p-5">
         <p className="text-sm text-slate-500">{helper}</p>
         <div className="mt-4 space-y-2">
-          <label
-            className={`flex cursor-pointer items-center gap-3 rounded-lg border px-4 py-3 transition ${
-              normal
-                ? "border-emerald-300 bg-emerald-50"
-                : "border-emerald-100 bg-emerald-50/40 hover:bg-emerald-50"
-            }`}
-          >
-            <input
-              type="checkbox"
-              checked={normal}
-              onChange={onToggleNormal}
-              className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
-            />
-            <span className="text-sm font-semibold text-emerald-800">
-              {NO_COMPENSATION_LABEL}
-            </span>
-          </label>
           {options.map((item) => (
             <label
               key={item.value}
@@ -88,6 +71,17 @@ const CheckboxGroup = ({
               <span className="text-sm text-slate-700">{item.label}</span>
             </label>
           ))}
+          <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-slate-100 bg-white px-4 py-3 transition hover:bg-slate-50">
+            <input
+              type="checkbox"
+              checked={normal}
+              onChange={onToggleNormal}
+              className="h-4 w-4 rounded border-slate-300 text-orange-600 focus:ring-orange-500"
+            />
+            <span className="text-sm text-slate-700">
+              {NO_COMPENSATION_LABEL}
+            </span>
+          </label>
         </div>
       </div>
     </div>
