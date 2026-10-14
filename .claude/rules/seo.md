@@ -16,7 +16,9 @@ paths:
 
 1. `client/index.html`: meta mặc định.
 2. `<SEO>` (`client/src/components/SEO.jsx`, react-helmet-async): override theo page.
-3. Build lifecycle (`npm run build --prefix client`): `prebuild` chạy `client/scripts/generate-sitemap.js`
+3. Build lifecycle (`npm run build --prefix client`): `prebuild` và `postbuild` đều bắt đầu bằng
+   `client/scripts/warm-up-api.js` (đánh thức backend ngủ, không bao giờ làm hỏng build); sau đó `prebuild` chạy
+   `client/scripts/generate-sitemap.js`
    (static `staticRoutes` + route động lấy từ API) và ghi manifest `client/scripts/.generated/prerender-routes.json`;
    `postbuild` chạy `client/scripts/prerender.js` đọc manifest đó, rồi kiểm bundle budget và search index.
 
