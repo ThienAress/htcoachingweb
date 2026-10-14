@@ -96,7 +96,7 @@ const F1IntakeWizard = ({ customer, onBack, onSubmitted }) => {
         breakDuration: "",
         primaryGoal: "",
         targetWeightKg: "",
-        targetDeadline: "",
+        targetTimeframe: "",
       },
       postureMedia: {
         frontImage: null,
@@ -143,7 +143,7 @@ const F1IntakeWizard = ({ customer, onBack, onSubmitted }) => {
           breakDuration: latestIntake.trainingProfileGoal?.breakDuration || "",
           primaryGoal: latestIntake.trainingProfileGoal?.primaryGoal || "",
           targetWeightKg: latestIntake.trainingProfileGoal?.targetWeightKg ?? "",
-          targetDeadline: latestIntake.trainingProfileGoal?.targetDeadline ? String(latestIntake.trainingProfileGoal.targetDeadline).slice(0, 10) : "",
+          targetTimeframe: latestIntake.trainingProfileGoal?.targetTimeframe || "",
         },
         consent: latestIntake.consent || { allowDataStorage: true, allowMediaStorage: true, allowAiAnalysis: true },
         postureMedia: { frontImage: null, backImage: null, sideImage: null } // We do not have files from backend
@@ -318,7 +318,9 @@ const F1IntakeWizard = ({ customer, onBack, onSubmitted }) => {
           : intakeSubmitted
             ? error?.response?.data?.message ||
               "Intake đã lưu nhưng tải ảnh thất bại. Bạn có thể thử lại."
-            : error?.response?.data?.message || "Submit intake thất bại",
+            : error?.response?.data?.message ||
+              error?.response?.data?.errors?.[0]?.msg ||
+              "Submit intake thất bại",
       );
     } finally {
       uploadControllerRef.current = null;

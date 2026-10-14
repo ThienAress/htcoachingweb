@@ -70,11 +70,6 @@ const TRAINER_NAVIGATION_GROUPS = [
         label: "Hệ thống bài tập",
         path: "/exercises",
       },
-      {
-        key: "practiceCenter",
-        label: "Trung tâm thực hành",
-        path: "/trainer/practice-center",
-      },
     ],
   },
   {

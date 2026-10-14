@@ -1,4 +1,5 @@
 // StepHealthScreening.jsx
+import { useState } from "react";
 import {
   Heart,
   AlertTriangle,
@@ -69,6 +70,9 @@ const SwitchRow = ({ label, checked, onChange, helperText, icon: Icon }) => {
         </div>
         <button
           type="button"
+          role="switch"
+          aria-checked={checked}
+          aria-label={label}
           onClick={() => onChange(!checked)}
           className={`relative h-7 w-14 shrink-0 rounded-full transition ${
             checked ? "bg-orange-500" : "bg-slate-300"
@@ -102,11 +106,22 @@ const StepHealthScreening = ({ register, watch, setValue, errors }) => {
   const doctorRestrictions = watch("healthScreening.doctorRestrictions");
   const warningSigns = watch("healthScreening.warningSigns") || [];
 
-  const hasInjuries = Boolean((injuries || "").trim());
-  const hasCurrentConditions = Boolean((currentConditions || "").trim());
-  const hasSurgeries = Boolean((surgeries || "").trim());
-  const takesMedications = Boolean((medications || "").trim());
-  const hasDoctorRestrictions = Boolean((doctorRestrictions || "").trim());
+  const hasText = (value) => Boolean((value || "").trim());
+  // Toggle chỉ là trạng thái UI để mở ô nhập; API vẫn chỉ nhận text.
+  // Khởi tạo từ text của draft để bản nháp đã lưu hiển thị đúng.
+  const [openSections, setOpenSections] = useState(() => ({
+    injuries: hasText(injuries),
+    currentConditions: hasText(currentConditions),
+    surgeries: hasText(surgeries),
+    medications: hasText(medications),
+    doctorRestrictions: hasText(doctorRestrictions),
+  }));
+
+  const hasInjuries = openSections.injuries;
+  const hasCurrentConditions = openSections.currentConditions;
+  const hasSurgeries = openSections.surgeries;
+  const takesMedications = openSections.medications;
+  const hasDoctorRestrictions = openSections.doctorRestrictions;
 
   const handlePainToggle = (checked) => {
     setValue("healthScreening.hasPainNow", checked, { shouldValidate: true });
@@ -117,6 +132,7 @@ const StepHealthScreening = ({ register, watch, setValue, errors }) => {
   };
 
   const handleTextToggle = (field) => (checked) => {
+    setOpenSections((prev) => ({ ...prev, [field]: checked }));
     if (!checked) setValue(`healthScreening.${field}`, "");
   };
 
