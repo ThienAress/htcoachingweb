@@ -275,10 +275,11 @@ const StepTrainingGoal = ({ register, watch, setValue, errors = {} }) => {
         <Field
           label="Thời gian mong muốn"
           icon={Calendar}
-          type="date"
-          registration={register("trainingProfileGoal.targetDeadline")}
-          error={errors?.trainingProfileGoal?.targetDeadline}
-          helperText="Có thể để trống nếu khách chưa có deadline cụ thể"
+          maxLength={60}
+          registration={register("trainingProfileGoal.targetTimeframe")}
+          error={errors?.trainingProfileGoal?.targetTimeframe}
+          placeholder="Ví dụ: 3 tháng, 6 tháng"
+          helperText="Có thể để trống nếu khách chưa có mốc thời gian cụ thể"
         />
       </div>
     </div>

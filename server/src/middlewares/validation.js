@@ -428,6 +428,7 @@ export const validateSubmitIntake = [
     .withMessage("warningSigns phải là mảng"),
 
   body("lifestyleNutrition.mealsPerDay")
+    .optional({ checkFalsy: true })
     .isInt({ min: 1, max: 10 })
     .withMessage("Số bữa ăn không hợp lệ"),
 
@@ -440,14 +441,23 @@ export const validateSubmitIntake = [
     .withMessage("drinkEnoughWater phải là boolean"),
 
   body("lifestyleNutrition.sleepHours")
-    .isFloat({ min: 0, max: 24 })
-    .withMessage("Số giờ ngủ không hợp lệ"),
+    .optional({ nullable: true })
+    .custom((value) => {
+      if (value === "") return true;
+      const parsed = Number(value);
+      if (!Number.isFinite(parsed) || parsed < 0 || parsed > 24) {
+        throw new Error("Số giờ ngủ không hợp lệ");
+      }
+      return true;
+    }),
 
   body("lifestyleNutrition.stressLevel")
+    .optional({ checkFalsy: true })
     .isIn(["low", "medium", "high"])
     .withMessage("stressLevel không hợp lệ"),
 
   body("lifestyleNutrition.workActivityLevel")
+    .optional({ checkFalsy: true })
     .isIn(["sedentary", "standing", "active", "heavy_labor"])
     .withMessage("workActivityLevel không hợp lệ"),
 
@@ -511,7 +521,9 @@ export const validateSubmitIntake = [
     const isTraining = Boolean(
       req.body?.trainingProfileGoal?.currentlyTraining,
     );
-    const parsed = Number(value);
+    const isEmpty = value === undefined || value === null || value === "";
+    if (isEmpty && !isTraining) return true;
+    const parsed = isEmpty ? Number.NaN : Number(value);
 
     if (!Number.isInteger(parsed) || parsed < 0 || parsed > 14) {
       throw new Error("Số ngày tập/tuần không hợp lệ");
@@ -529,7 +541,9 @@ export const validateSubmitIntake = [
       const isTraining = Boolean(
         req.body?.trainingProfileGoal?.currentlyTraining,
       );
-      const parsed = Number(value);
+      const isEmpty = value === undefined || value === null || value === "";
+      if (isEmpty && !isTraining) return true;
+      const parsed = isEmpty ? Number.NaN : Number(value);
 
       if (!Number.isInteger(parsed) || parsed < 0 || parsed > 600) {
         throw new Error("Thời lượng buổi tập không hợp lệ");
@@ -578,6 +592,14 @@ export const validateSubmitIntake = [
     .optional({ nullable: true, checkFalsy: true })
     .custom(isValidDate)
     .withMessage("targetDeadline không hợp lệ"),
+
+  body("trainingProfileGoal.targetTimeframe")
+    .optional({ nullable: true })
+    .isString()
+    .bail()
+    .trim()
+    .isLength({ max: 60 })
+    .withMessage("Thời gian mong muốn tối đa 60 ký tự"),
 
   body("consent.allowDataStorage")
     .isBoolean()

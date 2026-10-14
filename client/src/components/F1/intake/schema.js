@@ -20,7 +20,7 @@ const emptyOptionalNumbers = (fields) => (value) => {
 
 export const customerInfoSchema = z.object({
   fullName: z.string().trim().min(1, "Vui lòng nhập họ và tên"),
-  age: z.coerce.number().min(1, "Vui lòng nhập tuổi").max(100, "Tuổi không hợp lệ"),
+  age: z.coerce.number().min(10, "Tuổi phải từ 10 đến 100").max(100, "Tuổi không hợp lệ"),
   gender: z.enum(["male", "female", "other"], {
     errorMap: () => ({ message: "Vui lòng chọn giới tính" }),
   }),
@@ -64,8 +64,14 @@ export const bodyMetricsSchema = z.preprocess(
     "restingHeartRate",
   ]),
   z.object({
-  heightCm: z.coerce.number().min(50).max(250, "Chiều cao không hợp lệ").optional().or(z.literal("").transform(() => undefined)),
-  weightKg: z.coerce.number().min(10).max(300, "Cân nặng không hợp lệ").optional().or(z.literal("").transform(() => undefined)),
+  heightCm: z.coerce
+    .number({ error: "Vui lòng nhập chiều cao" })
+    .min(50, "Chiều cao không hợp lệ")
+    .max(250, "Chiều cao không hợp lệ"),
+  weightKg: z.coerce
+    .number({ error: "Vui lòng nhập cân nặng" })
+    .min(10, "Cân nặng không hợp lệ")
+    .max(300, "Cân nặng không hợp lệ"),
   bodyFatPercent: z.coerce.number().min(0).max(80).optional().or(z.literal("").transform(() => undefined)),
   waistCm: z.coerce.number().min(20).max(250).optional().or(z.literal("").transform(() => undefined)),
   hipCm: z.coerce.number().min(20).max(250).optional().or(z.literal("").transform(() => undefined)),
@@ -88,7 +94,7 @@ export const trainingGoalSchema = z.preprocess(
   breakDuration: z.string().optional(),
   primaryGoal: z.string().min(1, "Vui lòng chọn mục tiêu chính"),
   targetWeightKg: z.coerce.number().optional().or(z.literal("").transform(() => undefined)),
-  targetDeadline: z.string().optional(),
+  targetTimeframe: z.string().trim().max(60, "Thời gian mong muốn tối đa 60 ký tự").optional(),
   }),
 ).superRefine((data, ctx) => {
   if (data.currentlyTraining) {
@@ -121,17 +127,6 @@ export const trainingGoalSchema = z.preprocess(
       ctx.addIssue({
         path: ["targetWeightKg"],
         message: "Cân nặng mong muốn không hợp lệ",
-        code: z.ZodIssueCode.custom,
-      });
-    }
-  }
-
-  if (data.targetDeadline) {
-    const date = new Date(data.targetDeadline);
-    if (Number.isNaN(date.getTime())) {
-      ctx.addIssue({
-        path: ["targetDeadline"],
-        message: "Thời gian mong muốn không hợp lệ",
         code: z.ZodIssueCode.custom,
       });
     }

@@ -62,9 +62,23 @@ test("F1 create, intake, private media, assessment command and AI report", async
 
   const intakeForm = page.getByTestId("f1-intake-form");
   await expect(intakeForm).toBeVisible();
-  for (let step = 0; step < 4; step += 1) {
+  await page.getByTestId("f1-intake-next").click();
+  const injuriesSwitch = page.getByRole("switch", {
+    name: "Có chấn thương cần lưu ý không?",
+  });
+  await injuriesSwitch.click();
+  await expect(injuriesSwitch).toHaveAttribute("aria-checked", "true");
+  await page.locator('[name="healthScreening.injuries"]').fill("Trật vai cũ");
+  await page.getByRole("switch", { name: "Có bệnh lý hiện tại không?" }).click();
+  await expect(
+    page.locator('[name="healthScreening.currentConditions"]'),
+  ).toBeVisible();
+  for (let step = 0; step < 2; step += 1) {
     await page.getByTestId("f1-intake-next").click();
   }
+  await page.locator('[name="bodyMetrics.heightCm"]').fill("175");
+  await page.locator('[name="bodyMetrics.weightKg"]').fill("78");
+  await page.getByTestId("f1-intake-next").click();
   await page
     .locator('[name="trainingProfileGoal.trainingExperience"]')
     .selectOption("none");
