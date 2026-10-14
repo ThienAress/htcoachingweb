@@ -153,6 +153,12 @@ export const estimatePhaseDuration = ({
 
   const bodyFat = Number(bodyMetrics.bodyFatPercent || 0);
   const restingHr = Number(bodyMetrics.restingHeartRate || 0);
+  // Tập ít buổi thì mỗi giai đoạn cần dài hơn; tập đều từ 4 buổi/tuần thì rút gọn.
+  const trainingDays = Number(
+    intake?.trainingProfileGoal?.trainingDaysPerWeek || 0,
+  );
+  const scheduleWeeks =
+    trainingDays > 0 && trainingDays <= 2 ? 2 : trainingDays >= 4 ? -1 : 0;
   const compensationCount = Array.isArray(findings.compensationFlags)
     ? findings.compensationFlags.length
     : 0;
@@ -167,6 +173,7 @@ export const estimatePhaseDuration = ({
     if (bodyFat >= 28) weeks += 1;
     if (compensationCount >= 4) weeks += 1;
     if (restingHr >= 85 || cardioFlagsCount >= 2) weeks += 1;
+    weeks += scheduleWeeks;
 
     return clamp(weeks, 6, 10);
   }
@@ -177,6 +184,7 @@ export const estimatePhaseDuration = ({
     if (primaryGoal === "fat_loss") weeks += 2;
     if (systemFlags.testPermission === "modified_test") weeks += 1;
     if (restingHr >= 85) weeks += 1;
+    weeks += scheduleWeeks;
 
     return clamp(weeks, 8, 12);
   }
@@ -187,6 +195,7 @@ export const estimatePhaseDuration = ({
     if (primaryGoal === "muscle_gain" || primaryGoal === "weight_gain") {
       weeks += 2;
     }
+    weeks += scheduleWeeks;
 
     return clamp(weeks, 10, 14);
   }
@@ -367,41 +376,68 @@ const buildBaselineMetrics = ({ intake, assessment }) => ({
   overallPhysicalLevel: assessment?.overallPhysicalLevel || "average",
 });
 
-const projectFatLossPhase = ({ phaseKey, weeks, current }) => {
-  const weeklyWeightLoss =
-    phaseKey === "phase_1" ? 0.28 : phaseKey === "phase_2" ? 0.35 : 0.2;
+// Hệ số điều kiện sống: ngủ ít, căng thẳng cao, tập ít buổi làm chậm tiến độ;
+// tập đều từ 4 buổi/tuần giúp nhanh hơn. Giới hạn 0,6–1,15.
+export const buildRecoveryFactor = (intake) => {
+  const lifestyle = intake?.lifestyleNutrition || {};
+  const days = Number(intake?.trainingProfileGoal?.trainingDaysPerWeek || 0);
+  const sleep = Number(lifestyle.sleepHours || 0);
+  let factor = 1;
+
+  if (sleep > 0 && sleep < 6) factor -= 0.15;
+  if (lifestyle.stressLevel === "high") factor -= 0.1;
+  if (days > 0 && days <= 2) factor -= 0.1;
+  if (days >= 4) factor += 0.1;
+
+  return clamp(factor, 0.6, 1.15);
+};
+
+const FAT_LOSS_WEEKLY_PERCENT = {
+  phase_1: 0.004,
+  phase_2: 0.005,
+  phase_3: 0.0035,
+};
+const MAX_WEEKLY_LOSS_KG = 1;
+
+const projectFatLossPhase = ({ phaseKey, weeks, current, factor = 1 }) => {
+  const weeklyPercent = FAT_LOSS_WEEKLY_PERCENT[phaseKey] || 0.0035;
+  // Tốc độ giảm theo % cân nặng hiện tại (an toàn ≤ 1 kg/tuần), không dùng số cố định.
+  const weeklyWeightLoss = current.weightKg
+    ? clamp(current.weightKg * weeklyPercent * factor, 0.15, MAX_WEEKLY_LOSS_KG)
+    : 0.3 * factor;
 
   const totalWeightDelta = round1(weeklyWeightLoss * weeks);
-  const totalBodyFatDelta =
-    phaseKey === "phase_1"
-      ? round1(Math.min(2.5, 0.25 * weeks))
-      : phaseKey === "phase_2"
-        ? round1(Math.min(3.5, 0.28 * weeks))
-        : round1(Math.min(2.0, 0.18 * weeks));
 
-  const hrDelta = phaseKey === "phase_1" ? 3 : phaseKey === "phase_2" ? 4 : 2;
-
-  const waistDelta =
+  // Mỡ cơ thể: giả định ~80% lượng cân giảm là khối mỡ, tính lại theo khối lượng mỡ.
+  const fatDeltaFallback =
     phaseKey === "phase_1"
-      ? round1(0.35 * weeks)
+      ? Math.min(2.5, 0.25 * weeks)
       : phaseKey === "phase_2"
-        ? round1(0.45 * weeks)
-        : round1(0.22 * weeks);
+        ? Math.min(3.5, 0.28 * weeks)
+        : Math.min(2.0, 0.18 * weeks);
+  let nextBodyFat = null;
+  if (current.bodyFatPercent && current.weightKg) {
+    const newWeight = current.weightKg - totalWeightDelta;
+    const newFatMass =
+      (current.bodyFatPercent / 100) * current.weightKg -
+      0.8 * totalWeightDelta;
+    nextBodyFat = round1(Math.max(5, (newFatMass / newWeight) * 100));
+  } else if (current.bodyFatPercent) {
+    nextBodyFat = round1(current.bodyFatPercent - fatDeltaFallback * factor);
+  }
 
-  const hipDelta =
-    phaseKey === "phase_1"
-      ? round1(0.18 * weeks)
-      : phaseKey === "phase_2"
-        ? round1(0.25 * weeks)
-        : round1(0.12 * weeks);
+  const baseHrDelta = phaseKey === "phase_1" ? 3 : phaseKey === "phase_2" ? 4 : 2;
+  const hrDelta = round1(baseHrDelta * factor);
+
+  // Vòng eo/hông giảm theo lượng cân giảm (khoảng 0,8 cm eo và 0,4 cm hông mỗi kg).
+  const waistDelta = round1(0.8 * totalWeightDelta);
+  const hipDelta = round1(0.4 * totalWeightDelta);
 
   return {
     weightKg: current.weightKg
       ? round1(current.weightKg - totalWeightDelta)
       : null,
-    bodyFatPercent: current.bodyFatPercent
-      ? round1(current.bodyFatPercent - totalBodyFatDelta)
-      : null,
+    bodyFatPercent: nextBodyFat,
     bmi: current.bmi ? round1(current.bmi - totalWeightDelta * 0.3) : null,
     waistCm: current.waistCm
       ? Math.max(45, round1(current.waistCm - waistDelta))
@@ -481,6 +517,120 @@ const buildCheckpointSummary = ({ phaseKey, primaryGoal }) => {
   return "Khách tiếp tục cải thiện đều theo mục tiêu và đúng với lộ trình đã chọn.";
 };
 
+// Đổi "3 tháng", "12 tuần", "1 năm" thành số tuần; không đọc được thì trả về null.
+export const parseTimeframeWeeks = (text) => {
+  const normalized = String(text || "")
+    .toLowerCase()
+    .replace(",", ".")
+    .trim();
+  const match = normalized.match(
+    /(\d+(?:\.\d+)?)\s*(tuần|tuan|week|w|tháng|thang|month|m|năm|nam|year|y)(?![\p{L}])/u,
+  );
+  if (!match) return null;
+  const amount = Number(match[1]);
+  if (!Number.isFinite(amount) || amount <= 0) return null;
+  const unit = match[2];
+  if (["tuần", "tuan", "week", "w"].includes(unit)) return round1(amount);
+  if (["tháng", "thang", "month", "m"].includes(unit)) {
+    return round1(amount * 4.345);
+  }
+  return round1(amount * 52);
+};
+
+const RANGE_KEYS = ["weightKg", "bodyFatPercent", "waistCm", "hipCm"];
+
+// Khoảng ước tính quanh giá trị giữa; càng về sau độ bất định càng rộng.
+const buildProjectedRange = ({ baseline, projected, stageIndex }) => {
+  const spread = 0.25 + 0.05 * stageIndex;
+  const range = {};
+  for (const key of RANGE_KEYS) {
+    if (baseline[key] === null || projected[key] === null) continue;
+    const delta = projected[key] - baseline[key];
+    const low = round1(baseline[key] + delta * (1 - spread));
+    const high = round1(baseline[key] + delta * (1 + spread));
+    range[key] = { min: Math.min(low, high), max: Math.max(low, high) };
+  }
+  return range;
+};
+
+export const buildGoalProgress = ({ intake, baseline, phaseCheckpoints }) => {
+  const training = intake?.trainingProfileGoal || {};
+  const targetWeightKg = Number(training.targetWeightKg || 0) || null;
+  const timeframeText = String(training.targetTimeframe || "").trim();
+  const timeframeWeeks = parseTimeframeWeeks(timeframeText);
+  const totalWeeks = phaseCheckpoints.reduce(
+    (sum, item) => sum + Number(item.durationWeeks || 0),
+    0,
+  );
+  const last = phaseCheckpoints[phaseCheckpoints.length - 1];
+  const projectedWeightKg = last?.projected?.weightKg ?? null;
+  const currentWeightKg = baseline.weightKg;
+
+  const result = {
+    targetWeightKg,
+    currentWeightKg,
+    projectedWeightKg,
+    totalPlannedWeeks: totalWeeks,
+    timeframeText,
+    timeframeWeeks,
+    achievedPercent: null,
+    estimatedWeeksToTarget: null,
+    fitsTimeframe: null,
+    summary: "",
+  };
+
+  if (targetWeightKg && currentWeightKg && projectedWeightKg !== null) {
+    const needed = targetWeightKg - currentWeightKg;
+    const achieved = projectedWeightKg - currentWeightKg;
+    if (Math.abs(needed) < 0.1) {
+      result.achievedPercent = 100;
+      result.estimatedWeeksToTarget = 0;
+    } else if (needed * achieved <= 0) {
+      result.achievedPercent = 0;
+    } else {
+      result.achievedPercent = clamp(
+        Math.round((achieved / needed) * 100),
+        0,
+        100,
+      );
+      const weeklyRate = Math.abs(achieved) / Math.max(totalWeeks, 1);
+      result.estimatedWeeksToTarget = Math.ceil(
+        Math.abs(needed) / Math.max(weeklyRate, 0.01),
+      );
+    }
+  }
+
+  const weeksNeeded = result.estimatedWeeksToTarget ?? totalWeeks;
+  if (timeframeWeeks && weeksNeeded) {
+    result.fitsTimeframe = weeksNeeded <= timeframeWeeks;
+  }
+
+  const parts = [];
+  if (result.achievedPercent !== null) {
+    parts.push(
+      `Hết lộ trình dự kiến (${totalWeeks} tuần), khách đạt khoảng ${result.achievedPercent}% so với cân nặng mong muốn ${targetWeightKg} kg.`,
+    );
+    if (result.achievedPercent < 100 && result.estimatedWeeksToTarget) {
+      parts.push(
+        `Với tốc độ này cần khoảng ${result.estimatedWeeksToTarget} tuần để chạm mục tiêu.`,
+      );
+    }
+  }
+  if (timeframeText) {
+    if (result.fitsTimeframe === true) {
+      parts.push(`Phù hợp với thời gian mong muốn (${timeframeText}).`);
+    } else if (result.fitsTimeframe === false) {
+      parts.push(
+        `Có thể chưa kịp thời gian mong muốn (${timeframeText}); nên trao đổi lại kỳ vọng với khách.`,
+      );
+    } else {
+      parts.push(`Thời gian mong muốn khách ghi: ${timeframeText}.`);
+    }
+  }
+  result.summary = parts.join(" ");
+  return result;
+};
+
 export const buildOutcomeTable = ({
   intake,
   assessment,
@@ -489,6 +639,7 @@ export const buildOutcomeTable = ({
 }) => {
   const primaryGoal = intake?.trainingProfileGoal?.primaryGoal || "";
   const baseline = buildBaselineMetrics({ intake, assessment });
+  const recoveryFactor = buildRecoveryFactor(intake);
 
   const phaseCheckpoints = [];
   let current = {
@@ -506,6 +657,7 @@ export const buildOutcomeTable = ({
       phaseKey: stage.phaseKey,
       weeks: stage.durationWeeks,
       current,
+      factor: recoveryFactor,
     });
 
     const deltaFromBaseline = {
@@ -541,6 +693,11 @@ export const buildOutcomeTable = ({
       label: `Kết thúc ${PHASE_META[stage.phaseKey].phaseTitle}`,
       durationWeeks: stage.durationWeeks,
       projected,
+      projectedRange: buildProjectedRange({
+        baseline,
+        projected,
+        stageIndex: phaseCheckpoints.length,
+      }),
       deltaFromBaseline,
       summary: buildCheckpointSummary({
         phaseKey: stage.phaseKey,
@@ -566,6 +723,8 @@ export const buildOutcomeTable = ({
     ],
     baseline,
     phaseCheckpoints,
+    goalProgress: buildGoalProgress({ intake, baseline, phaseCheckpoints }),
+    recoveryFactor: round1(recoveryFactor),
   };
 };
 
