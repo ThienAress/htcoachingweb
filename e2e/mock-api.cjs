@@ -680,9 +680,9 @@ const handleApi = (req, res, path) => {
               reason: "Ưu tiên bài đẩy dễ quan sát form.",
               dosage: "2-3 hiệp x 8-10 reps hoặc 2-3 hiệp x 20-30 giây",
               tiers: {
-                easy: ["Hít đất tường (Wall Push-Up)"],
-                standard: ["Hít đất nghiêng (Incline Push-Up)"],
-                advanced: ["Hít đất chuẩn (Full Push-Up)"],
+                easy: ["Wall Push-Up"],
+                standard: ["Incline Push-Up"],
+                advanced: ["Full Push-Up"],
               },
               protocolOptions: [],
             },
