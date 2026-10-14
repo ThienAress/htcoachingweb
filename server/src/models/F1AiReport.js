@@ -112,6 +112,30 @@ const f1AiReportSchema = new mongoose.Schema(
       cardioFlags: { type: [String], default: [] },
       // Các bài đã test và quan sát tư thế, để HLV thấy báo cáo dựa trên gì.
       testedExercises: { type: [String], default: [] },
+      testedExerciseRows: {
+        type: [
+          new mongoose.Schema(
+            {
+              label: { type: String, default: "", trim: true },
+              entries: {
+                type: [
+                  new mongoose.Schema(
+                    {
+                      name: { type: String, default: "", trim: true },
+                      note: { type: String, default: "", trim: true },
+                      result: { type: String, default: "", trim: true },
+                    },
+                    { _id: false },
+                  ),
+                ],
+                default: [],
+              },
+            },
+            { _id: false },
+          ),
+        ],
+        default: [],
+      },
     },
 
     recommendations: {

@@ -144,6 +144,18 @@ describe("automatic report: evidence and rules", () => {
     expect(lines).toContain("mặt trước: không có biểu hiện sai");
     expect(lines).toContain("mặt bên: có biểu hiện sai");
     expect(lines).toContain("mặt sau: chưa đánh giá");
+
+    const [first, ...rest] = report.findings.testedExerciseRows;
+    expect(first.label).toContain("Upper Push");
+    expect(first.entries).toEqual([
+      { name: "Wall Push-Up", note: "mức dễ", result: "Tốt" },
+    ]);
+    const squat = rest[rest.length - 1];
+    expect(squat.entries.map((entry) => entry.result)).toEqual([
+      "Không có biểu hiện sai",
+      "Có biểu hiện sai",
+      "Chưa đánh giá",
+    ]);
   });
 
   it("does not fall back to built-in notes when active rules exist but none match", async () => {

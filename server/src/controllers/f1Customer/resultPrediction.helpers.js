@@ -201,7 +201,7 @@ const buildObjectiveByPhase = (phaseKey, primaryGoal) => {
 
   if (phaseKey === "phase_2") {
     return primaryGoal === "fat_loss"
-      ? "Tăng dần sức mạnh bền, giữ kỹ thuật ổn định và đẩy body composition theo hướng giảm mỡ thực tế hơn."
+      ? "Tăng dần sức mạnh bền, giữ kỹ thuật ổn định và cải thiện thành phần cơ thể theo hướng giảm mỡ thực tế hơn."
       : "Tăng dần sức mạnh bền, nâng khả năng chịu bài và vẫn giữ chất lượng chuyển động khi có tải.";
   }
 
@@ -230,7 +230,7 @@ const buildEntryReasonByPhase = ({
     }
 
     if (overall === "low" || overall === "below_average") {
-      return "Nền thể chất hiện tại vẫn chưa đủ chắc để đi nhanh vào các block nặng hơn, nên cần ưu tiên xây nền vận động và khả năng chịu vận động trước.";
+      return "Nền thể chất hiện tại vẫn chưa đủ chắc để đi nhanh vào các giai đoạn nặng hơn, nên cần ưu tiên xây nền vận động và khả năng chịu vận động trước.";
     }
 
     return "Đây là giai đoạn phù hợp để khách làm quen lại với vận động, chỉnh chất lượng chuyển động và xây nền thể lực ban đầu.";
@@ -238,13 +238,13 @@ const buildEntryReasonByPhase = ({
 
   if (phaseKey === "phase_2") {
     return goal === "fat_loss"
-      ? "Sau giai đoạn đầu, khách phù hợp hơn với strength endurance vì vừa có thể tăng sức mạnh bền, vừa hỗ trợ cải thiện hình thể theo hướng giảm mỡ."
-      : "Sau khi đã có nền ổn định hơn, khách có thể chuyển sang strength endurance để tăng sức mạnh bền và khả năng chịu khối lượng tập tốt hơn.";
+      ? "Sau giai đoạn đầu, khách phù hợp hơn với giai đoạn sức mạnh bền (strength endurance) vì vừa có thể tăng sức mạnh bền, vừa hỗ trợ cải thiện hình thể theo hướng giảm mỡ."
+      : "Sau khi đã có nền ổn định hơn, khách có thể chuyển sang giai đoạn sức mạnh bền (strength endurance) để tăng sức mạnh bền và khả năng chịu khối lượng tập tốt hơn.";
   }
 
   if (phaseKey === "phase_3") {
     if (bodyFat <= 18) {
-      return "Khách đã có nền tương đối tốt về thể trạng và body composition, nên có thể bắt đầu đi rõ hơn theo hướng phát triển cơ bắp.";
+      return "Khách đã có nền tương đối tốt về thể trạng và thành phần cơ thể, nên có thể bắt đầu đi rõ hơn theo hướng phát triển cơ bắp.";
     }
 
     return "Ở thời điểm này, khách đã đủ nền để bước vào giai đoạn tập trung hơn cho phát triển cơ bắp thay vì chỉ dừng ở phần nền tảng.";
@@ -265,7 +265,7 @@ const buildExpectedChangesByPhase = ({ phaseKey, primaryGoal }) => {
   if (phaseKey === "phase_2") {
     return primaryGoal === "fat_loss"
       ? [
-          "Body composition cải thiện rõ hơn",
+          "Thành phần cơ thể cải thiện rõ hơn",
           "Sức mạnh bền và thể lực nền tốt hơn",
           "Khả năng giữ form dưới tải ổn định hơn",
         ]
@@ -443,6 +443,26 @@ const projectMuscleGainPhase = ({ phaseKey, weeks, current }) => {
   };
 };
 
+// Mục tiêu duy trì: cân nặng gần như giữ nguyên, cải thiện nhẹ thành phần cơ thể và tim mạch.
+const projectMaintenancePhase = ({ weeks, current }) => {
+  const bodyFatDelta = round1(Math.min(1.2, 0.08 * weeks));
+  const waistDelta = round1(0.1 * weeks);
+
+  return {
+    weightKg: current.weightKg,
+    bodyFatPercent: current.bodyFatPercent
+      ? round1(current.bodyFatPercent - bodyFatDelta)
+      : null,
+    bmi: current.bmi,
+    waistCm: current.waistCm ? round1(current.waistCm - waistDelta) : null,
+    hipCm: current.hipCm,
+    restingHeartRate: current.restingHeartRate
+      ? Math.max(55, round1(current.restingHeartRate - 1.5))
+      : null,
+    overallPhysicalLevel: nextPhysicalLevel(current.overallPhysicalLevel),
+  };
+};
+
 const buildCheckpointSummary = ({ phaseKey, primaryGoal }) => {
   if (primaryGoal === "fat_loss") {
     if (phaseKey === "phase_1") {
@@ -476,18 +496,17 @@ export const buildOutcomeTable = ({
   };
 
   for (const stage of phaseRoadmap) {
-    const projected =
+    const projectPhase =
       primaryGoal === "fat_loss"
-        ? projectFatLossPhase({
-            phaseKey: stage.phaseKey,
-            weeks: stage.durationWeeks,
-            current,
-          })
-        : projectMuscleGainPhase({
-            phaseKey: stage.phaseKey,
-            weeks: stage.durationWeeks,
-            current,
-          });
+        ? projectFatLossPhase
+        : primaryGoal === "maintenance"
+          ? projectMaintenancePhase
+          : projectMuscleGainPhase;
+    const projected = projectPhase({
+      phaseKey: stage.phaseKey,
+      weeks: stage.durationWeeks,
+      current,
+    });
 
     const deltaFromBaseline = {
       weightKg:

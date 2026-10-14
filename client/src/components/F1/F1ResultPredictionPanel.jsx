@@ -394,11 +394,11 @@ const VisualComparisonSection = ({
           value={hasBeforeSide ? "Đã có" : "Chưa có"}
         />
         <InfoCard
-          label="Ảnh after front"
+          label="Ảnh sau tập (mặt trước)"
           value={hasAfterFront ? "Đã có" : "Chưa có"}
         />
         <InfoCard
-          label="Ảnh after side"
+          label="Ảnh sau tập (mặt bên)"
           value={hasAfterSide ? "Đã có" : "Chưa có"}
         />
       </div>
@@ -430,15 +430,15 @@ const VisualComparisonSection = ({
 
       <div className="grid gap-6 xl:grid-cols-2">
         <div className="space-y-4">
-          <h4 className="text-lg font-bold text-slate-800">Ảnh before</h4>
+          <h4 className="text-lg font-bold text-slate-800">Ảnh trước tập</h4>
           <div className="grid gap-4 md:grid-cols-2">
             <ImagePreviewCard
-              title="Before • Front"
+              title="Trước tập • Mặt trước"
               imageUrl={beforeImages?.frontUrl || ""}
               emptyText="Chưa có ảnh trước tập (mặt trước) từ khảo sát"
             />
             <ImagePreviewCard
-              title="Before • Side"
+              title="Trước tập • Mặt bên"
               imageUrl={beforeImages?.sideUrl || ""}
               emptyText="Chưa có ảnh trước tập (mặt bên) từ khảo sát"
             />
@@ -448,14 +448,14 @@ const VisualComparisonSection = ({
           <h4 className="text-lg font-bold text-slate-800">{afterLabel}</h4>
           <div className="grid gap-4 md:grid-cols-2">
             <ImagePreviewCard
-              title="After • Front"
+              title="Sau tập • Mặt trước"
               imageUrl={selectedVisualStage?.images?.frontUrl || ""}
-              emptyText="Chưa có ảnh after front"
+              emptyText="Chưa có ảnh sau tập (mặt trước)"
             />
             <ImagePreviewCard
-              title="After • Side"
+              title="Sau tập • Mặt bên"
               imageUrl={selectedVisualStage?.images?.sideUrl || ""}
-              emptyText="Chưa có ảnh after side"
+              emptyText="Chưa có ảnh sau tập (mặt bên)"
             />
           </div>
         </div>
@@ -626,7 +626,7 @@ const F1ResultPredictionPanel = ({ customer, onBack, onGenerated }) => {
               </h2>
               <p className="mt-1 text-slate-500">
                 Toàn bộ lộ trình tập, kết quả kỳ vọng theo từng giai đoạn và
-                phần so sánh before/after
+                phần so sánh trước/sau tập
               </p>
             </div>
             <button
@@ -694,7 +694,7 @@ const F1ResultPredictionPanel = ({ customer, onBack, onGenerated }) => {
 
               <div className="space-y-3">
                 <SectionHeading
-                  title="Khung NASM 3 cấp độ / 5 phase"
+                  title="Khung NASM 3 cấp độ / 5 giai đoạn"
                   subtitle="Cấu trúc chuẩn của NASM"
                 />
                 <F1NasmPyramid />
@@ -725,8 +725,8 @@ const F1ResultPredictionPanel = ({ customer, onBack, onGenerated }) => {
 
               <div className="space-y-4">
                 <SectionHeading
-                  title="So sánh hình ảnh before / after"
-                  subtitle="Ảnh after theo phase đang chọn"
+                  title="So sánh hình ảnh trước / sau tập"
+                  subtitle="Ảnh sau tập theo giai đoạn đang chọn"
                 />
                 <VisualComparisonSection
                   prediction={prediction}
