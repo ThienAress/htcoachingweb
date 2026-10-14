@@ -1,6 +1,7 @@
 // ExerciseTestCard.jsx — thẻ chọn bài test dùng chung cho Sức mạnh / Sức bền / Tim mạch
 import { useState } from "react";
 import { Plus, X } from "lucide-react";
+import RoundedSelect from "./RoundedSelect";
 import {
   scoreAgainstProtocol,
   scoreToLevel,
@@ -34,6 +35,18 @@ const Field = ({ label, children }) => (
     {children}
   </label>
 );
+
+const SelectField = ({ label, ...props }) => (
+  <div className="block">
+    <span className="mb-1 block text-xs font-medium text-slate-600">{label}</span>
+    <RoundedSelect label={label} {...props} />
+  </div>
+);
+
+const INPUT_MODE_OPTIONS = [
+  { value: "reps", label: "Theo số lần (reps)" },
+  { value: "time", label: "Theo thời gian (giây)" },
+];
 
 const positiveInput = (onChange) => (event) => {
   const next = event.target.value;
@@ -77,17 +90,13 @@ const ExerciseRow = ({
       <div className="mt-3 grid gap-3 sm:grid-cols-2">
         {scoring === "protocol" && (
           <>
-            <Field label="Cách ghi kết quả">
-              <select
-                className={inputClass}
-                value={exercise.inputMode}
-                onChange={(e) => onPatch({ inputMode: e.target.value })}
-              >
-                <option value="">Chọn cách ghi</option>
-                <option value="reps">Theo số lần (reps)</option>
-                <option value="time">Theo thời gian (giây)</option>
-              </select>
-            </Field>
+            <SelectField
+              label="Cách ghi kết quả"
+              value={exercise.inputMode}
+              onChange={(inputMode) => onPatch({ inputMode })}
+              options={INPUT_MODE_OPTIONS}
+              placeholder="Chọn cách ghi"
+            />
             <Field label="Số hiệp (set)">
               <input
                 type="number"
@@ -276,40 +285,27 @@ const ExerciseTestCard = ({
           </div>
         ) : (
           <div className="space-y-3 rounded-xl border border-dashed border-orange-200 bg-orange-50/30 p-4">
-            <Field label="Chọn cấp độ cho bài test">
-              <select
-                className={inputClass}
-                value={tier}
-                onChange={(e) => setTier(e.target.value)}
-                disabled={limitReached}
-              >
-                <option value="">Chọn cấp độ</option>
-                {TIER_OPTIONS.map((item) => (
-                  <option key={item.value} value={item.value}>
-                    {item.label}
-                  </option>
-                ))}
-              </select>
-            </Field>
+            <SelectField
+              label="Chọn cấp độ cho bài test"
+              value={tier}
+              onChange={setTier}
+              options={TIER_OPTIONS}
+              placeholder="Chọn cấp độ"
+              disabled={limitReached}
+            />
 
             {tier && (
-              <Field label="Chọn bài tập">
-                <select
-                  className={inputClass}
-                  value=""
-                  disabled={limitReached || available.length === 0}
-                  onChange={(e) => addExercise(e.target.value, "system", tier)}
-                >
-                  <option value="">
-                    {available.length ? "Chọn bài tập" : "Đã chọn hết bài của mức này"}
-                  </option>
-                  {available.map((name) => (
-                    <option key={name} value={name}>
-                      {name}
-                    </option>
-                  ))}
-                </select>
-              </Field>
+              <SelectField
+                label="Chọn bài tập"
+                value=""
+                onChange={(name) => addExercise(name, "system", tier)}
+                options={available.map((name) => ({ value: name, label: name }))}
+                placeholder={
+                  available.length ? "Chọn bài tập" : "Đã chọn hết bài của mức này"
+                }
+                emptyText="Đã chọn hết bài của mức này"
+                disabled={limitReached || available.length === 0}
+              />
             )}
 
             {tier && (

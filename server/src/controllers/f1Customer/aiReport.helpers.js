@@ -216,6 +216,7 @@ const TESTED_METRICS = [
 // Mỗi dòng: hạng mục + các bài đã test (tên, cấp độ, mức) để HLV thấy báo cáo dựa trên gì.
 const buildTestedExerciseFindings = (assessment) => {
   const lines = [];
+  const rows = [];
   for (const [label, group, key] of TESTED_METRICS) {
     const exercises = assessment?.[group]?.[key]?.exercises || [];
     if (!exercises.length) continue;
@@ -227,6 +228,14 @@ const buildTestedExerciseFindings = (assessment) => {
       })
       .join("; ");
     lines.push(`${label}: ${detail}`);
+    rows.push({
+      label,
+      entries: exercises.map((item) => ({
+        name: item.name,
+        note: TIER_LABELS[item.tier] || "bài riêng của HLV",
+        result: LEVEL_LABELS[item.level] || "Chưa chấm",
+      })),
+    });
   }
 
   const ohsa = assessment?.movementAssessment?.overheadSquat || {};
@@ -241,7 +250,23 @@ const buildTestedExerciseFindings = (assessment) => {
       : `${label}: chưa đánh giá`;
   });
   lines.push(`Squat tay qua đầu (Overhead Squat) - ${views.join("; ")}`);
-  return lines;
+  rows.push({
+    label: "Squat tay qua đầu (Overhead Squat)",
+    entries: [
+      ["Góc nhìn mặt trước", "anterior"],
+      ["Góc nhìn mặt bên", "lateral"],
+      ["Góc nhìn mặt sau", "posterior"],
+    ].map(([name, view]) => ({
+      name,
+      note: "",
+      result: (ohsa[view] || []).length
+        ? "Có biểu hiện sai"
+        : ohsa[`${view}Normal`]
+          ? "Không có biểu hiện sai"
+          : "Chưa đánh giá",
+    })),
+  });
+  return { lines, rows };
 };
 
 // Hạng mục chỉ test ở mức dễ mà vẫn dưới trung bình: tín hiệu nền yếu rõ hơn mức tổng.
@@ -1429,7 +1454,10 @@ export const buildAiReport = async ({ customer, intake, assessment }) => {
       strengthFlags,
       enduranceFlags,
       cardioFlags,
-      testedExercises: buildTestedExerciseFindings(assessment),
+      ...(() => {
+        const tested = buildTestedExerciseFindings(assessment);
+        return { testedExercises: tested.lines, testedExerciseRows: tested.rows };
+      })(),
     },
     recommendations: {
       correctiveFocus,

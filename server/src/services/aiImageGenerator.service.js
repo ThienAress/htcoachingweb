@@ -1,4 +1,14 @@
-const SUPPORTED_PROVIDERS = ["mock", "openai"];
+const SUPPORTED_PROVIDERS = ["mock", "openai", "gemini"];
+
+// Nano Banana = dòng Gemini Image. Có thể đổi bản qua AI_IMAGE_MODEL
+// (ví dụ gemini-3-pro-image-preview) mà không cần sửa code.
+const DEFAULT_MODELS = {
+  openai: "gpt-image-1",
+  gemini: "gemini-2.5-flash-image",
+  mock: "mock-image",
+};
+const GEMINI_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models";
+const GEMINI_TIMEOUT_MS = 120_000;
 
 const safeText = (value = "") => String(value || "").trim();
 
@@ -23,9 +33,12 @@ const getProviderConfig = () => {
       (process.env.NODE_ENV === "production" ? "" : "mock"),
   ).toLowerCase();
 
-  const model = safeText(process.env.AI_IMAGE_MODEL || "gpt-image-1");
+  const model = safeText(
+    process.env.AI_IMAGE_MODEL || DEFAULT_MODELS[provider] || DEFAULT_MODELS.openai,
+  );
 
   const openaiApiKey = safeText(process.env.OPENAI_API_KEY || "");
+  const geminiApiKey = safeText(process.env.GEMINI_API_KEY || "");
 
   if (!SUPPORTED_PROVIDERS.includes(provider)) {
     const error = new Error(
@@ -50,6 +63,7 @@ const getProviderConfig = () => {
     provider,
     model,
     openaiApiKey,
+    geminiApiKey,
   };
 };
 
@@ -254,6 +268,128 @@ const callOpenAiImageEdit = async ({
   throw error;
 };
 
+const callGeminiImageEdit = async ({
+  imageUrl,
+  prompt,
+  phaseKey,
+  view,
+  model,
+  geminiApiKey,
+}) => {
+  if (!geminiApiKey) {
+    const error = new Error("Thiếu GEMINI_API_KEY");
+    error.status = 500;
+    throw error;
+  }
+
+  const sourceBlob = await fetchImageAsBlob(imageUrl);
+  const mimeType = getMimeTypeFromContentType(sourceBlob.type);
+  const base64 = Buffer.from(await sourceBlob.arrayBuffer()).toString("base64");
+
+  const response = await fetch(
+    `${GEMINI_ENDPOINT}/${encodeURIComponent(model)}:generateContent`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-goog-api-key": geminiApiKey,
+      },
+      body: JSON.stringify({
+        contents: [
+          {
+            role: "user",
+            parts: [
+              { text: buildOpenAiEditPrompt({ prompt, phaseKey, view }) },
+              { inlineData: { mimeType, data: base64 } },
+            ],
+          },
+        ],
+      }),
+      signal: AbortSignal.timeout(GEMINI_TIMEOUT_MS),
+    },
+  );
+
+  let data = null;
+  try {
+    data = await response.json();
+  } catch (_error) {
+    data = null;
+  }
+
+  if (!response.ok) {
+    const error = new Error(
+      safeText(data?.error?.message) || "Gemini image trả về lỗi",
+    );
+    error.status = response.status || 502;
+    throw error;
+  }
+
+  const blockReason = safeText(data?.promptFeedback?.blockReason);
+  if (blockReason) {
+    const error = new Error(
+      "Gemini từ chối tạo ảnh do bộ lọc an toàn. Hãy thử ảnh khác hoặc ảnh đủ trang phục.",
+    );
+    error.status = 422;
+    throw error;
+  }
+
+  const parts = data?.candidates?.[0]?.content?.parts || [];
+  const imagePart = parts.find((part) => (part.inlineData || part.inline_data)?.data);
+  const inline = imagePart?.inlineData || imagePart?.inline_data;
+
+  if (!inline?.data) {
+    const error = new Error("Gemini không trả về ảnh kết quả");
+    error.status = 502;
+    throw error;
+  }
+
+  return base64ToDataUrl(
+    inline.data,
+    safeText(inline.mimeType || inline.mime_type) || "image/png",
+  );
+};
+
+const generateGeminiStageImages = async ({
+  beforeImages,
+  prompts,
+  phaseKey,
+  provider,
+  model,
+  geminiApiKey,
+}) => {
+  const frontSource = safeText(beforeImages?.frontUrl);
+  const sideSource = safeText(beforeImages?.sideUrl);
+
+  if (!isSupportedImageRef(frontSource) || !isSupportedImageRef(sideSource)) {
+    const error = new Error(
+      "Gemini image generator cần beforeImages.frontUrl và beforeImages.sideUrl hợp lệ",
+    );
+    error.status = 400;
+    throw error;
+  }
+
+  const [frontUrl, sideUrl] = await Promise.all([
+    callGeminiImageEdit({
+      imageUrl: frontSource,
+      prompt: safeText(prompts?.front),
+      phaseKey,
+      view: "front",
+      model,
+      geminiApiKey,
+    }),
+    callGeminiImageEdit({
+      imageUrl: sideSource,
+      prompt: safeText(prompts?.side),
+      phaseKey,
+      view: "side",
+      model,
+      geminiApiKey,
+    }),
+  ]);
+
+  return normalizeGeneratedImageRefs({ frontUrl, sideUrl, provider, model });
+};
+
 const generateOpenAiStageImages = async ({
   beforeImages,
   prompts,
@@ -326,6 +462,17 @@ export const generateStageImagesWithAI = async ({
       provider: config.provider,
       model: config.model,
       openaiApiKey: config.openaiApiKey,
+    });
+  }
+
+  if (config.provider === "gemini") {
+    return generateGeminiStageImages({
+      beforeImages,
+      prompts,
+      phaseKey,
+      provider: config.provider,
+      model: config.model,
+      geminiApiKey: config.geminiApiKey,
     });
   }
 

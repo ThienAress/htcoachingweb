@@ -75,20 +75,26 @@ const METRIC_ROWS = [
   ["Hồi phục nhịp tim (Heart Rate Recovery)", "cardioAssessment", "recoveryHeartRate"],
 ];
 
-const ohsaSummary = (ohsa = {}) =>
+const ohsaRows = (ohsa = {}) =>
   [
     ["Mặt trước", "anterior"],
     ["Mặt bên", "lateral"],
     ["Mặt sau", "posterior"],
-  ]
-    .map(([label, view]) => {
-      const issues = ohsa[view] || [];
-      if (issues.length) return `${label}: ${list(issues, F1_POSTURE_LABELS)}`;
-      return ohsa[`${view}Normal`]
-        ? `${label}: không có biểu hiện sai`
-        : `${label}: chưa đánh giá`;
-    })
-    .join(" · ");
+  ].map(([label, view]) => {
+    const issues = ohsa[view] || [];
+    if (issues.length) {
+      return { label, result: list(issues, F1_POSTURE_LABELS), tone: "warn" };
+    }
+    return ohsa[`${view}Normal`]
+      ? { label, result: "Không có biểu hiện sai", tone: "ok" }
+      : { label, result: "Chưa đánh giá", tone: "idle" };
+  });
+
+const resultToneClass = {
+  ok: "text-emerald-700",
+  warn: "text-amber-700",
+  idle: "text-slate-500",
+};
 
 const AssessmentGroup = ({ assessment }) => {
   if (!assessment) {
@@ -120,11 +126,31 @@ const AssessmentGroup = ({ assessment }) => {
             .join(", ") || "Bình thường"}
         </Item>
       </Grid>
-      <p className="mt-4 text-sm text-slate-700">
-        <span className="font-semibold">Squat tay qua đầu (Overhead Squat): </span>
-        {ohsaSummary(assessment.movementAssessment?.overheadSquat)}
-      </p>
       <div className="mt-4 overflow-x-auto">
+        <table className="w-full text-left text-sm">
+          <thead>
+            <tr className="border-b border-slate-200 text-xs text-slate-500">
+              <th className="py-2 pr-3 font-medium">
+                Squat tay qua đầu (Overhead Squat)
+              </th>
+              <th className="py-2 font-medium">Kết quả</th>
+            </tr>
+          </thead>
+          <tbody>
+            {ohsaRows(assessment.movementAssessment?.overheadSquat).map((row) => (
+              <tr key={row.label} className="border-b border-slate-100 align-top">
+                <td className="py-2 pr-3 font-medium text-slate-800">
+                  Góc nhìn {row.label.toLowerCase()}
+                </td>
+                <td className={`py-2 font-semibold ${resultToneClass[row.tone]}`}>
+                  {row.result}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="mt-6 overflow-x-auto">
         <table className="w-full text-left text-sm">
           <thead>
             <tr className="border-b border-slate-200 text-xs text-slate-500">

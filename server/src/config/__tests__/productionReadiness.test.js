@@ -170,6 +170,18 @@ describe("production readiness configuration", () => {
     );
   });
 
+  it("accepts Gemini as the image provider without an OpenAI key", () => {
+    const env = validEnvironment();
+    env.AI_IMAGE_PROVIDER = "gemini";
+    delete env.OPENAI_API_KEY;
+
+    const result = validateProductionEnvironment(env, { strict: true });
+    const codes = result.errors.map((finding) => finding.code);
+
+    expect(codes).not.toContain("AI_IMAGE_PROVIDER_NOT_PRODUCTION");
+    expect(JSON.stringify(result.errors)).not.toContain("OPENAI_API_KEY");
+  });
+
   it("keeps optional operational integrations as startup warnings", () => {
     const env = validEnvironment();
     delete env.LOG_HASH_SECRET;

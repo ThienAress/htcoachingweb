@@ -148,6 +148,55 @@ const SummaryCard = ({ title, items = [], emptyText = "Chưa có dữ liệu" })
   </div>
 );
 
+const EvidenceTable = ({ rows = [], fallbackItems = [] }) => {
+  if (!rows.length) {
+    return (
+      <BulletList
+        items={fallbackItems}
+        emptyText="Chưa có dữ liệu bài test chi tiết."
+      />
+    );
+  }
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-left text-sm">
+        <thead>
+          <tr className="border-b border-slate-200 text-xs text-slate-500">
+            <th className="py-2 pr-3 font-medium">Hạng mục</th>
+            <th className="py-2 pr-3 font-medium">Bài test / góc nhìn</th>
+            <th className="py-2 font-medium">Kết quả</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) =>
+            (row.entries || []).map((entry, index) => (
+              <tr
+                key={`${row.label}-${index}`}
+                className="border-b border-slate-100 align-top"
+              >
+                <td className="py-2 pr-3 font-medium text-slate-800">
+                  {index === 0 ? row.label : ""}
+                </td>
+                <td className="py-2 pr-3 text-slate-700">
+                  {entry.name}
+                  {entry.note && (
+                    <span className="ml-2 rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
+                      {entry.note}
+                    </span>
+                  )}
+                </td>
+                <td className="py-2 font-semibold text-slate-800">
+                  {entry.result}
+                </td>
+              </tr>
+            )),
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
+};
+
 const AppendixCard = ({
   title,
   items = [],
@@ -598,9 +647,9 @@ const F1AiReportPanel = ({ customer, onBack, onGenerated, onOpenResultPrediction
                 title="Cơ sở đánh giá"
                 subtitle="Các bài đã test và quan sát tư thế dùng để tính kết quả"
               >
-                <BulletList
-                  items={report?.findings?.testedExercises || []}
-                  emptyText="Chưa có dữ liệu bài test chi tiết."
+                <EvidenceTable
+                  rows={report?.findings?.testedExerciseRows || []}
+                  fallbackItems={report?.findings?.testedExercises || []}
                 />
               </SectionCard>
 
