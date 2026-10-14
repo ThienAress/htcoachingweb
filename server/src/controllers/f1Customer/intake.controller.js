@@ -42,7 +42,7 @@ export const saveIntakeDraft = async (req, res, next) => {
     if (!sanitizedDraft) {
       return res.status(400).json({
         success: false,
-        message: "Dữ liệu draft không đúng với bước intake hiện tại",
+        message: "Dữ liệu bản nháp không đúng với bước khảo sát hiện tại",
       });
     }
     const { root: draftRoot, value: draftValue } = sanitizedDraft;
@@ -85,7 +85,7 @@ export const saveIntakeDraft = async (req, res, next) => {
       return res.json({
         success: true,
         data: updated,
-        message: "Đã lưu draft intake",
+        message: "Đã lưu nháp khảo sát",
       });
     } catch (txErr) {
       await session.abortTransaction();
@@ -143,7 +143,7 @@ export const submitIntake = async (req, res, next) => {
         await session.abortTransaction();
         return res.status(400).json({
           success: false,
-          message: "Cần đồng ý lưu dữ liệu sức khỏe để hoàn tất intake",
+          message: "Cần đồng ý lưu dữ liệu sức khỏe để hoàn tất khảo sát",
         });
       }
 
@@ -189,7 +189,7 @@ export const submitIntake = async (req, res, next) => {
       return res.json({
         success: true,
         data: intake,
-        message: "Hoàn tất intake thành công",
+        message: "Hoàn tất khảo sát thành công",
       });
     } catch (txErr) {
       await session.abortTransaction();

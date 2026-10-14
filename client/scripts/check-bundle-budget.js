@@ -17,8 +17,10 @@ const routeFamilies = [
   {
     name: "f1-workflow",
     sourcePattern: /F1|f1Customer\.service/i,
-    rawLimit: 240 * KB,
-    gzipLimit: 70 * KB,
+    // Nâng từ 240/70 khi thêm luồng chọn tối đa 3 bài test mỗi thẻ đánh giá
+    // (ExerciseTestCard + assessmentExercises); build Netlify đo 240.4/70.7.
+    rawLimit: 256 * KB,
+    gzipLimit: 74 * KB,
   },
   {
     name: "training-schedule",

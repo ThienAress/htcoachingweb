@@ -386,11 +386,11 @@ const VisualComparisonSection = ({
     <div className="space-y-5">
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <InfoCard
-          label="Ảnh before front"
+          label="Ảnh trước tập (mặt trước)"
           value={hasBeforeFront ? "Đã có" : "Chưa có"}
         />
         <InfoCard
-          label="Ảnh before side"
+          label="Ảnh trước tập (mặt bên)"
           value={hasBeforeSide ? "Đã có" : "Chưa có"}
         />
         <InfoCard
@@ -435,12 +435,12 @@ const VisualComparisonSection = ({
             <ImagePreviewCard
               title="Before • Front"
               imageUrl={beforeImages?.frontUrl || ""}
-              emptyText="Chưa có ảnh before front từ intake"
+              emptyText="Chưa có ảnh trước tập (mặt trước) từ khảo sát"
             />
             <ImagePreviewCard
               title="Before • Side"
               imageUrl={beforeImages?.sideUrl || ""}
-              emptyText="Chưa có ảnh before side từ intake"
+              emptyText="Chưa có ảnh trước tập (mặt bên) từ khảo sát"
             />
           </div>
         </div>

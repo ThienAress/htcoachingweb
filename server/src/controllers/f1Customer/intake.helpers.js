@@ -166,7 +166,7 @@ export const buildSystemFlags = (payload = {}) => {
 
     cautionReasons.push({
       field: "trainingProfileGoal",
-      label: "Tình trạng detrained / kinh nghiệm thấp",
+      label: "Đã lâu không tập hoặc kinh nghiệm thấp",
       values: detrainedNotes,
     });
   }

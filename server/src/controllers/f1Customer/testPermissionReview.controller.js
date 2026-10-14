@@ -7,7 +7,7 @@ const REVIEW_DECISIONS = {
     testPermission: "hold_test",
     recommendedStartPhase: "pending_review",
     medicalReviewFlag: true,
-    message: "Đã giữ trạng thái HOLD TEST cho khách hàng",
+    message: "Đã giữ trạng thái hoãn đánh giá cho khách hàng",
   },
   approve_modified_test: {
     readinessStatus: "caution",
@@ -38,7 +38,7 @@ export const reviewTestPermission = async (req, res, next) => {
     if (!intake || intake.isDraft) {
       return res.status(400).json({
         success: false,
-        message: "Khách hàng chưa có intake hoàn chỉnh để PT review",
+        message: "Khách hàng chưa có khảo sát hoàn chỉnh để HLV xem xét",
       });
     }
 

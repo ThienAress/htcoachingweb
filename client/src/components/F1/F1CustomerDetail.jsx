@@ -13,6 +13,7 @@ import {
   ShieldAlert,
 } from "lucide-react";
 import F1TestPermissionReviewCard from "./F1TestPermissionReviewCard";
+import { getF1GenderLabel } from "../../constants/f1Labels";
 import {
   F1_CUSTOMER_STATUS_LABELS,
   getF1Progress,
@@ -229,7 +230,7 @@ const F1CustomerDetail = ({
         <div className="px-6 py-6 md:px-8">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <InfoItem label="Tuổi" value={customer.age} />
-            <InfoItem label="Giới tính" value={customer.gender} />
+            <InfoItem label="Giới tính" value={getF1GenderLabel(customer.gender)} />
             <InfoItem label="Số điện thoại" value={customer.phone} />
             <InfoItem label="Email" value={customer.email} />
           </div>
@@ -259,7 +260,7 @@ const F1CustomerDetail = ({
               <ProgressCard title="Hồ sơ cơ bản" done />
               <ProgressCard title="Khảo sát" done={intakeDone} />
               <ProgressCard title="Đánh giá thể chất" done={assessmentDone} />
-              <ProgressCard title="AI Report" done={reportDone} />
+              <ProgressCard title="Phân tích AI" done={reportDone} />
               <ProgressCard
                 title="Dự đoán kết quả"
                 done={resultPredictionDone}
@@ -291,7 +292,7 @@ const F1CustomerDetail = ({
               className="shrink-0 inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
             >
               <Sparkles size={18} />
-              AI Report
+              Phân tích AI
             </button>
             <button
               onClick={onOpenResultPrediction}

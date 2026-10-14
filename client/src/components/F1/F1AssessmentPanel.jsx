@@ -26,6 +26,7 @@ const initialMetricItem = {
   result: "",
   inputMode: "",
   selectedProtocol: null,
+  exercises: [],
 };
 
 const createInitialAssessmentForm = () => ({
@@ -37,7 +38,14 @@ const createInitialAssessmentForm = () => ({
     headNeck: "",
   },
   movementAssessment: {
-    overheadSquat: { anterior: [], lateral: [], posterior: [] },
+    overheadSquat: {
+      anterior: [],
+      lateral: [],
+      posterior: [],
+      anteriorNormal: false,
+      lateralNormal: false,
+      posteriorNormal: false,
+    },
   },
   strengthAssessment: {
     upperBodyPush: { ...initialMetricItem },
@@ -61,6 +69,7 @@ const createInitialAssessmentForm = () => ({
 const withMetricDefaults = (metric = {}) => ({
   ...initialMetricItem,
   ...(metric || {}),
+  exercises: Array.isArray(metric?.exercises) ? metric.exercises : [],
 });
 
 const HoldReasonList = ({ items = [] }) => {
@@ -124,6 +133,15 @@ const F1AssessmentPanel = ({ customer, onBack, onSubmitted }) => {
                   latest?.movementAssessment?.overheadSquat?.lateral || [],
                 posterior:
                   latest?.movementAssessment?.overheadSquat?.posterior || [],
+                anteriorNormal: Boolean(
+                  latest?.movementAssessment?.overheadSquat?.anteriorNormal,
+                ),
+                lateralNormal: Boolean(
+                  latest?.movementAssessment?.overheadSquat?.lateralNormal,
+                ),
+                posteriorNormal: Boolean(
+                  latest?.movementAssessment?.overheadSquat?.posteriorNormal,
+                ),
               },
             },
             strengthAssessment: {
@@ -204,6 +222,7 @@ const F1AssessmentPanel = ({ customer, onBack, onSubmitted }) => {
     }));
   }, []);
 
+  // Chọn một lỗi thì tự bỏ "Không có biểu hiện sai" của góc đó.
   const toggleOhsa = useCallback((view, item) => {
     setFormData((prev) => {
       const current = prev.movementAssessment.overheadSquat[view];
@@ -217,6 +236,26 @@ const F1AssessmentPanel = ({ customer, onBack, onSubmitted }) => {
           overheadSquat: {
             ...prev.movementAssessment.overheadSquat,
             [view]: next,
+            [`${view}Normal`]: false,
+          },
+        },
+      };
+    });
+  }, []);
+
+  // Tick "Không có biểu hiện sai" thì xoá các lỗi đã chọn ở góc đó.
+  const toggleOhsaNormal = useCallback((view) => {
+    setFormData((prev) => {
+      const flag = `${view}Normal`;
+      const nextNormal = !prev.movementAssessment.overheadSquat[flag];
+      return {
+        ...prev,
+        movementAssessment: {
+          ...prev.movementAssessment,
+          overheadSquat: {
+            ...prev.movementAssessment.overheadSquat,
+            [flag]: nextNormal,
+            [view]: nextNormal ? [] : prev.movementAssessment.overheadSquat[view],
           },
         },
       };
@@ -268,18 +307,18 @@ const F1AssessmentPanel = ({ customer, onBack, onSubmitted }) => {
     // Validate Strength (Must have level calculated, meaning sets/reps filled and protocol chosen)
     const missingStrength = Object.values(strengthAssessment).some(metric => !metric.level);
     if (missingStrength) {
-      return toast.warning("Vui lòng nhập đầy đủ Số set và Số reps/giây cho tất cả các bài Đánh giá Sức mạnh.");
+      return toast.warning("Vui lòng chọn bài test và nhập kết quả cho tất cả các mục Sức mạnh.");
     }
 
     // Validate Endurance
     const missingEndurance = Object.values(enduranceAssessment).some(metric => !metric.level);
     if (missingEndurance) {
-      return toast.warning("Vui lòng nhập đầy đủ dữ liệu cho các bài Đánh giá Sức bền.");
+      return toast.warning("Vui lòng chọn bài test và nhập kết quả cho tất cả các mục Sức bền.");
     }
 
     // Validate Cardio
     if (!cardioAssessment.cardioCapacity?.level || !cardioAssessment.recoveryHeartRate?.level) {
-      return toast.warning("Vui lòng nhập đầy đủ dữ liệu cho các bài Đánh giá Tim mạch (Cardio).");
+      return toast.warning("Vui lòng chọn bài test và nhập kết quả cho các mục Tim mạch (Cardio).");
     }
 
     if (!assessorNotes?.trim()) {
@@ -392,6 +431,7 @@ const F1AssessmentPanel = ({ customer, onBack, onSubmitted }) => {
               <OverheadSquatSection
                 value={formData.movementAssessment.overheadSquat}
                 onToggle={toggleOhsa}
+                onToggleNormal={toggleOhsaNormal}
               />
               <StrengthAssessmentSection
                 value={formData.strengthAssessment}
@@ -447,7 +487,7 @@ const F1AssessmentPanel = ({ customer, onBack, onSubmitted }) => {
                     }))
                   }
                   className="w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
-                  placeholder="Tổng hợp điểm mạnh, điểm yếu, ưu tiên corrective, hạn chế hiện tại..."
+                  placeholder="Tổng hợp điểm mạnh, điểm yếu, ưu tiên bài hiệu chỉnh (corrective), hạn chế hiện tại..."
                 />
               </label>
 

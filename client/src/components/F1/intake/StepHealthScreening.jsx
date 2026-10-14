@@ -256,7 +256,7 @@ const StepHealthScreening = ({ register, watch, setValue, errors }) => {
           icon={ShieldAlert}
           checked={hasDoctorRestrictions}
           onChange={handleTextToggle("doctorRestrictions")}
-          helperText="Nếu có nội dung ở đây thì hệ thống có thể đưa khách vào HOLD TEST."
+          helperText="Nếu có nội dung ở đây thì hệ thống có thể hoãn đánh giá khách."
         />
         {hasDoctorRestrictions && (
           <TextArea

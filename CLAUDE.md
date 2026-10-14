@@ -48,6 +48,18 @@ Luôn đúng ở mọi thay đổi; chi tiết nằm trong `.claude/rules/securi
 - Thay đổi Auth, CSRF, JWT, payment, wallet, schema hoặc AI tool có side effect: chạy skill `impact-check`
   trước khi sửa.
 
+## Ngôn ngữ giao diện
+
+Sản phẩm phục vụ HLV và khách hàng Việt Nam: **tiếng Việt là ưu tiên số 1** ở mọi chuỗi người dùng nhìn thấy
+(nhãn, tiêu đề, nút, toast, lỗi từ API, báo cáo, gợi ý). Chi tiết: `.claude/rules/frontend.md`.
+
+- Không hiển thị enum/mã thô (`female`, `hold_test`, `ai_report_generated`...); map sang nhãn Việt.
+- Thuật ngữ chuyên ngành viết **"Tiếng Việt (English)"** — Việt trước, Anh trong ngoặc.
+  Ví dụ: "Sức bền cơ bắp (Muscular Endurance)". Chỉ giữ nguyên Anh với `sets`, `reps`, `RPE`, `RIR`, `BMI`.
+- Gọi tên theo cách HLV hiểu: "kết quả khảo sát" thay "intake", "phân tích AI" thay "AI Report",
+  "hoãn đánh giá" thay "HOLD TEST". Không đổi identifier, API field, enum, route.
+- Thêm tính năng/UI mới: rà toàn bộ chuỗi hiển thị trước khi bàn giao, cả message trả về từ server.
+
 ## Cách làm việc
 
 - Chỉ sửa phần cần thiết, giữ style hiện có; không tiện tay refactor, format hay đổi quote style.

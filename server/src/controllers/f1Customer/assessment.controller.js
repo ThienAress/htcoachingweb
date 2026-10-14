@@ -4,6 +4,15 @@ import F1Assessment from "../../models/F1Assessment.js";
 import { F1Customer, assertCustomerAccess } from "./shared.js";
 import { computeOverallPhysicalLevel } from "./assessment.helpers.js";
 
+const buildOverheadSquat = (source = {}) => ({
+  anterior: source?.anterior || [],
+  lateral: source?.lateral || [],
+  posterior: source?.posterior || [],
+  anteriorNormal: source?.anteriorNormal === true,
+  lateralNormal: source?.lateralNormal === true,
+  posteriorNormal: source?.posteriorNormal === true,
+});
+
 export const createAssessment = async (req, res, next) => {
   try {
     const customer = await F1Customer.findById(req.params.id);
@@ -17,13 +26,13 @@ export const createAssessment = async (req, res, next) => {
     if (!intake || intake.isDraft) {
       return res
         .status(400)
-        .json({ success: false, message: "Khách hàng chưa hoàn tất intake" });
+        .json({ success: false, message: "Khách hàng chưa hoàn tất khảo sát" });
     }
 
     if (intake.systemFlags?.testPermission === "hold_test") {
       return res.status(400).json({
         success: false,
-        message: "Khách hàng đang bị hold test, cần review trước",
+        message: "Khách hàng đang được hoãn đánh giá, cần HLV xem xét trước",
       });
     }
 
@@ -42,12 +51,9 @@ export const createAssessment = async (req, res, next) => {
         headNeck: req.body?.postureAssessment?.headNeck || "",
       },
       movementAssessment: {
-        overheadSquat: {
-          anterior: req.body?.movementAssessment?.overheadSquat?.anterior || [],
-          lateral: req.body?.movementAssessment?.overheadSquat?.lateral || [],
-          posterior:
-            req.body?.movementAssessment?.overheadSquat?.posterior || [],
-        },
+        overheadSquat: buildOverheadSquat(
+          req.body?.movementAssessment?.overheadSquat,
+        ),
       },
       strengthAssessment: req.body?.strengthAssessment || {
         upperBodyPush: {},
@@ -177,11 +183,9 @@ export const updateAssessment = async (req, res, next) => {
     };
 
     assessment.movementAssessment = {
-      overheadSquat: {
-        anterior: req.body?.movementAssessment?.overheadSquat?.anterior || [],
-        lateral: req.body?.movementAssessment?.overheadSquat?.lateral || [],
-        posterior: req.body?.movementAssessment?.overheadSquat?.posterior || [],
-      },
+      overheadSquat: buildOverheadSquat(
+        req.body?.movementAssessment?.overheadSquat,
+      ),
     };
 
     assessment.strengthAssessment = req.body?.strengthAssessment || {
