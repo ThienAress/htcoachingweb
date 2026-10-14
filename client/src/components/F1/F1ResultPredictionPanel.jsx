@@ -206,6 +206,7 @@ const OutcomeComparisonTable = ({ outcomeTable }) => {
       key: item.phaseKey,
       title: item.label,
       data: item.projected || {},
+      range: item.projectedRange || {},
       delta: item.deltaFromBaseline || {},
       summary: item.summary || "",
     })),
@@ -312,6 +313,12 @@ const OutcomeComparisonTable = ({ outcomeTable }) => {
                     <p className="font-bold text-slate-800">
                       {formatValue(rawValue, row.suffix, row.key)}
                     </p>
+                    {!col.isCurrent && col.range?.[row.key] && (
+                      <p className="mt-0.5 text-xs text-slate-500">
+                        khoảng {col.range[row.key].min} – {col.range[row.key].max}
+                        {row.suffix ? ` ${row.suffix}` : ""}
+                      </p>
+                    )}
                     {!col.isCurrent &&
                       rawDelta !== null &&
                       rawDelta !== undefined && (
@@ -334,6 +341,39 @@ const OutcomeComparisonTable = ({ outcomeTable }) => {
           ))}
         </tbody>
       </table>
+    </div>
+  );
+};
+
+const GoalProgressCard = ({ goalProgress }) => {
+  if (!goalProgress || !goalProgress.summary) return null;
+  const percent = goalProgress.achievedPercent;
+  const tone =
+    goalProgress.fitsTimeframe === false
+      ? "border-amber-200 bg-amber-50"
+      : "border-emerald-200 bg-emerald-50";
+  return (
+    <div className={`rounded-xl border p-5 ${tone}`}>
+      <p className="text-sm font-bold text-slate-800">
+        So với mục tiêu của khách
+      </p>
+      <div className="mt-3 grid gap-4 sm:grid-cols-3">
+        <InfoCard
+          label="Cân nặng mong muốn"
+          value={
+            goalProgress.targetWeightKg ? `${goalProgress.targetWeightKg} kg` : "—"
+          }
+        />
+        <InfoCard
+          label="Thời gian mong muốn"
+          value={goalProgress.timeframeText || "—"}
+        />
+        <InfoCard
+          label="Mức đạt cuối lộ trình"
+          value={percent === null || percent === undefined ? "—" : `${percent}%`}
+        />
+      </div>
+      <p className="mt-3 text-sm text-slate-700">{goalProgress.summary}</p>
     </div>
   );
 };
@@ -718,9 +758,17 @@ const F1ResultPredictionPanel = ({ customer, onBack, onGenerated }) => {
                   title="Bảng kết quả theo từng giai đoạn"
                   subtitle="Mốc ban đầu và thay đổi kỳ vọng"
                 />
+                <GoalProgressCard
+                  goalProgress={prediction.outcomeTable?.goalProgress}
+                />
                 <OutcomeComparisonTable
                   outcomeTable={prediction.outcomeTable}
                 />
+                <p className="text-xs text-slate-500">
+                  Đây là ước tính tham khảo dựa trên hồ sơ hiện tại. Kết quả
+                  thực tế phụ thuộc vào mức tuân thủ tập luyện, dinh dưỡng, giấc
+                  ngủ và cơ địa từng người.
+                </p>
               </div>
 
               <div className="space-y-4">

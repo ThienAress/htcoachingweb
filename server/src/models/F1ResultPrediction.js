@@ -53,6 +53,8 @@ const outcomeCheckpointSchema = new mongoose.Schema(
     label: { type: String, default: "" },
     durationWeeks: { type: Number, default: 0 },
     projected: { type: Object, default: {} },
+    // Khoảng ước tính {metric: {min, max}} quanh giá trị giữa.
+    projectedRange: { type: Object, default: {} },
     deltaFromBaseline: { type: Object, default: {} },
     summary: { type: String, default: "" },
   },
@@ -63,6 +65,9 @@ const outcomeTableSchema = new mongoose.Schema(
   {
     metricColumns: { type: [String], default: [] },
     baseline: { type: Object, default: {} },
+    // So sánh kết quả dự kiến với cân nặng và thời gian khách mong muốn.
+    goalProgress: { type: Object, default: null },
+    recoveryFactor: { type: Number, default: 1 },
     phaseCheckpoints: {
       type: [outcomeCheckpointSchema],
       default: [],
@@ -249,7 +254,7 @@ const f1ResultPredictionSchema = new mongoose.Schema(
 
     engineVersion: {
       type: String,
-      default: "result-prediction-v1",
+      default: "result-prediction-v2",
       trim: true,
     },
     sourceFingerprint: {

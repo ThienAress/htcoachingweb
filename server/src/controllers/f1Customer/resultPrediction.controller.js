@@ -171,7 +171,7 @@ export const generateResultPrediction = async (req, res, next) => {
         aiReportId: aiReport._id,
       },
       sourceDocuments: [intake, assessment, aiReport],
-      engineVersion: "result-prediction-v1",
+      engineVersion: "result-prediction-v2",
       requestId: req.body.requestId,
       regenerate: Boolean(req.body.regenerate),
       payload: {
