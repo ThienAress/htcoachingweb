@@ -71,6 +71,22 @@ describe("exercise list rules", () => {
   });
 });
 
+describe("aggregateExercises with exercise difficulty", () => {
+  it("weights easy-tier work lower than advanced-tier work", () => {
+    const easy = aggregateExercises([{ score: "10", tier: "easy" }]);
+    const standard = aggregateExercises([{ score: "10", tier: "standard" }]);
+    const advanced = aggregateExercises([{ score: "10", tier: "advanced" }]);
+
+    expect(easy).toEqual({ score: "7", level: "average" });
+    expect(standard).toEqual({ score: "8.5", level: "good" });
+    expect(advanced).toEqual({ score: "10", level: "good" });
+  });
+
+  it("treats exercises without a tier as full weight", () => {
+    expect(aggregateExercises([{ score: "8" }])).toEqual({ score: "8", level: "good" });
+  });
+});
+
 describe("aggregateExercises", () => {
   it("averages scored exercises and ignores unscored ones", () => {
     const result = aggregateExercises([

@@ -30,13 +30,13 @@ export const generateAiReport = async (req, res, next) => {
     if (!assessment) {
       return res.status(400).json({
         success: false,
-        message: "Khách hàng chưa có đánh giá thể chất để tạo phân tích AI",
+        message: "Khách hàng chưa có đánh giá thể chất để tạo phân tích tự động",
       });
     }
     if (!intake.consent?.allowAiAnalysis || !intake.consent?.version) {
       return res.status(403).json({
         success: false,
-        message: "Khách hàng chưa đồng ý cho AI phân tích dữ liệu",
+        message: "Khách hàng chưa đồng ý cho hệ thống phân tích dữ liệu",
       });
     }
 
@@ -81,8 +81,8 @@ export const generateAiReport = async (req, res, next) => {
       data: result.artifact,
       idempotentReplay: result.idempotentReplay,
       message: result.idempotentReplay
-        ? "AI report đã tồn tại cho nguồn dữ liệu này"
-        : "Sinh AI report thành công",
+        ? "Phân tích tự động đã tồn tại cho nguồn dữ liệu này"
+        : "Tạo phân tích tự động thành công",
     });
   } catch (error) {
     return next(error);
@@ -120,7 +120,7 @@ export const approveAiReport = async (req, res, next) => {
     if (!report) {
       return res.status(404).json({
         success: false,
-        message: "Không tìm thấy phân tích AI",
+        message: "Không tìm thấy phân tích tự động",
       });
     }
 
@@ -131,7 +131,7 @@ export const approveAiReport = async (req, res, next) => {
     return res.json({
       success: true,
       data: report,
-      message: "Cập nhật phân tích AI thành công",
+      message: "Cập nhật phân tích tự động thành công",
     });
   } catch (error) {
     return next(error);

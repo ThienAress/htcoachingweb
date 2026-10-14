@@ -50,7 +50,7 @@ const SidebarContent = ({
         { path: "/admin/contracts", label: "Hợp đồng HLV", icon: FileText },
         { path: "/admin/bookings", label: "Đặt lịch", icon: ClipboardList },
         { path: "/admin/deposits", label: "Nạp tiền", icon: Wallet },
-        { path: "/admin/f1-ai-rules", label: "Quy tắc AI", icon: BrainCircuit },
+        { path: "/admin/f1-ai-rules", label: "Quy tắc phân tích F1", icon: BrainCircuit },
         { path: "/admin/knowledge-base", label: "Kiến thức AI", icon: Brain },
         { path: "/admin/contact-messages", label: "Liên hệ", icon: MessageSquare },
       ],
