@@ -132,7 +132,7 @@ test("F1 create, intake, private media, assessment command and AI report", async
   await expect(pushCard.getByText("Gợi ý khởi đầu")).toHaveCount(0);
   await pushCard
     .getByLabel("Chọn bài tập")
-    .selectOption("Hít đất tường (Wall Push-Up)");
+    .selectOption("Wall Push-Up");
   await expect(pushCard.getByText("Gợi ý khởi đầu")).toBeVisible();
   await pushCard.getByLabel("Cách ghi kết quả").selectOption("reps");
   await pushCard.getByLabel("Số hiệp (set)").fill("3");

@@ -222,6 +222,14 @@ describe("assessment starter suggestions", () => {
       expect(item.tiers.standard.length).toBeGreaterThan(0);
       expect(item.tiers.advanced.length).toBeGreaterThan(0);
       expect(item.target).toMatch(/\(.+\)$/);
+      // Tên bài tập giữ nguyên tiếng Anh (thuật ngữ HLV dùng quốc tế).
+      for (const name of [
+        ...item.tiers.easy,
+        ...item.tiers.standard,
+        ...item.tiers.advanced,
+      ]) {
+        expect(name).toMatch(/^[\x20-\x7E]+$/);
+      }
     }
   });
 });

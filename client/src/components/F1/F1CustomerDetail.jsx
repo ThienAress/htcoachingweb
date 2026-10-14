@@ -210,6 +210,16 @@ const F1CustomerDetail = ({
               <p className="mt-1 text-slate-500">
                 {customer.occupation || "Chưa có nghề nghiệp"}
               </p>
+              {intakeDone && (
+                <button
+                  data-testid="f1-open-summary-report"
+                  onClick={onOpenSummaryReport}
+                  className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-orange-200 bg-orange-50 px-3 py-1.5 text-sm font-semibold text-orange-700 shadow-sm transition hover:bg-orange-100"
+                >
+                  <FileText size={16} />
+                  Báo cáo tổng quát
+                </button>
+              )}
             </div>
             <div className="flex flex-col items-end gap-3">
               <div className="flex flex-wrap items-center justify-end gap-2">
@@ -217,16 +227,6 @@ const F1CustomerDetail = ({
                 <ReadinessBadge value={customer.readinessStatus || "pending"} />
                 <PermissionBadge value={customer.testPermission} />
               </div>
-              {intakeDone && (
-                <button
-                  data-testid="f1-open-summary-report"
-                  onClick={onOpenSummaryReport}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-orange-200 bg-orange-50 px-3 py-1.5 text-sm font-semibold text-orange-700 shadow-sm transition hover:bg-orange-100"
-                >
-                  <FileText size={16} />
-                  Báo cáo tổng quát
-                </button>
-              )}
               <button
                 onClick={onDelete}
                 disabled={deleting}

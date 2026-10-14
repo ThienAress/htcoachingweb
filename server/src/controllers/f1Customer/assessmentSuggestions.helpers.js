@@ -7,13 +7,13 @@ const buildAssessmentStarterWarnings = ({ intake }) => {
 
   if (systemFlags.testPermission === "hold_test") {
     warnings.push(
-      "Khách đang ở trạng thái HOLD TEST, chỉ nên review thêm trước khi cho test hoặc tập thử.",
+      "Khách đang ở trạng thái hoãn đánh giá, chỉ nên xem xét thêm trước khi cho test hoặc tập thử.",
     );
   }
 
   if (systemFlags.testPermission === "modified_test") {
     warnings.push(
-      "Khách phù hợp với modified test, nên ưu tiên bài khởi đầu ổn định, tải thấp và dễ kiểm soát.",
+      "Khách phù hợp với đánh giá có điều chỉnh, nên ưu tiên bài khởi đầu ổn định, tải thấp và dễ kiểm soát.",
     );
   }
 
@@ -22,13 +22,13 @@ const buildAssessmentStarterWarnings = ({ intake }) => {
     Number(lifestyle.sleepHours || 0) < 6
   ) {
     warnings.push(
-      "Giấc ngủ đang thấp, nên giảm volume đầu vào và tránh đẩy cường độ quá sớm.",
+      "Giấc ngủ đang thấp, nên giảm khối lượng tập đầu vào và tránh đẩy cường độ quá sớm.",
     );
   }
 
   if (lifestyle.stressLevel === "high") {
     warnings.push(
-      "Stress cao, nên ưu tiên bài đơn giản, nhịp thở đều và thời gian nghỉ rõ ràng.",
+      "Căng thẳng cao, nên ưu tiên bài đơn giản, nhịp thở đều và thời gian nghỉ rõ ràng.",
     );
   }
 
@@ -40,7 +40,7 @@ const buildAssessmentStarterWarnings = ({ intake }) => {
 
   if (training.trainingExperience === "none") {
     warnings.push(
-      "Khách chưa từng tập, mọi gợi ý nên ở mức beginner-safe và dễ dạy kỹ thuật.",
+      "Khách chưa từng tập, mọi gợi ý nên ở mức an toàn cho người mới và dễ dạy kỹ thuật.",
     );
   }
 
@@ -61,7 +61,7 @@ const buildAssessmentStarterRationale = ({ intake, customer }) => {
 
   if (goal === "fat_loss") {
     rationale.push(
-      "Khách đang ưu tiên giảm mỡ, nên bài sức mạnh chọn theo hướng nền tảng, còn tim mạch ưu tiên low-impact dễ duy trì.",
+      "Khách đang ưu tiên giảm mỡ, nên bài sức mạnh chọn theo hướng nền tảng, còn tim mạch ưu tiên bài ít va chạm, dễ duy trì.",
     );
   }
 
@@ -79,7 +79,7 @@ const buildAssessmentStarterRationale = ({ intake, customer }) => {
 
   if (customer?.readinessStatus === "caution") {
     rationale.push(
-      "Khách đang ở trạng thái caution, nên gợi ý mang tính khởi đầu và hỗ trợ PT ra quyết định, không thay thế đánh giá chuyên môn.",
+      "Khách đang ở trạng thái cần chú ý, nên gợi ý mang tính khởi đầu và hỗ trợ HLV ra quyết định, không thay thế đánh giá chuyên môn.",
     );
   }
 
@@ -88,7 +88,7 @@ const buildAssessmentStarterRationale = ({ intake, customer }) => {
     Number(lifestyle.sleepHours || 0) < 6
   ) {
     rationale.push(
-      "Recovery hiện chưa tối ưu, vì vậy gợi ý ưu tiên volume vừa phải và bài có độ ổn định cao.",
+      "Khả năng hồi phục hiện chưa tối ưu, vì vậy gợi ý ưu tiên khối lượng tập vừa phải và bài có độ ổn định cao.",
     );
   }
 
@@ -223,22 +223,22 @@ const buildFallbackStrengthSuggestions = ({ intake }) => {
       dosage,
       tiers: {
         easy: [
-          "Hít đất tường (Wall Push-Up)",
-          "Đẩy ngực dây kháng lực (Band Chest Press)",
-          "Đẩy ngực máy nhẹ (Machine Chest Press)",
-          "Hít đất bàn/quầy (Counter Push-Up)",
+          "Wall Push-Up",
+          "Band Chest Press",
+          "Machine Chest Press",
+          "Counter Push-Up",
         ],
         standard: [
-          "Hít đất nghiêng (Incline Push-Up)",
-          "Đẩy ngực tạ đơn nằm sàn (Dumbbell Floor Press)",
-          "Đẩy ngực tạ đơn nằm ghế (Dumbbell Bench Press)",
-          "Đẩy ngực cáp đứng (Standing Cable Press)",
+          "Incline Push-Up",
+          "Dumbbell Floor Press",
+          "Dumbbell Bench Press",
+          "Standing Cable Press",
         ],
         advanced: [
-          "Hít đất quỳ gối (Knee Push-Up)",
-          "Đẩy vai tạ đơn ngồi nhẹ (Seated Dumbbell Press nhẹ)",
-          "Hít đất chuẩn (Full Push-Up)",
-          "Đẩy vai tạ đơn đứng (Standing Dumbbell Shoulder Press)",
+          "Knee Push-Up",
+          "Light Seated Dumbbell Press",
+          "Full Push-Up",
+          "Standing Dumbbell Shoulder Press",
         ],
       },
     }),
@@ -250,22 +250,22 @@ const buildFallbackStrengthSuggestions = ({ intake }) => {
       dosage,
       tiers: {
         easy: [
-          "Kéo dây kháng lực (Band Row)",
-          "Kéo dây kháng lực ngồi (Seated Band Row)",
-          "Kéo xô máy nhẹ (Lat Pulldown nhẹ)",
-          "Kéo cáp ngồi (Seated Cable Row)",
+          "Band Row",
+          "Seated Band Row",
+          "Light Lat Pulldown",
+          "Seated Cable Row",
         ],
         standard: [
-          "Kéo tạ đơn một tay (One Arm Dumbbell Row)",
-          "Kéo tạ đơn tựa ngực (Chest Supported Dumbbell Row)",
-          "Kéo xô cáp (Lat Pulldown)",
-          "Kéo tạ đơn trên ghế dốc (Incline Dumbbell Row)",
+          "One Arm Dumbbell Row",
+          "Chest Supported Dumbbell Row",
+          "Lat Pulldown",
+          "Incline Dumbbell Row",
         ],
         advanced: [
-          "Kéo tạ đơn cúi người nhẹ (Bent Over Dumbbell Row nhẹ)",
-          "Kéo cáp về mặt (Face Pull)",
-          "Kéo xà có hỗ trợ (Assisted Pull-Up)",
-          "Kéo tạ đòn cúi người nhẹ (Barbell Bent-Over Row nhẹ)",
+          "Light Bent-Over Dumbbell Row",
+          "Face Pull",
+          "Assisted Pull-Up",
+          "Light Barbell Bent-Over Row",
         ],
       },
     }),
@@ -279,21 +279,21 @@ const buildFallbackStrengthSuggestions = ({ intake }) => {
       dosage,
       tiers: {
         easy: [
-          "Đứng lên ngồi xuống (Sit-To-Stand)",
-          "Squat ngồi hộp (Box Squat)",
-          "Đạp đùi máy nhẹ (Leg Press nhẹ)",
-          "Cầu mông (Glute Bridge)",
+          "Sit-To-Stand",
+          "Box Squat",
+          "Light Leg Press",
+          "Glute Bridge",
         ],
         standard: [
-          "Squat trọng lượng cơ thể (Bodyweight Squat)",
-          "Bước lên bục thấp (Step-Up thấp)",
-          "Squat cốc nhẹ (Goblet Squat nhẹ)",
-          "Gập hông tạ đơn nhẹ (Dumbbell RDL nhẹ)",
+          "Bodyweight Squat",
+          "Low Step-Up",
+          "Light Goblet Squat",
+          "Light Dumbbell RDL",
         ],
         advanced: [
-          "Chùng chân có tựa (Supported Split Squat)",
-          "Chùng chân tại chỗ (Split Squat)",
-          "Bước lên bục cao (High Step-Up)",
+          "Supported Split Squat",
+          "Split Squat",
+          "High Step-Up",
         ],
       },
     }),
@@ -305,21 +305,21 @@ const buildFallbackStrengthSuggestions = ({ intake }) => {
       dosage,
       tiers: {
         easy: [
-          "Bọ chết (Dead Bug)",
-          "Chó chim (Bird Dog)",
-          "Cầu mông giữ (Glute Bridge Hold)",
-          "Gập bụng ngắn (Crunch)",
+          "Dead Bug",
+          "Bird Dog",
+          "Glute Bridge Hold",
+          "Crunch",
         ],
         standard: [
-          "Plank nghiêng (Incline Plank)",
-          "Đẩy dây kháng lực chống xoay (Pallof Press)",
-          "Chặt gỗ cáp (Cable Chop)",
+          "Incline Plank",
+          "Pallof Press",
+          "Cable Chop",
         ],
         advanced: [
-          "Plank chuẩn (Front Plank)",
-          "Xách tạ một bên (Suitcase Hold)",
-          "Plank chạm vai (Shoulder-Tap Plank)",
-          "Xoay Nga (Russian Twist)",
+          "Front Plank",
+          "Suitcase Hold",
+          "Shoulder-Tap Plank",
+          "Russian Twist",
         ],
       },
     }),
@@ -337,58 +337,58 @@ const buildFallbackEnduranceSuggestions = ({ intake }) => {
 
   const muscularEnduranceTiers = {
     easy: [
-      "Đi tại chỗ (March In Place)",
-      "Bước ngang chạm chân (Step Touch)",
-      "Đứng lên ngồi xuống 30 giây (30s Sit-To-Stand)",
-      "Nâng gối tại chỗ nhẹ (High Knees nhẹ)",
+      "March In Place",
+      "Step Touch",
+      "30s Sit-To-Stand",
+      "Light High Knees",
     ],
     standard: beginnerLike
       ? [
-          "Đứng lên ngồi xuống liên tục (Sit-To-Stand liên tục)",
-          "Hít đất tường liên tục (Wall Push-Up liên tục)",
-          "Squat trọng lượng cơ thể 60 giây (Bodyweight Squat 60s)",
+          "Continuous Sit-To-Stand",
+          "Continuous Wall Push-Up",
+          "60s Bodyweight Squat",
         ]
       : [
-          "Squat trọng lượng cơ thể liên tục (Bodyweight Squat liên tục)",
-          "Hít đất nghiêng nhiều reps (Incline Push-Up reps cao)",
-          "Hít đất nghiêng 60 giây (Incline Push-Up 60s)",
+          "Continuous Bodyweight Squat",
+          "High-Rep Incline Push-Up",
+          "60s Incline Push-Up",
         ],
     advanced: [
-      "Bước lên bục liên tục (Step-Up liên tục)",
-      "Kéo dây kháng lực nhiều reps (Band Row reps cao)",
-      "Bước lên bục cao 2 phút (High Step-Up 2 phút)",
-      "Chèo thuyền máy 2 phút (Rowing 2 phút)",
+      "Continuous Step-Up",
+      "High-Rep Band Row",
+      "2-Min High Step-Up",
+      "2-Min Rowing",
     ],
   };
 
   const coreEnduranceTiers = {
     easy: [
-      "Bọ chết nhịp chậm (Dead Bug tempo)",
-      "Chó chim giữ (Bird Dog hold)",
-      "Plank quỳ gối (Knee Plank Hold)",
+      "Tempo Dead Bug",
+      "Bird Dog Hold",
+      "Knee Plank Hold",
     ],
     standard: beginnerLike
       ? [
-          "Plank nghiêng giữ (Incline Plank Hold)",
-          "Giữ đẩy dây chống xoay (Pallof Press hold)",
-          "Plank khuỷu tay (Front Plank Hold)",
+          "Incline Plank Hold",
+          "Pallof Press Hold",
+          "Front Plank Hold",
         ]
       : [
-          "Plank khuỷu tay (Front Plank Hold)",
-          "Plank nghiêng bên quỳ gối (Side Plank gối)",
-          "Plank nghiêng giữ (Incline Plank Hold)",
+          "Front Plank Hold",
+          "Knee Side Plank",
+          "Incline Plank Hold",
         ],
     advanced: beginnerLike
       ? [
-          "Plank khuỷu tay giữ lâu (Front Plank Hold)",
-          "Giữ tư thế gấu (Bear Hold)",
-          "Plank nghiêng bên (Side Plank)",
+          "Front Plank Hold",
+          "Bear Hold",
+          "Side Plank",
         ]
       : [
-          "Giữ đẩy dây chống xoay (Pallof Press hold)",
-          "Giữ tư thế gấu (Bear Hold)",
-          "Plank nghiêng bên (Side Plank)",
-          "Giữ chữ V (Hollow Hold)",
+          "Pallof Press Hold",
+          "Bear Hold",
+          "Side Plank",
+          "Hollow Hold",
         ],
   };
 
@@ -438,19 +438,19 @@ const buildFallbackCardioSuggestions = ({ intake }) => {
       dosage: capacityDosage,
       tiers: {
         easy: [
-          "Đi bộ máy chạy (Treadmill Walk)",
-          "Xe đạp tại chỗ cường độ nhẹ (Stationary Bike nhẹ)",
-          "Đi bộ ngoài trời 20 phút (Outdoor Walk)",
+          "Treadmill Walk",
+          "Light Stationary Bike",
+          "Outdoor Walk",
         ],
         standard: [
-          "Đi bộ máy chạy có độ dốc nhẹ (Incline Walk)",
-          "Máy elip (Elliptical)",
-          "Xe đạp cường độ vừa (Stationary Bike vừa)",
+          "Incline Walk",
+          "Elliptical",
+          "Moderate Stationary Bike",
         ],
         advanced: [
-          "Chạy bộ nhẹ xen đi bộ (Jog–Walk)",
-          "Chèo thuyền máy (Rowing)",
-          "Xe đạp cường độ cao (Stationary Bike cao)",
+          "Jog-Walk",
+          "Rowing",
+          "Intense Stationary Bike",
         ],
       },
     }),
@@ -461,9 +461,9 @@ const buildFallbackCardioSuggestions = ({ intake }) => {
         "Đo nhịp tim ngay khi kết thúc bài test và sau 1 phút nghỉ; mức nhịp tim giảm càng lớn thì khả năng hồi phục càng tốt.",
       dosage: "Ghi nhịp tim lúc kết thúc và sau 1 phút nghỉ, nhập mức giảm (nhịp/phút)",
       tiers: {
-        easy: ["Đi bộ nhanh 3 phút (3-Min Brisk Walk)"],
-        standard: ["Bước lên bục 3 phút (3-Min Step Test)"],
-        advanced: ["Đạp xe cường độ cao 3 phút (3-Min Bike Test)"],
+        easy: ["3-Min Brisk Walk"],
+        standard: ["3-Min Step Test"],
+        advanced: ["3-Min Bike Test"],
       },
     }),
   ];

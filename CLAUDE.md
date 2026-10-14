@@ -56,6 +56,7 @@ Sản phẩm phục vụ HLV và khách hàng Việt Nam: **tiếng Việt là �
 - Không hiển thị enum/mã thô (`female`, `hold_test`, `ai_report_generated`...); map sang nhãn Việt.
 - Thuật ngữ chuyên ngành viết **"Tiếng Việt (English)"** — Việt trước, Anh trong ngoặc.
   Ví dụ: "Sức bền cơ bắp (Muscular Endurance)". Chỉ giữ nguyên Anh với `sets`, `reps`, `RPE`, `RIR`, `BMI`.
+- **Tên bài tập luôn để tiếng Anh** ("Wall Push-Up", "Goblet Squat"): không dịch, không thêm chú thích Việt.
 - Gọi tên theo cách HLV hiểu: "kết quả khảo sát" thay "intake", "phân tích AI" thay "AI Report",
   "hoãn đánh giá" thay "HOLD TEST". Không đổi identifier, API field, enum, route.
 - Thêm tính năng/UI mới: rà toàn bộ chuỗi hiển thị trước khi bàn giao, cả message trả về từ server.
