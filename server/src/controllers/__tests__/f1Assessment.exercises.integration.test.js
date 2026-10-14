@@ -137,6 +137,8 @@ describe("F1 assessment multi-exercise metrics", () => {
     expect(stored).toHaveLength(3);
     expect(stored[2]).toMatchObject({ source: "custom", level: "good" });
     expect(saved.strengthAssessment.upperBodyPush.level).toBe("average");
+    // 8 thẻ có điểm 7/6/6/6/6/6/6/6 → trung bình ~6,1 → "average"
+    expect(saved.overallPhysicalLevel).toBe("average");
   });
 
   it("rejects more than three exercises and over-long names", async () => {

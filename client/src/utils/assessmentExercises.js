@@ -111,3 +111,45 @@ export const aggregateExercises = (exercises = []) => {
   const average = round1(scores.reduce((sum, value) => sum + value, 0) / scores.length);
   return { score: String(average), level: scoreToLevel(average) };
 };
+
+// Chuẩn chấm điểm mặc định khi bài không có protocol riêng (bài của HLV hoặc
+// gợi ý thiếu): 2–3 hiệp × 8–10 lần hoặc 2–3 hiệp × 20–30 giây.
+// Làm đủ mức tối đa (3 hiệp × 10 lần) → điểm 10; giảm hiệp/lần thì điểm giảm theo.
+export const DEFAULT_PROTOCOLS = {
+  reps: {
+    label: "2-3 hiệp × 8-10 lần",
+    mode: "reps",
+    setsMin: 2,
+    setsMax: 3,
+    valueMin: 8,
+    valueMax: 10,
+    unit: "reps",
+  },
+  time: {
+    label: "2-3 hiệp × 20-30 giây",
+    mode: "time",
+    setsMin: 2,
+    setsMax: 3,
+    valueMin: 20,
+    valueMax: 30,
+    unit: "seconds",
+  },
+};
+
+export const pickProtocol = (mode, protocolOptions = []) => {
+  if (mode !== "reps" && mode !== "time") return null;
+  return (
+    protocolOptions.find((option) => option.mode === mode) ||
+    DEFAULT_PROTOCOLS[mode]
+  );
+};
+
+export const describeTopResult = (protocol) => {
+  if (!protocol) return "";
+  const sets = protocol.setsMax || protocol.setsMin;
+  const value = protocol.valueMax || protocol.valueMin;
+  if (!sets || !value) return "";
+  return protocol.mode === "time"
+    ? `${sets} hiệp × ${value} giây`
+    : `${sets} hiệp × ${value} lần`;
+};

@@ -11,6 +11,7 @@ import {
   CheckCircle2,
   Clock,
   ShieldAlert,
+  FileText,
 } from "lucide-react";
 import F1TestPermissionReviewCard from "./F1TestPermissionReviewCard";
 import { getF1GenderLabel } from "../../constants/f1Labels";
@@ -168,6 +169,7 @@ const F1CustomerDetail = ({
   onStartAssessment,
   onOpenAiReport,
   onOpenResultPrediction,
+  onOpenSummaryReport,
   onDelete,
   deleting = false,
   reviewingTestPermission = false,
@@ -215,6 +217,16 @@ const F1CustomerDetail = ({
                 <ReadinessBadge value={customer.readinessStatus || "pending"} />
                 <PermissionBadge value={customer.testPermission} />
               </div>
+              {intakeDone && (
+                <button
+                  data-testid="f1-open-summary-report"
+                  onClick={onOpenSummaryReport}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-orange-200 bg-orange-50 px-3 py-1.5 text-sm font-semibold text-orange-700 shadow-sm transition hover:bg-orange-100"
+                >
+                  <FileText size={16} />
+                  Báo cáo tổng quát
+                </button>
+              )}
               <button
                 onClick={onDelete}
                 disabled={deleting}

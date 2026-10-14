@@ -95,7 +95,60 @@ const computeCardioLevel = (assessment = {}) => {
   );
 };
 
+// Phải khớp client/src/utils/assessment.helpers.js (scoreToLevel).
+const scoreToLevel = (score) => {
+  if (score < 4) return "low";
+  if (score < 6) return "below_average";
+  if (score < 8) return "average";
+  return "good";
+};
+
+const LEVEL_SCORE = { low: 2, below_average: 4.5, average: 6.5, good: 9 };
+
+const METRIC_PATHS = [
+  ["strengthAssessment", "upperBodyPush"],
+  ["strengthAssessment", "upperBodyPull"],
+  ["strengthAssessment", "lowerBody"],
+  ["strengthAssessment", "coreStrength"],
+  ["enduranceAssessment", "muscularEndurance"],
+  ["enduranceAssessment", "coreEndurance"],
+  ["cardioAssessment", "cardioCapacity"],
+  ["cardioAssessment", "recoveryHeartRate"],
+];
+
+// Mức tổng thể = trung bình điểm của mọi hạng mục đã được chấm (điểm mỗi thẻ là
+// trung bình các bài đã test) + tư thế + nhịp tim nghỉ. "" khi chưa có điểm nào.
+const computeOverallFromScores = (assessment = {}) => {
+  const scores = [];
+  for (const [group, metric] of METRIC_PATHS) {
+    const raw = assessment?.[group]?.[metric]?.score;
+    if (raw === "" || raw === null || raw === undefined) continue;
+    const value = Number(raw);
+    if (Number.isFinite(value)) scores.push(value);
+  }
+  if (!scores.length) return "";
+
+  const posture = assessment?.postureAssessment || {};
+  const ohsa = assessment?.movementAssessment?.overheadSquat || {};
+  const hasPostureData =
+    Object.values(posture).some(Boolean) ||
+    ["anterior", "lateral", "posterior"].some(
+      (view) => (ohsa[view] || []).length || ohsa[`${view}Normal`],
+    );
+  if (hasPostureData) scores.push(LEVEL_SCORE[computePostureLevel(assessment)]);
+
+  const restingHr = Number(assessment?.cardioAssessment?.restingHeartRate || 0);
+  if (restingHr > 0) scores.push(LEVEL_SCORE[restingHrToLevel(restingHr)]);
+
+  return scoreToLevel(
+    scores.reduce((sum, item) => sum + item, 0) / scores.length,
+  );
+};
+
 export const computeOverallPhysicalLevel = (assessment = {}) => {
+  const fromScores = computeOverallFromScores(assessment);
+  if (fromScores) return fromScores;
+
   const domainLevels = [
     computePostureLevel(assessment),
     computeStrengthLevel(assessment),

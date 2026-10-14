@@ -20,6 +20,7 @@ import { useDebounce } from "../../hooks/useDebounce";
 import { useConversionOriginOptions } from "../../hooks/useConversionOriginOptions";
 import { useAuth } from "../../context/AuthContext";
 import MorphStateIcon from "../../components/motion/MorphStateIcon";
+import { getF1Progress } from "../../constants/f1CustomerStatus";
 
 const F1CustomerList = lazy(
   () => import("../../components/F1/F1CustomerList"),
@@ -42,6 +43,9 @@ const F1AiReportPanel = lazy(
 const F1ResultPredictionPanel = lazy(
   () => import("../../components/F1/F1ResultPredictionPanel"),
 );
+const F1CustomerSummaryReport = lazy(
+  () => import("../../components/F1/F1CustomerSummaryReport"),
+);
 
 const initialCreateForm = {
   fullName: "",
@@ -55,11 +59,27 @@ const initialCreateForm = {
   originId: "",
 };
 
+// Nút "tiếp tục" của báo cáo tổng quát theo tiến trình hiện tại của khách.
+const getSummaryContinueAction = ({ customer, onAssessment, onReport }) => {
+  const { intakeDone, assessmentDone } = getF1Progress(customer?.status);
+  if (assessmentDone) {
+    return { continueLabel: "Mở phân tích AI", onContinue: onReport };
+  }
+  if (intakeDone && customer?.testPermission !== "hold_test") {
+    return {
+      continueLabel: "Tiếp tục đánh giá thể chất",
+      onContinue: onAssessment,
+    };
+  }
+  return {};
+};
+
 const F1Customers = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [viewMode, setViewMode] = useState("list");
   const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [summaryReportOpen, setSummaryReportOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [desktopSidebarCollapsed, setDesktopSidebarCollapsed] = useState(false);
   const [isDesktopViewport, setIsDesktopViewport] = useState(false);
@@ -186,6 +206,7 @@ const F1Customers = () => {
       lastIntakeId: result?._id || result?.data?._id || prev?.lastIntakeId,
     }));
     setViewMode("detail");
+    setSummaryReportOpen(true);
     await invalidateCustomers();
   };
 
@@ -201,6 +222,7 @@ const F1Customers = () => {
         prev?.overallPhysicalLevel,
     }));
     setViewMode("detail");
+    setSummaryReportOpen(true);
     await invalidateCustomers();
   };
 
@@ -403,6 +425,7 @@ const F1Customers = () => {
               onStartAssessment={() => setViewMode("assessment")}
               onOpenAiReport={() => setViewMode("report")}
               onOpenResultPrediction={() => setViewMode("result_prediction")}
+              onOpenSummaryReport={() => setSummaryReportOpen(true)}
               onDelete={handleDeleteCustomer}
               deleting={deleteMutation.isPending}
               reviewingTestPermission={reviewMutation.isPending}
@@ -440,6 +463,23 @@ const F1Customers = () => {
               customer={selectedCustomer}
               onBack={() => setViewMode("detail")}
               onGenerated={handleResultPredictionGenerated}
+            />
+          )}
+          {summaryReportOpen && selectedCustomer && viewMode === "detail" && (
+            <F1CustomerSummaryReport
+              customer={selectedCustomer}
+              onClose={() => setSummaryReportOpen(false)}
+              {...getSummaryContinueAction({
+                customer: selectedCustomer,
+                onAssessment: () => {
+                  setSummaryReportOpen(false);
+                  setViewMode("assessment");
+                },
+                onReport: () => {
+                  setSummaryReportOpen(false);
+                  setViewMode("report");
+                },
+              })}
             />
           )}
           </Suspense>

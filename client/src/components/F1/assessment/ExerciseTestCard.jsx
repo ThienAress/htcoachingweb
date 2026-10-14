@@ -14,8 +14,9 @@ import {
   aggregateExercises,
   canAddExercise,
   createExercise,
+  describeTopResult,
   getSuggestionTiers,
-  levelToScore,
+  pickProtocol,
 } from "../../../utils/assessmentExercises";
 
 const inputClass =
@@ -49,8 +50,9 @@ const ExerciseRow = ({
   onRemove,
 }) => {
   const isCustom = exercise.source === "custom";
-  const showProtocolChips =
-    scoring === "protocol" && !isCustom && protocolOptions.length > 0;
+  const topResult = describeTopResult(
+    pickProtocol(exercise.inputMode, protocolOptions),
+  );
 
   return (
     <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4">
@@ -71,59 +73,20 @@ const ExerciseRow = ({
         </button>
       </div>
 
-      {showProtocolChips && (
-        <div className="mt-3">
-          <p className="text-xs font-semibold uppercase tracking-wider text-orange-700">
-            Chọn nhanh cách test
-          </p>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {protocolOptions.map((option) => {
-              const active =
-                exercise.selectedProtocol?.label === option.label &&
-                exercise.selectedProtocol?.mode === option.mode;
-              return (
-                <button
-                  key={`${option.label}-${option.mode}`}
-                  type="button"
-                  aria-pressed={active}
-                  onClick={() =>
-                    onPatch({
-                      selectedProtocol: option,
-                      inputMode: option.mode || "",
-                      reps: option.mode === "time" ? "" : exercise.reps,
-                      durationSec: option.mode === "reps" ? "" : exercise.durationSec,
-                    })
-                  }
-                  className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
-                    active
-                      ? "border-orange-600 bg-orange-600 text-white shadow-sm"
-                      : "border-orange-200 bg-white text-orange-700 hover:bg-orange-100"
-                  }`}
-                >
-                  {option.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
       <div className="mt-3 grid gap-3 sm:grid-cols-2">
         {scoring === "protocol" && (
           <>
-            {isCustom && (
-              <Field label="Cách ghi kết quả">
-                <select
-                  className={inputClass}
-                  value={exercise.inputMode}
-                  onChange={(e) => onPatch({ inputMode: e.target.value })}
-                >
-                  <option value="">Chọn cách ghi</option>
-                  <option value="reps">Theo số lần (reps)</option>
-                  <option value="time">Theo thời gian (giây)</option>
-                </select>
-              </Field>
-            )}
+            <Field label="Cách ghi kết quả">
+              <select
+                className={inputClass}
+                value={exercise.inputMode}
+                onChange={(e) => onPatch({ inputMode: e.target.value })}
+              >
+                <option value="">Chọn cách ghi</option>
+                <option value="reps">Theo số lần (reps)</option>
+                <option value="time">Theo thời gian (giây)</option>
+              </select>
+            </Field>
             <Field label="Số hiệp (set)">
               <input
                 type="number"
@@ -135,7 +98,7 @@ const ExerciseRow = ({
               />
             </Field>
             {exercise.inputMode === "reps" && (
-              <Field label="Số lần (reps)">
+              <Field label="Số lần mỗi hiệp (reps)">
                 <input
                   type="number"
                   min="1"
@@ -147,7 +110,7 @@ const ExerciseRow = ({
               </Field>
             )}
             {exercise.inputMode === "time" && (
-              <Field label="Thời gian (giây)">
+              <Field label="Thời gian mỗi hiệp (giây)">
                 <input
                   type="number"
                   min="1"
@@ -158,79 +121,44 @@ const ExerciseRow = ({
                 />
               </Field>
             )}
-            {isCustom ? (
-              <Field label="Mức đánh giá">
-                <select
-                  className={inputClass}
-                  value={exercise.level}
-                  onChange={(e) => onPatch({ level: e.target.value })}
-                >
-                  <option value="">Chọn mức</option>
-                  {LEVEL_OPTIONS.map((item) => (
-                    <option key={item.value} value={item.value}>
-                      {item.label}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-            ) : (
-              <>
-                <Field label="Điểm">
-                  <input
-                    readOnly
-                    className={readOnlyClass}
-                    value={exercise.score ?? ""}
-                    placeholder="Hệ thống tự tính"
-                  />
-                </Field>
-                <Field label="Mức đánh giá">
-                  <input
-                    readOnly
-                    className={readOnlyClass}
-                    value={levelLabel(exercise.level)}
-                    placeholder="Hệ thống tự chọn"
-                  />
-                </Field>
-              </>
-            )}
-            {!exercise.inputMode && !isCustom && (
-              <p className="rounded-lg border border-dashed border-slate-200 bg-white px-3 py-2 text-xs text-slate-500 sm:col-span-2">
-                Chọn cách test ở trên để hiện đúng ô nhập theo reps hoặc thời gian.
+            {topResult && (
+              <p className="text-xs text-slate-500 sm:col-span-2">
+                Đạt mức Tốt khi hoàn thành {topResult}. Làm ít hơn thì hệ thống
+                tự hạ mức.
               </p>
             )}
           </>
         )}
 
         {scoring === "result" && (
-          <>
-            <Field label={resultLabel}>
-              <input
-                type="number"
-                min="1"
-                className={inputClass}
-                value={exercise.result ?? ""}
-                onChange={positiveInput((result) => onPatch({ result }))}
-                placeholder={resultPlaceholder}
-              />
-            </Field>
-            <Field label="Điểm">
-              <input
-                readOnly
-                className={readOnlyClass}
-                value={exercise.score ?? ""}
-                placeholder="Hệ thống tự tính"
-              />
-            </Field>
-            <Field label="Mức đánh giá">
-              <input
-                readOnly
-                className={readOnlyClass}
-                value={levelLabel(exercise.level)}
-                placeholder="Hệ thống tự chọn"
-              />
-            </Field>
-          </>
+          <Field label={resultLabel}>
+            <input
+              type="number"
+              min="1"
+              className={inputClass}
+              value={exercise.result ?? ""}
+              onChange={positiveInput((result) => onPatch({ result }))}
+              placeholder={resultPlaceholder}
+            />
+          </Field>
         )}
+
+        <Field label="Điểm">
+          <input
+            readOnly
+            className={readOnlyClass}
+            value={exercise.score ?? ""}
+            placeholder="Hệ thống tự tính"
+          />
+        </Field>
+        <Field label="Mức đánh giá">
+          <input
+            readOnly
+            className={readOnlyClass}
+            value={levelLabel(exercise.level)}
+            placeholder="Hệ thống tự chọn"
+          />
+        </Field>
 
         <div className="sm:col-span-2">
           <Field label="Ghi chú">
@@ -264,6 +192,7 @@ const ExerciseTestCard = ({
   const [customName, setCustomName] = useState("");
   const exercises = Array.isArray(value.exercises) ? value.exercises : [];
   const tiers = getSuggestionTiers(suggestion);
+  const protocolOptions = suggestion?.protocolOptions || [];
   const chosenNames = new Set(exercises.map((item) => item.name));
   const available = (tiers[tier] || []).filter((name) => !chosenNames.has(name));
   const limitReached = exercises.length >= MAX_EXERCISES_PER_METRIC;
@@ -275,24 +204,26 @@ const ExerciseTestCard = ({
     onChange("level", aggregate.level);
   };
 
+  // Hệ thống tự chấm: bài hệ thống và bài riêng của HLV dùng cùng một chuẩn.
   const scoreExercise = (exercise) => {
     if (scoring === "result") {
       const score = computeResultScore ? computeResultScore(exercise.result) : "";
       return { score, level: score === "" ? "" : scoreToLevel(score) };
     }
-    if (exercise.source === "custom") {
-      return { score: levelToScore(exercise.level), level: exercise.level };
-    }
-    const score =
-      exercise.selectedProtocol && exercise.inputMode
-        ? scoreAgainstProtocol({
-            selectedProtocol: exercise.selectedProtocol,
-            sets: exercise.sets,
-            reps: exercise.reps,
-            durationSec: exercise.durationSec,
-          })
-        : "";
-    return { score, level: score === "" ? "" : scoreToLevel(score) };
+    const protocol = pickProtocol(exercise.inputMode, protocolOptions);
+    const score = protocol
+      ? scoreAgainstProtocol({
+          selectedProtocol: protocol,
+          sets: exercise.sets,
+          reps: exercise.reps,
+          durationSec: exercise.durationSec,
+        })
+      : "";
+    return {
+      score,
+      level: score === "" ? "" : scoreToLevel(score),
+      selectedProtocol: protocol,
+    };
   };
 
   const addExercise = (name, source, exerciseTier) => {
@@ -309,6 +240,10 @@ const ExerciseTestCard = ({
       exercises.map((exercise, i) => {
         if (i !== index) return exercise;
         const merged = { ...exercise, ...patch };
+        if (patch.inputMode !== undefined) {
+          merged.reps = patch.inputMode === "reps" ? merged.reps : "";
+          merged.durationSec = patch.inputMode === "time" ? merged.durationSec : "";
+        }
         return { ...merged, ...scoreExercise(merged) };
       }),
     );
@@ -327,14 +262,9 @@ const ExerciseTestCard = ({
       className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md"
     >
       <div className="border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white px-5 py-4">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <Icon size={18} className="text-orange-600" />
-            <h4 className="font-bold text-slate-800">{title}</h4>
-          </div>
-          <span className="text-xs font-semibold text-slate-500">
-            Đã chọn {exercises.length}/{MAX_EXERCISES_PER_METRIC} bài
-          </span>
+        <div className="flex items-center gap-2">
+          <Icon size={18} className="text-orange-600" />
+          <h4 className="font-bold text-slate-800">{title}</h4>
         </div>
       </div>
 
@@ -445,7 +375,7 @@ const ExerciseTestCard = ({
             key={`${exercise.name}-${index}`}
             exercise={exercise}
             scoring={scoring}
-            protocolOptions={suggestion?.protocolOptions || []}
+            protocolOptions={protocolOptions}
             resultLabel={resultLabel}
             resultPlaceholder={resultPlaceholder}
             onPatch={(patch) => patchExercise(index, patch)}
