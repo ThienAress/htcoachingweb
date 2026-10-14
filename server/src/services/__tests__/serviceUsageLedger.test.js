@@ -67,16 +67,16 @@ describe("shared service usage ledger", () => {
 
   it("keeps the default cost at one unit for existing services", async () => {
     const { user } = await createTestUser({ email: "usage-default-cost@example.com" });
-    const policy = getServiceAccessPolicy("meal_scan", "coaching_customer");
+    const policy = getServiceAccessPolicy("ai_credits", "coaching_customer");
     const result = await consumeServiceUsage({
-      serviceKey: "meal_scan",
+      serviceKey: "ai_credits",
       tier: "coaching_customer",
       policy,
       actor: { kind: "user", userId: user._id },
       operationKey: "legacy-one-unit",
     });
 
-    expect(result.quota.remaining).toBe(9);
+    expect(result.quota.remaining).toBe(39);
     expect((await ServiceUsageBucket.findOne().select("+usageEvents").lean()).usageEvents).toEqual([
       expect.objectContaining({ units: 1 }),
     ]);
@@ -110,6 +110,7 @@ describe("shared service usage ledger", () => {
           policy,
           actor: { kind: "user", userId: user._id },
           operationKey: `scan-${index}`,
+          cost: 2,
         }),
       ),
     );
@@ -119,7 +120,7 @@ describe("shared service usage ledger", () => {
       .select("+usageEvents +operationHashes")
       .lean();
     expect({ count: bucket.count, events: bucket.usageEvents.length }).toEqual({
-      count: 1,
+      count: 2,
       events: 1,
     });
   });
@@ -195,6 +196,7 @@ describe("shared service usage ledger", () => {
       policy,
       actor: { kind: "user", userId: user._id },
       operationKey: "provider-timeout",
+      cost: 2,
     });
 
     const firstRefund = await refundServiceUsage({
@@ -204,7 +206,7 @@ describe("shared service usage ledger", () => {
       reservation: consumed.reservation,
     });
 
-    expect([firstRefund.remaining, secondRefund.remaining]).toEqual([1, 1]);
+    expect([firstRefund.remaining, secondRefund.remaining]).toEqual([2, 2]);
     expect((await ServiceUsageBucket.findOne().select("+usageEvents").lean()).usageEvents).toHaveLength(0);
   });
 
@@ -218,6 +220,7 @@ describe("shared service usage ledger", () => {
       policy,
       actor: { kind: "guest", guestKey },
       operationKey: "first",
+      cost: 2,
       now: startedAt,
     });
     const later = await consumeServiceUsage({
@@ -226,6 +229,7 @@ describe("shared service usage ledger", () => {
       policy,
       actor: { kind: "guest", guestKey },
       operationKey: "later",
+      cost: 2,
       now: new Date("2027-08-01T00:00:00.000Z"),
     });
 

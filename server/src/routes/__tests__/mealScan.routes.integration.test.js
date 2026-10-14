@@ -10,6 +10,7 @@ import {
   withAuth,
 } from "../../__tests__/setup.js";
 import WalletTransaction from "../../models/WalletTransaction.js";
+import FitnessSubscription from "../../models/FitnessSubscription.js";
 import ServiceUsageBucket from "../../models/ServiceUsageBucket.js";
 import mealScanRoutes from "../mealScan.routes.js";
 import { analyzeMealImage } from "../../services/mealScan.service.js";
@@ -110,13 +111,13 @@ describe("POST /api/meal-scans/analyze", () => {
         quota: {
           serviceKey: "meal_scan",
           tier: "user",
-          limit: 1,
+          limit: 2,
           remaining: 0,
           resetAt: null,
           windows: [
             expect.objectContaining({
               key: "lifetime",
-              limit: 1,
+              limit: 2,
               remaining: 0,
               resetAt: null,
             }),
@@ -130,6 +131,44 @@ describe("POST /api/meal-scans/analyze", () => {
       locale: "vi",
       declaredIngredients: [{ name: "Dầu ô liu", grams: 15 }],
     });
+  });
+
+  test("charges two shared credits per scan for a plan holder without a separate scan gate", async () => {
+    const { user, accessToken } = await createTestUser({
+      email: "meal-scan-credits@example.com",
+    });
+    await FitnessSubscription.create({
+      userId: user._id,
+      planCode: "fitness_plus_essential",
+      planTitle: "Nền tảng",
+      billingCycle: "month",
+      amount: 99000,
+      startDate: new Date(Date.now() - 60_000),
+      endDate: new Date(Date.now() + 86_400_000),
+      status: "active",
+      isActive: true,
+    });
+    analyzeMealImage.mockResolvedValue(RESULT);
+    const scan = () =>
+      withAuth(request(app).post("/api/meal-scans/analyze"), accessToken).send({
+        image: VALID_IMAGE,
+        locale: "vi",
+        providerDataUseAccepted: true,
+      });
+
+    const remaining = [];
+    for (let attempt = 1; attempt <= 3; attempt += 1) {
+      const response = await scan();
+      expect(response.status).toBe(200);
+      remaining.push(
+        Math.min(...response.body.meta.credits.windows.map((window) => window.remaining)),
+      );
+    }
+
+    // Gói Nền tảng: 30 credit/giờ, mỗi lượt quét trừ 2.
+    expect(remaining).toEqual([28, 26, 24]);
+    const buckets = await ServiceUsageBucket.find().lean();
+    expect(buckets.map((bucket) => bucket.serviceKey)).toEqual(["ai_credits"]);
   });
 
   test("gives a regular authenticated user one additional lifetime scan", async () => {
@@ -160,7 +199,7 @@ describe("POST /api/meal-scans/analyze", () => {
       meta: {
         quota: {
           tier: "user",
-          limit: 1,
+          limit: 2,
           remaining: 0,
           resetAt: null,
         },
@@ -183,7 +222,7 @@ describe("POST /api/meal-scans/analyze", () => {
       meta: {
         quota: {
           tier: "guest",
-          limit: 1,
+          limit: 2,
           remaining: 0,
           resetAt: null,
         },
@@ -339,7 +378,7 @@ describe("POST /api/meal-scans/analyze", () => {
       failed.body.meta?.quota?.remaining,
       retried.status,
       exhausted.status,
-    ]).toEqual([503, 1, 200, 429]);
+    ]).toEqual([503, 2, 200, 429]);
     expect(analyzeMealImage).toHaveBeenCalledTimes(2);
   });
 

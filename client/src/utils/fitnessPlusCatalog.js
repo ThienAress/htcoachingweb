@@ -29,8 +29,7 @@ const hasValidPlanShape = (plan) => {
     !plan.prices ||
     !Array.isArray(plan.billingCycles) ||
     !Array.isArray(plan.features) ||
-    !plan.quotas?.aiCredits ||
-    !plan.quotas?.mealScan
+    !plan.quotas?.aiCredits
   ) {
     return false;
   }
@@ -44,9 +43,7 @@ const hasValidPlanShape = (plan) => {
       (cycle) => Number.isSafeInteger(plan.prices[cycle]) && plan.prices[cycle] >= 0,
     ) &&
     Number.isSafeInteger(plan.quotas.aiCredits.limit) &&
-    Number.isSafeInteger(plan.quotas.mealScan.limit) &&
     hasQuotaWindows(plan.quotas.aiCredits, ["burst", "monthly"]) &&
-    hasQuotaWindows(plan.quotas.mealScan, ["daily", "monthly"]) &&
     plan.features.every((feature) => typeof feature === "string")
   );
 };

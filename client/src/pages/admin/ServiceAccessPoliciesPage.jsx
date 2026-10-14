@@ -43,9 +43,11 @@ const PolicyCell = ({ service, column }) => {
             {formatted.secondary && (
               <p className="mt-1 text-xs text-zinc-500">{formatted.secondary}</p>
             )}
-            <p className="mt-1 text-xs text-zinc-500">
-              {enforcementLabel(policy.enforcement)}
-            </p>
+            {!policy.note && (
+              <p className="mt-1 text-xs text-zinc-500">
+                {enforcementLabel(policy.enforcement)}
+              </p>
+            )}
           </div>
         );
       })}

@@ -1,5 +1,6 @@
 import { AI_CREDIT_COSTS } from "../constants/serviceAccessPolicies.js";
 import { resolveRequestServicePolicy } from "../services/serviceAccessPolicy.service.js";
+import { enforceSharedServiceUsage } from "./serviceUsageLedger.js";
 import {
   consumeServiceUsage,
   refundServiceUsage,
@@ -50,6 +51,31 @@ const limitedResponse = (operation, { authenticated, smartSearch, required }) =>
     code: "AI_RATE_LIMITED",
     message: "Bạn đã dùng hết credit AI hiện tại. Credit sẽ được làm mới theo chu kỳ.",
   };
+};
+
+/**
+ * Cổng dùng thử Meal Scan: chỉ guest và user thường có hạn mức riêng (tính bằng credit, một lần).
+ * Các nhóm còn lại không có cổng lượt, chỉ bị trừ credit trong pool chung.
+ */
+export const enforceMealScanTrial = async (req, res, next) => {
+  try {
+    const { policy } = await resolveRequestServicePolicy(req, "meal_scan");
+    if (policy.mode !== "quota") return next();
+  } catch (error) {
+    safeLog.error("meal_scan.trial_policy_failed", error);
+    return res.status(503).json({
+      success: false,
+      code: "SERVICE_USAGE_UNAVAILABLE",
+      message: "Tạm thời chưa thể xác minh hạn mức sử dụng. Vui lòng thử lại sau.",
+    });
+  }
+  return enforceSharedServiceUsage("meal_scan", {
+    // Policy cũ theo lượt (snapshot) trừ 1; policy credit mới trừ đúng giá một lượt quét.
+    resolveCost: (request) =>
+      request.serviceAccessPolicy?.policy?.unitLabel === "credit"
+        ? AI_CREDIT_COSTS.meal_scan
+        : 1,
+  })(req, res, next);
 };
 
 /**

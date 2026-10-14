@@ -10,9 +10,8 @@ import {
 } from "../middlewares/aiRateLimit.js";
 import { resolveServiceAccessTierMiddleware } from "../middlewares/resolveServiceAccessTier.js";
 import { validateMealScanImage } from "../middlewares/mealScanImage.js";
-import { enforceSharedServiceUsage } from "../middlewares/serviceUsageLedger.js";
 import { meterAiUsage } from "../middlewares/aiUsageMeter.js";
-import { enforceAiCredits } from "../middlewares/aiCredits.js";
+import { enforceAiCredits, enforceMealScanTrial } from "../middlewares/aiCredits.js";
 
 const router = express.Router();
 
@@ -30,7 +29,7 @@ router.post(
   resolveServiceAccessTierMiddleware,
   mealScanAnonymousLimiter,
   mealScanLimiter,
-  enforceSharedServiceUsage("meal_scan"),
+  enforceMealScanTrial,
   enforceAiCredits("meal_scan"),
   meterAiUsage("meal_scan"),
   analyzeMealScan,

@@ -138,12 +138,12 @@ describe("Order explicit conversion origin", () => {
     expect(approved.body.data).not.toHaveProperty("entitlementPolicySnapshot");
     expect(stored).toMatchObject({
       status: "approved",
-      entitlementPolicyVersion: "2026-10-13.1",
+      entitlementPolicyVersion: "2026-10-13.2",
       entitlementPolicySnapshot: {
-        meal_scan: expect.objectContaining({
+        ai_credits: expect.objectContaining({
           windows: [
-            expect.objectContaining({ key: "daily", limit: 10 }),
-            expect.objectContaining({ key: "monthly", limit: 300 }),
+            expect.objectContaining({ key: "burst", limit: 40 }),
+            expect.objectContaining({ key: "monthly", limit: 1200 }),
           ],
         }),
       },

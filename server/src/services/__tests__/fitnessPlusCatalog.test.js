@@ -34,15 +34,7 @@ describe("HT Fitness+ catalog", () => {
       [["burst", 50], ["monthly", 720]],
       [["burst", 80], ["monthly", 1200]],
     ]);
-    expect(
-      plans.map(({ quotas }) =>
-        quotas.mealScan.windows.map(({ key, limit }) => [key, limit]),
-      ),
-    ).toEqual([
-      [["daily", 5], ["monthly", 120]],
-      [["daily", 10], ["monthly", 210]],
-      [["daily", 15], ["monthly", 300]],
-    ]);
+    expect(plans.every(({ quotas }) => quotas.mealScan === undefined)).toBe(true);
   });
 
   it("includes quota policy in the checkout catalog fingerprint", () => {

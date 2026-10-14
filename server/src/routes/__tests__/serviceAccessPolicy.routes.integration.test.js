@@ -57,38 +57,13 @@ describe("GET /api/admin/service-access-policies", () => {
         expect.objectContaining({
           serviceKey: "meal_scan",
           policies: expect.objectContaining({
-            guest: expect.objectContaining({ limit: 1, period: "lifetime" }),
-            user: expect.objectContaining({ limit: 1, period: "lifetime" }),
-            coaching_customer: expect.objectContaining({
-              windows: [
-                expect.objectContaining({ key: "daily", limit: 10 }),
-                expect.objectContaining({ key: "monthly", limit: 300 }),
-              ],
-            }),
-            trainer: expect.objectContaining({
-              windows: [
-                expect.objectContaining({ key: "daily", limit: 20 }),
-                expect.objectContaining({ key: "monthly", limit: 600 }),
-              ],
-            }),
-            fitness_plus_essential: expect.objectContaining({
-              windows: [
-                expect.objectContaining({ key: "daily", limit: 5 }),
-                expect.objectContaining({ key: "monthly", limit: 120 }),
-              ],
-            }),
-            fitness_plus_smart: expect.objectContaining({
-              windows: [
-                expect.objectContaining({ key: "daily", limit: 10 }),
-                expect.objectContaining({ key: "monthly", limit: 210 }),
-              ],
-            }),
-            fitness_plus_max: expect.objectContaining({
-              windows: [
-                expect.objectContaining({ key: "daily", limit: 15 }),
-                expect.objectContaining({ key: "monthly", limit: 300 }),
-              ],
-            }),
+            guest: expect.objectContaining({ limit: 2, unitLabel: "credit", period: "lifetime" }),
+            user: expect.objectContaining({ limit: 2, unitLabel: "credit", period: "lifetime" }),
+            coaching_customer: expect.objectContaining({ mode: "unlimited", note: expect.stringContaining("credit") }),
+            trainer: expect.objectContaining({ mode: "unlimited", note: expect.stringContaining("credit") }),
+            fitness_plus_essential: expect.objectContaining({ mode: "unlimited" }),
+            fitness_plus_smart: expect.objectContaining({ mode: "unlimited" }),
+            fitness_plus_max: expect.objectContaining({ mode: "unlimited" }),
           }),
         }),
       ]),
