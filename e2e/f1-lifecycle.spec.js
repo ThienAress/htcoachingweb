@@ -137,7 +137,7 @@ test("F1 create, intake, private media, assessment command and AI report", async
   await pushCard.getByLabel("Cách ghi kết quả").selectOption("reps");
   await pushCard.getByLabel("Số hiệp (set)").fill("3");
   await pushCard.getByLabel("Số lần mỗi hiệp (reps)").fill("10");
-  await expect(pushCard.getByText("Tổng hợp:")).toContainText("Tốt");
+  await expect(pushCard.getByText("Tổng hợp:")).toContainText("Trung bình");
   await pushCard
     .getByLabel("Tên bài test riêng của HLV")
     .fill("Squat nhảy 30 giây");

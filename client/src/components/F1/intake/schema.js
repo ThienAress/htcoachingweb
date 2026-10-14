@@ -142,7 +142,7 @@ export const postureMediaSchema = z.object({
 export const consentSchema = z.object({
   allowDataStorage: z.boolean().refine(val => val === true, "Vui lòng đồng ý lưu dữ liệu"),
   allowMediaStorage: z.boolean(),
-  allowAiAnalysis: z.boolean().refine(val => val === true, "Vui lòng đồng ý để AI hỗ trợ phân tích"),
+  allowAiAnalysis: z.boolean().refine(val => val === true, "Vui lòng đồng ý để hệ thống phân tích dữ liệu"),
 });
 
 export const intakeSchema = z.object({

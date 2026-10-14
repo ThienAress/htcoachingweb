@@ -272,7 +272,7 @@ const F1CustomerDetail = ({
               <ProgressCard title="Hồ sơ cơ bản" done />
               <ProgressCard title="Khảo sát" done={intakeDone} />
               <ProgressCard title="Đánh giá thể chất" done={assessmentDone} />
-              <ProgressCard title="Phân tích AI" done={reportDone} />
+              <ProgressCard title="Phân tích tự động" done={reportDone} />
               <ProgressCard
                 title="Dự đoán kết quả"
                 done={resultPredictionDone}
@@ -304,7 +304,7 @@ const F1CustomerDetail = ({
               className="shrink-0 inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
             >
               <Sparkles size={18} />
-              Phân tích AI
+              Phân tích tự động
             </button>
             <button
               onClick={onOpenResultPrediction}

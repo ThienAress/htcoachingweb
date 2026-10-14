@@ -102,11 +102,17 @@ export const canAddExercise = (exercises = [], name = "") => {
   );
 };
 
-// Điểm trung bình các bài đã có điểm → score/level cấp thẻ cho consumer cũ.
+// Độ khó của bài ảnh hưởng điểm tổng hợp: làm tốt bài mức dễ chưa chứng tỏ nền khỏe
+// bằng làm tốt bài mức nâng cao. Bài chưa gắn cấp độ tính 100%.
+export const TIER_WEIGHTS = { easy: 0.7, standard: 0.85, advanced: 1 };
+
+export const tierWeight = (tier) => TIER_WEIGHTS[tier] ?? 1;
+
+// Điểm trung bình (đã nhân hệ số độ khó) của các bài có điểm → score/level cấp thẻ.
 export const aggregateExercises = (exercises = []) => {
   const scores = exercises
-    .map((item) => Number(item.score))
-    .filter((value, index) => exercises[index].score !== "" && Number.isFinite(value));
+    .filter((item) => item.score !== "" && Number.isFinite(Number(item.score)))
+    .map((item) => Number(item.score) * tierWeight(item.tier));
   if (!scores.length) return { score: "", level: "" };
   const average = round1(scores.reduce((sum, value) => sum + value, 0) / scores.length);
   return { score: String(average), level: scoreToLevel(average) };

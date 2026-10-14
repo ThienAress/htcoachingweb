@@ -63,7 +63,7 @@ const initialCreateForm = {
 const getSummaryContinueAction = ({ customer, onAssessment, onReport }) => {
   const { intakeDone, assessmentDone } = getF1Progress(customer?.status);
   if (assessmentDone) {
-    return { continueLabel: "Mở phân tích AI", onContinue: onReport };
+    return { continueLabel: "Mở phân tích tự động", onContinue: onReport };
   }
   if (intakeDone && customer?.testPermission !== "hold_test") {
     return {

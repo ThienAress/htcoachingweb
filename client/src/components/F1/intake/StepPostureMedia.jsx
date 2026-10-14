@@ -197,11 +197,11 @@ const StepPostureMedia = ({
           helperText="Ảnh posture sẽ được lưu để theo dõi tiến trình."
         />
         <SwitchRow
-          label="Đồng ý AI hỗ trợ phân tích"
+          label="Đồng ý để hệ thống phân tích dữ liệu"
           icon={Brain}
           checked={allowAiAnalysis}
           onChange={(checked) => setValue("consent.allowAiAnalysis", checked, { shouldValidate: true })}
-          helperText="AI sẽ phân tích dữ liệu để đưa ra gợi ý chính xác hơn."
+          helperText="Hệ thống phân tích dữ liệu khảo sát và đánh giá để gợi ý lộ trình phù hợp hơn."
         />
       </div>
     </div>

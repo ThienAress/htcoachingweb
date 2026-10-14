@@ -110,9 +110,13 @@ const f1AiReportSchema = new mongoose.Schema(
       strengthFlags: { type: [String], default: [] },
       enduranceFlags: { type: [String], default: [] },
       cardioFlags: { type: [String], default: [] },
+      // Các bài đã test và quan sát tư thế, để HLV thấy báo cáo dựa trên gì.
+      testedExercises: { type: [String], default: [] },
     },
 
     recommendations: {
+      // Lý do hệ thống đề xuất giai đoạn bắt đầu này.
+      reasons: { type: [String], default: [] },
       correctiveFocus: { type: [String], default: [] },
       trainingFocus: { type: [String], default: [] },
       recommendedStartPhase: {
@@ -130,7 +134,7 @@ const f1AiReportSchema = new mongoose.Schema(
 
     engineVersion: {
       type: String,
-      default: "nasm-rule-engine-v3",
+      default: "nasm-rule-engine-v4",
       trim: true,
     },
     sourceFingerprint: {

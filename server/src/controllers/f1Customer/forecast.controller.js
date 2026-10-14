@@ -36,7 +36,7 @@ export const generateOutcomeForecast = async (req, res, next) => {
     if (!aiReport) {
       return res.status(400).json({
         success: false,
-        message: "Khách hàng chưa có phân tích AI để dự đoán kết quả",
+        message: "Khách hàng chưa có phân tích tự động để dự đoán kết quả",
       });
     }
     if (!intake.consent?.allowAiAnalysis || !intake.consent?.version) {

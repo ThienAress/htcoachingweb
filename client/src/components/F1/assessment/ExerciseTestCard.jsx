@@ -17,6 +17,7 @@ import {
   describeTopResult,
   getSuggestionTiers,
   pickProtocol,
+  tierWeight,
 } from "../../../utils/assessmentExercises";
 
 const inputClass =
@@ -230,7 +231,7 @@ const ExerciseTestCard = ({
     if (!canAddExercise(exercises, name)) return false;
     commit([
       ...exercises,
-      createExercise({ name, source, tier: source === "custom" ? "" : exerciseTier }),
+      createExercise({ name, source, tier: exerciseTier }),
     ]);
     return true;
   };
@@ -384,13 +385,21 @@ const ExerciseTestCard = ({
         ))}
 
         {exercises.length > 0 && (
-          <p className="text-sm font-semibold text-slate-700">
-            Tổng hợp:{" "}
-            <span className="text-orange-700">
-              {levelLabel(value.level) || "Chưa đủ dữ liệu"}
-              {value.score !== "" && value.score != null ? ` (${value.score}/10)` : ""}
-            </span>
-          </p>
+          <div className="space-y-1">
+            <p className="text-sm font-semibold text-slate-700">
+              Tổng hợp:{" "}
+              <span className="text-orange-700">
+                {levelLabel(value.level) || "Chưa đủ dữ liệu"}
+                {value.score !== "" && value.score != null ? ` (${value.score}/10)` : ""}
+              </span>
+            </p>
+            {exercises.some((item) => tierWeight(item.tier) < 1) && (
+              <p className="text-xs text-slate-500">
+                Điểm tổng hợp có tính độ khó của bài: mức dễ tính 70%, mức tiêu
+                chuẩn tính 85%, mức nâng cao tính 100%.
+              </p>
+            )}
+          </div>
         )}
       </div>
     </div>

@@ -20,11 +20,11 @@ import { resolveMediaUrl } from "../../utils/mediaUrl";
 import F1NasmPyramid from "./F1NasmPyramid";
 
 const PHASE_LABELS = {
-  phase_1: "Phase 1 - Stabilization Endurance",
-  phase_2: "Phase 2 - Strength Endurance",
-  phase_3: "Phase 3 - Hypertrophy",
-  phase_4: "Phase 4 - Maximal Strength",
-  phase_5: "Phase 5 - Power",
+  phase_1: "Giai đoạn 1 - Ổn định và sức bền nền (Stabilization Endurance)",
+  phase_2: "Giai đoạn 2 - Sức mạnh bền (Strength Endurance)",
+  phase_3: "Giai đoạn 3 - Phát triển cơ bắp (Hypertrophy)",
+  phase_4: "Giai đoạn 4 - Sức mạnh tối đa (Maximal Strength)",
+  phase_5: "Giai đoạn 5 - Sức bật (Power)",
 };
 
 const GOAL_LABELS = {
