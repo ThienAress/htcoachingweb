@@ -114,6 +114,28 @@ describe("automatic report: phase decision and reasons", () => {
   });
 });
 
+describe("automatic report: focus lists stay short", () => {
+  it("caps corrective and training focus even with many compensations", async () => {
+    const report = await buildAiReport({
+      customer: { readinessStatus: "caution" },
+      intake: experiencedIntake(),
+      assessment: goodAssessment({
+        movementAssessment: {
+          overheadSquat: {
+            anterior: ["feet_turn_out", "knees_move_inward"],
+            lateral: ["low_back_arch", "excessive_forward_lean"],
+            posterior: ["heel_rise", "pelvic_shift"],
+          },
+        },
+      }),
+    });
+
+    expect(report.recommendations.correctiveFocus.length).toBeLessThanOrEqual(3);
+    expect(report.recommendations.trainingFocus.length).toBeLessThanOrEqual(4);
+    expect(report.recommendations.correctiveFocus.length).toBeGreaterThan(0);
+  });
+});
+
 describe("automatic report: evidence and rules", () => {
   it("lists tested exercises with tier and level, and unassessed squat views", async () => {
     const report = await buildAiReport({

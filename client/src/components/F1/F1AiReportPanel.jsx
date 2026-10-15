@@ -12,6 +12,7 @@ import {
   TrendingUp,
   ArrowRight,
 } from "lucide-react";
+import { F1_POSTURE_LABELS } from "../../constants/f1Labels";
 import {
   generateAiReport,
   getLatestAiReport,
@@ -50,6 +51,23 @@ const PHASE_LABELS = {
   phase_4: "Cấp độ 2 · Giai đoạn 4 - Sức mạnh tối đa (Maximal Strength)",
   phase_5: "Cấp độ 3 · Giai đoạn 5 - Sức bật (Power)",
 };
+const RISK_FLAG_LABELS = {
+  medical_review_needed: "Cần rà soát y tế",
+  hold_test: "Tạm hoãn đánh giá",
+  pain_alert: "Có cảnh báo đau",
+  injury_history: "Có tiền sử chấn thương",
+  surgery_history: "Từng phẫu thuật",
+  medication_use: "Đang dùng thuốc",
+};
+
+const LIFESTYLE_FLAG_LABELS = {
+  sleep_low: "Ngủ chưa đủ",
+  stress_high: "Căng thẳng cao",
+  meals_low: "Số bữa ăn còn ít",
+  hydration_low: "Uống nước chưa đủ",
+  eat_out_often: "Ăn ngoài thường xuyên",
+};
+
 const STRENGTH_FLAG_LABELS = {
   upper_body_push_low: "Sức mạnh đẩy thân trên còn thấp",
   upper_body_pull_low: "Sức mạnh kéo thân trên còn thấp",
@@ -452,6 +470,18 @@ const F1AiReportPanel = ({ customer, onBack, onGenerated, onOpenResultPrediction
   }, [summary]);
   const appendix = useMemo(
     () => ({
+      compensationFlags: translateArray(
+        report?.findings?.compensationFlags || [],
+        F1_POSTURE_LABELS,
+      ),
+      riskFlags: translateArray(
+        report?.findings?.riskFlags || [],
+        RISK_FLAG_LABELS,
+      ),
+      lifestyleFlags: translateArray(
+        report?.findings?.lifestyleFlags || [],
+        LIFESTYLE_FLAG_LABELS,
+      ),
       strengthFlags: translateArray(
         report?.findings?.strengthFlags || [],
         STRENGTH_FLAG_LABELS,
@@ -715,9 +745,12 @@ const F1AiReportPanel = ({ customer, onBack, onGenerated, onOpenResultPrediction
                   <AppendixCard
                     title="Điểm nổi bật"
                     items={[
+                      ...appendix.riskFlags,
+                      ...appendix.compensationFlags,
                       ...appendix.strengthFlags,
                       ...appendix.enduranceFlags,
                       ...appendix.cardioFlags,
+                      ...appendix.lifestyleFlags,
                     ]}
                     tone="blue"
                     emptyText="Hiện chưa có điểm nổi bật nào cần nhấn mạnh thêm."

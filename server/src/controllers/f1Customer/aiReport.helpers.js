@@ -86,8 +86,32 @@ const buildLifestyleFlags = (intake) => {
   return flags;
 };
 
+const MAX_CORRECTIVE_FOCUS = 3;
+const MAX_TRAINING_FOCUS = 4;
+
+// Đếm số lần mỗi ưu tiên được nhiều lỗi vận động cùng chỉ tới; ưu tiên nào được chỉ
+// nhiều nhất xếp trước, hoà thì giữ thứ tự xuất hiện.
+const createFocusCounter = () => {
+  const counts = new Map();
+  return {
+    add(item) {
+      counts.set(item, (counts.get(item) || 0) + 1);
+    },
+    get size() {
+      return counts.size;
+    },
+    ranked(limit) {
+      return [...counts.entries()]
+        .map(([item, count], index) => ({ item, count, index }))
+        .sort((a, b) => b.count - a.count || a.index - b.index)
+        .slice(0, limit)
+        .map((entry) => entry.item);
+    },
+  };
+};
+
 const buildCorrectiveFocus = (compensationFlags = []) => {
-  const focus = new Set();
+  const focus = createFocusCounter();
 
   if (
     compensationFlags.includes("feet_turn_out") ||
@@ -188,7 +212,7 @@ const buildCorrectiveFocus = (compensationFlags = []) => {
     focus.add("stability_training");
   }
 
-  return Array.from(focus);
+  return focus.ranked(MAX_CORRECTIVE_FOCUS);
 };
 
 const TIER_LABELS = {
@@ -519,7 +543,19 @@ const buildTrainingFocus = ({
     focus.add("general_foundation");
   }
 
-  return Array.from(focus);
+  const weaknessDriven = [
+    "lower_body_strength",
+    "core_strength",
+    "muscular_endurance",
+    "pattern_retraining",
+    "cardio_base_building",
+  ];
+  const ordered = [
+    ...weaknessDriven.filter((item) => focus.has(item)),
+    ...Array.from(focus).filter((item) => !weaknessDriven.includes(item)),
+  ];
+
+  return ordered.slice(0, MAX_TRAINING_FOCUS);
 };
 
 const evaluateCondition = (condition, context) => {
