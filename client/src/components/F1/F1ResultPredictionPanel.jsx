@@ -8,6 +8,7 @@ import {
   Image as ImageIcon,
   Sparkles,
   Layers,
+  Lock,
 } from "lucide-react";
 import { useConfirmDialog } from "../../hooks/useConfirmDialog";
 import {
@@ -19,14 +20,11 @@ import { toast } from "react-toastify";
 import { resolveMediaUrl } from "../../utils/mediaUrl";
 
 import F1NasmPyramid from "./F1NasmPyramid";
-
-const PHASE_LABELS = {
-  phase_1: "Giai đoạn 1 - Ổn định và sức bền nền (Stabilization Endurance)",
-  phase_2: "Giai đoạn 2 - Sức mạnh bền (Strength Endurance)",
-  phase_3: "Giai đoạn 3 - Phát triển cơ bắp (Hypertrophy)",
-  phase_4: "Giai đoạn 4 - Sức mạnh tối đa (Maximal Strength)",
-  phase_5: "Giai đoạn 5 - Sức bật (Power)",
-};
+import {
+  PHASE_EXPLANATIONS,
+  PHASE_NAMES,
+  buildStageTabs,
+} from "../../constants/f1Phases";
 
 const GOAL_LABELS = {
   fat_loss: "Giảm mỡ",
@@ -99,23 +97,28 @@ const BulletList = ({ items = [], emptyText = "Chưa có dữ liệu" }) => {
   );
 };
 
-const StageTabs = ({ stages = [], selectedKey, onSelect }) => (
+const StageTabs = ({ tabs = [], selectedKey, onSelect }) => (
   <div className="rounded-xl border border-slate-200 bg-white p-2">
-    <div className="flex flex-wrap gap-2">
-      {stages.map((stage) => {
-        const active = stage.phaseKey === selectedKey;
+    <div className="flex flex-wrap gap-2" role="tablist">
+      {tabs.map((tab) => {
+        const active = tab.key === selectedKey;
         return (
           <button
-            key={stage.phaseKey}
+            key={tab.key}
             type="button"
-            onClick={() => onSelect(stage.phaseKey)}
-            className={`rounded-lg px-4 py-2.5 text-sm font-semibold transition-all ${
+            role="tab"
+            aria-selected={active}
+            onClick={() => onSelect(tab.key)}
+            className={`inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors ${
               active
                 ? "bg-gradient-to-r from-orange-600 to-orange-500 text-white shadow-md"
-                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                : tab.locked
+                  ? "border border-dashed border-slate-300 bg-white text-slate-500 hover:bg-slate-50"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
             }`}
           >
-            Giai đoạn {stage.stageOrder}: {stage.phaseTitle}
+            {tab.locked && <Lock size={14} aria-hidden="true" />}
+            {tab.label}
           </button>
         );
       })}
@@ -123,7 +126,21 @@ const StageTabs = ({ stages = [], selectedKey, onSelect }) => (
   </div>
 );
 
-const StageDetailCard = ({ stage }) => {
+const LockedStageCard = ({ stageOrder }) => (
+  <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center">
+    <Lock size={32} className="mx-auto text-slate-400" aria-hidden="true" />
+    <p className="mt-3 font-semibold text-slate-700">
+      Giai đoạn {stageOrder} chưa mở
+    </p>
+    <p className="mx-auto mt-1 max-w-xl text-sm text-slate-500">
+      Hệ thống sẽ đề xuất giai đoạn {stageOrder} sau khi HLV nhập kết quả cuối
+      giai đoạn {stageOrder - 1}: số đo mới, mức độ tập đều và kết quả test lại.
+      Phần đánh giá này đang được hoàn thiện.
+    </p>
+  </div>
+);
+
+const StageDetailCard = ({ stage, onShowFramework }) => {
   if (!stage) return null;
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -147,8 +164,22 @@ const StageDetailCard = ({ stage }) => {
 
       <div className="mt-5 rounded-lg bg-orange-50 p-4">
         <p className="text-sm font-bold text-orange-800">
-          {PHASE_LABELS[stage.phaseKey] || stage.phaseTitle}
+          {PHASE_NAMES[stage.phaseKey] || stage.phaseTitle}
         </p>
+        {PHASE_EXPLANATIONS[stage.phaseKey] && (
+          <p className="mt-2 text-sm text-slate-700">
+            {PHASE_EXPLANATIONS[stage.phaseKey]}{" "}
+            {onShowFramework && (
+              <button
+                type="button"
+                onClick={onShowFramework}
+                className="font-semibold text-orange-700 underline underline-offset-2 hover:text-orange-800"
+              >
+                Xem vị trí giai đoạn này trong khung NASM ở trên.
+              </button>
+            )}
+          </p>
+        )}
         <p className="mt-2 text-sm text-slate-700">{stage.objective}</p>
       </div>
 
@@ -514,6 +545,7 @@ const F1ResultPredictionPanel = ({ customer, onBack, onGenerated }) => {
   const [generatingStageKey, setGeneratingStageKey] = useState("");
   const predictionRequestIdRef = useRef(crypto.randomUUID());
   const stageRequestIdsRef = useRef(new Map());
+  const frameworkRef = useRef(null);
 
   useEffect(() => {
     const loadLatest = async () => {
@@ -549,6 +581,15 @@ const F1ResultPredictionPanel = ({ customer, onBack, onGenerated }) => {
       null
     );
   }, [prediction, selectedStageKey]);
+  const stageTabs = useMemo(
+    () => buildStageTabs(prediction?.phaseRoadmap || []),
+    [prediction],
+  );
+  const selectedLockedTab = stageTabs.find(
+    (tab) => tab.locked && tab.key === selectedStageKey,
+  );
+  const showFramework = () =>
+    frameworkRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   const selectedVisualStage = useMemo(() => {
     const stages = prediction?.visualStages || [];
     return (
@@ -743,7 +784,7 @@ const F1ResultPredictionPanel = ({ customer, onBack, onGenerated }) => {
                 />
               </div>
 
-              <div className="space-y-3">
+              <div ref={frameworkRef} className="scroll-mt-6 space-y-3">
                 <SectionHeading
                   title="Khung NASM 3 cấp độ / 5 giai đoạn"
                   subtitle="Cấu trúc chuẩn của NASM"
@@ -754,14 +795,21 @@ const F1ResultPredictionPanel = ({ customer, onBack, onGenerated }) => {
               <div className="space-y-4">
                 <SectionHeading
                   title="Lộ trình giai đoạn"
-                  subtitle="Chọn từng tab để xem chi tiết"
+                  subtitle="Giai đoạn 1 được đề xuất từ kết quả đánh giá ban đầu. Giai đoạn sau mở khi HLV đánh giá xong giai đoạn trước."
                 />
                 <StageTabs
-                  stages={prediction.phaseRoadmap || []}
+                  tabs={stageTabs}
                   selectedKey={selectedStageKey}
                   onSelect={setSelectedStageKey}
                 />
-                <StageDetailCard stage={selectedStage} />
+                {selectedLockedTab ? (
+                  <LockedStageCard stageOrder={selectedLockedTab.stageOrder} />
+                ) : (
+                  <StageDetailCard
+                    stage={selectedStage}
+                    onShowFramework={showFramework}
+                  />
+                )}
               </div>
 
               <div className="space-y-4">
