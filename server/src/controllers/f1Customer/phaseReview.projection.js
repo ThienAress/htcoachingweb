@@ -25,6 +25,14 @@ export const NHLBI_LOSS_WEEKS = 26;
 const MIN_BMI = 18.5;
 const ADAPTATION_PER_STAGE = 0.9;
 const MAX_CARRY_OVER = 4;
+// Tên giai đoạn trong câu giải thích: Việt trước, Anh trong ngoặc.
+const PHASE_NAMES = {
+  phase_1: "Ổn định và sức bền nền (Stabilization Endurance)",
+  phase_2: "Sức mạnh bền (Strength Endurance)",
+  phase_3: "Phát triển cơ bắp (Hypertrophy)",
+  phase_4: "Sức mạnh tối đa (Maximal Strength)",
+  phase_5: "Sức bật (Power)",
+};
 const LEVEL_ORDER = ["low", "below_average", "average", "good"];
 
 const clamp = (num, min, max) => Math.min(Math.max(num, min), max);
@@ -130,7 +138,7 @@ const buildDelta = (start, projected) =>
   );
 
 const buildEntryReason = ({ evaluation, currentPhaseKey }) => {
-  const current = PHASE_META[currentPhaseKey]?.phaseTitle || "";
+  const current = PHASE_NAMES[currentPhaseKey] || "giai đoạn hiện tại";
   if (evaluation.decision === "coach_review") {
     return "Khách báo đau, chấn thương hoặc dấu hiệu cảnh báo mới. Hệ thống giữ giai đoạn hiện tại; HLV kiểm tra và quyết định bước tiếp theo.";
   }
@@ -144,7 +152,7 @@ const buildEntryReason = ({ evaluation, currentPhaseKey }) => {
   if (evaluation.nextPhaseKey === currentPhaseKey) {
     return `Khách đạt ${formatPercent(evaluation.total)}% và tiếp tục một chu kỳ mới của ${current} với mức tải cao hơn.`;
   }
-  return `Khách đạt ${formatPercent(evaluation.total)}% (ngưỡng chuyển là 80%), đủ điều kiện chuyển sang ${evaluation.nextPhaseTitle}.`;
+  return `Khách đạt ${formatPercent(evaluation.total)}% (ngưỡng chuyển là 80%), đủ điều kiện chuyển sang ${PHASE_NAMES[evaluation.nextPhaseKey] || evaluation.nextPhaseTitle}.`;
 };
 
 const buildCarryOver = ({ input }) => {
