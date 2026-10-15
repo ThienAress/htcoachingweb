@@ -161,6 +161,15 @@ export const savePhaseReview = (customerId, stageOrder, payload) =>
     api.put(`/f1-customers/${customerId}/phase-reviews/${stageOrder}`, payload),
   );
 
+// Ảnh của giai đoạn 2 trở đi (tải ảnh hiện tại và tạo ảnh dự đoán).
+export const uploadStagePhoto = (customerId, stageOrder, form) =>
+  unwrap(api.post(`/f1-customers/${customerId}/phase-reviews/${stageOrder}/photos`, form));
+
+export const generateStageVisual = (customerId, stageOrder, payload) =>
+  unwrap(
+    api.post(`/f1-customers/${customerId}/phase-reviews/${stageOrder}/generate-images`, payload),
+  );
+
 export const generateResultPredictionStageImages = (
   customerId,
   predictionId,

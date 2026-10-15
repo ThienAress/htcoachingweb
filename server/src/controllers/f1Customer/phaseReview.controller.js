@@ -8,6 +8,7 @@ import { buildStageContext } from "./phaseReview.context.js";
 import { normalizePhaseReviewInput } from "./phaseReview.input.js";
 import { evaluatePhaseReview } from "./phaseReview.scoring.js";
 import { buildNextStage } from "./phaseReview.projection.js";
+import { serializeVisual } from "./phaseReview.visual.controller.js";
 
 const MAX_STAGES = 20;
 
@@ -69,6 +70,7 @@ const serializeReview = (review) => ({
   evaluation: review.evaluation,
   nextPhasePlan: review.nextPhasePlan,
   nextOutcome: review.nextOutcome,
+  visual: serializeVisual(review),
   updatedAt: review.updatedAt,
 });
 

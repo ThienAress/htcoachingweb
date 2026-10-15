@@ -31,6 +31,8 @@ import {
   generateResultPredictionStageImages,
   getPhaseReviews,
   savePhaseReview,
+  generateStageVisual,
+  uploadStagePhoto,
 } from "../controllers/f1Customer/index.js";
 import {
   validateApproveAiReport,
@@ -50,6 +52,8 @@ import {
   validateGenerateResultPrediction,
   validateGenerateResultPredictionStageImages,
   validateSavePhaseReview,
+  validateStagePhotoUpload,
+  validateGenerateStageVisual,
 } from "../middlewares/validation.js";
 
 import { uploadF1Media } from "../middlewares/f1MediaUpload.js";
@@ -327,6 +331,26 @@ router.put(
   requireTrainerAccess,
   validateSavePhaseReview,
   savePhaseReview,
+);
+
+router.post(
+  "/:id/phase-reviews/:stageOrder/photos",
+  protect,
+  csrfProtection,
+  requireTrainerAccess,
+  uploadF1Media.single("file"),
+  validateStagePhotoUpload,
+  uploadStagePhoto,
+);
+
+router.post(
+  "/:id/phase-reviews/:stageOrder/generate-images",
+  protect,
+  f1GenerationLimiter,
+  csrfProtection,
+  requireTrainerAccess,
+  validateGenerateStageVisual,
+  generateStageVisual,
 );
 
 export default router;

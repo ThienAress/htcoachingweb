@@ -131,6 +131,26 @@ const f1PhaseReviewSchema = new mongoose.Schema(
       note: { type: String, default: "", trim: true, maxlength: 200 },
     },
 
+    // Ảnh của giai đoạn kế tiếp: ảnh hiện tại HLV tải lên và ảnh dự đoán được tạo từ đó.
+    visual: {
+      beforeFrontMediaId: { type: mongoose.Schema.Types.ObjectId, ref: "F1Media", default: null },
+      beforeSideMediaId: { type: mongoose.Schema.Types.ObjectId, ref: "F1Media", default: null },
+      imageStatus: {
+        type: String,
+        enum: ["descriptor_only", "generating", "generated", "failed"],
+        default: "descriptor_only",
+      },
+      frontMediaId: { type: mongoose.Schema.Types.ObjectId, ref: "F1Media", default: null },
+      sideMediaId: { type: mongoose.Schema.Types.ObjectId, ref: "F1Media", default: null },
+      attemptCount: { type: Number, default: 0, min: 0 },
+      reservationId: { type: String, default: "", trim: true },
+      reservedUntil: { type: Date, default: null },
+      lastError: { type: String, default: "", trim: true, maxlength: 100 },
+      provider: { type: String, default: "", trim: true },
+      model: { type: String, default: "", trim: true },
+      generatedAt: { type: Date, default: null },
+    },
+
     // Kết quả do server tính; không nhận từ client.
     evaluation: { type: Object, default: {} },
     nextPhasePlan: { type: Object, default: {} },

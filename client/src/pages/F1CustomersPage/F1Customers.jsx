@@ -349,7 +349,7 @@ const F1Customers = () => {
                 setViewMode("list");
                 setMobileMenuOpen(false);
               }}
-              className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all ${
+              className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-colors ${
                 viewMode === "list" || viewMode === "create"
                   ? "bg-amber-500/20 text-amber-300 shadow-inner"
                   : "text-slate-300 hover:bg-white/10 hover:text-white"
