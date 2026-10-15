@@ -54,6 +54,18 @@ const buildFirstRetests = (assessment) => {
   return items.slice(0, MAX_RETESTS);
 };
 
+const VIEW_KEYS = ["anterior", "lateral", "posterior"];
+
+// Các biểu hiện sai cần kiểm lại: lấy từ lần đánh giá ban đầu (mã) hoặc từ lần đánh giá trước (nhãn).
+const buildOhsaItems = (assessment) =>
+  VIEW_KEYS.flatMap((view) =>
+    (assessment?.movementAssessment?.overheadSquat?.[view] || []).map((code) => ({
+      view,
+      key: String(code),
+      label: "",
+    })),
+  );
+
 const buildOhsaBaseline = (assessment) => {
   const squat = assessment?.movementAssessment?.overheadSquat || {};
   const view = (key) => ((squat[key] || []).length ? true : squat[`${key}Normal`] ? false : null);
@@ -92,6 +104,7 @@ export const buildStageContext = ({ stageOrder, prediction, intake, assessment, 
       recommendations: buildFirstRecommendations(aiReport),
       retests: buildFirstRetests(assessment),
       ohsaBaseline: buildOhsaBaseline(assessment),
+      ohsaItems: buildOhsaItems(assessment),
     };
   }
 
@@ -125,6 +138,9 @@ export const buildStageContext = ({ stageOrder, prediction, intake, assessment, 
         previousLevel: item.level || item.previousLevel || "",
       };
     }),
+    ohsaItems: (previous.ohsa?.items || [])
+      .filter((item) => item.status !== "resolved")
+      .map((item) => ({ view: item.view, key: item.key || item.label, label: item.label })),
     ohsaBaseline: {
       anteriorIssue: Boolean(previous.ohsa?.anteriorIssue),
       lateralIssue: Boolean(previous.ohsa?.lateralIssue),

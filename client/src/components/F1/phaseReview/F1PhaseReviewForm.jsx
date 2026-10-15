@@ -1,4 +1,6 @@
-import { useForm, useWatch } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
+import RoundedSelect from "../assessment/RoundedSelect";
+import F1PhaseReviewSquat from "./F1PhaseReviewSquat";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { TIER_LABELS } from "../../../utils/assessmentExercises";
@@ -43,7 +45,23 @@ const schema = z
       z.object({ text: z.string(), status: z.string().min(1, "Chọn mức đã làm") }),
     ),
     retests: z.array(z.any()),
-    ohsa: z.object({ anteriorIssue: z.boolean(), lateralIssue: z.boolean(), posteriorIssue: z.boolean() }),
+    ohsa: z.object({
+      items: z.array(
+        z
+          .object({
+            view: z.string(),
+            key: z.string(),
+            label: z.string(),
+            status: z.string(),
+            fixed: z.boolean(),
+          })
+          .superRefine((item, ctx) => {
+            if (item.status !== "new") return;
+            if (!item.view) ctx.addIssue({ code: "custom", path: ["view"], message: "Chọn góc nhìn" });
+            if (!item.label.trim()) ctx.addIssue({ code: "custom", path: ["label"], message: "Nhập biểu hiện" });
+          }),
+      ),
+    }),
     safety: z.object({
       newPain: z.boolean(),
       newInjury: z.boolean(),
@@ -127,13 +145,13 @@ const F1PhaseReviewForm = ({ stageOrder, context, review, saving, onSubmit, onCa
             ["sleep", "Giấc ngủ"],
           ].map(([name, label]) => (
             <Field key={name} id={id(name)} label={label}>
-              <select id={id(name)} className={inputClass} {...register(`adherence.${name}`)}>
-                {QUALITY_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
+              <Controller
+                control={control}
+                name={`adherence.${name}`}
+                render={({ field }) => (
+                  <RoundedSelect label={label} value={field.value} onChange={field.onChange} options={QUALITY_OPTIONS} />
+                )}
+              />
             </Field>
           ))}
         </div>
@@ -203,14 +221,19 @@ const F1PhaseReviewForm = ({ stageOrder, context, review, saving, onSubmit, onCa
                     </p>
                   ) : (
                     <Field id={id(`level-${index}`)} label={`Mức hiện tại (trước: ${LEVEL_LABELS[item.previousLevel] || "chưa có"})`}>
-                      <select id={id(`level-${index}`)} className={inputClass} {...register(`retests.${index}.manualLevel`)}>
-                        <option value="">Chưa test lại</option>
-                        {Object.entries(LEVEL_LABELS).map(([value, label]) => (
-                          <option key={value} value={value}>
-                            {label}
-                          </option>
-                        ))}
-                      </select>
+                      <Controller
+                        control={control}
+                        name={`retests.${index}.manualLevel`}
+                        render={({ field }) => (
+                          <RoundedSelect
+                            label={`Mức hiện tại của ${item.name}`}
+                            value={field.value}
+                            onChange={field.onChange}
+                            placeholder="Chưa test lại"
+                            options={Object.entries(LEVEL_LABELS).map(([value, label]) => ({ value, label }))}
+                          />
+                        )}
+                      />
                     </Field>
                   )}
                 </div>
@@ -223,14 +246,12 @@ const F1PhaseReviewForm = ({ stageOrder, context, review, saving, onSubmit, onCa
         </Group>
       )}
 
-      <Group title="5. Squat tay qua đầu (Overhead Squat) và an toàn">
-        <div className="grid gap-x-6 sm:grid-cols-2">
-          <div>
-            <p className="text-xs font-medium text-slate-500">Còn biểu hiện tư thế sai ở</p>
-            <Check id={id("ohsa-a")} label="Mặt trước" register={register} name="ohsa.anteriorIssue" />
-            <Check id={id("ohsa-l")} label="Mặt bên" register={register} name="ohsa.lateralIssue" />
-            <Check id={id("ohsa-p")} label="Mặt sau" register={register} name="ohsa.posteriorIssue" />
-          </div>
+      <Group title="5. Squat tay qua đầu (Overhead Squat)">
+        <F1PhaseReviewSquat control={control} errors={errors} idPrefix={id("ohsa")} />
+      </Group>
+
+      <Group title="6. An toàn">
+        <div>
           <div>
             <p className="text-xs font-medium text-slate-500">Trong giai đoạn vừa qua, khách có</p>
             <Check id={id("pain")} label="Đau mới xuất hiện" register={register} name="safety.newPain" />

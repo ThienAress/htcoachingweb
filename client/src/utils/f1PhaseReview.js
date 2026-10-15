@@ -1,5 +1,35 @@
 import { scoreAgainstProtocol, scoreToLevel } from "./assessment.helpers";
 import { DEFAULT_PROTOCOLS } from "./assessmentExercises";
+import { OHSA_LABELS } from "../constants/f1Ohsa";
+
+export const OHSA_VIEWS = [
+  { value: "anterior", label: "Mặt trước" },
+  { value: "lateral", label: "Mặt bên" },
+  { value: "posterior", label: "Mặt sau" },
+];
+
+export const ohsaItemLabel = (item) =>
+  OHSA_LABELS[item.key] || item.label || item.key || "";
+
+// Biểu hiện cần kiểm lại (từ giai đoạn trước) giữ trạng thái đã lưu; biểu hiện mới do HLV thêm.
+const buildOhsaItems = (context, review) => {
+  const saved = review?.ohsa?.items || [];
+  const savedStatus = new Map(
+    saved.map((item) => [`${item.view}|${item.key || item.label}`, item.status]),
+  );
+  const baseline = (context.ohsaItems || []).map((item) => ({
+    view: item.view,
+    key: item.key,
+    label: ohsaItemLabel(item),
+    status:
+      savedStatus.get(`${item.view}|${item.key}`) === "resolved" ? "resolved" : "persists",
+    fixed: true,
+  }));
+  const added = saved
+    .filter((item) => item.status === "new")
+    .map((item) => ({ view: item.view, key: "", label: item.label, status: "new", fixed: false }));
+  return [...baseline, ...added];
+};
 
 export const phaseReviewsQueryKey = (customerId) => ["f1-phase-reviews", customerId];
 
@@ -104,11 +134,7 @@ export const buildFormDefaults = (context, review = null) => {
         manualLevel: canAutoScore(item) ? "" : saved.level || "",
       };
     }),
-    ohsa: {
-      anteriorIssue: Boolean(review?.ohsa?.anteriorIssue),
-      lateralIssue: Boolean(review?.ohsa?.lateralIssue),
-      posteriorIssue: Boolean(review?.ohsa?.posteriorIssue),
-    },
+    ohsa: { items: buildOhsaItems(context, review) },
     safety: {
       newPain: Boolean(review?.safety?.newPain),
       newInjury: Boolean(review?.safety?.newInjury),
@@ -145,7 +171,16 @@ export const toPayload = (values) => ({
       level: retestLevel(item),
     }))
     .filter((item) => item.level),
-  ohsa: values.ohsa,
+  ohsa: {
+    items: values.ohsa.items
+      .filter((item) => item.view && item.label.trim())
+      .map((item) => ({
+        view: item.view,
+        key: item.fixed ? item.key : "",
+        label: item.label.trim(),
+        status: item.status,
+      })),
+  },
   safety: { ...values.safety, note: values.safety.note.trim() },
 });
 

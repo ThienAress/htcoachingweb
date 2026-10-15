@@ -59,6 +59,12 @@ Sản phẩm phục vụ HLV và khách hàng Việt Nam: **tiếng Việt là �
 - **Tên bài tập luôn để tiếng Anh** ("Wall Push-Up", "Goblet Squat"): không dịch, không thêm chú thích Việt.
 - Gọi tên theo cách HLV hiểu: "kết quả khảo sát" thay "intake", "phân tích tự động" thay "AI Report" (bộ luật NASM, không phải AI),
   "hoãn đánh giá" thay "HOLD TEST". Không đổi identifier, API field, enum, route.
+- Ô chọn (select, dropdown): **không dùng `<select>` gốc** của trình duyệt vì danh sách thả xuống không bo góc, lệch
+  giao diện. Luôn dùng `client/src/components/F1/assessment/RoundedSelect.jsx` (trong form React Hook Form thì bọc bằng
+  `Controller`); trước khi bàn giao form có ô chọn, rà `grep -rn "<select" client/src` cho file vừa sửa.
+- Tên có chú thích Anh chỉ dùng một cặp ngoặc: "Sức mạnh bền (Strength Endurance)"; không lồng ngoặc trong ngoặc.
+- Không lặp lại cùng một thông tin ở tiêu đề, phụ đề và thân hộp thoại; tên giai đoạn viết một lần dạng
+  "Giai đoạn 2: Hypertrophy".
 - Thêm tính năng/UI mới: rà toàn bộ chuỗi hiển thị trước khi bàn giao, cả message trả về từ server.
 
 ## Cách làm việc

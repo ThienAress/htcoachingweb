@@ -173,6 +173,51 @@ describe("F1 phase reviews", () => {
     expect(await F1PhaseReview.countDocuments({ customerId: customer._id })).toBe(1);
   });
 
+  it("exposes the stage-1 squat compensations and derives the issue flags from item statuses", async () => {
+    const trainer = await createTrainer("f1-pr-ohsa@example.com");
+    const customer = await createCustomerWithPrediction(trainer.user._id, "OHSA");
+    await F1Assessment.updateOne(
+      { customerId: customer._id },
+      { $set: { "movementAssessment.overheadSquat.lateral": ["low_back_arch"] } },
+    );
+
+    const before = await withAuth(
+      request(app).get(`/api/f1-customers/${customer._id}/phase-reviews`),
+      trainer.accessToken,
+    );
+    expect(before.body.data.contexts["1"].ohsaItems).toEqual([
+      { view: "lateral", key: "low_back_arch", label: "" },
+    ]);
+
+    const response = await put(
+      app,
+      trainer,
+      customer._id,
+      1,
+      reviewBody({
+        ohsa: {
+          items: [
+            { view: "lateral", key: "low_back_arch", label: "Võng thắt lưng", status: "resolved" },
+            { view: "anterior", key: "", label: "Gối chụm vào trong", status: "new" },
+          ],
+        },
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    const [review] = response.body.data.reviews;
+    expect(review.ohsa).toMatchObject({ anteriorIssue: true, lateralIssue: false, posteriorIssue: false });
+    expect(response.body.data.contexts["2"].ohsaItems).toEqual([
+      { view: "anterior", key: "Gối chụm vào trong", label: "Gối chụm vào trong" },
+    ]);
+
+    const badView = await put(
+      app, trainer, customer._id, 1,
+      reviewBody({ ohsa: { items: [{ view: "top", label: "x", status: "new" }] } }),
+    );
+    expect(badView.status).toBe(400);
+  });
+
   it("rejects skipping a stage and invalid input", async () => {
     const trainer = await createTrainer("f1-pr-order@example.com");
     const customer = await createCustomerWithPrediction(trainer.user._id, "ORDER");

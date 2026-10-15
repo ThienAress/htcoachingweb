@@ -45,10 +45,29 @@ export const translateTrainingFocus = (items = []) =>
 // cho tới khi HLV đánh giá xong giai đoạn trước.
 export const MIN_VISIBLE_STAGES = 3;
 
+const PHASE_TITLES = {
+  phase_1: "Stabilization Endurance",
+  phase_2: "Strength Endurance",
+  phase_3: "Hypertrophy",
+  phase_4: "Maximal Strength",
+  phase_5: "Power",
+};
+const PHASE_SEQUENCE = Object.keys(PHASE_TITLES);
+// Hệ thống tự đề xuất tối đa tới giai đoạn 3 của khung NASM.
+const AUTO_CEILING_INDEX = PHASE_SEQUENCE.indexOf("phase_3");
+
+// Giai đoạn dự kiến kế tiếp khi khách đạt yêu cầu (nếu kéo dài thì giữ nguyên giai đoạn).
+export const expectedNextPhaseTitle = (phaseKey) => {
+  const idx = PHASE_SEQUENCE.indexOf(phaseKey);
+  if (idx < 0) return "";
+  return PHASE_TITLES[PHASE_SEQUENCE[Math.min(idx + 1, Math.max(AUTO_CEILING_INDEX, idx))]];
+};
+
 // Giai đoạn 1 lấy từ lộ trình dự đoán; giai đoạn 2 trở đi mở ra sau mỗi lần HLV đánh giá
 // cuối giai đoạn trước (`reviews` sắp theo stageOrder), cộng thêm một tab kế tiếp đang khoá.
 export const buildStageTabs = (roadmap = [], reviews = []) => {
   const first = roadmap[0];
+  let lastPhaseKey = first?.phaseKey || "";
   const tabs = first
     ? [
         {
@@ -62,6 +81,7 @@ export const buildStageTabs = (roadmap = [], reviews = []) => {
   for (const review of reviews) {
     const plan = review.nextPhasePlan || {};
     const stageOrder = review.stageOrder + 1;
+    lastPhaseKey = plan.phaseKey || lastPhaseKey;
     tabs.push({
       key: `stage_${stageOrder}`,
       stageOrder,
@@ -71,12 +91,15 @@ export const buildStageTabs = (roadmap = [], reviews = []) => {
       locked: false,
     });
   }
-  const minimum = Math.max(MIN_VISIBLE_STAGES, tabs.length + 1);
-  for (let order = tabs.length + 1; order <= minimum; order += 1) {
+  const firstLocked = tabs.length + 1;
+  const minimum = Math.max(MIN_VISIBLE_STAGES, firstLocked);
+  for (let order = firstLocked; order <= minimum; order += 1) {
+    // Chỉ giai đoạn kế tiếp có tên dự kiến; các giai đoạn xa hơn chưa đoán được.
+    const expected = order === firstLocked ? expectedNextPhaseTitle(lastPhaseKey) : "";
     tabs.push({
       key: `locked_${order}`,
       stageOrder: order,
-      label: `Giai đoạn ${order}`,
+      label: expected ? `Giai đoạn ${order}: ${expected}` : `Giai đoạn ${order}`,
       locked: true,
     });
   }

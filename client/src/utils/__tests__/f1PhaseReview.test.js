@@ -63,14 +63,16 @@ describe("buildFormDefaults and toPayload", () => {
       adherence: { plannedSessions: 33, completedSessions: 30, nutrition: "good", sleep: "poor" },
       recommendationChecks: [{ text: "Ngủ đủ 7 giờ mỗi đêm", status: "met" }],
       retests: [{ metricKey: "cardioCapacity", name: "Treadmill Walk", level: "average" }],
-      ohsa: { lateralIssue: true },
+      ohsa: { items: [{ view: "lateral", key: "low_back_arch", label: "Võng thắt lưng", status: "resolved" }, { view: "anterior", key: "", label: "Gối chụm vào trong", status: "new" }] },
     });
 
     expect(values.measuredAt).toBe("2027-01-05");
     expect(values.adherence).toEqual({ plannedSessions: "33", completedSessions: "30", nutrition: "good", sleep: "poor" });
     expect(values.recommendationChecks[0].status).toBe("met");
     expect(values.retests[1].manualLevel).toBe("average");
-    expect(values.ohsa.lateralIssue).toBe(true);
+    expect(values.ohsa.items).toEqual([
+      { view: "anterior", key: "", label: "Gối chụm vào trong", status: "new", fixed: false },
+    ]);
   });
 });
 
