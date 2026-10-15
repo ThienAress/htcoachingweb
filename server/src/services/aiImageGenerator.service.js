@@ -1,3 +1,5 @@
+import { safeLog } from "../utils/safeLogger.js";
+
 const SUPPORTED_PROVIDERS = ["mock", "openai", "gemini"];
 
 // Nano Banana = dòng Gemini Image. Có thể đổi bản qua AI_IMAGE_MODEL
@@ -26,6 +28,43 @@ const isValidDataUrl = (value = "") =>
 
 const isSupportedImageRef = (value = "") =>
   isValidHttpUrl(value) || isValidDataUrl(value);
+
+// Lỗi từ nhà cung cấp ảnh được đổi sang thông báo tiếng Việt an toàn (không lộ
+// khoá API hay nội dung thô của provider) và đánh dấu `expose` để errorHandler
+// trả thẳng cho người dùng. Nội dung gốc chỉ ghi vào log đã lọc.
+export const buildProviderError = ({ provider, status, rawMessage }) => {
+  const httpStatus = Number(status) || 502;
+  let code = "AI_IMAGE_PROVIDER_ERROR";
+  let responseStatus = 502;
+  let message =
+    "Dịch vụ tạo ảnh đang gặp sự cố. Vui lòng thử lại sau ít phút.";
+
+  if (httpStatus === 429) {
+    code = "AI_IMAGE_PROVIDER_RATE_LIMITED";
+    responseStatus = 429;
+    message =
+      "Dịch vụ tạo ảnh đang quá tải hoặc đã hết hạn mức. Vui lòng thử lại sau ít phút; lượt tạo chưa bị tính.";
+  } else if (httpStatus === 401 || httpStatus === 403) {
+    code = "AI_IMAGE_PROVIDER_AUTH";
+    message =
+      "Khoá dịch vụ tạo ảnh chưa hợp lệ hoặc chưa được cấp quyền. Vui lòng liên hệ quản trị viên.";
+  } else if (httpStatus >= 400 && httpStatus < 500) {
+    code = "AI_IMAGE_PROVIDER_REJECTED";
+    message =
+      "Dịch vụ tạo ảnh từ chối yêu cầu này. Hãy thử ảnh khác hoặc liên hệ quản trị viên.";
+  }
+
+  safeLog.error("ai_image.provider_error", new Error(String(rawMessage || "")), {
+    provider,
+    providerStatus: httpStatus,
+  });
+
+  const error = new Error(message);
+  error.status = responseStatus;
+  error.code = code;
+  error.expose = true;
+  return error;
+};
 
 const getProviderConfig = () => {
   const provider = safeText(
@@ -238,13 +277,14 @@ const callOpenAiImageEdit = async ({
   }
 
   if (!response.ok) {
-    const message =
-      safeText(data?.error?.message) ||
-      safeText(data?.message) ||
-      "OpenAI image edit trả về lỗi";
-    const error = new Error(message);
-    error.status = response.status || 502;
-    throw error;
+    throw buildProviderError({
+      provider: "openai",
+      status: response.status,
+      rawMessage:
+        safeText(data?.error?.message) ||
+        safeText(data?.message) ||
+        "OpenAI image edit trả về lỗi",
+    });
   }
 
   const firstImage = data?.data?.[0];
@@ -317,11 +357,11 @@ const callGeminiImageEdit = async ({
   }
 
   if (!response.ok) {
-    const error = new Error(
-      safeText(data?.error?.message) || "Gemini image trả về lỗi",
-    );
-    error.status = response.status || 502;
-    throw error;
+    throw buildProviderError({
+      provider: "gemini",
+      status: response.status,
+      rawMessage: safeText(data?.error?.message) || "Gemini image trả về lỗi",
+    });
   }
 
   const blockReason = safeText(data?.promptFeedback?.blockReason);
@@ -330,6 +370,8 @@ const callGeminiImageEdit = async ({
       "Gemini từ chối tạo ảnh do bộ lọc an toàn. Hãy thử ảnh khác hoặc ảnh đủ trang phục.",
     );
     error.status = 422;
+    error.code = "AI_IMAGE_PROVIDER_SAFETY_BLOCK";
+    error.expose = true;
     throw error;
   }
 

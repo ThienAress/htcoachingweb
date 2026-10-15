@@ -54,10 +54,19 @@ export const errorHandler = (err, req, res, next) => {
     });
   }
 
+  // Lỗi 4xx do code chủ động đánh dấu `expose` (thông báo đã được kiểm soát,
+  // không chứa nội dung thô của dịch vụ ngoài) thì trả nguyên message.
+  const exposeMessage =
+    err.expose === true && err.status >= 400 && err.status < 500;
+
   // Lỗi khác
   res.status(err.status || 500).json({
     success: false,
-    message: isProd ? "Lỗi server nội bộ" : (err.message || "Lỗi server nội bộ"),
+    message:
+      isProd && !exposeMessage
+        ? "Lỗi server nội bộ"
+        : err.message || "Lỗi server nội bộ",
+    ...(exposeMessage && err.code ? { code: err.code } : {}),
     requestId: req.id,
   });
 };

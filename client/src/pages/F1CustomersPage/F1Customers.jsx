@@ -21,6 +21,7 @@ import { useConversionOriginOptions } from "../../hooks/useConversionOriginOptio
 import { useAuth } from "../../context/AuthContext";
 import MorphStateIcon from "../../components/motion/MorphStateIcon";
 import { getF1Progress } from "../../constants/f1CustomerStatus";
+import { useConfirmDialog } from "../../hooks/useConfirmDialog";
 
 const F1CustomerList = lazy(
   () => import("../../components/F1/F1CustomerList"),
@@ -76,6 +77,7 @@ const getSummaryContinueAction = ({ customer, onAssessment, onReport }) => {
 
 const F1Customers = () => {
   const { user } = useAuth();
+  const { confirm, dialog: confirmDialog } = useConfirmDialog();
   const queryClient = useQueryClient();
   const [viewMode, setViewMode] = useState("list");
   const [selectedCustomer, setSelectedCustomer] = useState(null);
@@ -156,9 +158,16 @@ const F1Customers = () => {
 
   const handleDeleteCustomer = async () => {
     if (!selectedCustomer?._id) return;
-    const confirmed = window.confirm(
-      `Bạn có chắc muốn yêu cầu xóa dữ liệu của "${selectedCustomer.fullName}" không?\n\nMedia sẽ được xóa khỏi private storage trước, sau đó dữ liệu sức khỏe mới được xóa.`,
-    );
+    const confirmed = await confirm({
+      title: "Xóa khách hàng F1?",
+      message: `Bạn có chắc muốn yêu cầu xóa dữ liệu của "${selectedCustomer.fullName}" không?`,
+      details: [
+        "Ảnh và video sẽ được xóa khỏi kho lưu trữ riêng tư trước.",
+        "Sau đó dữ liệu sức khỏe mới được xóa.",
+      ],
+      confirmLabel: "Xóa dữ liệu",
+      tone: "danger",
+    });
     if (!confirmed) return;
     try {
       await deleteMutation.mutateAsync(selectedCustomer._id);
@@ -278,6 +287,7 @@ const F1Customers = () => {
 
   return (
     <>
+      {confirmDialog}
     <SEO title="Quản lý khách hàng F1" noindex />
     <div className="flex min-h-screen bg-gradient-to-br from-slate-100 to-slate-200">
       {/* Mobile menu button */}

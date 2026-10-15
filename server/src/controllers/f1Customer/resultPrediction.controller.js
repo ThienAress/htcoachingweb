@@ -503,6 +503,8 @@ export const generateResultPredictionStageImages = async (req, res, next) => {
       message: "Đã tạo ảnh AI cho phase thành công",
     });
   } catch (error) {
+    // Lỗi do nhà cung cấp ảnh (quá tải, hết hạn mức, từ chối) không tính vào số lượt.
+    const providerFault = String(error.code || "").startsWith("AI_IMAGE_PROVIDER");
     if (reservationAcquired && prediction) {
       await F1ResultPrediction.updateOne(
         {
@@ -515,6 +517,9 @@ export const generateResultPredictionStageImages = async (req, res, next) => {
           },
         },
         {
+          ...(providerFault
+            ? { $inc: { "visualStages.$.generation.attemptCount": -1 } }
+            : {}),
           $set: {
             "visualStages.$.imageStatus": "failed",
             "visualStages.$.generation.lastError": String(
