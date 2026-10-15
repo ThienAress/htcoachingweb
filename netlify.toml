@@ -4,6 +4,15 @@
   publish = "dist"
   environment = { NODE_VERSION = "22.23.1" }
 
+# Bản production cũng phục vụ ở htcoachingweb.netlify.app: chuyển hẳn về domain chính
+# để Google không thấy hai site trùng nội dung. Chỉ khớp host này; staging--*.netlify.app
+# không bị ảnh hưởng.
+[[redirects]]
+  from = "https://htcoachingweb.netlify.app/*"
+  to = "https://htcoachingweb.io.vn/:splat"
+  status = 301
+  force = true
+
 [context.staging]
   ignore = "exit 1"
 
