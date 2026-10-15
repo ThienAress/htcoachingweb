@@ -36,6 +36,34 @@ const text = (value, max, label) => {
   return trimmed;
 };
 
+const VIEWS = ["anterior", "lateral", "posterior"];
+const ITEM_STATUSES = new Set(["persists", "resolved", "new"]);
+
+const normalizeOhsa = (ohsa) => {
+  if (!Array.isArray(ohsa.items)) {
+    return {
+      anteriorIssue: ohsa.anteriorIssue === true,
+      lateralIssue: ohsa.lateralIssue === true,
+      posteriorIssue: ohsa.posteriorIssue === true,
+      items: [],
+    };
+  }
+  if (ohsa.items.length > 24) fail("Danh sách biểu hiện tư thế sai quá dài");
+  const items = ohsa.items.map((item) => {
+    if (!isPlainObject(item) || !VIEWS.includes(item.view)) fail("Góc nhìn không hợp lệ");
+    if (!ITEM_STATUSES.has(item.status)) fail("Trạng thái biểu hiện không hợp lệ");
+    const key = typeof item.key === "string" ? item.key.trim().slice(0, 100) : "";
+    return { view: item.view, key, label: text(item.label, 100, "Biểu hiện tư thế sai"), status: item.status };
+  });
+  const has = (view) => items.some((item) => item.view === view && item.status !== "resolved");
+  return {
+    anteriorIssue: has("anterior"),
+    lateralIssue: has("lateral"),
+    posteriorIssue: has("posterior"),
+    items,
+  };
+};
+
 export const normalizePhaseReviewInput = (body) => {
   if (!isPlainObject(body)) fail("Dữ liệu đánh giá không hợp lệ");
   const actual = isPlainObject(body.actual) ? body.actual : fail("Thiếu chỉ số đo lại");
@@ -91,11 +119,7 @@ export const normalizePhaseReviewInput = (body) => {
         level: item.level ?? "",
       };
     }),
-    ohsa: {
-      anteriorIssue: ohsa.anteriorIssue === true,
-      lateralIssue: ohsa.lateralIssue === true,
-      posteriorIssue: ohsa.posteriorIssue === true,
-    },
+    ohsa: normalizeOhsa(ohsa),
     safety: {
       newPain: safety.newPain === true,
       newInjury: safety.newInjury === true,

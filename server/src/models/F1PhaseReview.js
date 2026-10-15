@@ -61,6 +61,16 @@ const retestSchema = new mongoose.Schema(
   { _id: false },
 );
 
+const ohsaItemSchema = new mongoose.Schema(
+  {
+    view: { type: String, enum: ["anterior", "lateral", "posterior"], required: true },
+    key: { type: String, default: "", trim: true, maxlength: 100 },
+    label: { type: String, required: true, trim: true, maxlength: 100 },
+    status: { type: String, enum: ["persists", "resolved", "new"], required: true },
+  },
+  { _id: false },
+);
+
 const f1PhaseReviewSchema = new mongoose.Schema(
   {
     customerId: {
@@ -104,6 +114,12 @@ const f1PhaseReviewSchema = new mongoose.Schema(
       anteriorIssue: { type: Boolean, default: false },
       lateralIssue: { type: Boolean, default: false },
       posteriorIssue: { type: Boolean, default: false },
+      // Chi tiết từng biểu hiện: còn, đã hết hoặc mới xuất hiện trong giai đoạn.
+      items: {
+        type: [ohsaItemSchema],
+        default: [],
+        validate: { validator: (items) => items.length <= 24, message: "Quá nhiều biểu hiện" },
+      },
     },
     safety: {
       newPain: { type: Boolean, default: false },

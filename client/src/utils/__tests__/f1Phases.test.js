@@ -24,7 +24,7 @@ describe("buildStageTabs", () => {
       locked: false,
     });
     expect(tabs.slice(1).map((tab) => [tab.label, tab.locked])).toEqual([
-      ["Giai đoạn 2", true],
+      ["Giai đoạn 2: Hypertrophy", true],
       ["Giai đoạn 3", true],
     ]);
   });
@@ -34,7 +34,7 @@ describe("buildStageTabs", () => {
       [stage(1, "phase_1", "Stabilization Endurance"), stage(2, "phase_2", "Strength Endurance")],
       [
         { stageOrder: 1, nextPhasePlan: { phaseTitle: "Strength Endurance" } },
-        { stageOrder: 2, nextPhasePlan: { phaseTitle: "Hypertrophy" } },
+        { stageOrder: 2, nextPhasePlan: { phaseKey: "phase_3", phaseTitle: "Hypertrophy" } },
       ],
     );
 
@@ -42,7 +42,7 @@ describe("buildStageTabs", () => {
       ["Giai đoạn 1: Stabilization Endurance", false],
       ["Giai đoạn 2: Strength Endurance", false],
       ["Giai đoạn 3: Hypertrophy", false],
-      ["Giai đoạn 4", true],
+      ["Giai đoạn 4: Hypertrophy", true],
     ]);
   });
 

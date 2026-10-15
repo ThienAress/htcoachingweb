@@ -78,18 +78,89 @@ const List = ({ items = [] }) =>
     <p className="text-sm text-slate-500">Không có</p>
   );
 
-const F1PhaseReviewResult = ({ review }) => {
-  const evaluation = review.evaluation || {};
+export const F1NextStagePlan = ({ review }) => {
   const plan = review.nextPhasePlan || {};
   const outcome = review.nextOutcome || {};
+  const nextStart = outcome.baseline || {};
+  const checkpoint = outcome.checkpoint || {};
+
+  return (
+    <>
+      <Section title={`Kế hoạch giai đoạn ${plan.stageOrder}: ${PHASE_NAMES[plan.phaseKey] || plan.phaseTitle || ""}`}>
+        <div className="rounded-lg bg-orange-50 p-4 text-sm text-slate-700">
+          <p className="inline-flex items-center gap-2 font-semibold text-orange-800">
+            <CalendarDays size={16} aria-hidden="true" />
+            {plan.durationWeeks} tuần
+          </p>
+          {PHASE_EXPLANATIONS[plan.phaseKey] && <p className="mt-2">{PHASE_EXPLANATIONS[plan.phaseKey]}</p>}
+          <p className="mt-2">{plan.objective}</p>
+        </div>
+        <div className="grid gap-4 md:grid-cols-3">
+          <div className="min-w-0">
+            <p className="mb-2 text-sm font-semibold text-slate-500">Mang theo từ giai đoạn trước</p>
+            <List items={plan.carryOver} />
+          </div>
+          <div className="min-w-0">
+            <p className="mb-2 text-sm font-semibold text-slate-500">Trọng tâm chính</p>
+            <List items={translateTrainingFocus(plan.keyFocus || [])} />
+          </div>
+          <div className="min-w-0">
+            <p className="mb-2 text-sm font-semibold text-slate-500">Khi nào đánh giá lại</p>
+            <List items={plan.exitCriteria} />
+          </div>
+        </div>
+      </Section>
+
+      <Section title={`Dự đoán giai đoạn ${plan.stageOrder} (bắt đầu từ số đo thực tế)`}>
+        <div className="overflow-x-auto rounded-xl border border-slate-200">
+          <table className="w-full min-w-[30rem] text-left text-sm tabular-nums">
+            <thead className="bg-slate-50 text-xs text-slate-500">
+              <tr>
+                {["Chỉ số", "Đầu giai đoạn", "Cuối giai đoạn (dự kiến)", "Thay đổi"].map((head) => (
+                  <th key={head} className="px-4 py-2.5 font-semibold">{head}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {METRICS.map(([key, label, unit]) => {
+                const range = checkpoint.projectedRange?.[key];
+                return (
+                  <tr key={key}>
+                    <td className="px-4 py-2.5 text-slate-600">{label}</td>
+                    <td className="px-4 py-2.5">{withUnit(nextStart[key], unit)}</td>
+                    <td className="px-4 py-2.5 font-semibold text-slate-800">
+                      {withUnit(checkpoint.projected?.[key], unit)}
+                      {range && (
+                        <span className="block text-xs font-normal text-slate-500">
+                          {formatNumber(range.min)}–{formatNumber(range.max)}
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-4 py-2.5">{formatDelta(checkpoint.deltaFromBaseline?.[key])}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        {[outcome.projectionNote, outcome.goalProgress?.summary].filter(Boolean).map((text) => (
+          <p key={text} className="text-sm text-slate-600">{text}</p>
+        ))}
+      </Section>
+
+    </>
+  );
+};
+
+const F1PhaseReviewResult = ({ review, showNext = true }) => {
+  const evaluation = review.evaluation || {};
+  const plan = review.nextPhasePlan || {};
   const decision = DECISION_META[evaluation.decision] || DECISION_META.coach_review;
   const tone = TONES[decision.tone];
   const target = evaluation.total < 80 ? 80 : 90;
   const gaps = evaluation.total < 90 ? pickGaps(evaluation.gaps, evaluation.total, target) : [];
   const start = evaluation.start || {};
   const projected = evaluation.projected || {};
-  const nextStart = outcome.baseline || {};
-  const checkpoint = outcome.checkpoint || {};
 
   return (
     <div className="space-y-6">
@@ -164,67 +235,7 @@ const F1PhaseReviewResult = ({ review }) => {
         </Section>
       )}
 
-      <Section title={`Kế hoạch giai đoạn ${plan.stageOrder}: ${PHASE_NAMES[plan.phaseKey] || plan.phaseTitle || ""}`}>
-        <div className="rounded-lg bg-orange-50 p-4 text-sm text-slate-700">
-          <p className="inline-flex items-center gap-2 font-semibold text-orange-800">
-            <CalendarDays size={16} aria-hidden="true" />
-            {plan.durationWeeks} tuần
-          </p>
-          {PHASE_EXPLANATIONS[plan.phaseKey] && <p className="mt-2">{PHASE_EXPLANATIONS[plan.phaseKey]}</p>}
-          <p className="mt-2">{plan.objective}</p>
-        </div>
-        <div className="grid gap-4 md:grid-cols-3">
-          <div className="min-w-0">
-            <p className="mb-2 text-sm font-semibold text-slate-500">Mang theo từ giai đoạn trước</p>
-            <List items={plan.carryOver} />
-          </div>
-          <div className="min-w-0">
-            <p className="mb-2 text-sm font-semibold text-slate-500">Trọng tâm chính</p>
-            <List items={translateTrainingFocus(plan.keyFocus || [])} />
-          </div>
-          <div className="min-w-0">
-            <p className="mb-2 text-sm font-semibold text-slate-500">Khi nào đánh giá lại</p>
-            <List items={plan.exitCriteria} />
-          </div>
-        </div>
-      </Section>
-
-      <Section title={`Dự đoán giai đoạn ${plan.stageOrder} (bắt đầu từ số đo thực tế)`}>
-        <div className="overflow-x-auto rounded-xl border border-slate-200">
-          <table className="w-full min-w-[30rem] text-left text-sm tabular-nums">
-            <thead className="bg-slate-50 text-xs text-slate-500">
-              <tr>
-                {["Chỉ số", "Đầu giai đoạn", "Cuối giai đoạn (dự kiến)", "Thay đổi"].map((head) => (
-                  <th key={head} className="px-4 py-2.5 font-semibold">{head}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {METRICS.map(([key, label, unit]) => {
-                const range = checkpoint.projectedRange?.[key];
-                return (
-                  <tr key={key}>
-                    <td className="px-4 py-2.5 text-slate-600">{label}</td>
-                    <td className="px-4 py-2.5">{withUnit(nextStart[key], unit)}</td>
-                    <td className="px-4 py-2.5 font-semibold text-slate-800">
-                      {withUnit(checkpoint.projected?.[key], unit)}
-                      {range && (
-                        <span className="block text-xs font-normal text-slate-500">
-                          {formatNumber(range.min)}–{formatNumber(range.max)}
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-4 py-2.5">{formatDelta(checkpoint.deltaFromBaseline?.[key])}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-        {[outcome.projectionNote, outcome.goalProgress?.summary].filter(Boolean).map((text) => (
-          <p key={text} className="text-sm text-slate-600">{text}</p>
-        ))}
-      </Section>
+      {showNext && <F1NextStagePlan review={review} />}
 
       <section className="space-y-1 border-t border-slate-100 pt-4 text-xs text-slate-500">
         <p className="font-semibold text-slate-600">Cơ sở tham khảo</p>

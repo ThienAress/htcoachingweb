@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Lock, X } from "lucide-react";
+import { ClipboardList, Lock, X } from "lucide-react";
 import { toast } from "react-toastify";
 import { useModalScrollLock } from "../../../hooks/useModalScrollLock";
 import { savePhaseReview } from "../../../services/f1Customer.service";
-import { PHASE_NAMES } from "../../../constants/f1Phases";
+import { PHASE_NAMES, expectedNextPhaseTitle } from "../../../constants/f1Phases";
 import { phaseReviewsQueryKey, toPayload } from "../../../utils/f1PhaseReview";
 import F1PhaseReviewForm from "./F1PhaseReviewForm";
+import F1CustomerSummaryReport from "../F1CustomerSummaryReport";
 import F1PhaseReviewResult from "./F1PhaseReviewResult";
 
 const errorMessage = (error) =>
@@ -18,14 +19,11 @@ const Preview = ({ context, reviewedStage, onStart }) => (
   <div className="space-y-5">
     <div className="flex gap-3 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4">
       <Lock size={22} className="mt-0.5 shrink-0 text-slate-400" aria-hidden="true" />
-      <div className="text-sm text-slate-600">
-        <p className="font-semibold text-slate-800">Giai đoạn {reviewedStage + 1} chưa mở</p>
-        <p className="mt-1">
-          Giai đoạn {reviewedStage} ({PHASE_NAMES[context.phaseKey] || context.phaseKey}) kéo dài khoảng{" "}
-          {context.durationWeeks} tuần. Khi kết thúc, HLV nhập số đo mới, số buổi đã tập, mức làm theo lời khuyên và test lại
-          các bài đã test. Hệ thống chấm mức hoàn thành và đề xuất giai đoạn {reviewedStage + 1}.
-        </p>
-      </div>
+      <p className="text-sm text-slate-600">
+        Ở giai đoạn {reviewedStage} {PHASE_NAMES[context.phaseKey] || context.phaseKey} kéo dài khoảng{" "}
+        {context.durationWeeks} tuần. HLV nhập số đo mới, số buổi đã tập, mức làm theo lời khuyên và test lại các bài đã
+        test. Hệ thống chấm mức hoàn thành và đề xuất giai đoạn {reviewedStage + 1}.
+      </p>
     </div>
     <div className="grid gap-3 md:grid-cols-3">
       {[
@@ -42,16 +40,6 @@ const Preview = ({ context, reviewedStage, onStart }) => (
     <p className="text-xs text-slate-500">
       ≥ 80%: chuyển giai đoạn · 60–79%: kéo dài 2–4 tuần · dưới 60%: lặp lại · đau hoặc chấn thương mới: HLV xem lại
     </p>
-    {context.recommendations?.length > 0 && (
-      <div>
-        <p className="mb-2 font-semibold text-slate-800">Lời khuyên sẽ được kiểm lại</p>
-        <ul className="space-y-2">
-          {context.recommendations.map((text) => (
-            <li key={text} className="rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-700">{text}</li>
-          ))}
-        </ul>
-      </div>
-    )}
     <div className="flex justify-end">
       <button type="button" onClick={onStart} className="rounded-xl bg-gradient-to-r from-orange-600 to-orange-500 px-5 py-2.5 font-bold text-white shadow-md">
         Nhập kết quả cuối giai đoạn {reviewedStage}
@@ -64,6 +52,7 @@ const F1PhaseReviewDialog = ({ customer, stageOrder, data, loading, error, onClo
   const closeRef = useRef(null);
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState(false);
+  const [summaryOpen, setSummaryOpen] = useState(false);
   useModalScrollLock(true);
 
   const reviewedStage = stageOrder - 1;
@@ -84,19 +73,20 @@ const F1PhaseReviewDialog = ({ customer, stageOrder, data, loading, error, onClo
   useEffect(() => {
     closeRef.current?.focus();
     const onKeyDown = (event) => {
-      if (event.key === "Escape" && !mutation.isPending) onClose?.();
+      if (event.key === "Escape" && !mutation.isPending && !summaryOpen) onClose?.();
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [onClose, mutation.isPending]);
+  }, [onClose, mutation.isPending, summaryOpen]);
 
-  const subtitle = editing
-    ? `Nhập kết quả cuối giai đoạn ${reviewedStage}`
-    : review
-      ? `Đánh giá cuối giai đoạn ${reviewedStage} · đo ngày ${new Date(review.measuredAt).toLocaleDateString("vi-VN")}`
-      : context
-        ? `Chưa có kết quả cuối giai đoạn ${reviewedStage}`
-        : `Cần đánh giá xong giai đoạn ${reviewedStage - 1} trước`;
+  // Tên giai đoạn: đã có đề xuất thì lấy theo đề xuất, chưa có thì ghi giai đoạn dự kiến.
+  const phaseTitle =
+    review?.nextPhasePlan?.phaseTitle || (context ? expectedNextPhaseTitle(context.phaseKey) : "");
+  let subtitle = "";
+  if (editing) subtitle = `Nhập kết quả cuối giai đoạn ${reviewedStage}`;
+  else if (review) {
+    subtitle = `Kết quả cuối giai đoạn ${reviewedStage} · đo ngày ${new Date(review.measuredAt).toLocaleDateString("vi-VN")}`;
+  } else if (!context) subtitle = `Cần đánh giá xong giai đoạn ${reviewedStage - 1} trước`;
 
   let body;
   if (loading || error || !data) {
@@ -149,19 +139,30 @@ const F1PhaseReviewDialog = ({ customer, stageOrder, data, loading, error, onClo
             </p>
             <h2 id="f1-phase-review-title" className="text-2xl font-extrabold text-slate-800">
               Giai đoạn {stageOrder}
+              {phaseTitle ? `: ${phaseTitle}` : ""}
             </h2>
-            <p className="text-sm text-slate-500">{subtitle}</p>
+            {subtitle && <p className="text-sm text-slate-500">{subtitle}</p>}
           </div>
-          <button
-            ref={closeRef}
-            type="button"
-            onClick={onClose}
-            disabled={mutation.isPending}
-            aria-label="Đóng"
-            className="rounded-lg border border-slate-200 bg-white p-2 text-slate-600 transition-colors hover:bg-slate-50 disabled:opacity-60"
-          >
-            <X size={18} />
-          </button>
+          <div className="flex shrink-0 items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setSummaryOpen(true)}
+              className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
+            >
+              <ClipboardList size={16} aria-hidden="true" />
+              Báo cáo tổng quát
+            </button>
+            <button
+              ref={closeRef}
+              type="button"
+              onClick={onClose}
+              disabled={mutation.isPending}
+              aria-label="Đóng"
+              className="rounded-lg border border-slate-200 bg-white p-2 text-slate-600 transition-colors hover:bg-slate-50 disabled:opacity-60"
+            >
+              <X size={18} />
+            </button>
+          </div>
         </header>
         <div className="flex-1 overflow-y-auto overscroll-contain px-6 py-5">{body}</div>
         {review && !editing && (
@@ -177,6 +178,9 @@ const F1PhaseReviewDialog = ({ customer, stageOrder, data, loading, error, onClo
           </footer>
         )}
       </section>
+      {summaryOpen && (
+        <F1CustomerSummaryReport customer={customer} onClose={() => setSummaryOpen(false)} />
+      )}
     </div>
   );
 };

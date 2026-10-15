@@ -1,11 +1,18 @@
 // F1CustomerSummaryReport.jsx — "Báo cáo tổng quát khách hàng" dạng hộp thoại giữa màn hình
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { X } from "lucide-react";
 import {
   getLatestAssessment,
   getLatestIntake,
+  getLatestResultPrediction,
+  getPhaseReviews,
 } from "../../services/f1Customer.service";
+import { buildStageTabs } from "../../constants/f1Phases";
+import { phaseReviewsQueryKey } from "../../utils/f1PhaseReview";
+import F1PhaseReviewResult, {
+  F1NextStagePlan,
+} from "./phaseReview/F1PhaseReviewResult";
 import { useModalScrollLock } from "../../hooks/useModalScrollLock";
 import {
   F1_EXPERIENCE_LABELS,
@@ -210,6 +217,35 @@ const F1CustomerSummaryReport = ({
     enabled: Boolean(customer?._id),
   });
 
+  const predictionQuery = useQuery({
+    queryKey: ["f1-summary-prediction", customer?._id, customer?.lastResultPredictionId],
+    queryFn: () => getLatestResultPrediction(customer._id),
+    enabled: Boolean(customer?._id && customer?.lastResultPredictionId),
+  });
+  const prediction = predictionQuery.data?.data || null;
+  const reviewsQuery = useQuery({
+    queryKey: phaseReviewsQueryKey(customer?._id),
+    queryFn: () => getPhaseReviews(customer._id),
+    enabled: Boolean(customer?._id && prediction?._id),
+  });
+  const reviews = useMemo(
+    () => reviewsQuery.data?.data?.reviews || [],
+    [reviewsQuery.data],
+  );
+  const stageTabs = useMemo(
+    () =>
+      buildStageTabs(prediction?.phaseRoadmap || [], reviews).filter(
+        (tab) => !tab.locked,
+      ),
+    [prediction, reviews],
+  );
+  const [activeStage, setActiveStage] = useState(1);
+  const stageOrder = stageTabs.some((tab) => tab.stageOrder === activeStage)
+    ? activeStage
+    : 1;
+  const reviewOfStage = reviews.find((item) => item.stageOrder === stageOrder);
+  const reviewBefore = reviews.find((item) => item.stageOrder === stageOrder - 1);
+
   useEffect(() => {
     closeRef.current?.focus();
     const onKeyDown = (event) => {
@@ -269,7 +305,48 @@ const F1CustomerSummaryReport = ({
               Chưa có kết quả khảo sát để tổng hợp báo cáo.
             </p>
           )}
-          {intake && (
+          {stageTabs.length > 0 && (
+            <div className="flex flex-wrap gap-2" role="tablist" aria-label="Các giai đoạn của khách">
+              {stageTabs.map((tab) => (
+                <button
+                  key={tab.key}
+                  type="button"
+                  role="tab"
+                  aria-selected={tab.stageOrder === stageOrder}
+                  onClick={() => setActiveStage(tab.stageOrder)}
+                  className={`rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors ${
+                    tab.stageOrder === stageOrder
+                      ? "bg-gradient-to-r from-orange-600 to-orange-500 text-white shadow-md"
+                      : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {stageOrder > 1 && (
+            <div className="space-y-6">
+              {reviewBefore ? (
+                <F1NextStagePlan review={reviewBefore} />
+              ) : null}
+              {reviewOfStage ? (
+                <section className="space-y-3">
+                  <h3 className="text-lg font-bold text-slate-800">
+                    Kết quả cuối giai đoạn {stageOrder}
+                  </h3>
+                  <F1PhaseReviewResult review={reviewOfStage} showNext={false} />
+                </section>
+              ) : (
+                <p className="rounded-lg border border-dashed border-slate-300 p-4 text-sm text-slate-500">
+                  Giai đoạn này chưa có kết quả cuối giai đoạn.
+                </p>
+              )}
+            </div>
+          )}
+
+          {stageOrder === 1 && intake && (
             <>
               <Group title="Thông tin khách hàng">
                 <Grid>
@@ -333,6 +410,12 @@ const F1CustomerSummaryReport = ({
               </Group>
 
               <AssessmentGroup assessment={assessment} />
+
+              {reviewOfStage && (
+                <Group title="Kết quả cuối giai đoạn 1">
+                  <F1PhaseReviewResult review={reviewOfStage} showNext={false} />
+                </Group>
+              )}
             </>
           )}
         </div>
