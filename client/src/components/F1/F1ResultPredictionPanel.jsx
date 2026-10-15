@@ -1,5 +1,6 @@
 // F1ResultPredictionPanel.jsx
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
   RefreshCcw,
@@ -15,7 +16,9 @@ import {
   generateResultPrediction,
   getLatestResultPrediction,
   generateResultPredictionStageImages,
+  getPhaseReviews,
 } from "../../services/f1Customer.service";
+import { phaseReviewsQueryKey } from "../../utils/f1PhaseReview";
 import { toast } from "react-toastify";
 import { resolveMediaUrl } from "../../utils/mediaUrl";
 
@@ -24,7 +27,12 @@ import {
   PHASE_EXPLANATIONS,
   PHASE_NAMES,
   buildStageTabs,
+  translateTrainingFocus,
 } from "../../constants/f1Phases";
+
+const F1PhaseReviewDialog = lazy(
+  () => import("./phaseReview/F1PhaseReviewDialog"),
+);
 
 const GOAL_LABELS = {
   fat_loss: "Giảm mỡ",
@@ -40,25 +48,8 @@ const PHYSICAL_LEVEL_LABELS = {
   good: "Tốt",
 };
 
-const TRAINING_FOCUS_LABELS = {
-  energy_expenditure: "Tăng tiêu hao năng lượng",
-  cardio_base_building: "Xây nền tim mạch",
-  strength_progression: "Tăng sức mạnh theo từng giai đoạn",
-  movement_quality_under_load: "Tập nặng hơn nhưng vẫn giữ form chuẩn",
-  lower_body_strength: "Tăng sức mạnh thân dưới",
-  core_strength: "Tăng sức mạnh core",
-  muscular_endurance: "Cải thiện sức bền cơ",
-  pattern_retraining: "Chỉnh lại pattern vận động",
-  general_foundation: "Xây nền thể lực tổng quát",
-  movement_foundation: "Xây nền chuyển động",
-  stability_training: "Tăng khả năng ổn định cơ thể",
-  core_control: "Cải thiện kiểm soát core",
-};
-
 const MAX_ATTEMPTS_FALLBACK = 3;
 
-const translateTrainingFocus = (items = []) =>
-  items.map((item) => TRAINING_FOCUS_LABELS[item] || item);
 const translateValue = (value, map) => (value ? map[value] || value : "--");
 
 const SectionHeading = ({ title, subtitle, actions = null }) => (
@@ -123,20 +114,6 @@ const StageTabs = ({ tabs = [], selectedKey, onSelect }) => (
         );
       })}
     </div>
-  </div>
-);
-
-const LockedStageCard = ({ stageOrder }) => (
-  <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center">
-    <Lock size={32} className="mx-auto text-slate-400" aria-hidden="true" />
-    <p className="mt-3 font-semibold text-slate-700">
-      Giai đoạn {stageOrder} chưa mở
-    </p>
-    <p className="mx-auto mt-1 max-w-xl text-sm text-slate-500">
-      Hệ thống sẽ đề xuất giai đoạn {stageOrder} sau khi HLV nhập kết quả cuối
-      giai đoạn {stageOrder - 1}: số đo mới, mức độ tập đều và kết quả test lại.
-      Phần đánh giá này đang được hoàn thiện.
-    </p>
   </div>
 );
 
@@ -546,6 +523,8 @@ const F1ResultPredictionPanel = ({ customer, onBack, onGenerated }) => {
   const predictionRequestIdRef = useRef(crypto.randomUUID());
   const stageRequestIdsRef = useRef(new Map());
   const frameworkRef = useRef(null);
+  const [openStage, setOpenStage] = useState(null);
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     const loadLatest = async () => {
@@ -581,13 +560,23 @@ const F1ResultPredictionPanel = ({ customer, onBack, onGenerated }) => {
       null
     );
   }, [prediction, selectedStageKey]);
+  const phaseReviewsQuery = useQuery({
+    queryKey: phaseReviewsQueryKey(customer?._id),
+    queryFn: () => getPhaseReviews(customer._id),
+    enabled: Boolean(customer?._id && prediction?._id),
+  });
+  const phaseReviews = phaseReviewsQuery.data?.data || null;
   const stageTabs = useMemo(
-    () => buildStageTabs(prediction?.phaseRoadmap || []),
-    [prediction],
+    () =>
+      buildStageTabs(prediction?.phaseRoadmap || [], phaseReviews?.reviews || []),
+    [prediction, phaseReviews],
   );
-  const selectedLockedTab = stageTabs.find(
-    (tab) => tab.locked && tab.key === selectedStageKey,
-  );
+  // Giai đoạn 1 xem ngay trong trang; giai đoạn sau mở hộp thoại đánh giá cuối giai đoạn.
+  const handleSelectStage = (key) => {
+    const tab = stageTabs.find((item) => item.key === key);
+    if (tab && tab.stageOrder >= 2) setOpenStage(tab.stageOrder);
+    else setSelectedStageKey(key);
+  };
   const showFramework = () =>
     frameworkRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   const selectedVisualStage = useMemo(() => {
@@ -609,6 +598,9 @@ const F1ResultPredictionPanel = ({ customer, onBack, onGenerated }) => {
       });
       predictionRequestIdRef.current = crypto.randomUUID();
       setPrediction(res?.data || null);
+      queryClient.invalidateQueries({
+        queryKey: phaseReviewsQueryKey(customer._id),
+      });
       toast.success("Đã tạo dự đoán kết quả thành công");
       onGenerated?.(res?.data);
     } catch (error) {
@@ -695,6 +687,18 @@ const F1ResultPredictionPanel = ({ customer, onBack, onGenerated }) => {
   return (
     <section className="mx-auto max-w-6xl space-y-6 px-4 py-6 md:px-6">
       {confirmDialog}
+      {openStage && (
+        <Suspense fallback={null}>
+          <F1PhaseReviewDialog
+            customer={customer}
+            stageOrder={openStage}
+            data={phaseReviews}
+            loading={phaseReviewsQuery.isLoading}
+            error={phaseReviewsQuery.isError}
+            onClose={() => setOpenStage(null)}
+          />
+        </Suspense>
+      )}
       <button
         onClick={onBack}
         className="group inline-flex items-center gap-2 text-slate-500 transition hover:text-orange-600"
@@ -795,21 +799,17 @@ const F1ResultPredictionPanel = ({ customer, onBack, onGenerated }) => {
               <div className="space-y-4">
                 <SectionHeading
                   title="Lộ trình giai đoạn"
-                  subtitle="Giai đoạn 1 được đề xuất từ kết quả đánh giá ban đầu. Giai đoạn sau mở khi HLV đánh giá xong giai đoạn trước."
+                  subtitle="Giai đoạn 1 được đề xuất từ kết quả đánh giá ban đầu. Bấm giai đoạn sau để nhập kết quả cuối giai đoạn trước và xem đề xuất tiếp theo."
                 />
                 <StageTabs
                   tabs={stageTabs}
                   selectedKey={selectedStageKey}
-                  onSelect={setSelectedStageKey}
+                  onSelect={handleSelectStage}
                 />
-                {selectedLockedTab ? (
-                  <LockedStageCard stageOrder={selectedLockedTab.stageOrder} />
-                ) : (
-                  <StageDetailCard
-                    stage={selectedStage}
-                    onShowFramework={showFramework}
-                  />
-                )}
+                <StageDetailCard
+                  stage={selectedStage}
+                  onShowFramework={showFramework}
+                />
               </div>
 
               <div className="space-y-4">

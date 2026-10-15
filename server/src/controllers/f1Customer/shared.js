@@ -6,6 +6,7 @@ import F1Assessment from "../../models/F1Assessment.js";
 import F1AiReport from "../../models/F1AiReport.js";
 import F1OutcomeForecast from "../../models/F1OutcomeForecast.js";
 import F1ResultPrediction from "../../models/F1ResultPrediction.js";
+import F1PhaseReview from "../../models/F1PhaseReview.js";
 import Counter from "../../models/Counter.js";
 
 export const F1_STATUSES = new Set([
@@ -75,6 +76,7 @@ export const deleteCustomerCascade = async (customerId, session) => {
     F1AiReport.deleteMany({ customerId }).session(session),
     F1OutcomeForecast.deleteMany({ customerId }).session(session),
     F1ResultPrediction.deleteMany({ customerId }).session(session),
+    F1PhaseReview.deleteMany({ customerId }).session(session),
   ]);
 };
 

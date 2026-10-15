@@ -1,4 +1,4 @@
-const PHASE_META = {
+export const PHASE_META = {
   phase_1: {
     order: 1,
     levelTitle: "Stabilization",
@@ -26,13 +26,13 @@ const PHASE_META = {
   },
 };
 
-const PHASE_ORDER = ["phase_1", "phase_2", "phase_3", "phase_4", "phase_5"];
+export const PHASE_ORDER = ["phase_1", "phase_2", "phase_3", "phase_4", "phase_5"];
 
 const clamp = (num, min, max) => Math.min(Math.max(num, min), max);
 
 const round1 = (num) => Number(Number(num || 0).toFixed(1));
 
-const nextPhysicalLevel = (current = "average") => {
+export const nextPhysicalLevel = (current = "average") => {
   const order = ["low", "below_average", "average", "good"];
   const idx = order.indexOf(current);
   if (idx === -1) return "average";
@@ -203,7 +203,7 @@ export const estimatePhaseDuration = ({
   return 8;
 };
 
-const buildObjectiveByPhase = (phaseKey, primaryGoal) => {
+export const buildObjectiveByPhase = (phaseKey, primaryGoal) => {
   if (phaseKey === "phase_1") {
     return "Xây lại nền vận động an toàn, giúp cơ thể ổn định hơn và cải thiện khả năng kiểm soát chuyển động ngay từ đầu.";
   }
@@ -262,7 +262,7 @@ const buildEntryReasonByPhase = ({
   return "Khách phù hợp với giai đoạn này theo hồ sơ hiện tại.";
 };
 
-const buildExpectedChangesByPhase = ({ phaseKey, primaryGoal }) => {
+export const buildExpectedChangesByPhase = ({ phaseKey, primaryGoal }) => {
   if (phaseKey === "phase_1") {
     return [
       "Chất lượng chuyển động ổn hơn",
@@ -296,7 +296,7 @@ const buildExpectedChangesByPhase = ({ phaseKey, primaryGoal }) => {
   return ["Tiếp tục cải thiện theo đúng mục tiêu đã chọn"];
 };
 
-const buildExitCriteriaByPhase = (phaseKey) => {
+export const buildExitCriteriaByPhase = (phaseKey) => {
   if (phaseKey === "phase_1") {
     return [
       "Chuyển động ổn hơn và ít bù trừ hơn",
@@ -399,7 +399,7 @@ const FAT_LOSS_WEEKLY_PERCENT = {
 };
 const MAX_WEEKLY_LOSS_KG = 1;
 
-const projectFatLossPhase = ({ phaseKey, weeks, current, factor = 1 }) => {
+export const projectFatLossPhase = ({ phaseKey, weeks, current, factor = 1 }) => {
   const weeklyPercent = FAT_LOSS_WEEKLY_PERCENT[phaseKey] || 0.0035;
   // Tốc độ giảm theo % cân nặng hiện tại (an toàn ≤ 1 kg/tuần), không dùng số cố định.
   const weeklyWeightLoss = current.weightKg
@@ -452,7 +452,7 @@ const projectFatLossPhase = ({ phaseKey, weeks, current, factor = 1 }) => {
   };
 };
 
-const projectMuscleGainPhase = ({ phaseKey, weeks, current }) => {
+export const projectMuscleGainPhase = ({ phaseKey, weeks, current }) => {
   const weightGain =
     phaseKey === "phase_2" ? round1(0.12 * weeks) : round1(0.18 * weeks);
 
@@ -480,7 +480,7 @@ const projectMuscleGainPhase = ({ phaseKey, weeks, current }) => {
 };
 
 // Mục tiêu duy trì: cân nặng gần như giữ nguyên, cải thiện nhẹ thành phần cơ thể và tim mạch.
-const projectMaintenancePhase = ({ weeks, current }) => {
+export const projectMaintenancePhase = ({ weeks, current }) => {
   const bodyFatDelta = round1(Math.min(1.2, 0.08 * weeks));
   const waistDelta = round1(0.1 * weeks);
 
@@ -540,7 +540,7 @@ export const parseTimeframeWeeks = (text) => {
 const RANGE_KEYS = ["weightKg", "bodyFatPercent", "waistCm", "hipCm"];
 
 // Khoảng ước tính quanh giá trị giữa; càng về sau độ bất định càng rộng.
-const buildProjectedRange = ({ baseline, projected, stageIndex }) => {
+export const buildProjectedRange = ({ baseline, projected, stageIndex }) => {
   const spread = 0.25 + 0.05 * stageIndex;
   const range = {};
   for (const key of RANGE_KEYS) {

@@ -150,6 +150,17 @@ export const generateResultPrediction = (customerId, payload) =>
     ),
   );
 
+// =========================
+// PHASE REVIEW (đánh giá cuối giai đoạn)
+// =========================
+export const getPhaseReviews = (customerId) =>
+  unwrap(api.get(`/f1-customers/${customerId}/phase-reviews`));
+
+export const savePhaseReview = (customerId, stageOrder, payload) =>
+  unwrap(
+    api.put(`/f1-customers/${customerId}/phase-reviews/${stageOrder}`, payload),
+  );
+
 export const generateResultPredictionStageImages = (
   customerId,
   predictionId,

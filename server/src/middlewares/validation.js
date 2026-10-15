@@ -32,6 +32,7 @@ import {
   bodyAssessmentPagination,
   normalizeBodyAssessmentCommand,
 } from "../services/bodyAssessmentValidation.service.js";
+import { normalizePhaseReviewInput } from "../controllers/f1Customer/phaseReview.input.js";
 
 // ============================================================================
 // MIDDLEWARE & CUSTOM VALIDATORS
@@ -2796,4 +2797,19 @@ export const validateBodyAssessmentPublish = [
 ];
 export const validateBodyAssessmentDelete = [
   body().custom(assertBodyAssessmentDelete), assessmentValidationErrors,
+];
+
+// ============================================================================
+// F1 PHASE REVIEW (đánh giá cuối giai đoạn)
+// ============================================================================
+export const validateSavePhaseReview = [
+  param("id").isMongoId().withMessage("ID khách hàng F1 không hợp lệ"),
+  param("stageOrder")
+    .isInt({ min: 1, max: 20 })
+    .withMessage("Giai đoạn không hợp lệ"),
+  body().custom((value) => {
+    normalizePhaseReviewInput(value);
+    return true;
+  }),
+  handleValidationErrors,
 ];

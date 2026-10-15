@@ -22,18 +22,57 @@ export const PHASE_EXPLANATIONS = {
     "Giai đoạn sức bật: kết hợp bài nặng với bài tốc độ để tạo lực nhanh; dành cho mục tiêu thể thao, thành tích.",
 };
 
+// Nhãn trọng tâm tập luyện do bộ phân tích tự động đề xuất.
+const TRAINING_FOCUS_LABELS = {
+  energy_expenditure: "Tăng tiêu hao năng lượng",
+  cardio_base_building: "Xây nền tim mạch",
+  strength_progression: "Tăng sức mạnh theo từng giai đoạn",
+  movement_quality_under_load: "Tập nặng hơn nhưng vẫn giữ form chuẩn",
+  lower_body_strength: "Tăng sức mạnh thân dưới",
+  core_strength: "Tăng sức mạnh core",
+  muscular_endurance: "Cải thiện sức bền cơ",
+  pattern_retraining: "Chỉnh lại pattern vận động",
+  general_foundation: "Xây nền thể lực tổng quát",
+  movement_foundation: "Xây nền chuyển động",
+  stability_training: "Tăng khả năng ổn định cơ thể",
+  core_control: "Cải thiện kiểm soát core",
+};
+
+export const translateTrainingFocus = (items = []) =>
+  items.map((item) => TRAINING_FOCUS_LABELS[item] || item);
+
 // Lộ trình luôn hiện ít nhất chừng này tab; giai đoạn chưa mở được khoá
 // cho tới khi HLV đánh giá xong giai đoạn trước.
 export const MIN_VISIBLE_STAGES = 3;
 
-export const buildStageTabs = (roadmap = []) => {
-  const tabs = roadmap.map((stage) => ({
-    key: stage.phaseKey,
-    stageOrder: stage.stageOrder,
-    label: `Giai đoạn ${stage.stageOrder}: ${stage.phaseTitle}`,
-    locked: false,
-  }));
-  for (let order = tabs.length + 1; order <= MIN_VISIBLE_STAGES; order += 1) {
+// Giai đoạn 1 lấy từ lộ trình dự đoán; giai đoạn 2 trở đi mở ra sau mỗi lần HLV đánh giá
+// cuối giai đoạn trước (`reviews` sắp theo stageOrder), cộng thêm một tab kế tiếp đang khoá.
+export const buildStageTabs = (roadmap = [], reviews = []) => {
+  const first = roadmap[0];
+  const tabs = first
+    ? [
+        {
+          key: first.phaseKey,
+          stageOrder: 1,
+          label: `Giai đoạn 1: ${first.phaseTitle}`,
+          locked: false,
+        },
+      ]
+    : [];
+  for (const review of reviews) {
+    const plan = review.nextPhasePlan || {};
+    const stageOrder = review.stageOrder + 1;
+    tabs.push({
+      key: `stage_${stageOrder}`,
+      stageOrder,
+      label: plan.phaseTitle
+        ? `Giai đoạn ${stageOrder}: ${plan.phaseTitle}`
+        : `Giai đoạn ${stageOrder}`,
+      locked: false,
+    });
+  }
+  const minimum = Math.max(MIN_VISIBLE_STAGES, tabs.length + 1);
+  for (let order = tabs.length + 1; order <= minimum; order += 1) {
     tabs.push({
       key: `locked_${order}`,
       stageOrder: order,

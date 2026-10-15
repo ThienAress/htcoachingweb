@@ -10,6 +10,7 @@ import F1Media from "../models/F1Media.js";
 import F1MediaDeletionJob from "../models/F1MediaDeletionJob.js";
 import F1OutcomeForecast from "../models/F1OutcomeForecast.js";
 import F1ResultPrediction from "../models/F1ResultPrediction.js";
+import F1PhaseReview from "../models/F1PhaseReview.js";
 import {
   preflightPhase8,
   verifyPhase8Integrity,
@@ -107,6 +108,7 @@ try {
     F1AiRule,
     F1OutcomeForecast,
     F1ResultPrediction,
+    F1PhaseReview,
     F1Media,
     F1DataDeletionJob,
     F1MediaDeletionJob,
