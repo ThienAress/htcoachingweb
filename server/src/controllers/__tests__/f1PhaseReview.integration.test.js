@@ -261,6 +261,57 @@ describe("F1 phase reviews", () => {
     expect(review.retests.find((item) => item.name === "Treadmill Walk").result).toBe(26);
   });
 
+  it("rebuilds the next stage from the updated goal, health and lifestyle", async () => {
+    const trainer = await createTrainer("f1-pr-profile@example.com");
+    const customer = await createCustomerWithPrediction(trainer.user._id, "PROFILE");
+    const saved = await put(app, trainer, customer._id, 1, reviewBody());
+    expect(saved.body.data.reviews[0].profileConfirmed).toBe(false);
+
+    const profileBody = {
+      healthScreening: { hasPainNow: false, warningSigns: [], injuries: "" },
+      lifestyleNutrition: { sleepHours: 6, stressLevel: "high", mealsPerDay: 3 },
+      trainingProfileGoal: {
+        currentlyTraining: true,
+        trainingDaysPerWeek: 4,
+        sessionDurationMinutes: 60,
+        trainingExperience: "beginner",
+        primaryGoal: "muscle_gain",
+        targetWeightKg: 74,
+        targetTimeframe: "3 tháng",
+      },
+    };
+    const response = await withAuth(
+      request(app).put(`/api/f1-customers/${customer._id}/phase-reviews/1/profile`),
+      trainer.accessToken,
+    ).send(profileBody);
+
+    expect(response.status).toBe(200);
+    const [review] = response.body.data.reviews;
+    expect(review.profileConfirmed).toBe(true);
+    expect(review.profile.trainingProfileGoal).toMatchObject({ primaryGoal: "muscle_gain", targetWeightKg: 74 });
+    // Mục tiêu tăng cơ: dự đoán giai đoạn sau không còn giảm cân.
+    expect(review.nextOutcome.projectionMode).toBe("gain");
+    expect(review.nextOutcome.goalProgress.targetWeightKg).toBe(74);
+    expect(response.body.data.contexts["2"].profileDefaults.trainingProfileGoal.primaryGoal).toBe("muscle_gain");
+
+    const bad = await withAuth(
+      request(app).put(`/api/f1-customers/${customer._id}/phase-reviews/1/profile`),
+      trainer.accessToken,
+    ).send({ ...profileBody, trainingProfileGoal: { ...profileBody.trainingProfileGoal, primaryGoal: "bulk" } });
+    expect(bad.status).toBe(400);
+
+  });
+
+  it("blocks the next review until the goal step is confirmed", async () => {
+    const trainer = await createTrainer("f1-pr-gate@example.com");
+    const customer = await createCustomerWithPrediction(trainer.user._id, "GATE");
+    await put(app, trainer, customer._id, 1, reviewBody());
+
+    const blocked = await put(app, trainer, customer._id, 2, reviewBody());
+    expect(blocked.status).toBe(409);
+    expect(blocked.body.message).toContain("mục tiêu");
+  });
+
   it("rejects skipping a stage and invalid input", async () => {
     const trainer = await createTrainer("f1-pr-order@example.com");
     const customer = await createCustomerWithPrediction(trainer.user._id, "ORDER");

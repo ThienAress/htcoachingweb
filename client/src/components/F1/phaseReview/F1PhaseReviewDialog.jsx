@@ -3,10 +3,11 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ClipboardList, Lock, X } from "lucide-react";
 import { toast } from "react-toastify";
 import { useModalScrollLock } from "../../../hooks/useModalScrollLock";
-import { savePhaseReview } from "../../../services/f1Customer.service";
+import { savePhaseReview, saveStageProfile } from "../../../services/f1Customer.service";
 import { PHASE_NAMES, expectedNextPhaseTitle } from "../../../constants/f1Phases";
 import { phaseReviewsQueryKey, toPayload } from "../../../utils/f1PhaseReview";
 import F1PhaseReviewForm from "./F1PhaseReviewForm";
+import F1PhaseReviewProfileForm from "./F1PhaseReviewProfileForm";
 import F1CustomerSummaryReport from "../F1CustomerSummaryReport";
 import F1PhaseReviewResult from "./F1PhaseReviewResult";
 
@@ -48,11 +49,12 @@ const Preview = ({ context, reviewedStage, onStart }) => (
   </div>
 );
 
-const F1PhaseReviewDialog = ({ customer, stageOrder, data, loading, error, onClose }) => {
+const F1PhaseReviewDialog = ({ customer, stageOrder, data, loading, error, onClose, onProfileSaved }) => {
   const closeRef = useRef(null);
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState(false);
   const [summaryOpen, setSummaryOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
   useModalScrollLock(true);
 
   const reviewedStage = stageOrder - 1;
@@ -65,25 +67,40 @@ const F1PhaseReviewDialog = ({ customer, stageOrder, data, loading, error, onClo
     onSuccess: (res) => {
       queryClient.setQueryData(phaseReviewsQueryKey(customer._id), res);
       setEditing(false);
+      // Sau khi lưu kết quả giai đoạn trước, hỏi lại mục tiêu cho giai đoạn kế tiếp.
+      setProfileOpen(true);
       toast.success(res?.message || "Đã lưu đánh giá cuối giai đoạn");
     },
     onError: (error) => toast.error(errorMessage(error)),
   });
 
+  const profileMutation = useMutation({
+    mutationFn: (values) => saveStageProfile(customer._id, reviewedStage, values),
+    onSuccess: (res) => {
+      queryClient.setQueryData(phaseReviewsQueryKey(customer._id), res);
+      setProfileOpen(false);
+      toast.success(res?.message || "Đã dựng lộ trình giai đoạn kế tiếp");
+      onProfileSaved?.(stageOrder);
+    },
+    onError: (error) => toast.error(errorMessage(error)),
+  });
+  const busy = mutation.isPending || profileMutation.isPending;
+
   useEffect(() => {
     closeRef.current?.focus();
     const onKeyDown = (event) => {
-      if (event.key === "Escape" && !mutation.isPending && !summaryOpen) onClose?.();
+      if (event.key === "Escape" && !busy && !summaryOpen) onClose?.();
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [onClose, mutation.isPending, summaryOpen]);
+  }, [onClose, busy, summaryOpen]);
 
   // Tên giai đoạn: đã có đề xuất thì lấy theo đề xuất, chưa có thì ghi giai đoạn dự kiến.
   const phaseTitle =
     review?.nextPhasePlan?.phaseTitle || (context ? expectedNextPhaseTitle(context.phaseKey) : "");
   let subtitle = "";
   if (editing) subtitle = `Nhập kết quả cuối giai đoạn ${reviewedStage}`;
+  else if (profileOpen && review) subtitle = `Cập nhật mục tiêu cho giai đoạn ${stageOrder}`;
   else if (review) {
     subtitle = `Kết quả cuối giai đoạn ${reviewedStage} · đo ngày ${new Date(review.measuredAt).toLocaleDateString("vi-VN")}`;
   } else if (!context) subtitle = `Cần đánh giá xong giai đoạn ${reviewedStage - 1} trước`;
@@ -106,8 +123,18 @@ const F1PhaseReviewDialog = ({ customer, stageOrder, data, loading, error, onClo
         onCancel={() => setEditing(false)}
       />
     );
+  } else if (review && profileOpen && context) {
+    body = (
+      <F1PhaseReviewProfileForm
+        stageOrder={stageOrder}
+        defaults={context.profileDefaults}
+        saving={profileMutation.isPending}
+        onSubmit={(values) => profileMutation.mutate(values)}
+        onCancel={() => setProfileOpen(false)}
+      />
+    );
   } else if (review) {
-    body = <F1PhaseReviewResult review={review} />;
+    body = <F1PhaseReviewResult review={review} showNext={false} />;
   } else if (context) {
     body = <Preview context={context} reviewedStage={reviewedStage} onStart={() => setEditing(true)} />;
   } else {
@@ -122,7 +149,7 @@ const F1PhaseReviewDialog = ({ customer, stageOrder, data, loading, error, onClo
     <div
       className="fixed inset-0 z-50 bg-slate-900/60 p-3 md:p-6"
       onMouseDown={(event) => {
-        if (event.target === event.currentTarget && !mutation.isPending) onClose?.();
+        if (event.target === event.currentTarget && !busy) onClose?.();
       }}
     >
       <section
@@ -156,7 +183,7 @@ const F1PhaseReviewDialog = ({ customer, stageOrder, data, loading, error, onClo
               ref={closeRef}
               type="button"
               onClick={onClose}
-              disabled={mutation.isPending}
+              disabled={busy}
               aria-label="Đóng"
               className="rounded-lg border border-slate-200 bg-white p-2 text-slate-600 transition-colors hover:bg-slate-50 disabled:opacity-60"
             >
@@ -165,11 +192,18 @@ const F1PhaseReviewDialog = ({ customer, stageOrder, data, loading, error, onClo
           </div>
         </header>
         <div className="flex-1 overflow-y-auto overscroll-contain px-6 py-5">{body}</div>
-        {review && !editing && (
+        {review && !editing && !profileOpen && (
           <footer className="flex flex-wrap justify-end gap-3 border-t border-slate-200 px-6 py-3">
             {isLatestReview && context && (
               <button type="button" onClick={() => setEditing(true)} className="rounded-xl border border-slate-200 bg-white px-5 py-2.5 font-medium text-slate-700 hover:bg-slate-50">
                 Sửa kết quả
+              </button>
+            )}
+            {isLatestReview && context && (
+              <button type="button" onClick={() => setProfileOpen(true)} className="rounded-xl bg-gradient-to-r from-orange-600 to-orange-500 px-5 py-2.5 font-bold text-white shadow-md">
+                {review.profileConfirmed
+                  ? `Sửa mục tiêu giai đoạn ${stageOrder}`
+                  : `Cập nhật mục tiêu giai đoạn ${stageOrder}`}
               </button>
             )}
             <button type="button" onClick={onClose} className="rounded-xl bg-slate-800 px-5 py-2.5 font-medium text-white hover:bg-slate-700">

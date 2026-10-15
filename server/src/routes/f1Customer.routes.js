@@ -31,6 +31,7 @@ import {
   generateResultPredictionStageImages,
   getPhaseReviews,
   savePhaseReview,
+  saveStageProfile,
   generateStageVisual,
   uploadStagePhoto,
 } from "../controllers/f1Customer/index.js";
@@ -52,6 +53,7 @@ import {
   validateGenerateResultPrediction,
   validateGenerateResultPredictionStageImages,
   validateSavePhaseReview,
+  validateStageProfile,
   validateStagePhotoUpload,
   validateGenerateStageVisual,
 } from "../middlewares/validation.js";
@@ -331,6 +333,16 @@ router.put(
   requireTrainerAccess,
   validateSavePhaseReview,
   savePhaseReview,
+);
+
+router.put(
+  "/:id/phase-reviews/:stageOrder/profile",
+  protect,
+  f1GenerationLimiter,
+  csrfProtection,
+  requireTrainerAccess,
+  validateStageProfile,
+  saveStageProfile,
 );
 
 router.post(

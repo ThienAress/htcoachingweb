@@ -151,6 +151,10 @@ const f1PhaseReviewSchema = new mongoose.Schema(
       generatedAt: { type: Date, default: null },
     },
 
+    // Mục tiêu, sức khỏe và lối sống cập nhật cho giai đoạn kế tiếp (bước 2 sau khi đánh giá).
+    profile: { type: Object, default: null },
+    profileConfirmedAt: { type: Date, default: null },
+
     // Kết quả do server tính; không nhận từ client.
     evaluation: { type: Object, default: {} },
     nextPhasePlan: { type: Object, default: {} },

@@ -103,6 +103,72 @@ const resultToneClass = {
   idle: "text-slate-500",
 };
 
+const HealthLifeGroup = ({ health = {}, life = {} }) => (
+    <Group title="Sức khỏe và lối sống">
+      <Grid>
+        <Item label="Đau hoặc khó chịu hiện tại">
+          {health.hasPainNow
+            ? `${list(health.painLocation)} · mức ${health.painLevel ?? 0}/10`
+            : "Không"}
+        </Item>
+        <Item label="Chấn thương cần lưu ý">{textOrNone(health.injuries)}</Item>
+        <Item label="Bệnh lý hiện tại">{textOrNone(health.currentConditions)}</Item>
+        <Item label="Phẫu thuật">{textOrNone(health.surgeries)}</Item>
+        <Item label="Thuốc đang dùng">{textOrNone(health.medications)}</Item>
+        <Item label="Hạn chế do bác sĩ">{textOrNone(health.doctorRestrictions)}</Item>
+        <Item label="Dấu hiệu cảnh báo">
+          {list(health.warningSigns, F1_WARNING_SIGN_LABELS)}
+        </Item>
+        <Item label="Giấc ngủ">{life.sleepHours ? `${life.sleepHours} giờ/ngày` : ""}</Item>
+        <Item label="Mức căng thẳng">{labelOf(F1_STRESS_LABELS, life.stressLevel, "")}</Item>
+        <Item label="Vận động trong công việc">
+          {labelOf(F1_WORK_ACTIVITY_LABELS, life.workActivityLevel, "")}
+        </Item>
+        <Item label="Bữa ăn mỗi ngày">{life.mealsPerDay}</Item>
+        <Item label="Ăn ngoài thường xuyên">{yesNo(life.usuallyEatOut)}</Item>
+        <Item label="Uống đủ nước">{yesNo(life.drinkEnoughWater)}</Item>
+        <Item label="Dị ứng thực phẩm">{textOrNone(life.foodAllergies)}</Item>
+      </Grid>
+    </Group>
+);
+
+const GoalGroup = ({ goal = {} }) => (
+    <Group title="Mục tiêu và tập luyện">
+      <Grid>
+        <Item label="Mục tiêu chính">{labelOf(F1_GOAL_LABELS, goal.primaryGoal, "")}</Item>
+        <Item label="Cân nặng mong muốn">
+          {goal.targetWeightKg ? `${goal.targetWeightKg} kg` : ""}
+        </Item>
+        <Item label="Thời gian mong muốn">{goal.targetTimeframe}</Item>
+        <Item label="Đang tập luyện">{yesNo(goal.currentlyTraining)}</Item>
+        <Item label="Kinh nghiệm">
+          {labelOf(F1_EXPERIENCE_LABELS, goal.trainingExperience, "")}
+        </Item>
+        <Item label="Đã nghỉ tập">{goal.breakDuration}</Item>
+        <Item label="Số buổi mỗi tuần">{goal.trainingDaysPerWeek}</Item>
+        <Item label="Thời lượng mỗi buổi">
+          {goal.sessionDurationMinutes ? `${goal.sessionDurationMinutes} phút` : ""}
+        </Item>
+        <Item label="Các môn từng tập">{list(goal.sportsHistory)}</Item>
+      </Grid>
+    </Group>
+);
+
+// Giai đoạn 2 trở đi chỉ hiện các số đo mới; họ tên, tuổi, giới tính, chiều cao... không đổi nên bỏ qua.
+const LatestBodyGroup = ({ actual = {} }) => (
+  <Group title="Thông tin khách hàng">
+    <Grid>
+      <Item label="Cân nặng · BMI">
+        {actual.weightKg ? `${actual.weightKg} kg${actual.bmi ? ` · ${actual.bmi}` : ""}` : ""}
+      </Item>
+      <Item label="Vòng eo">{actual.waistCm ? `${actual.waistCm} cm` : ""}</Item>
+      <Item label="Vòng hông">{actual.hipCm ? `${actual.hipCm} cm` : ""}</Item>
+      <Item label="Tỷ lệ mỡ">{actual.bodyFatPercent ? `${actual.bodyFatPercent}%` : ""}</Item>
+      <Item label="Nhịp tim nghỉ">{actual.restingHeartRate ? `${actual.restingHeartRate} bpm` : ""}</Item>
+    </Grid>
+  </Group>
+);
+
 const AssessmentGroup = ({ assessment }) => {
   if (!assessment) {
     return (
@@ -340,6 +406,16 @@ const F1CustomerSummaryReport = ({
 
           {stageOrder > 1 && (
             <div className="space-y-6">
+              {reviewBefore ? <LatestBodyGroup actual={reviewBefore.actual} /> : null}
+              {reviewBefore?.profile ? (
+                <>
+                  <HealthLifeGroup
+                    health={reviewBefore.profile.healthScreening}
+                    life={reviewBefore.profile.lifestyleNutrition}
+                  />
+                  <GoalGroup goal={reviewBefore.profile.trainingProfileGoal} />
+                </>
+              ) : null}
               {reviewBefore ? (
                 <F1NextStagePlan review={reviewBefore} />
               ) : null}
@@ -378,52 +454,9 @@ const F1CustomerSummaryReport = ({
                 </Grid>
               </Group>
 
-              <Group title="Sức khỏe và lối sống">
-                <Grid>
-                  <Item label="Đau hoặc khó chịu hiện tại">
-                    {health.hasPainNow
-                      ? `${list(health.painLocation)} · mức ${health.painLevel ?? 0}/10`
-                      : "Không"}
-                  </Item>
-                  <Item label="Chấn thương cần lưu ý">{textOrNone(health.injuries)}</Item>
-                  <Item label="Bệnh lý hiện tại">{textOrNone(health.currentConditions)}</Item>
-                  <Item label="Phẫu thuật">{textOrNone(health.surgeries)}</Item>
-                  <Item label="Thuốc đang dùng">{textOrNone(health.medications)}</Item>
-                  <Item label="Hạn chế do bác sĩ">{textOrNone(health.doctorRestrictions)}</Item>
-                  <Item label="Dấu hiệu cảnh báo">
-                    {list(health.warningSigns, F1_WARNING_SIGN_LABELS)}
-                  </Item>
-                  <Item label="Giấc ngủ">{life.sleepHours ? `${life.sleepHours} giờ/ngày` : ""}</Item>
-                  <Item label="Mức căng thẳng">{labelOf(F1_STRESS_LABELS, life.stressLevel, "")}</Item>
-                  <Item label="Vận động trong công việc">
-                    {labelOf(F1_WORK_ACTIVITY_LABELS, life.workActivityLevel, "")}
-                  </Item>
-                  <Item label="Bữa ăn mỗi ngày">{life.mealsPerDay}</Item>
-                  <Item label="Ăn ngoài thường xuyên">{yesNo(life.usuallyEatOut)}</Item>
-                  <Item label="Uống đủ nước">{yesNo(life.drinkEnoughWater)}</Item>
-                  <Item label="Dị ứng thực phẩm">{textOrNone(life.foodAllergies)}</Item>
-                </Grid>
-              </Group>
+              <HealthLifeGroup health={health} life={life} />
 
-              <Group title="Mục tiêu và tập luyện">
-                <Grid>
-                  <Item label="Mục tiêu chính">{labelOf(F1_GOAL_LABELS, goal.primaryGoal, "")}</Item>
-                  <Item label="Cân nặng mong muốn">
-                    {goal.targetWeightKg ? `${goal.targetWeightKg} kg` : ""}
-                  </Item>
-                  <Item label="Thời gian mong muốn">{goal.targetTimeframe}</Item>
-                  <Item label="Đang tập luyện">{yesNo(goal.currentlyTraining)}</Item>
-                  <Item label="Kinh nghiệm">
-                    {labelOf(F1_EXPERIENCE_LABELS, goal.trainingExperience, "")}
-                  </Item>
-                  <Item label="Đã nghỉ tập">{goal.breakDuration}</Item>
-                  <Item label="Số buổi mỗi tuần">{goal.trainingDaysPerWeek}</Item>
-                  <Item label="Thời lượng mỗi buổi">
-                    {goal.sessionDurationMinutes ? `${goal.sessionDurationMinutes} phút` : ""}
-                  </Item>
-                  <Item label="Các môn từng tập">{list(goal.sportsHistory)}</Item>
-                </Grid>
-              </Group>
+              <GoalGroup goal={goal} />
 
               <AssessmentGroup assessment={assessment} />
 

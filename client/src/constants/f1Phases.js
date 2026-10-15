@@ -78,7 +78,8 @@ export const buildStageTabs = (roadmap = [], reviews = []) => {
         },
       ]
     : [];
-  for (const review of reviews) {
+  // Giai đoạn chỉ mở khi HLV đã xác nhận mục tiêu cho giai đoạn đó.
+  for (const review of reviews.filter((item) => item.profileConfirmed)) {
     const plan = review.nextPhasePlan || {};
     const stageOrder = review.stageOrder + 1;
     lastPhaseKey = plan.phaseKey || lastPhaseKey;

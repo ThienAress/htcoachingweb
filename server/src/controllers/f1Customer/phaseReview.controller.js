@@ -9,6 +9,7 @@ import { normalizePhaseReviewInput } from "./phaseReview.input.js";
 import { evaluatePhaseReview } from "./phaseReview.scoring.js";
 import { buildNextStage } from "./phaseReview.projection.js";
 import { serializeVisual } from "./phaseReview.visual.controller.js";
+import { applyProfile, normalizeProfile } from "./phaseReview.profile.js";
 
 const MAX_STAGES = 20;
 
@@ -30,7 +31,7 @@ const loadChain = async (req) => {
   if (!prediction) return { customer, prediction: null };
   const [intake, assessment, aiReport, reviews] = await Promise.all([
     F1Intake.findOne({ _id: prediction.intakeId, customerId: customer._id })
-      .select("bodyMetrics trainingProfileGoal")
+      .select("bodyMetrics trainingProfileGoal healthScreening lifestyleNutrition")
       .lean(),
     F1Assessment.findOne({ _id: prediction.assessmentId, customerId: customer._id })
       .select("strengthAssessment enduranceAssessment cardioAssessment movementAssessment overallPhysicalLevel")
@@ -46,11 +47,19 @@ const loadChain = async (req) => {
   return { customer, prediction, intake, assessment, aiReport, reviews };
 };
 
-const contextFor = (chain, stageOrder) =>
+// Khảo sát gốc cộng hồ sơ đã cập nhật ở các lần đánh giá trước giai đoạn này.
+const intakeFor = (chain, stageOrder, ownProfile = null) => {
+  const earlier = (chain.reviews || [])
+    .filter((item) => item.stageOrder < stageOrder && item.profile && item.profileConfirmedAt)
+    .sort((a, b) => b.stageOrder - a.stageOrder)[0];
+  return applyProfile(applyProfile(chain.intake, earlier?.profile), ownProfile);
+};
+
+const contextFor = (chain, stageOrder, ownProfile = null) =>
   buildStageContext({
     stageOrder,
     prediction: chain.prediction,
-    intake: chain.intake,
+    intake: intakeFor(chain, stageOrder, ownProfile),
     assessment: chain.assessment,
     aiReport: chain.aiReport,
     reviews: chain.reviews,
@@ -70,6 +79,8 @@ const serializeReview = (review) => ({
   evaluation: review.evaluation,
   nextPhasePlan: review.nextPhasePlan,
   nextOutcome: review.nextOutcome,
+  profile: review.profile || null,
+  profileConfirmed: Boolean(review.profileConfirmedAt),
   visual: serializeVisual(review),
   updatedAt: review.updatedAt,
 });
@@ -82,7 +93,19 @@ const buildPayload = (chain) => {
   for (const stageOrder of [reviews.length, nextStage]) {
     if (stageOrder < 1 || stageOrder > MAX_STAGES) continue;
     const context = contextFor(chain, stageOrder);
-    if (context) contexts[stageOrder] = context;
+    if (context) {
+      const own = reviews.find((item) => item.stageOrder === stageOrder);
+      const base = intakeFor(chain, stageOrder);
+      contexts[stageOrder] = {
+        ...context,
+        // Giá trị gợi ý sẵn trong form cập nhật mục tiêu cho giai đoạn kế tiếp.
+        profileDefaults: own?.profile || {
+          healthScreening: base.healthScreening || {},
+          lifestyleNutrition: base.lifestyleNutrition || {},
+          trainingProfileGoal: base.trainingProfileGoal || {},
+        },
+      };
+    }
   }
   return {
     predictionId: chain.prediction._id,
@@ -122,7 +145,13 @@ export const savePhaseReview = async (req, res, next) => {
     if (stageOrder < reviewed) {
       throw httpError(409, "Chỉ sửa được lần đánh giá gần nhất.");
     }
-    const context = contextFor(chain, stageOrder);
+    const previous = chain.reviews.find((item) => item.stageOrder === stageOrder - 1);
+    if (previous && !previous.profileConfirmedAt) {
+      throw httpError(409, `Cần cập nhật mục tiêu cho giai đoạn ${stageOrder} trước.`);
+    }
+    const existing = chain.reviews.find((item) => item.stageOrder === stageOrder);
+    const ownProfile = existing?.profile || null;
+    const context = contextFor(chain, stageOrder, ownProfile);
     if (!context) {
       throw httpError(409, "Chưa có kế hoạch cho giai đoạn này.");
     }
@@ -153,7 +182,7 @@ export const savePhaseReview = async (req, res, next) => {
       input,
       context,
       evaluation,
-      intake: chain.intake,
+      intake: intakeFor(chain, stageOrder, ownProfile),
       assessment: chain.assessment,
       aiReport: chain.aiReport,
     });
@@ -179,6 +208,68 @@ export const savePhaseReview = async (req, res, next) => {
       success: true,
       data: buildPayload(updated),
       message: `Đã lưu đánh giá cuối giai đoạn ${stageOrder}.`,
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+// Bước 2: HLV cập nhật mục tiêu, sức khỏe và lối sống rồi hệ thống dựng đề xuất và dự đoán cho giai đoạn kế tiếp.
+export const saveStageProfile = async (req, res, next) => {
+  try {
+    const stageOrder = Number(req.params.stageOrder);
+    const profile = normalizeProfile(req.body);
+    const chain = await loadChain(req);
+    if (!chain.prediction) {
+      throw httpError(400, "Cần tạo dự đoán kết quả trước.");
+    }
+    if (!chain.intake || !chain.assessment || !chain.aiReport) {
+      throw httpError(409, "Dữ liệu gốc của lộ trình không còn đầy đủ. Hãy tạo lại dự đoán kết quả.");
+    }
+    const review = chain.reviews.find((item) => item.stageOrder === stageOrder);
+    if (!review) {
+      throw httpError(409, `Cần lưu kết quả cuối giai đoạn ${stageOrder} trước.`);
+    }
+    if (stageOrder < chain.reviews.length) {
+      throw httpError(409, "Chỉ sửa được lần đánh giá gần nhất.");
+    }
+
+    const context = contextFor(chain, stageOrder, profile);
+    const input = {
+      actual: review.actual,
+      adherence: review.adherence,
+      recommendationChecks: review.recommendationChecks,
+      retests: review.retests,
+      ohsa: review.ohsa,
+      safety: review.safety,
+    };
+    const { nextPhasePlan, nextOutcome } = buildNextStage({
+      input,
+      context,
+      evaluation: review.evaluation,
+      intake: intakeFor(chain, stageOrder, profile),
+      assessment: chain.assessment,
+      aiReport: chain.aiReport,
+    });
+
+    await F1PhaseReview.updateOne(
+      { _id: review._id },
+      {
+        $set: {
+          profile,
+          profileConfirmedAt: new Date(),
+          nextPhasePlan,
+          nextOutcome,
+          trainerId: req.user.id,
+        },
+      },
+    );
+
+    const updated = await loadChain(req);
+    return res.status(200).json({
+      success: true,
+      data: buildPayload(updated),
+      message: `Đã lưu mục tiêu và dựng lộ trình giai đoạn ${stageOrder + 1}.`,
     });
   } catch (error) {
     return next(error);
