@@ -1317,6 +1317,9 @@ export const getCategories = async (_req, res) =>
     data: Object.entries(CATEGORY_LABELS).map(([value, label]) => ({ value, label })),
   });
 
+// Prompt gồm tối đa 30 cặp Q&A; model 3.x cần nhiều hơn 20 giây (log production ghi TimeoutError).
+const KB_SUGGESTION_TIMEOUT_MS = 45_000;
+
 export const suggestFromConversations = async (req, res) => {
   // Giai đoạn đang chạy, ghi vào log khi lỗi để biết hỏng ở bước nào.
   let stage = "load_conversations";
@@ -1443,7 +1446,7 @@ export const suggestFromConversations = async (req, res) => {
             responseMimeType: "application/json",
           },
         }),
-        signal: AbortSignal.timeout(20000),
+        signal: AbortSignal.timeout(KB_SUGGESTION_TIMEOUT_MS),
       },
     );
     if (!response.ok) {
