@@ -45,7 +45,15 @@ export {
   generateResultPredictionStageImages,
 } from "./resultPrediction.controller.js";
 
-export { getPhaseReviews, savePhaseReview } from "./phaseReview.controller.js";
+export {
+  getPhaseReviews,
+  savePhaseReview,
+  saveStageProfile,
+} from "./phaseReview.controller.js";
+export {
+  generateStageVisual,
+  uploadStagePhoto,
+} from "./phaseReview.visual.controller.js";
 
 export { getF1DashboardSummary } from "./dashboard.controller.js";
 export { reviewTestPermission } from "./testPermissionReview.controller.js";

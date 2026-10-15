@@ -13,6 +13,7 @@ import StepLifestyleNutrition from "./intake/StepLifestyleNutrition";
 import StepBodyMetrics from "./intake/StepBodyMetrics";
 import StepTrainingGoal from "./intake/StepTrainingGoal";
 import StepPostureMedia from "./intake/StepPostureMedia";
+import { SelectControlContext } from "./intake/selectControlContext";
 
 const intakeSteps = [
   "Thông tin",
@@ -417,7 +418,9 @@ const F1IntakeWizard = ({ customer, onBack, onSubmitted }) => {
               data-testid="f1-intake-form"
               onSubmit={handleSubmit(onSubmit)}
             >
-              {renderStep()}
+              <SelectControlContext.Provider value={control}>
+                {renderStep()}
+              </SelectControlContext.Provider>
 
               <div className="mt-8 flex flex-wrap justify-between gap-3">
                 <button

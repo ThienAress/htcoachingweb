@@ -23,6 +23,8 @@ const f1MediaSchema = new mongoose.Schema(
         "posture_side",
         "prediction_front",
         "prediction_side",
+        "stage_front",
+        "stage_side",
       ],
       required: true,
     },
@@ -87,6 +89,8 @@ const f1MediaSchema = new mongoose.Schema(
       ref: "F1ResultPrediction",
       default: null,
     },
+    // Thứ tự giai đoạn trong lộ trình của khách (ảnh của giai đoạn 2 trở đi).
+    stageOrder: { type: Number, default: 0, min: 0 },
     phaseKey: {
       type: String,
       enum: ["phase_1", "phase_2", "phase_3", "phase_4", "phase_5", ""],

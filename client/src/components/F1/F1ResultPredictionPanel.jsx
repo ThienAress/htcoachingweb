@@ -34,6 +34,9 @@ import {
 const F1PhaseReviewDialog = lazy(
   () => import("./phaseReview/F1PhaseReviewDialog"),
 );
+const F1StagePhotoSection = lazy(
+  () => import("./phaseReview/F1StagePhotoSection"),
+);
 
 const GOAL_LABELS = {
   fat_loss: "Giảm mỡ",
@@ -623,7 +626,8 @@ const F1ResultPredictionPanel = ({ customer, onBack, onGenerated }) => {
     [prediction, phaseReviews],
   );
   // Giai đoạn 1 xem ngay trong trang; giai đoạn sau mở hộp thoại đánh giá cuối giai đoạn.
-  const reviews = phaseReviews?.reviews || [];
+  const reviews = (phaseReviews?.reviews || []).filter((item) => item.profileConfirmed);
+  const allReviewCount = (phaseReviews?.reviews || []).length;
   // Giai đoạn mở khoá thì xem ngay trong trang; giai đoạn đang khoá mở hộp thoại nhập kết quả.
   const handleSelectStage = (key) => {
     const tab = stageTabs.find((item) => item.key === key);
@@ -782,6 +786,11 @@ const F1ResultPredictionPanel = ({ customer, onBack, onGenerated }) => {
             loading={phaseReviewsQuery.isLoading}
             error={phaseReviewsQuery.isError}
             onClose={() => setOpenStage(null)}
+            onProfileSaved={(order) => {
+              setOpenStage(null);
+              setEditMode(false);
+              setSelectedStageKey(`stage_${order}`);
+            }}
           />
         </Suspense>
       )}
@@ -893,7 +902,7 @@ const F1ResultPredictionPanel = ({ customer, onBack, onGenerated }) => {
                   onSelect={handleSelectStage}
                   canEdit={reviews.length > 0}
                   editMode={editMode}
-                  editableOrder={reviews.length + 1}
+                  editableOrder={allReviewCount === reviews.length ? reviews.length + 1 : 0}
                   onToggleEdit={() => setEditMode((value) => !value)}
                   onEdit={setOpenStage}
                 />
@@ -932,10 +941,33 @@ const F1ResultPredictionPanel = ({ customer, onBack, onGenerated }) => {
                   subtitle="Ảnh sau tập theo giai đoạn đang chọn"
                 />
                 {followUp ? (
-                  <p className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-5 text-sm text-slate-600">
-                    Ảnh dự đoán cho giai đoạn {followUpStage} dùng ảnh cải thiện mới của khách và sẽ được bổ sung ở bước
-                    tiếp theo. Hiện chỉ có ảnh dự đoán của giai đoạn 1.
-                  </p>
+                  <Suspense fallback={null}>
+                    <F1StagePhotoSection
+                      customerId={customer._id}
+                      stageOrder={followUpStage}
+                      visual={followUpReview?.visual || {}}
+                      onConfirmGenerate={(force, attempts, maxAttempts) =>
+                        confirm(
+                          force
+                            ? {
+                                title: "Tạo lại ảnh dự đoán?",
+                                message: `Bạn sắp tạo lại ảnh cho giai đoạn ${followUpStage}.`,
+                                details: [
+                                  "Mỗi lần tạo lại sẽ phát sinh chi phí.",
+                                  `Hiện đã dùng ${attempts}/${maxAttempts} lượt.`,
+                                ],
+                                confirmLabel: "Tạo lại ảnh",
+                              }
+                            : {
+                                title: "Tạo ảnh dự đoán?",
+                                message: `Hệ thống sẽ tạo ảnh sau tập cho giai đoạn ${followUpStage} từ ảnh hiện tại.`,
+                                details: ["Mỗi lần tạo ảnh sẽ phát sinh chi phí."],
+                                confirmLabel: "Tạo ảnh",
+                              },
+                        )
+                      }
+                    />
+                  </Suspense>
                 ) : (
                   <VisualComparisonSection
                     prediction={prediction}

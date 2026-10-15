@@ -54,7 +54,8 @@ test("F1 create, intake, private media, assessment command and AI report", async
 
   await page.locator('[name="fullName"]').fill("Nguyen Minh Khang");
   await page.locator('[name="age"]').fill("30");
-  await page.locator('[name="gender"]').selectOption("male");
+  await page.getByRole("combobox", { name: "Giới tính" }).click();
+  await page.getByRole("option", { name: "Nam" }).click();
   await page.locator('[name="occupation"]').fill("Engineer");
   await page.locator('[name="phone"]').fill("0912345678");
   await page.locator('[name="email"]').fill("phase9.f1@gmail.com");
@@ -79,12 +80,10 @@ test("F1 create, intake, private media, assessment command and AI report", async
   await page.locator('[name="bodyMetrics.heightCm"]').fill("175");
   await page.locator('[name="bodyMetrics.weightKg"]').fill("78");
   await page.getByTestId("f1-intake-next").click();
-  await page
-    .locator('[name="trainingProfileGoal.trainingExperience"]')
-    .selectOption("none");
-  await page
-    .locator('[name="trainingProfileGoal.primaryGoal"]')
-    .selectOption("fat_loss");
+  await page.getByRole("combobox", { name: "Trước đây đã từng tập chưa?" }).click();
+  await page.getByRole("option", { name: "Chưa từng tập" }).click();
+  await page.getByRole("combobox", { name: "Mục tiêu chính" }).click();
+  await page.getByRole("option", { name: "Giảm mỡ" }).click();
   await page
     .locator('[name="trainingProfileGoal.targetWeightKg"]')
     .fill("70");

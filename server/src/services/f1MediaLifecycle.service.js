@@ -55,11 +55,12 @@ const ensureQuota = async ({
   customerId,
   intakeId,
   predictionId,
+  stageOrder = 0,
   type,
   nextSizeBytes,
 }) => {
   const scopeFilter = predictionId
-    ? { predictionId }
+    ? { predictionId, ...(stageOrder ? { stageOrder } : {}) }
     : { intakeId: intakeId || null };
   const [totalCount, perTypeCount, storage] = await Promise.all([
     F1Media.countDocuments({
@@ -151,6 +152,7 @@ export const createF1MediaFromBuffer = async ({
   customerId,
   intakeId = null,
   predictionId = null,
+  stageOrder = 0,
   phaseKey = "",
   type,
   buffer,
@@ -164,6 +166,7 @@ export const createF1MediaFromBuffer = async ({
     customerId,
     intakeId,
     predictionId,
+    stageOrder,
     type,
     nextSizeBytes: processed.sizeBytes,
   });
@@ -172,6 +175,7 @@ export const createF1MediaFromBuffer = async ({
     customerId,
     intakeId: intakeId || null,
     predictionId: predictionId || null,
+    stageOrder,
     type,
     checksum: processed.checksum,
     status: "ready",
@@ -182,6 +186,7 @@ export const createF1MediaFromBuffer = async ({
     customerId,
     intakeId,
     predictionId,
+    stageOrder,
     phaseKey,
     type,
     provider: getF1MediaStorageProvider(),

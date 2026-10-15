@@ -1,4 +1,5 @@
 import { useId } from "react";
+import RoundedSelect from "../F1/assessment/RoundedSelect";
 
 const optionLabel = (item) => {
   const createdAt = item.createdAt
@@ -39,54 +40,42 @@ export default function ConversionOriginFields({
       </p>
       <div className="mt-3 grid gap-4 sm:grid-cols-2">
         <div>
-          <label htmlFor={typeId} className="text-sm font-medium text-zinc-700">
+          <span id={typeId} className="text-sm font-medium text-zinc-700">
             Loại nguồn
-          </label>
-          <select
-            id={typeId}
+          </span>
+          <RoundedSelect
+            label="Loại nguồn"
             value={originType}
-            aria-describedby={hintId}
-            onChange={(event) => {
-              onTypeChange(event.target.value);
+            onChange={(value) => {
+              onTypeChange(value);
               onIdChange("");
             }}
-            className="mt-1 min-h-11 w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-zinc-900 outline-none transition focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20"
-          >
-            <option value="">Không gắn nguồn</option>
-            <option value="booking">Booking</option>
-            <option value="contact">Contact</option>
-          </select>
+            options={[
+              { value: "", label: "Không gắn nguồn" },
+              { value: "booking", label: "Booking" },
+              { value: "contact", label: "Contact" },
+            ]}
+          />
         </div>
         <div>
-          <label htmlFor={recordId} className="text-sm font-medium text-zinc-700">
+          <span id={recordId} className="text-sm font-medium text-zinc-700">
             Bản ghi nguồn
-          </label>
-          <select
-            id={recordId}
+          </span>
+          <RoundedSelect
+            label="Bản ghi nguồn"
             value={originId}
-            aria-invalid={Boolean(error)}
-            aria-describedby={
-              [hintId, error ? validationId : "", isError ? loadErrorId : ""]
-                .filter(Boolean)
-                .join(" ")
-            }
-            onChange={(event) => onIdChange(event.target.value)}
+            onChange={onIdChange}
             disabled={!originType || isLoading || isError}
-            className="mt-1 min-h-11 w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-zinc-900 outline-none transition focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20 disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-500"
-          >
-            <option value="">
-              {isLoading
+            placeholder={
+              isLoading
                 ? "Đang tải nguồn..."
                 : originType
                   ? "Chọn bản ghi chính xác"
-                  : "Chọn loại nguồn trước"}
-            </option>
-            {options.map((item) => (
-              <option key={item._id} value={item._id}>
-                {optionLabel(item)}
-              </option>
-            ))}
-          </select>
+                  : "Chọn loại nguồn trước"
+            }
+            emptyText="Không có bản ghi phù hợp"
+            options={options.map((item) => ({ value: item._id, label: optionLabel(item) }))}
+          />
         </div>
       </div>
       {originType && !isLoading && !isError && options.length === 0 && (
