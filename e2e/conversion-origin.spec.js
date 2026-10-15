@@ -85,7 +85,7 @@ test.describe("Explicit conversion origin controls", () => {
     await page.getByRole("combobox", { name: "Loại nguồn" }).click();
     await page.getByRole("option", { name: "Booking" }).click();
     await page.getByRole("combobox", { name: "Bản ghi nguồn" }).click();
-    await page.getByRole("option").first().click();
+    await page.getByRole("listbox").getByRole("option").first().click();
     await page.getByLabel(/Họ tên/).fill("Order Customer");
     await page.getByLabel(/Email/).fill("order@example.com");
     await page.getByLabel(/Số điện thoại/).fill("0912345678");
@@ -132,7 +132,7 @@ test.describe("Explicit conversion origin controls", () => {
     await page.getByRole("combobox", { name: "Loại nguồn" }).click();
     await page.getByRole("option", { name: "Contact" }).click();
     await page.getByRole("combobox", { name: "Bản ghi nguồn" }).click();
-    await page.getByRole("option").first().click();
+    await page.getByRole("listbox").getByRole("option").first().click();
     await page.getByLabel("Họ và tên").fill("Khach Hang F1");
     await page.getByLabel("Tuổi").fill("30");
     await page.getByRole("combobox", { name: "Giới tính" }).click();
