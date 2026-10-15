@@ -1,2 +1,53 @@
 /favicon/site.webmanifest
   Content-Type: application/manifest+json; charset=utf-8
+
+# Trang riêng tư / ứng dụng: không lập chỉ mục dù HTML là app shell.
+# (Không thêm vào robots.txt: Google phải đọc được header này.)
+/admin
+  X-Robots-Tag: noindex, nofollow
+/admin/*
+  X-Robots-Tag: noindex, nofollow
+/trainer
+  X-Robots-Tag: noindex, nofollow
+/trainer/*
+  X-Robots-Tag: noindex, nofollow
+/dashboard
+  X-Robots-Tag: noindex, nofollow
+/dashboard/*
+  X-Robots-Tag: noindex, nofollow
+/today
+  X-Robots-Tag: noindex, nofollow
+/today/*
+  X-Robots-Tag: noindex, nofollow
+/progress
+  X-Robots-Tag: noindex, nofollow
+/notifications
+  X-Robots-Tag: noindex, nofollow
+/login
+  X-Robots-Tag: noindex, nofollow
+/login-success
+  X-Robots-Tag: noindex, nofollow
+/register
+  X-Robots-Tag: noindex, nofollow
+/checkin
+  X-Robots-Tag: noindex, nofollow
+/my-history
+  X-Robots-Tag: noindex, nofollow
+/wallet
+  X-Robots-Tag: noindex, nofollow
+/training-schedule
+  X-Robots-Tag: noindex, nofollow
+/workout-plans
+  X-Robots-Tag: noindex, nofollow
+/workout-plans/*
+  X-Robots-Tag: noindex, nofollow
+/online-coaching
+  X-Robots-Tag: noindex, nofollow
+/account
+  X-Robots-Tag: noindex, nofollow
+/contracts/*
+  X-Robots-Tag: noindex, nofollow
+/book-training
+  X-Robots-Tag: noindex, nofollow
+/f1-customers
+  X-Robots-Tag: noindex, nofollow

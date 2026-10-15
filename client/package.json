@@ -15,7 +15,7 @@
     "dev:doppler": "doppler run -- vite",
     "prebuild": "node scripts/warm-up-api.js && node scripts/generate-system-dependency-inventory.js && node scripts/generate-sitemap.js",
     "build": "vite build",
-    "postbuild": "node scripts/warm-up-api.js && node scripts/prerender.js && node scripts/check-bundle-budget.js && node scripts/verify-search-index-build.js",
+    "postbuild": "node scripts/warm-up-api.js && node scripts/prerender.js && node scripts/check-bundle-budget.js && node scripts/verify-search-index-build.js && node scripts/apply-preview-noindex.js",
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
