@@ -1,20 +1,41 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import {
-  healthScreeningSchema,
-  lifestyleNutritionSchema,
-  trainingGoalSchema,
-} from "../intake/schema";
+import { healthScreeningSchema, lifestyleNutritionSchema } from "../intake/schema";
 import StepHealthScreening from "../intake/StepHealthScreening";
 import StepLifestyleNutrition from "../intake/StepLifestyleNutrition";
 import StepTrainingGoal from "../intake/StepTrainingGoal";
 import { SelectControlContext } from "../intake/selectControlContext";
 
+// Không hỏi lại lịch sử tập cũ; chỉ bắt buộc mục tiêu chính và, khi đang tập, số buổi và thời lượng.
+const goalSchema = z
+  .object({
+    currentlyTraining: z.boolean(),
+    trainingDaysPerWeek: z.any().optional(),
+    sessionDurationMinutes: z.any().optional(),
+    sportsHistory: z.any().optional(),
+    trainingExperience: z.string().optional(),
+    breakDuration: z.any().optional(),
+    primaryGoal: z.string().min(1, "Vui lòng chọn mục tiêu chính"),
+    targetWeightKg: z.any().optional(),
+    targetTimeframe: z.string().trim().max(60, "Thời gian mong muốn tối đa 60 ký tự").optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (!data.currentlyTraining) return;
+    const days = Number(data.trainingDaysPerWeek);
+    const minutes = Number(data.sessionDurationMinutes);
+    if (!(days > 0 && days <= 14)) {
+      ctx.addIssue({ code: "custom", path: ["trainingDaysPerWeek"], message: "Số ngày tập phải từ 1 đến 14" });
+    }
+    if (!(minutes > 0 && minutes <= 600)) {
+      ctx.addIssue({ code: "custom", path: ["sessionDurationMinutes"], message: "Thời lượng buổi tập phải từ 1 đến 600 phút" });
+    }
+  });
+
 const schema = z.object({
   healthScreening: healthScreeningSchema,
   lifestyleNutrition: lifestyleNutritionSchema,
-  trainingProfileGoal: trainingGoalSchema,
+  trainingProfileGoal: goalSchema,
 });
 
 const joined = (value) => (Array.isArray(value) ? value.join(", ") : value || "");
@@ -79,7 +100,7 @@ const F1PhaseReviewProfileForm = ({ stageOrder, defaults, saving, onSubmit, onCa
         này để dựng lộ trình và dự đoán giai đoạn {stageOrder}.
       </p>
       <SelectControlContext.Provider value={control}>
-        <StepTrainingGoal register={register} watch={watch} setValue={setValue} errors={errors} />
+        <StepTrainingGoal register={register} watch={watch} setValue={setValue} errors={errors} hideTrainingHistory />
         <StepHealthScreening register={register} watch={watch} setValue={setValue} errors={errors} />
         <StepLifestyleNutrition register={register} watch={watch} setValue={setValue} errors={errors} />
       </SelectControlContext.Provider>
