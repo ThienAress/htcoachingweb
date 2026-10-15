@@ -783,7 +783,7 @@ const translateCompensationFlags = (flags = []) => {
   return flags.map((item) => map[item] || item);
 };
 
-const translateCorrectiveFocus = (items = []) => {
+export const translateCorrectiveFocus = (items = []) => {
   const map = {
     glute_activation: "kích hoạt cơ mông",
     ankle_mobility: "cải thiện linh hoạt cổ chân",
@@ -805,7 +805,7 @@ const translateCorrectiveFocus = (items = []) => {
   return items.map((item) => map[item] || item);
 };
 
-const translateTrainingFocus = (items = []) => {
+export const translateTrainingFocus = (items = []) => {
   const map = {
     energy_expenditure: "tăng tiêu hao năng lượng",
     cardio_base_building: "xây nền tim mạch",

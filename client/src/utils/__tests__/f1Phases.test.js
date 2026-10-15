@@ -29,14 +29,21 @@ describe("buildStageTabs", () => {
     ]);
   });
 
-  it("keeps every roadmap stage and only fills the remaining slots", () => {
-    const tabs = buildStageTabs([
-      stage(1, "phase_1", "Stabilization Endurance"),
-      stage(2, "phase_2", "Strength Endurance"),
-      stage(3, "phase_3", "Hypertrophy"),
-    ]);
+  it("opens one stage per saved review and keeps one locked stage after it", () => {
+    const tabs = buildStageTabs(
+      [stage(1, "phase_1", "Stabilization Endurance"), stage(2, "phase_2", "Strength Endurance")],
+      [
+        { stageOrder: 1, nextPhasePlan: { phaseTitle: "Strength Endurance" } },
+        { stageOrder: 2, nextPhasePlan: { phaseTitle: "Hypertrophy" } },
+      ],
+    );
 
-    expect(tabs.every((tab) => !tab.locked)).toBe(true);
+    expect(tabs.map((tab) => [tab.label, tab.locked])).toEqual([
+      ["Giai đoạn 1: Stabilization Endurance", false],
+      ["Giai đoạn 2: Strength Endurance", false],
+      ["Giai đoạn 3: Hypertrophy", false],
+      ["Giai đoạn 4", true],
+    ]);
   });
 
   it("shows locked tabs when there is no roadmap yet", () => {

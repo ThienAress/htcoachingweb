@@ -29,6 +29,8 @@ import {
   generateResultPrediction,
   getLatestResultPrediction,
   generateResultPredictionStageImages,
+  getPhaseReviews,
+  savePhaseReview,
 } from "../controllers/f1Customer/index.js";
 import {
   validateApproveAiReport,
@@ -47,6 +49,7 @@ import {
   validateReviewTestPermission,
   validateGenerateResultPrediction,
   validateGenerateResultPredictionStageImages,
+  validateSavePhaseReview,
 } from "../middlewares/validation.js";
 
 import { uploadF1Media } from "../middlewares/f1MediaUpload.js";
@@ -303,6 +306,27 @@ router.post(
   requireTrainerAccess,
   validateGenerateResultPredictionStageImages,
   generateResultPredictionStageImages,
+);
+
+// =========================
+// PHASE REVIEW (đánh giá cuối giai đoạn)
+// =========================
+router.get(
+  "/:id/phase-reviews",
+  protect,
+  requireTrainerAccess,
+  validateF1CustomerId,
+  getPhaseReviews,
+);
+
+router.put(
+  "/:id/phase-reviews/:stageOrder",
+  protect,
+  f1GenerationLimiter,
+  csrfProtection,
+  requireTrainerAccess,
+  validateSavePhaseReview,
+  savePhaseReview,
 );
 
 export default router;

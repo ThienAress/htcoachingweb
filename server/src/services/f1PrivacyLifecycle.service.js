@@ -9,6 +9,7 @@ import F1Media from "../models/F1Media.js";
 import F1MediaDeletionJob from "../models/F1MediaDeletionJob.js";
 import F1OutcomeForecast from "../models/F1OutcomeForecast.js";
 import F1ResultPrediction from "../models/F1ResultPrediction.js";
+import F1PhaseReview from "../models/F1PhaseReview.js";
 import { incrementMetric } from "../observability/metrics.js";
 import { createRecurringJob } from "../operations/recurringJob.js";
 import { safeLog } from "../utils/safeLogger.js";
@@ -283,6 +284,9 @@ export const processF1DataDeletionBatch = async ({
             customerId: job.customerId,
           }).session(session);
           await F1ResultPrediction.deleteMany({
+            customerId: job.customerId,
+          }).session(session);
+          await F1PhaseReview.deleteMany({
             customerId: job.customerId,
           }).session(session);
           await F1Media.deleteMany({ customerId: job.customerId }).session(
