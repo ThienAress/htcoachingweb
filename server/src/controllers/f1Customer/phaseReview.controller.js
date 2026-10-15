@@ -135,6 +135,11 @@ export const savePhaseReview = async (req, res, next) => {
         previousLevel: known.get(`${item.metricKey}|${item.name}`).previousLevel,
       }));
 
+    if (context.heightCm) {
+      const meters = context.heightCm / 100;
+      input.actual.bmi = Math.round((input.actual.weightKg / (meters * meters)) * 10) / 10;
+    }
+
     const evaluation = {
       ...evaluatePhaseReview({ input, context }),
       stageWeeks: context.durationWeeks,

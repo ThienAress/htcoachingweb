@@ -218,6 +218,49 @@ describe("F1 phase reviews", () => {
     expect(badView.status).toBe(400);
   });
 
+  it("reuses the stage-1 input mode, previous values and computes BMI", async () => {
+    const trainer = await createTrainer("f1-pr-mode@example.com");
+    const customer = await createCustomerWithPrediction(trainer.user._id, "MODE");
+    await F1Assessment.updateOne(
+      { customerId: customer._id },
+      {
+        $set: {
+          "strengthAssessment.lowerBody.exercises": [
+            { name: "Wall Sit", tier: "easy", sets: 3, durationSec: 30, level: "average" },
+          ],
+          "cardioAssessment.cardioCapacity.exercises": [
+            { name: "Treadmill Walk", tier: "easy", result: 24, level: "good" },
+          ],
+        },
+      },
+    );
+
+    const before = await withAuth(
+      request(app).get(`/api/f1-customers/${customer._id}/phase-reviews`),
+      trainer.accessToken,
+    );
+    const retests = before.body.data.contexts["1"].retests;
+    expect(retests).toEqual([
+      expect.objectContaining({ name: "Wall Sit", inputMode: "time", resultKind: "", previous: expect.objectContaining({ sets: 3, durationSec: 30 }) }),
+      expect.objectContaining({ name: "Treadmill Walk", resultKind: "minutes", previous: expect.objectContaining({ result: 24 }) }),
+    ]);
+
+    const response = await put(
+      app, trainer, customer._id, 1,
+      reviewBody({
+        retests: [
+          { metricKey: "lowerBody", name: "Wall Sit", sets: 3, durationSec: 40, level: "good" },
+          { metricKey: "cardioCapacity", name: "Treadmill Walk", result: 26, level: "good" },
+        ],
+      }),
+    );
+    expect(response.status).toBe(200);
+    const [review] = response.body.data.reviews;
+    // Chiều cao 160 cm, cân nặng 72 kg → BMI 28,1.
+    expect(review.actual.bmi).toBe(28.1);
+    expect(review.retests.find((item) => item.name === "Treadmill Walk").result).toBe(26);
+  });
+
   it("rejects skipping a stage and invalid input", async () => {
     const trainer = await createTrainer("f1-pr-order@example.com");
     const customer = await createCustomerWithPrediction(trainer.user._id, "ORDER");

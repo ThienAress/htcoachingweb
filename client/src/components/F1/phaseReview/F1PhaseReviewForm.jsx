@@ -9,8 +9,12 @@ import {
   QUALITY_OPTIONS,
   STATUS_OPTIONS,
   buildFormDefaults,
+  RESULT_LABELS,
   canAutoScore,
+  computeBmi,
+  describePrevious,
   retestLevel,
+  retestMode,
 } from "../../../utils/f1PhaseReview";
 
 const numberField = (label, { min, max, required = false, integer = false }) =>
@@ -110,6 +114,8 @@ const F1PhaseReviewForm = ({ stageOrder, context, review, saving, onSubmit, onCa
     resolver: zodResolver(schema),
   });
   const retests = useWatch({ control, name: "retests" });
+  const weight = useWatch({ control, name: "actual.weightKg" });
+  const bmi = computeBmi(weight, context.heightCm);
   const id = (name) => `phase-review-${stageOrder}-${name}`;
   const metricInput = (name, label, unit) => (
     <Field id={id(name)} label={`${label}${unit ? ` (${unit})` : ""}`} error={errors.actual?.[name]?.message}>
@@ -125,6 +131,9 @@ const F1PhaseReviewForm = ({ stageOrder, context, review, saving, onSubmit, onCa
             <input id={id("date")} type="date" className={inputClass} {...register("measuredAt")} />
           </Field>
           {metricInput("weightKg", "Cân nặng", "kg")}
+          <Field id={id("bmi")} label="BMI (tự tính theo cân nặng mới)">
+            <input id={id("bmi")} readOnly value={bmi ?? ""} placeholder="Nhập cân nặng để tính" className={`${inputClass} bg-slate-50 text-slate-600`} />
+          </Field>
           {metricInput("waistCm", "Vòng eo", "cm")}
           {metricInput("hipCm", "Vòng hông", "cm")}
           {metricInput("bodyFatPercent", "Tỷ lệ mỡ", "%")}
@@ -191,7 +200,8 @@ const F1PhaseReviewForm = ({ stageOrder, context, review, saving, onSubmit, onCa
         <Group title={`4. Test lại các bài của giai đoạn ${stageOrder}`}>
           <div className="divide-y divide-slate-100">
             {retests.map((item, index) => {
-              const mode = item.selectedProtocol?.mode || item.inputMode;
+              const mode = retestMode(item);
+              const previous = describePrevious(item);
               const level = retestLevel(item);
               return (
                 <div key={`${item.metricKey}-${item.name}`} className="grid gap-2 py-3 sm:grid-cols-[minmax(0,1.4fr)_repeat(2,minmax(0,0.6fr))_minmax(0,1fr)] sm:items-end">
@@ -200,23 +210,32 @@ const F1PhaseReviewForm = ({ stageOrder, context, review, saving, onSubmit, onCa
                     <p className="text-xs text-slate-500">
                       {[item.metricLabel, TIER_LABELS[item.tier]].filter(Boolean).join(" · ")}
                     </p>
+                    {previous && <p className="text-xs text-slate-500">Lần trước: {previous}</p>}
                   </div>
-                  <Field id={id(`sets-${index}`)} label="Số hiệp">
-                    <input id={id(`sets-${index}`)} inputMode="numeric" className={inputClass} {...register(`retests.${index}.sets`)} />
-                  </Field>
-                  {mode === "time" ? (
-                    <Field id={id(`time-${index}`)} label="Giây mỗi hiệp">
-                      <input id={id(`time-${index}`)} inputMode="numeric" className={inputClass} {...register(`retests.${index}.durationSec`)} />
-                    </Field>
+                  {mode === "result" ? (
+                    <div className="sm:col-span-2">
+                      <Field id={id(`result-${index}`)} label={RESULT_LABELS[item.resultKind]}>
+                        <input id={id(`result-${index}`)} inputMode="decimal" className={inputClass} {...register(`retests.${index}.result`)} />
+                      </Field>
+                    </div>
                   ) : (
-                    <Field id={id(`reps-${index}`)} label="Reps mỗi hiệp">
-                      <input id={id(`reps-${index}`)} inputMode="numeric" className={inputClass} {...register(`retests.${index}.reps`)} />
-                    </Field>
+                    <>
+                      <Field id={id(`sets-${index}`)} label="Số hiệp">
+                        <input id={id(`sets-${index}`)} inputMode="numeric" className={inputClass} {...register(`retests.${index}.sets`)} />
+                      </Field>
+                      {mode === "time" ? (
+                        <Field id={id(`time-${index}`)} label="Giây mỗi hiệp">
+                          <input id={id(`time-${index}`)} inputMode="numeric" className={inputClass} {...register(`retests.${index}.durationSec`)} />
+                        </Field>
+                      ) : (
+                        <Field id={id(`reps-${index}`)} label="Reps mỗi hiệp">
+                          <input id={id(`reps-${index}`)} inputMode="numeric" className={inputClass} {...register(`retests.${index}.reps`)} />
+                        </Field>
+                      )}
+                    </>
                   )}
                   {canAutoScore(item) ? (
                     <p className="text-xs text-slate-500">
-                      Trước: {LEVEL_LABELS[item.previousLevel] || "Chưa có"}
-                      <br />
                       Nay: <b className="text-slate-800">{LEVEL_LABELS[level] || "Chưa nhập"}</b>
                     </p>
                   ) : (

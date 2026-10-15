@@ -116,6 +116,7 @@ export const normalizePhaseReviewInput = (body) => {
         sets: numberIn(item.sets, 0, 20, "số hiệp", { integer: true }),
         reps: numberIn(item.reps, 0, 500, "số lần", { integer: true }),
         durationSec: numberIn(item.durationSec, 0, 7200, "thời gian giữ"),
+        result: numberIn(item.result, 0, 1000, "kết quả bài test"),
         level: item.level ?? "",
       };
     }),

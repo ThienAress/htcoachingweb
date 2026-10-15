@@ -40,7 +40,7 @@ const Preview = ({ context, reviewedStage, onStart }) => (
     <p className="text-xs text-slate-500">
       ≥ 80%: chuyển giai đoạn · 60–79%: kéo dài 2–4 tuần · dưới 60%: lặp lại · đau hoặc chấn thương mới: HLV xem lại
     </p>
-    <div className="flex justify-end">
+    <div className="flex justify-start">
       <button type="button" onClick={onStart} className="rounded-xl bg-gradient-to-r from-orange-600 to-orange-500 px-5 py-2.5 font-bold text-white shadow-md">
         Nhập kết quả cuối giai đoạn {reviewedStage}
       </button>

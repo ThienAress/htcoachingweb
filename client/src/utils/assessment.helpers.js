@@ -268,3 +268,20 @@ export const scoreAgainstProtocol = ({
   const valueAxisScore = 0.7 * baselineValueRatio + 0.3 * valueBonusRatio;
   return String(round1(10 * (0.4 * setAxisScore + 0.6 * valueAxisScore)));
 };
+
+// Bài tim mạch chấm theo một kết quả duy nhất (phút hoặc nhịp tim giảm sau 1 phút).
+const scoreByTarget = (value, minTarget, maxTarget) => {
+  const number = Number(value || 0);
+  if (!number) return "";
+  const baselineRatio = clamp(number / minTarget, 0, 1);
+  const bonusRatio =
+    number <= minTarget
+      ? 0
+      : clamp((number - minTarget) / (maxTarget - minTarget), 0, 1);
+  return String(round1(10 * (0.7 * baselineRatio + 0.3 * bonusRatio)));
+};
+
+export const computeCardioCapacityScore = (resultMinutes) =>
+  scoreByTarget(resultMinutes, 20, 30);
+
+export const computeRecoveryScore = (hrDrop) => scoreByTarget(hrDrop, 12, 25);

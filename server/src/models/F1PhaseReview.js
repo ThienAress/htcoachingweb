@@ -14,6 +14,7 @@ const actualSchema = new mongoose.Schema(
   {
     weightKg: { type: Number, required: true, min: 10, max: 300 },
     waistCm: { type: Number, default: null, min: 30, max: 250 },
+    bmi: { type: Number, default: null, min: 5, max: 90 },
     hipCm: { type: Number, default: null, min: 30, max: 250 },
     bodyFatPercent: { type: Number, default: null, min: 2, max: 70 },
     restingHeartRate: { type: Number, default: null, min: 30, max: 220 },
@@ -55,6 +56,8 @@ const retestSchema = new mongoose.Schema(
     sets: { type: Number, default: null, min: 0, max: 20 },
     reps: { type: Number, default: null, min: 0, max: 500 },
     durationSec: { type: Number, default: null, min: 0, max: 7200 },
+    // Kết quả đơn (phút đi bộ, nhịp tim giảm) cho bài tim mạch.
+    result: { type: Number, default: null, min: 0, max: 1000 },
     previousLevel: { type: String, enum: LEVEL_ENUM, default: "" },
     level: { type: String, enum: LEVEL_ENUM, default: "" },
   },

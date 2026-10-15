@@ -1,35 +1,12 @@
 // CardioAssessmentSection.jsx
 import { useCallback } from "react";
 import { Heart, Activity } from "lucide-react";
-import { round1, clamp } from "../../../utils/assessment.helpers";
+import {
+  computeCardioCapacityScore,
+  computeRecoveryScore,
+} from "../../../utils/assessment.helpers";
 import ExerciseTestCard from "./ExerciseTestCard";
 import { pickSuggestion } from "../../../utils/assessmentExercises";
-
-const computeCardioCapacityScore = (resultMinutes) => {
-  const value = Number(resultMinutes || 0);
-  if (!value) return "";
-  const minTarget = 20;
-  const maxTarget = 30;
-  const baselineRatio = clamp(value / minTarget, 0, 1);
-  const bonusRatio =
-    value <= minTarget
-      ? 0
-      : clamp((value - minTarget) / (maxTarget - minTarget), 0, 1);
-  return String(round1(10 * (0.7 * baselineRatio + 0.3 * bonusRatio)));
-};
-
-const computeRecoveryScore = (hrDrop) => {
-  const value = Number(hrDrop || 0);
-  if (!value) return "";
-  const minTarget = 12;
-  const maxTarget = 25;
-  const baselineRatio = clamp(value / minTarget, 0, 1);
-  const bonusRatio =
-    value <= minTarget
-      ? 0
-      : clamp((value - minTarget) / (maxTarget - minTarget), 0, 1);
-  return String(round1(10 * (0.7 * baselineRatio + 0.3 * bonusRatio)));
-};
 
 const CardioAssessmentSection = ({
   value,

@@ -1,4 +1,9 @@
-import { scoreAgainstProtocol, scoreToLevel } from "./assessment.helpers";
+import {
+  computeCardioCapacityScore,
+  computeRecoveryScore,
+  scoreAgainstProtocol,
+  scoreToLevel,
+} from "./assessment.helpers";
 import { DEFAULT_PROTOCOLS } from "./assessmentExercises";
 import { OHSA_LABELS } from "../constants/f1Ohsa";
 
@@ -78,7 +83,27 @@ const todayKey = () => new Date().toISOString().slice(0, 10);
 
 // Mức của bài test lại: bài có chế độ reps/giây chấm theo cùng chuẩn với lần đánh giá
 // ban đầu; bài không chấm tự động được thì HLV tự chọn mức.
+const RESULT_SCORERS = {
+  minutes: computeCardioCapacityScore,
+  hr_drop: computeRecoveryScore,
+};
+
+export const RESULT_LABELS = {
+  minutes: "Kết quả (phút)",
+  hr_drop: "Nhịp tim giảm sau 1 phút",
+};
+
+// Cách nhập lại đúng như lúc đánh giá ban đầu: một kết quả, hiệp × giây hoặc hiệp × lần.
+export const retestMode = (item) =>
+  item.resultKind
+    ? "result"
+    : item.selectedProtocol?.mode || item.inputMode || "reps";
+
 export const retestLevel = (item) => {
+  if (item.resultKind) {
+    const score = RESULT_SCORERS[item.resultKind]?.(item.result) ?? "";
+    return score === "" ? "" : scoreToLevel(score);
+  }
   const protocol =
     item.selectedProtocol || DEFAULT_PROTOCOLS[item.inputMode] || null;
   if (!protocol) return item.manualLevel || "";
@@ -92,7 +117,31 @@ export const retestLevel = (item) => {
 };
 
 export const canAutoScore = (item) =>
-  Boolean(item.selectedProtocol?.mode || DEFAULT_PROTOCOLS[item.inputMode]);
+  Boolean(
+    item.resultKind ||
+      item.selectedProtocol?.mode ||
+      DEFAULT_PROTOCOLS[item.inputMode],
+  );
+
+// Kết quả lần trước, hiển thị gọn cho HLV nhớ lại.
+export const describePrevious = (item) => {
+  const previous = item.previous || {};
+  const parts = [];
+  if (item.resultKind === "minutes" && previous.result) parts.push(`${previous.result} phút`);
+  else if (item.resultKind === "hr_drop" && previous.result) parts.push(`nhịp tim giảm ${previous.result}`);
+  else if (previous.sets && previous.durationSec) parts.push(`${previous.sets} hiệp × ${previous.durationSec} giây`);
+  else if (previous.sets && previous.reps) parts.push(`${previous.sets} hiệp × ${previous.reps} reps`);
+  if (LEVEL_LABELS[item.previousLevel]) parts.push(LEVEL_LABELS[item.previousLevel]);
+  return parts.join(" · ");
+};
+
+export const computeBmi = (weightKg, heightCm) => {
+  const weight = toNumber(weightKg);
+  const height = Number(heightCm);
+  if (!weight || !height) return null;
+  const meters = height / 100;
+  return Math.round((weight / (meters * meters)) * 10) / 10;
+};
 
 export const buildFormDefaults = (context, review = null) => {
   const actual = review?.actual || {};
@@ -131,6 +180,7 @@ export const buildFormDefaults = (context, review = null) => {
         sets: toInput(saved.sets),
         reps: toInput(saved.reps),
         durationSec: toInput(saved.durationSec),
+        result: toInput(saved.result),
         manualLevel: canAutoScore(item) ? "" : saved.level || "",
       };
     }),
@@ -168,6 +218,7 @@ export const toPayload = (values) => ({
       sets: toNumber(item.sets),
       reps: toNumber(item.reps),
       durationSec: toNumber(item.durationSec),
+      result: toNumber(item.result),
       level: retestLevel(item),
     }))
     .filter((item) => item.level),
@@ -195,4 +246,14 @@ export const formatDelta = (value) => {
   const number = Number(value);
   if (number === 0) return "0";
   return `${number > 0 ? "+" : "−"}${numberFormat.format(Math.abs(number))}`;
+};
+
+const UNIT_BY_KEY = { weightKg: "kg", waistCm: "cm", hipCm: "cm", bodyFatPercent: "%", restingHeartRate: "bpm", bmi: "" };
+
+// Giá trị kèm đơn vị, ví dụ "-5 kg"; dùng dấu trừ thật cho dễ đọc.
+export const formatDeltaWithUnit = (value, key) => {
+  const delta = formatDelta(value);
+  if (delta === "--") return delta;
+  const unit = UNIT_BY_KEY[key];
+  return unit ? `${delta} ${unit}` : delta;
 };
