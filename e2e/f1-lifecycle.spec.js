@@ -54,7 +54,8 @@ test("F1 create, intake, private media, assessment command and AI report", async
 
   await page.locator('[name="fullName"]').fill("Nguyen Minh Khang");
   await page.locator('[name="age"]').fill("30");
-  await page.locator('[name="gender"]').selectOption("male");
+  await page.getByRole("combobox", { name: "Giới tính" }).click();
+  await page.getByRole("option", { name: "Nam" }).click();
   await page.locator('[name="occupation"]').fill("Engineer");
   await page.locator('[name="phone"]').fill("0912345678");
   await page.locator('[name="email"]').fill("phase9.f1@gmail.com");

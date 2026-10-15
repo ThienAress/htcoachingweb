@@ -3,7 +3,6 @@ import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Home,
-  UserPlus,
   Users,
   SidebarClose,
   SidebarOpen,
@@ -351,7 +350,7 @@ const F1Customers = () => {
                 setMobileMenuOpen(false);
               }}
               className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all ${
-                viewMode === "list"
+                viewMode === "list" || viewMode === "create"
                   ? "bg-amber-500/20 text-amber-300 shadow-inner"
                   : "text-slate-300 hover:bg-white/10 hover:text-white"
               }`}
@@ -360,17 +359,6 @@ const F1Customers = () => {
               <span>Khách hàng F1</span>
             </button>
 
-            <button
-              onClick={handleOpenCreate}
-              className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all ${
-                viewMode === "create"
-                  ? "bg-amber-500/20 text-amber-300 shadow-inner"
-                  : "text-slate-300 hover:bg-white/10 hover:text-white"
-              }`}
-            >
-              <UserPlus size={20} />
-              <span>Thêm khách hàng F1</span>
-            </button>
           </nav>
 
           <div className="border-t border-white/10 p-4">
@@ -399,7 +387,7 @@ const F1Customers = () => {
               </div>
             }
           >
-          {viewMode === "list" && (
+          {(viewMode === "list" || viewMode === "create") && (
             <F1CustomerList
               loading={customersQuery.isLoading}
               search={search}

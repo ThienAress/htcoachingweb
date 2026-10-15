@@ -1,6 +1,8 @@
 // F1CreateCustomerForm.jsx
-import { useState } from "react";
-import { ArrowLeft, UserPlus, Shield, Sparkles } from "lucide-react";
+import { useEffect, useState } from "react";
+import { X, UserPlus, Shield, Sparkles } from "lucide-react";
+import { useModalScrollLock } from "../../hooks/useModalScrollLock";
+import RoundedSelect from "./assessment/RoundedSelect";
 import ConversionOriginFields from "../admin/ConversionOriginFields";
 
 const Input = ({ label, required, error, ...props }) => {
@@ -22,30 +24,21 @@ const Input = ({ label, required, error, ...props }) => {
   );
 };
 
-const Select = ({ label, options = [], required, error, ...props }) => {
-  return (
-    <label className="block">
-      <span className="mb-1.5 block text-sm font-semibold text-slate-800">
-        {label} {required && <span className="text-orange-500">*</span>}
-      </span>
-      <select
-        {...props}
-        className={`w-full rounded-xl border bg-white px-4 py-3 text-slate-800 outline-none transition-all duration-200 focus:ring-2 ${
-          error
-            ? "border-red-300 focus:border-red-500 focus:ring-red-100"
-            : "border-slate-200 focus:border-orange-400 focus:ring-orange-100"
-        }`}
-      >
-        {options.map((item) => (
-          <option key={item.value} value={item.value}>
-            {item.label}
-          </option>
-        ))}
-      </select>
-      {error && <p className="mt-1.5 text-sm text-red-500">{error}</p>}
-    </label>
-  );
-};
+const Select = ({ label, options = [], required, error, value, onChange }) => (
+  <div className="block">
+    <span className="mb-1.5 block text-sm font-semibold text-slate-800">
+      {label} {required && <span className="text-orange-500">*</span>}
+    </span>
+    <RoundedSelect
+      label={label}
+      value={value}
+      onChange={onChange}
+      options={options}
+      placeholder={options[0]?.label}
+    />
+    {error && <p className="mt-1.5 text-sm text-red-500">{error}</p>}
+  </div>
+);
 
 const normalizeSpaces = (value = "") => value.trim().replace(/\s+/g, " ");
 
@@ -147,27 +140,36 @@ const F1CreateCustomerForm = ({
     onSubmit(e);
   };
 
-  return (
-    <section className="mx-auto max-w-4xl px-4 py-6 md:px-6">
-      <button
-        onClick={onBack}
-        className="group mb-6 inline-flex items-center gap-2 text-slate-500 transition hover:text-orange-600"
-      >
-        <ArrowLeft
-          size={18}
-          className="transition-transform group-hover:-translate-x-1"
-        />
-        Quay lại danh sách
-      </button>
+  useModalScrollLock(true);
+  useEffect(() => {
+    const onKeyDown = (event) => {
+      if (event.key === "Escape" && !submittingCreate) onBack?.();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [onBack, submittingCreate]);
 
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl shadow-slate-200/50">
-        <div className="border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white px-6 py-5 md:px-8">
+  return (
+    <div
+      className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 p-3 md:p-8"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget && !submittingCreate) onBack?.();
+      }}
+    >
+    <section
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="f1-create-title"
+      className="mx-auto w-full max-w-4xl"
+    >
+      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+        <div className="flex items-start justify-between gap-4 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white px-6 py-5 md:px-8">
           <div className="flex items-center gap-3">
             <div className="rounded-full bg-orange-100 p-2 text-orange-600">
               <UserPlus size={22} />
             </div>
             <div>
-              <h2 className="text-2xl font-extrabold tracking-tight text-slate-800 uppercase">
+              <h2 id="f1-create-title" className="text-2xl font-extrabold tracking-tight text-slate-800 uppercase">
                 Tạo khách hàng F1
               </h2>
               <p className="mt-1 text-sm text-slate-500">
@@ -176,6 +178,15 @@ const F1CreateCustomerForm = ({
               </p>
             </div>
           </div>
+          <button
+            type="button"
+            onClick={onBack}
+            disabled={submittingCreate}
+            aria-label="Đóng"
+            className="rounded-lg border border-slate-200 bg-white p-2 text-slate-600 transition hover:bg-slate-50 disabled:opacity-60"
+          >
+            <X size={18} />
+          </button>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6 px-6 py-8 md:px-8">
@@ -207,7 +218,7 @@ const F1CreateCustomerForm = ({
               name="gender"
               label="Giới tính"
               value={createForm.gender}
-              onChange={(e) => updateField("gender", e.target.value)}
+              onChange={(value) => updateField("gender", value)}
               options={[
                 { label: "Chọn giới tính", value: "" },
                 { label: "Nam", value: "male" },
@@ -302,6 +313,7 @@ const F1CreateCustomerForm = ({
         </form>
       </div>
     </section>
+    </div>
   );
 };
 
