@@ -61,7 +61,6 @@ export const normalizeProfile = (body) => {
     goal.trainingExperience,
     ["none", "beginner", "intermediate", "advanced"],
     "Kinh nghiệm tập luyện",
-    { required: true },
   );
 
   return {

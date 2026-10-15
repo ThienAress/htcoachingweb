@@ -84,7 +84,8 @@ const goalOptions = [
   { label: "Duy trì", value: "maintenance" },
 ];
 
-const StepTrainingGoal = ({ register, watch, setValue, errors = {} }) => {
+// `hideTrainingHistory`: cập nhật giữa các giai đoạn không hỏi lại lịch sử tập cũ khi khách đang nghỉ tập.
+const StepTrainingGoal = ({ register, watch, setValue, errors = {}, hideTrainingHistory = false }) => {
   const isCurrentlyTraining = Boolean(watch("trainingProfileGoal.currentlyTraining"));
   const trainingExperience = watch("trainingProfileGoal.trainingExperience");
   
@@ -173,7 +174,7 @@ const StepTrainingGoal = ({ register, watch, setValue, errors = {} }) => {
               helperText="Có thể nhập nhiều môn, cách nhau bằng dấu phẩy"
             />
           </>
-        ) : (
+        ) : hideTrainingHistory ? null : (
           <>
             <SelectField
               label="Trước đây đã từng tập chưa?"
