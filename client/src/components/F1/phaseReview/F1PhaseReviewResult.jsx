@@ -7,12 +7,13 @@ import {
 import {
   COMPONENT_LABELS,
   DECISION_META,
-  formatDelta,
+  formatDeltaWithUnit,
   formatNumber,
 } from "../../../utils/f1PhaseReview";
 
 const METRICS = [
   ["weightKg", "Cân nặng", "kg"],
+  ["bmi", "BMI", ""],
   ["waistCm", "Vòng eo", "cm"],
   ["hipCm", "Vòng hông", "cm"],
   ["bodyFatPercent", "Tỷ lệ mỡ", "%"],
@@ -136,7 +137,7 @@ export const F1NextStagePlan = ({ review }) => {
                         </span>
                       )}
                     </td>
-                    <td className="px-4 py-2.5">{formatDelta(checkpoint.deltaFromBaseline?.[key])}</td>
+                    <td className="px-4 py-2.5">{formatDeltaWithUnit(checkpoint.deltaFromBaseline?.[key], key)}</td>
                   </tr>
                 );
               })}
@@ -182,7 +183,6 @@ const F1PhaseReviewResult = ({ review, showNext = true }) => {
               </div>
             ) : null,
           )}
-          <p className="text-xs text-slate-500">≥ 80%: chuyển giai đoạn · 60–79%: kéo dài 2–4 tuần · dưới 60%: lặp lại giai đoạn</p>
         </div>
       </section>
 
@@ -213,7 +213,7 @@ const F1PhaseReviewResult = ({ review, showNext = true }) => {
                   <td className="px-4 py-2.5">{withUnit(projected[key], unit)}</td>
                   <td className="px-4 py-2.5 font-semibold text-slate-800">{withUnit(review.actual?.[key], unit)}</td>
                   <td className="px-4 py-2.5">
-                    {review.actual?.[key] != null && start[key] != null ? formatDelta(review.actual[key] - start[key]) : "--"}
+                    {review.actual?.[key] != null && start[key] != null ? formatDeltaWithUnit(review.actual[key] - start[key], key) : "--"}
                   </td>
                 </tr>
               ))}

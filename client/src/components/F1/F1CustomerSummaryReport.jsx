@@ -133,14 +133,20 @@ const AssessmentGroup = ({ assessment }) => {
             .join(", ") || "Bình thường"}
         </Item>
       </Grid>
-      <div className="mt-4 overflow-x-auto">
-        <table className="w-full text-left text-sm">
+      <div className="mt-4 overflow-x-auto rounded-lg border border-slate-200 px-4 py-2">
+        <table className="w-full table-fixed text-left text-sm">
+          <colgroup>
+            <col className="w-[34%]" />
+            <col className="w-[46%]" />
+            <col className="w-[20%]" />
+          </colgroup>
           <thead>
             <tr className="border-b border-slate-200 text-xs text-slate-500">
               <th className="py-2 pr-3 font-medium">
                 Squat tay qua đầu (Overhead Squat)
               </th>
-              <th className="py-2 font-medium">Kết quả</th>
+              <th className="py-2 pr-3 font-medium">Kết quả</th>
+              <th className="py-2" aria-hidden="true" />
             </tr>
           </thead>
           <tbody>
@@ -149,16 +155,22 @@ const AssessmentGroup = ({ assessment }) => {
                 <td className="py-2 pr-3 font-medium text-slate-800">
                   Góc nhìn {row.label.toLowerCase()}
                 </td>
-                <td className={`py-2 font-semibold ${resultToneClass[row.tone]}`}>
+                <td className={`py-2 pr-3 font-semibold ${resultToneClass[row.tone]}`}>
                   {row.result}
                 </td>
+                <td aria-hidden="true" />
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-      <div className="mt-6 overflow-x-auto">
-        <table className="w-full text-left text-sm">
+      <div className="mt-4 overflow-x-auto rounded-lg border border-slate-200 px-4 py-2">
+        <table className="w-full table-fixed text-left text-sm">
+          <colgroup>
+            <col className="w-[34%]" />
+            <col className="w-[46%]" />
+            <col className="w-[20%]" />
+          </colgroup>
           <thead>
             <tr className="border-b border-slate-200 text-xs text-slate-500">
               <th className="py-2 pr-3 font-medium">Hạng mục</th>
@@ -354,6 +366,10 @@ const F1CustomerSummaryReport = ({
                   <Item label="Tuổi">{info.age || customer?.age}</Item>
                   <Item label="Giới tính">{getF1GenderLabel(info.gender || customer?.gender)}</Item>
                   <Item label="Chiều cao">{body.heightCm ? `${body.heightCm} cm` : ""}</Item>
+                  <Item label="Vòng eo">{body.waistCm ? `${body.waistCm} cm` : ""}</Item>
+                  <Item label="Vòng hông">{body.hipCm ? `${body.hipCm} cm` : ""}</Item>
+                  <Item label="Tỷ lệ mỡ">{body.bodyFatPercent ? `${body.bodyFatPercent}%` : ""}</Item>
+                  <Item label="Nhịp tim nghỉ">{body.restingHeartRate ? `${body.restingHeartRate} bpm` : ""}</Item>
                   <Item label="Cân nặng · BMI">
                     {body.weightKg ? `${body.weightKg} kg${body.bmi ? ` · ${body.bmi}` : ""}` : ""}
                   </Item>

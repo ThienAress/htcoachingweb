@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   buildFormDefaults,
+  computeBmi,
+  describePrevious,
+  formatDeltaWithUnit,
+  retestMode,
   formatDelta,
   formatNumber,
   retestLevel,
@@ -52,7 +56,7 @@ describe("buildFormDefaults and toPayload", () => {
     });
     expect(payload.adherence).toMatchObject({ plannedSessions: 30, completedSessions: 28 });
     expect(payload.retests).toEqual([
-      { metricKey: "lowerBody", name: "Goblet Squat", tier: "standard", sets: 3, reps: 10, durationSec: null, level: "good" },
+      { metricKey: "lowerBody", name: "Goblet Squat", tier: "standard", sets: 3, reps: 10, durationSec: null, result: null, level: "good" },
     ]);
   });
 
@@ -73,6 +77,38 @@ describe("buildFormDefaults and toPayload", () => {
     expect(values.ohsa.items).toEqual([
       { view: "anterior", key: "", label: "Gối chụm vào trong", status: "new", fixed: false },
     ]);
+  });
+});
+
+describe("retest modes", () => {
+  it("keeps the input mode the trainer used at stage 1", () => {
+    expect(retestMode({ resultKind: "minutes" })).toBe("result");
+    expect(retestMode({ inputMode: "time" })).toBe("time");
+    expect(retestMode({ inputMode: "reps" })).toBe("reps");
+    expect(retestMode({})).toBe("reps");
+  });
+
+  it("scores cardio results with the same targets as the assessment", () => {
+    // 24 phút: 10 × (0,7 + 0,3 × 0,4) = 8,2 → Tốt; 8 phút: 10 × 0,7 × 0,4 = 2,8 → Yếu.
+    expect(retestLevel({ resultKind: "minutes", result: "24" })).toBe("good");
+    expect(retestLevel({ resultKind: "minutes", result: "8" })).toBe("low");
+    expect(retestLevel({ resultKind: "hr_drop", result: "" })).toBe("");
+  });
+
+  it("describes the previous result in the original unit", () => {
+    expect(describePrevious({ previousLevel: "good", previous: { sets: 3, reps: 12 } })).toBe("3 hiệp × 12 reps · Tốt");
+    expect(describePrevious({ previousLevel: "average", previous: { sets: 2, durationSec: 30 } })).toBe("2 hiệp × 30 giây · Trung bình");
+    expect(describePrevious({ resultKind: "minutes", previousLevel: "good", previous: { result: 24 } })).toBe("24 phút · Tốt");
+  });
+});
+
+describe("number formatting", () => {
+  it("computes BMI and formats deltas with units", () => {
+    expect(computeBmi("71,8", 160)).toBe(28);
+    expect(computeBmi("", 160)).toBeNull();
+    expect(formatDeltaWithUnit(-20, "waistCm")).toBe("−20 cm");
+    expect(formatDeltaWithUnit(-5, "weightKg")).toBe("−5 kg");
+    expect(formatDeltaWithUnit(0, "bodyFatPercent")).toBe("0 %");
   });
 });
 

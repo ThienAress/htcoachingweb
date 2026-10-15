@@ -10,6 +10,7 @@ import {
   Sparkles,
   Layers,
   Lock,
+  Pencil,
 } from "lucide-react";
 import { useConfirmDialog } from "../../hooks/useConfirmDialog";
 import {
@@ -88,31 +89,80 @@ const BulletList = ({ items = [], emptyText = "Chưa có dữ liệu" }) => {
   );
 };
 
-const StageTabs = ({ tabs = [], selectedKey, onSelect }) => (
+// Giai đoạn 2 trở đi sửa được khi bật chế độ chỉnh sửa; chỉ giai đoạn mới nhất sửa được,
+// các giai đoạn trước bị khoá để lộ trình đã đi qua không bị đổi.
+const StageTabs = ({
+  tabs = [],
+  selectedKey,
+  onSelect,
+  canEdit = false,
+  editMode = false,
+  editableOrder = 0,
+  onToggleEdit,
+  onEdit,
+}) => (
   <div className="rounded-xl border border-slate-200 bg-white p-2">
-    <div className="flex flex-wrap gap-2" role="tablist">
+    <div className="flex flex-wrap items-center gap-2" role="tablist">
       {tabs.map((tab) => {
         const active = tab.key === selectedKey;
+        const showEdit = editMode && !tab.locked && tab.stageOrder >= 2;
+        const editable = tab.stageOrder === editableOrder;
         return (
-          <button
-            key={tab.key}
-            type="button"
-            role="tab"
-            aria-selected={active}
-            onClick={() => onSelect(tab.key)}
-            className={`inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors ${
-              active
-                ? "bg-gradient-to-r from-orange-600 to-orange-500 text-white shadow-md"
-                : tab.locked
-                  ? "border border-dashed border-slate-300 bg-white text-slate-500 hover:bg-slate-50"
-                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-            }`}
-          >
-            {tab.locked && <Lock size={14} aria-hidden="true" />}
-            {tab.label}
-          </button>
+          <div key={tab.key} className="inline-flex items-center gap-1">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={active}
+              onClick={() => onSelect(tab.key)}
+              className={`inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors ${
+                active
+                  ? "bg-gradient-to-r from-orange-600 to-orange-500 text-white shadow-md"
+                  : tab.locked
+                    ? "border border-dashed border-slate-300 bg-white text-slate-500 hover:bg-slate-50"
+                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+              }`}
+            >
+              {tab.locked && <Lock size={14} aria-hidden="true" />}
+              {tab.label}
+            </button>
+            {showEdit &&
+              (editable ? (
+                <button
+                  type="button"
+                  onClick={() => onEdit(tab.stageOrder)}
+                  aria-label={`Sửa kết quả dẫn tới giai đoạn ${tab.stageOrder}`}
+                  title="Sửa kết quả cuối giai đoạn trước"
+                  className="rounded-lg border border-orange-200 bg-orange-50 p-2 text-orange-700 transition-colors hover:bg-orange-100"
+                >
+                  <Pencil size={14} aria-hidden="true" />
+                </button>
+              ) : (
+                <span
+                  title="Đã khoá vì giai đoạn sau đã mở"
+                  className="rounded-lg border border-slate-200 bg-slate-50 p-2 text-slate-400"
+                >
+                  <Lock size={14} aria-hidden="true" />
+                  <span className="sr-only">Đã khoá</span>
+                </span>
+              ))}
+          </div>
         );
       })}
+      {canEdit && (
+        <button
+          type="button"
+          onClick={onToggleEdit}
+          aria-pressed={editMode}
+          className={`ml-auto inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-medium transition-colors ${
+            editMode
+              ? "border-orange-300 bg-orange-50 text-orange-800"
+              : "border-slate-200 text-slate-600 hover:bg-slate-50"
+          }`}
+        >
+          <Pencil size={13} aria-hidden="true" />
+          {editMode ? "Xong" : "Chỉnh sửa"}
+        </button>
+      )}
     </div>
   </div>
 );
@@ -206,11 +256,11 @@ const StageDetailCard = ({ stage, onShowFramework }) => {
   );
 };
 
-const OutcomeComparisonTable = ({ outcomeTable }) => {
+const OutcomeComparisonTable = ({ outcomeTable, baselineTitle = "Ban đầu" }) => {
   const baseline = outcomeTable?.baseline || {};
   const checkpoints = outcomeTable?.phaseCheckpoints || [];
   const columns = [
-    { key: "baseline", title: "Ban đầu", data: baseline, isCurrent: true },
+    { key: "baseline", title: baselineTitle, data: baseline, isCurrent: true },
     ...checkpoints.map((item) => ({
       key: item.phaseKey,
       title: item.label,
@@ -524,6 +574,7 @@ const F1ResultPredictionPanel = ({ customer, onBack, onGenerated }) => {
   const stageRequestIdsRef = useRef(new Map());
   const frameworkRef = useRef(null);
   const [openStage, setOpenStage] = useState(null);
+  const [editMode, setEditMode] = useState(false);
   const queryClient = useQueryClient();
 
   useEffect(() => {
@@ -572,11 +623,46 @@ const F1ResultPredictionPanel = ({ customer, onBack, onGenerated }) => {
     [prediction, phaseReviews],
   );
   // Giai đoạn 1 xem ngay trong trang; giai đoạn sau mở hộp thoại đánh giá cuối giai đoạn.
+  const reviews = phaseReviews?.reviews || [];
+  // Giai đoạn mở khoá thì xem ngay trong trang; giai đoạn đang khoá mở hộp thoại nhập kết quả.
   const handleSelectStage = (key) => {
     const tab = stageTabs.find((item) => item.key === key);
-    if (tab && tab.stageOrder >= 2) setOpenStage(tab.stageOrder);
+    if (tab?.locked) setOpenStage(tab.stageOrder);
     else setSelectedStageKey(key);
   };
+  const selectedTab = stageTabs.find((tab) => tab.key === selectedStageKey);
+  const followUpStage = selectedTab && !selectedTab.locked && selectedTab.stageOrder >= 2 ? selectedTab.stageOrder : 0;
+  const followUpReview = followUpStage
+    ? reviews.find((item) => item.stageOrder === followUpStage - 1)
+    : null;
+  const followUp = useMemo(() => {
+    const plan = followUpReview?.nextPhasePlan;
+    if (!plan) return null;
+    return {
+      stage: {
+        stageOrder: followUpStage,
+        phaseKey: plan.phaseKey,
+        levelTitle: plan.levelTitle,
+        phaseTitle: plan.phaseTitle,
+        durationWeeks: plan.durationWeeks,
+        objective: plan.objective,
+        entryReason: plan.entryReason,
+        keyFocus: plan.keyFocus,
+        expectedChanges: plan.expectedChanges,
+        exitCriteria: plan.exitCriteria,
+      },
+      outcomeTable: {
+        baseline: { ...followUpReview.nextOutcome?.baseline, label: "Đầu giai đoạn" },
+        phaseCheckpoints: [
+          {
+            ...followUpReview.nextOutcome?.checkpoint,
+            label: `Kết thúc giai đoạn ${followUpStage}`,
+          },
+        ],
+        goalProgress: followUpReview.nextOutcome?.goalProgress,
+      },
+    };
+  }, [followUpReview, followUpStage]);
   const showFramework = () =>
     frameworkRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   const selectedVisualStage = useMemo(() => {
@@ -805,23 +891,33 @@ const F1ResultPredictionPanel = ({ customer, onBack, onGenerated }) => {
                   tabs={stageTabs}
                   selectedKey={selectedStageKey}
                   onSelect={handleSelectStage}
+                  canEdit={reviews.length > 0}
+                  editMode={editMode}
+                  editableOrder={reviews.length + 1}
+                  onToggleEdit={() => setEditMode((value) => !value)}
+                  onEdit={setOpenStage}
                 />
                 <StageDetailCard
-                  stage={selectedStage}
+                  stage={followUp ? followUp.stage : selectedStage}
                   onShowFramework={showFramework}
                 />
               </div>
 
               <div className="space-y-4">
                 <SectionHeading
-                  title="Bảng kết quả theo từng giai đoạn"
-                  subtitle="Mốc ban đầu và thay đổi kỳ vọng"
+                  title={followUp ? `Bảng kết quả giai đoạn ${followUpStage}` : "Bảng kết quả theo từng giai đoạn"}
+                  subtitle={
+                    followUp
+                      ? "Dự đoán bắt đầu từ số đo thực tế cuối giai đoạn trước"
+                      : "Mốc ban đầu và thay đổi kỳ vọng"
+                  }
                 />
                 <GoalProgressCard
-                  goalProgress={prediction.outcomeTable?.goalProgress}
+                  goalProgress={(followUp || prediction).outcomeTable?.goalProgress}
                 />
                 <OutcomeComparisonTable
-                  outcomeTable={prediction.outcomeTable}
+                  outcomeTable={(followUp || prediction).outcomeTable}
+                  baselineTitle={followUp ? "Đầu giai đoạn" : "Ban đầu"}
                 />
                 <p className="text-xs text-slate-500">
                   Đây là ước tính tham khảo dựa trên hồ sơ hiện tại. Kết quả
@@ -835,12 +931,19 @@ const F1ResultPredictionPanel = ({ customer, onBack, onGenerated }) => {
                   title="So sánh hình ảnh trước / sau tập"
                   subtitle="Ảnh sau tập theo giai đoạn đang chọn"
                 />
-                <VisualComparisonSection
-                  prediction={prediction}
-                  selectedVisualStage={selectedVisualStage}
-                  onGenerateImages={handleGenerateStageImages}
-                  generatingStageKey={generatingStageKey}
-                />
+                {followUp ? (
+                  <p className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-5 text-sm text-slate-600">
+                    Ảnh dự đoán cho giai đoạn {followUpStage} dùng ảnh cải thiện mới của khách và sẽ được bổ sung ở bước
+                    tiếp theo. Hiện chỉ có ảnh dự đoán của giai đoạn 1.
+                  </p>
+                ) : (
+                  <VisualComparisonSection
+                    prediction={prediction}
+                    selectedVisualStage={selectedVisualStage}
+                    onGenerateImages={handleGenerateStageImages}
+                    generatingStageKey={generatingStageKey}
+                  />
+                )}
               </div>
             </div>
           )}

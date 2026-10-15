@@ -35,6 +35,19 @@ const buildFirstRecommendations = (aiReport) => {
   return [...new Set(items)].slice(0, MAX_RECOMMENDATION_CHECKS);
 };
 
+// Bài tim mạch nhập một kết quả duy nhất; các bài còn lại theo hiệp × lần hoặc hiệp × giây.
+const RESULT_KINDS = {
+  cardioCapacity: "minutes",
+  recoveryHeartRate: "hr_drop",
+};
+
+const detectInputMode = (exercise) => {
+  if (exercise.inputMode) return exercise.inputMode;
+  if (Number(exercise.durationSec) > 0) return "time";
+  if (Number(exercise.reps) > 0) return "reps";
+  return "";
+};
+
 const buildFirstRetests = (assessment) => {
   const items = [];
   for (const [group, key, label] of METRICS) {
@@ -45,9 +58,16 @@ const buildFirstRetests = (assessment) => {
         metricLabel: label,
         name: exercise.name,
         tier: exercise.tier || "",
-        inputMode: exercise.inputMode || "",
+        inputMode: detectInputMode(exercise),
+        resultKind: RESULT_KINDS[key] || "",
         selectedProtocol: exercise.selectedProtocol || null,
         previousLevel: exercise.level || "",
+        previous: {
+          sets: exercise.sets ?? null,
+          reps: exercise.reps ?? null,
+          durationSec: exercise.durationSec ?? null,
+          result: exercise.result ?? null,
+        },
       });
     }
   }
@@ -134,8 +154,15 @@ export const buildStageContext = ({ stageOrder, prediction, intake, assessment, 
         name: item.name,
         tier: item.tier || "",
         inputMode: original?.inputMode || "",
+        resultKind: original?.resultKind || RESULT_KINDS[item.metricKey] || "",
         selectedProtocol: original?.selectedProtocol || null,
         previousLevel: item.level || item.previousLevel || "",
+        previous: {
+          sets: item.sets ?? null,
+          reps: item.reps ?? null,
+          durationSec: item.durationSec ?? null,
+          result: item.result ?? null,
+        },
       };
     }),
     ohsaItems: (previous.ohsa?.items || [])
