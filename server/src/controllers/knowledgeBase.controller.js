@@ -1318,6 +1318,8 @@ export const getCategories = async (_req, res) =>
   });
 
 export const suggestFromConversations = async (req, res) => {
+  // Giai đoạn đang chạy, ghi vào log khi lỗi để biết hỏng ở bước nào.
+  let stage = "load_conversations";
   let providerRequestStarted = false;
   let providerOutcomeRecorded = false;
   let providerUsage = {};
@@ -1349,6 +1351,7 @@ export const suggestFromConversations = async (req, res) => {
       });
     }
 
+    stage = "build_candidates";
     const allPairs = [];
     for (const conversation of conversations) {
       for (let index = 0; index < conversation.messages.length; index += 1) {
@@ -1422,7 +1425,9 @@ export const suggestFromConversations = async (req, res) => {
           `[${index}] Q: ${escapeSuggestionData(pair.question, 200)}\nA: ${escapeSuggestionData(pair.answer, 300)}`,
       )
       .join("\n\n")}\n</untrusted_qa_candidates>`;
-    const model = process.env.GEMINI_MODEL || "gemini-2.0-flash-lite";
+    // gemini-2.0-flash-lite đã ngừng hoạt động (01/06/2026); dùng cùng mặc định với các luồng Gemini khác.
+    const model = process.env.GEMINI_MODEL || "gemini-3.1-flash-lite";
+    stage = "provider_request";
     recordGeminiRequest("kb_suggestion");
     providerRequestStarted = true;
     const response = await fetch(
@@ -1516,7 +1521,13 @@ export const suggestFromConversations = async (req, res) => {
     });
   } catch (error) {
     recordProviderOutcome(false);
-    safeLog.error("kb.ai_suggestion_failed", error);
+    safeLog.error("kb.ai_suggestion_failed", error, { stage });
+    if (error?.name === "TimeoutError" || error?.name === "AbortError") {
+      return res.status(504).json({
+        success: false,
+        message: "AI suggestion phản hồi quá lâu. Vui lòng thử lại.",
+      });
+    }
     return res.status(500).json({
       success: false,
       message: "Không thể tạo AI suggestion",

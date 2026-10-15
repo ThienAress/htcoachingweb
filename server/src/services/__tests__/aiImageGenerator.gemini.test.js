@@ -98,6 +98,38 @@ describe("Gemini (Nano Banana) stage images", () => {
     });
   });
 
+  it("turns provider quota errors into a safe, exposed Vietnamese error", async () => {
+    stubFetch(async () => ({
+      ok: false,
+      status: 429,
+      json: async () => ({
+        error: { message: "Quota exceeded for key AIzaSyFAKE-SECRET-VALUE" },
+      }),
+    }));
+
+    const error = await run().catch((caught) => caught);
+
+    expect(error.status).toBe(429);
+    expect(error.code).toBe("AI_IMAGE_PROVIDER_RATE_LIMITED");
+    expect(error.expose).toBe(true);
+    expect(error.message).toContain("quá tải");
+    expect(error.message).not.toContain("AIza");
+  });
+
+  it("maps provider authorization failures without leaking details", async () => {
+    stubFetch(async () => ({
+      ok: false,
+      status: 403,
+      json: async () => ({ error: { message: "API key not valid: sk-secret" } }),
+    }));
+
+    const error = await run().catch((caught) => caught);
+
+    expect(error.status).toBe(502);
+    expect(error.code).toBe("AI_IMAGE_PROVIDER_AUTH");
+    expect(error.message).not.toContain("sk-secret");
+  });
+
   it("fails clearly when the response has no image part", async () => {
     stubFetch(async () => ({
       ok: true,

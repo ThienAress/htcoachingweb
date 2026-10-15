@@ -9,6 +9,7 @@ import {
   Sparkles,
   Layers,
 } from "lucide-react";
+import { useConfirmDialog } from "../../hooks/useConfirmDialog";
 import {
   generateResultPrediction,
   getLatestResultPrediction,
@@ -505,6 +506,7 @@ const VisualComparisonSection = ({
 };
 
 const F1ResultPredictionPanel = ({ customer, onBack, onGenerated }) => {
+  const { confirm, dialog: confirmDialog } = useConfirmDialog();
   const [prediction, setPrediction] = useState(null);
   const [loadingLatest, setLoadingLatest] = useState(false);
   const [generating, setGenerating] = useState(false);
@@ -584,17 +586,25 @@ const F1ResultPredictionPanel = ({ customer, onBack, onGenerated }) => {
     const attemptCount = Number(
       selectedVisualStage?.generation?.attemptCount || 0,
     );
-    if (forceRegenerate) {
-      const confirmed = window.confirm(
-        `Bạn sắp tạo lại ảnh AI cho ${selectedVisualStage?.label || phaseKey}.\n\nMỗi lần tạo lại sẽ phát sinh chi phí.\nHiện đã dùng ${attemptCount}/${MAX_ATTEMPTS_FALLBACK} lượt.\n\nBạn có chắc muốn tiếp tục không?`,
-      );
-      if (!confirmed) return;
-    } else {
-      const confirmed = window.confirm(
-        `Tạo ảnh AI cho ${selectedVisualStage?.label || phaseKey}?\n\nMỗi lần tạo ảnh sẽ phát sinh chi phí.`,
-      );
-      if (!confirmed) return;
-    }
+    const confirmed = await confirm(
+      forceRegenerate
+        ? {
+            title: "Tạo lại ảnh dự đoán?",
+            message: `Bạn sắp tạo lại ảnh cho ${selectedVisualStage?.label || phaseKey}.`,
+            details: [
+              "Mỗi lần tạo lại sẽ phát sinh chi phí.",
+              `Hiện đã dùng ${attemptCount}/${MAX_ATTEMPTS_FALLBACK} lượt.`,
+            ],
+            confirmLabel: "Tạo lại ảnh",
+          }
+        : {
+            title: "Tạo ảnh dự đoán?",
+            message: `Hệ thống sẽ tạo ảnh sau tập cho ${selectedVisualStage?.label || phaseKey}.`,
+            details: ["Mỗi lần tạo ảnh sẽ phát sinh chi phí."],
+            confirmLabel: "Tạo ảnh",
+          },
+    );
+    if (!confirmed) return;
     try {
       setGeneratingStageKey(phaseKey);
       const requestId =
@@ -643,6 +653,7 @@ const F1ResultPredictionPanel = ({ customer, onBack, onGenerated }) => {
 
   return (
     <section className="mx-auto max-w-6xl space-y-6 px-4 py-6 md:px-6">
+      {confirmDialog}
       <button
         onClick={onBack}
         className="group inline-flex items-center gap-2 text-slate-500 transition hover:text-orange-600"
