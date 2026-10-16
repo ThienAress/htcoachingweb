@@ -20,8 +20,10 @@ const routeFamilies = [
     // 240/70 → 256/74 khi thêm luồng chọn tối đa 3 bài test mỗi thẻ đánh giá
     // (Netlify đo 240.4/70.7), rồi → 272/80 khi thêm hộp thoại Báo cáo tổng
     // quát khách hàng (+12 kB raw / +5 kB gzip đo local, ước tính ~253/76 trên Netlify).
-    rawLimit: 272 * KB,
-    gzipLimit: 80 * KB,
+    // → 288/88 khi thêm đánh giá cuối giai đoạn, ảnh giai đoạn 2+ và thiết kế lộ trình của HLV
+    // (đo local 247/80.2; các hộp thoại mới đều lazy-load nên không tăng tải trang đầu).
+    rawLimit: 288 * KB,
+    gzipLimit: 88 * KB,
   },
   {
     name: "training-schedule",

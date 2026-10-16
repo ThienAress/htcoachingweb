@@ -49,7 +49,7 @@ const Preview = ({ context, reviewedStage, onStart }) => (
   </div>
 );
 
-const F1PhaseReviewDialog = ({ customer, stageOrder, data, loading, error, onClose, onProfileSaved }) => {
+const F1PhaseReviewDialog = ({ customer, stageOrder, data, loading, error, onClose, onProfileSaved, onDesign }) => {
   const closeRef = useRef(null);
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState(false);
@@ -197,6 +197,11 @@ const F1PhaseReviewDialog = ({ customer, stageOrder, data, loading, error, onClo
             {isLatestReview && context && (
               <button type="button" onClick={() => setEditing(true)} className="rounded-xl border border-slate-200 bg-white px-5 py-2.5 font-medium text-slate-700 hover:bg-slate-50">
                 Sửa kết quả
+              </button>
+            )}
+            {isLatestReview && review.profileConfirmed && onDesign && (
+              <button type="button" onClick={() => onDesign(stageOrder)} className="rounded-xl border border-violet-200 bg-violet-50 px-5 py-2.5 font-medium text-violet-700 hover:bg-violet-100">
+                {`Thiết kế lại giai đoạn ${stageOrder}`}
               </button>
             )}
             {isLatestReview && context && (

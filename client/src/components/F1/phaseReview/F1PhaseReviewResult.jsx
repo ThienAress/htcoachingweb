@@ -1,4 +1,5 @@
 import { AlertTriangle, CalendarDays } from "lucide-react";
+import F1WeeklyScheduleView from "../stageDesign/F1WeeklyScheduleView";
 import {
   PHASE_EXPLANATIONS,
   PHASE_NAMES,
@@ -96,6 +97,7 @@ export const F1NextStagePlan = ({ review }) => {
           {PHASE_EXPLANATIONS[plan.phaseKey] && <p className="mt-2">{PHASE_EXPLANATIONS[plan.phaseKey]}</p>}
           <p className="mt-2">{plan.objective}</p>
         </div>
+        {plan.weeklySchedule && <F1WeeklyScheduleView schedule={plan.weeklySchedule} />}
         <div className="grid gap-4 md:grid-cols-3">
           <div className="min-w-0">
             <p className="mb-2 text-sm font-semibold text-slate-500">Mang theo từ giai đoạn trước</p>
