@@ -18,10 +18,10 @@ import { SelectControlContext } from "./intake/selectControlContext";
 const intakeSteps = [
   "Thông tin",
   "Sức khỏe",
-  "Lifestyle",
+  "Lối sống",
   "Chỉ số cơ thể",
   "Tập luyện & mục tiêu",
-  "Ảnh posture",
+  "Ảnh tư thế",
 ];
 
 const isBrowserFile = (value) => typeof File !== "undefined" && value instanceof File;

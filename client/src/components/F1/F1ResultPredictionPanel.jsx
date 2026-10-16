@@ -565,7 +565,7 @@ const VisualComparisonSection = ({
             Mỗi lần tạo hoặc tạo lại ảnh AI đều có thể phát sinh chi phí.
           </p>
           <p className="mt-1 text-xs text-orange-600">
-            Đã dùng {attemptCount}/{MAX_ATTEMPTS_FALLBACK} lượt cho phase này.
+            Đã dùng {attemptCount}/{MAX_ATTEMPTS_FALLBACK} lượt cho giai đoạn này.
           </p>
         </div>
         <button

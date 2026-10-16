@@ -67,7 +67,7 @@ describe("applySuggestion", () => {
     });
 
     expect(next.durationWeeks).toBe("9");
-    expect(next.keyFocus).toEqual([{ value: "Cải thiện kiểm soát core" }]);
+    expect(next.keyFocus).toEqual([{ value: "Cải thiện kiểm soát cơ lõi" }]);
     expect(next.overrides.weightKg).toBe("66");
     expect(next.weeklySchedule).toEqual(values.weeklySchedule);
   });

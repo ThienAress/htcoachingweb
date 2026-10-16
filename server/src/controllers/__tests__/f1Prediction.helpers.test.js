@@ -3,6 +3,8 @@ import {
   buildExitCriteriaByPhase,
   buildExpectedChangesByPhase,
   buildGoalProgress,
+  buildPersonalizedPath,
+  determinePhaseCeiling,
   buildOutcomeTable,
   buildPhaseRoadmap,
   buildRecoveryFactor,
@@ -180,5 +182,27 @@ describe("stage content for the heavy phases", () => {
       expect(changes.join(" ")).not.toContain("Tiếp tục cải thiện theo đúng mục tiêu");
       expect(exit.join(" ")).not.toContain("Đạt điều kiện để chuyển sang giai đoạn tiếp theo");
     }
+  });
+});
+
+describe("phase ceiling for high-risk customers", () => {
+  const withFlags = (flags) => ({ ...intakeOf(), systemFlags: flags });
+  const ceilingFor = (flags, level) =>
+    determinePhaseCeiling({
+      intake: withFlags(flags),
+      assessment: { overallPhysicalLevel: level },
+      aiReport: { recommendations: { recommendedStartPhase: "phase_1" } },
+    });
+
+  it("stops at phase 1 for a low physical level with a medical flag or severe pain", () => {
+    expect(ceilingFor({ medicalReviewFlag: true, painFlag: "none" }, "low")).toBe("phase_1");
+    expect(ceilingFor({ medicalReviewFlag: false, painFlag: "severe" }, "low")).toBe("phase_1");
+    expect(buildPersonalizedPath("phase_1", "phase_1")).toEqual(["phase_1"]);
+  });
+
+  it("keeps phase 2 when the level is not low or there is only moderate pain", () => {
+    expect(ceilingFor({ medicalReviewFlag: true, painFlag: "none" }, "below_average")).toBe("phase_2");
+    expect(ceilingFor({ medicalReviewFlag: false, painFlag: "moderate" }, "low")).toBe("phase_2");
+    expect(ceilingFor({ testPermission: "modified_test" }, "average")).toBe("phase_2");
   });
 });
