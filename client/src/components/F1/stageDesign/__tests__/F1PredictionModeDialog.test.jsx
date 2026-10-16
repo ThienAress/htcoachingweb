@@ -30,8 +30,10 @@ describe("F1PredictionModeDialog", () => {
   });
 
   it("disables both choices once the change was used", () => {
-    const markup = render({ stageOrder: 5, currentMode: "trainer", locked: true });
+    const markup = render({ stageOrder: 5, currentMode: "trainer", locked: true, switchedAtStage: 3 });
     expect(markup).toContain("đã thay đổi cách dự đoán một lần nên không thể thay đổi nữa");
+    expect(markup).toContain("Cách dựng đã được chốt từ giai đoạn 3");
+    expect(markup).not.toContain("trở đi");
     expect(markup.match(/disabled=""/g)?.length).toBeGreaterThanOrEqual(2);
   });
 });

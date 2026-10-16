@@ -107,3 +107,12 @@ export const buildStageTabs = (roadmap = [], reviews = []) => {
   }
   return tabs;
 };
+
+// Tên cấp độ NASM hiển thị trên thẻ giai đoạn; dữ liệu lưu vẫn giữ Stabilization / Strength / Power.
+export const LEVEL_LABELS = Object.freeze({
+  Stabilization: "Ổn định",
+  Strength: "Sức mạnh",
+  Power: "Bùng nổ",
+});
+
+export const translateLevelTitle = (value) => LEVEL_LABELS[value] || value || "";

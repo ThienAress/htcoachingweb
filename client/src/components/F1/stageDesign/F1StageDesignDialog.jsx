@@ -13,6 +13,7 @@ import {
   MIN_WEEKS,
   SPLIT_OPTIONS,
   WEEK_DAYS,
+  applyContentSuggestion,
   applySuggestion,
   buildDesignDefaults,
   toCustomStage,
@@ -178,7 +179,7 @@ const F1StageDesignDialog = ({ customer, stageOrder, plan, overrides, fetchPrevi
                 type="button"
                 disabled={!preview?.suggestion}
                 aria-busy={suggesting}
-                onClick={() => reset(applySuggestion(getValues(), preview.suggestion))}
+                onClick={() => reset(applyContentSuggestion(getValues(), preview.suggestion))}
                 className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60"
               >
                 {suggesting ? <Loader2 size={14} className="animate-spin" aria-hidden="true" /> : <Sparkles size={14} aria-hidden="true" />}

@@ -37,6 +37,7 @@ import {
   PHASE_EXPLANATIONS,
   PHASE_NAMES,
   buildStageTabs,
+  translateLevelTitle,
   translateTrainingFocus,
 } from "../../constants/f1Phases";
 
@@ -221,7 +222,7 @@ const StageDetailCard = ({ stage, onShowFramework }) => {
             <h3 className="text-xl font-bold text-slate-800">
               Giai đoạn {stage.stageOrder}: {stage.phaseTitle}
             </h3>
-            <p className="text-sm text-slate-500">{stage.levelTitle}</p>
+            <p className="text-sm text-slate-500">{translateLevelTitle(stage.levelTitle)}</p>
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -973,6 +974,7 @@ const F1ResultPredictionPanel = ({ customer, onBack, onGenerated }) => {
             busy={generating || switchingMode}
             currentMode={prediction ? planMode.current : null}
             locked={Boolean(prediction) && planMode.locked}
+            switchedAtStage={planMode.switchedAtStage ?? null}
             canRegenerate={!planMode.locked && allReviewCount === 0}
             onClose={() => setModeDialog(null)}
             onSystem={() => {
