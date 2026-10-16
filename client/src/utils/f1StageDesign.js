@@ -39,6 +39,16 @@ const toRows = (items = []) => translateTrainingFocus(items).map((value) => ({ v
 const toInput = (value) =>
   value === null || value === undefined || value === "" ? "" : String(value);
 
+const clampWeeks = (weeks) => Math.min(MAX_WEEKS, Math.max(MIN_WEEKS, Math.round(Number(weeks) || 8)));
+
+// Hệ thống có thể đề xuất kéo dài ngắn hơn mức tối thiểu của bảng thiết kế (ví dụ thêm 2 tuần): báo cho HLV biết.
+export const getShortPlanHint = (plan) => {
+  const weeks = Number(plan?.durationWeeks);
+  return Number.isFinite(weeks) && weeks > 0 && weeks < MIN_WEEKS
+    ? `Hệ thống đề xuất ${weeks} tuần; bảng thiết kế tối thiểu ${MIN_WEEKS} tuần nên đã điền sẵn ${MIN_WEEKS} tuần.`
+    : "";
+};
+
 // Số buổi mỗi tuần HLV đã khai trong hồ sơ → các ngày tập rải đều (T2 là ngày đầu tuần).
 const SPREAD_DAYS = { 1: [0], 2: [0, 3], 3: [0, 2, 4], 4: [0, 1, 3, 4], 5: [0, 1, 2, 3, 4], 6: [0, 1, 2, 3, 4, 5], 7: [0, 1, 2, 3, 4, 5, 6] };
 
@@ -60,7 +70,7 @@ export const buildDesignDefaults = ({ plan = null, overrides = null, fallbackPha
   const minutes = profileMinutes(training?.sessionDurationMinutes);
   return {
     phaseKey: plan?.phaseKey || fallbackPhaseKey,
-    durationWeeks: toInput(plan?.durationWeeks || 8),
+    durationWeeks: toInput(clampWeeks(plan?.durationWeeks || 8)),
     objective: plan?.objective || "",
     entryReason: plan?.entryReason || "",
     keyFocus: toRows(plan?.keyFocus),

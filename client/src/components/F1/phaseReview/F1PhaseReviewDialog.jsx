@@ -80,7 +80,7 @@ const F1PhaseReviewDialog = ({ customer, stageOrder, data, loading, error, onClo
       queryClient.setQueryData(phaseReviewsQueryKey(customer._id), res);
       setProfileOpen(false);
       toast.success(res?.message || "Đã dựng lộ trình giai đoạn kế tiếp");
-      onProfileSaved?.(stageOrder);
+      onProfileSaved?.(stageOrder, res?.data);
     },
     onError: (error) => toast.error(errorMessage(error)),
   });

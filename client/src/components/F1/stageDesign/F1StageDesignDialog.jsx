@@ -16,6 +16,7 @@ import {
   applyContentSuggestion,
   applySuggestion,
   buildDesignDefaults,
+  getShortPlanHint,
   toCustomStage,
   toPreviewStage,
 } from "../../../utils/f1StageDesign";
@@ -160,6 +161,7 @@ const F1StageDesignDialog = ({ customer, stageOrder, plan, overrides, training =
                 Số tuần ({MIN_WEEKS}–{MAX_WEEKS})
                 <input inputMode="numeric" className={inputClass} {...register("durationWeeks")} />
                 <FieldError message={errors.durationWeeks?.message} />
+                {getShortPlanHint(plan) && <span className="font-normal text-slate-500">{getShortPlanHint(plan)}</span>}
               </label>
             </div>
             <p className="mt-3 rounded-lg bg-orange-50 px-3 py-2 text-sm text-slate-700">

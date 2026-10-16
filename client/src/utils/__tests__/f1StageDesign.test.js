@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   SPLIT_OPTIONS,
+  getShortPlanHint,
   daysFromCount,
   applyContentSuggestion,
   applySuggestion,
@@ -156,5 +157,20 @@ describe("schedule defaults from the client profile", () => {
     const none = buildDesignDefaults({ training: { trainingDaysPerWeek: "", sessionDurationMinutes: 5 } });
     expect(none.weeklySchedule.days.filter(Boolean)).toHaveLength(3);
     expect(none.weeklySchedule.sessionMinutes).toBe("60");
+  });
+});
+
+describe("default weeks stay inside the allowed range", () => {
+  it("raises a short system extension to 4 weeks and caps the long ones at 24", () => {
+    expect(buildDesignDefaults({ plan: { durationWeeks: 2 } }).durationWeeks).toBe("4");
+    expect(buildDesignDefaults({ plan: { durationWeeks: 30 } }).durationWeeks).toBe("24");
+    expect(buildDesignDefaults({ plan: { durationWeeks: 12 } }).durationWeeks).toBe("12");
+    expect(buildDesignDefaults().durationWeeks).toBe("8");
+  });
+
+  it("explains the raise only when the plan is shorter than the minimum", () => {
+    expect(getShortPlanHint({ durationWeeks: 2 })).toContain("Hệ thống đề xuất 2 tuần");
+    expect(getShortPlanHint({ durationWeeks: 4 })).toBe("");
+    expect(getShortPlanHint(null)).toBe("");
   });
 });
