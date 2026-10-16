@@ -226,6 +226,14 @@ export const buildObjectiveByPhase = (phaseKey, primaryGoal) => {
     return "Tập trung hơn vào phát triển cơ bắp, tăng tải có kiểm soát và cải thiện vóc dáng theo hướng săn chắc, rõ nét hơn.";
   }
 
+  if (phaseKey === "phase_4") {
+    return "Tăng sức mạnh tối đa ở các bài compound với tải nặng và số lần ít, vẫn giữ form chuẩn và hồi phục đủ giữa các buổi nặng.";
+  }
+
+  if (phaseKey === "phase_5") {
+    return "Rèn sức mạnh bùng nổ và tốc độ phối hợp, giữ kỹ thuật chuẩn ở cường độ cao và hồi phục ổn định.";
+  }
+
   return "Tiếp tục cải thiện thể chất theo đúng giai đoạn phù hợp.";
 };
 

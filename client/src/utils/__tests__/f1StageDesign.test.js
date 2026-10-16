@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   SPLIT_OPTIONS,
+  daysFromCount,
   applyContentSuggestion,
   applySuggestion,
   buildDesignDefaults,
@@ -126,5 +127,34 @@ describe("applyContentSuggestion", () => {
     expect(next.keyFocus).toHaveLength(1);
     expect(next.expectedChanges).toEqual([{ value: "A" }]);
     expect(next.exitCriteria).toEqual([{ value: "B" }]);
+  });
+});
+
+describe("schedule defaults from the client profile", () => {
+  it("spreads the profile's training days across the week", () => {
+    const count = (days) => days.filter(Boolean).length;
+    for (const n of [1, 2, 3, 4, 5, 6, 7]) expect(count(daysFromCount(n))).toBe(n);
+    expect(daysFromCount(5)).toEqual([true, true, true, true, true, false, false]);
+    expect(daysFromCount(3)).toEqual([true, false, true, false, true, false, false]);
+    expect(daysFromCount(0)).toBeNull();
+    expect(daysFromCount("")).toBeNull();
+    expect(daysFromCount(9)).toBeNull();
+  });
+
+  it("uses the profile days and minutes when no schedule was saved, else the saved schedule", () => {
+    const fromProfile = buildDesignDefaults({ training: { trainingDaysPerWeek: 5, sessionDurationMinutes: 75 } });
+    expect(fromProfile.weeklySchedule.days.filter(Boolean)).toHaveLength(5);
+    expect(fromProfile.weeklySchedule.sessionMinutes).toBe("75");
+
+    const saved = buildDesignDefaults({
+      plan: { weeklySchedule: { days: [true, false, true, false, true, false, false], sessionMinutes: 45 } },
+      training: { trainingDaysPerWeek: 5, sessionDurationMinutes: 75 },
+    });
+    expect(saved.weeklySchedule.days.filter(Boolean)).toHaveLength(3);
+    expect(saved.weeklySchedule.sessionMinutes).toBe("45");
+
+    const none = buildDesignDefaults({ training: { trainingDaysPerWeek: "", sessionDurationMinutes: 5 } });
+    expect(none.weeklySchedule.days.filter(Boolean)).toHaveLength(3);
+    expect(none.weeklySchedule.sessionMinutes).toBe("60");
   });
 });
