@@ -34,6 +34,7 @@ import {
 } from "../services/bodyAssessmentValidation.service.js";
 import { normalizePhaseReviewInput } from "../controllers/f1Customer/phaseReview.input.js";
 import { normalizeProfile } from "../controllers/f1Customer/phaseReview.profile.js";
+import { normalizeCustomStage } from "../controllers/f1Customer/stageDesign.helpers.js";
 
 // ============================================================================
 // MIDDLEWARE & CUSTOM VALIDATORS
@@ -2103,6 +2104,12 @@ export const validateReviewTestPermission = [
 
 export const validateGenerateResultPrediction = [
   param("id").isMongoId().withMessage("ID khách hàng F1 không hợp lệ"),
+  body("customStage")
+    .optional({ nullable: true })
+    .custom((value) => {
+      normalizeCustomStage(value);
+      return true;
+    }),
   body("requestId")
     .isUUID(4)
     .withMessage("requestId phải là UUID v4"),
@@ -2837,5 +2844,29 @@ export const validateStageProfile = [
     normalizeProfile(value);
     return true;
   }),
+  handleValidationErrors,
+];
+
+const customStageBody = body("customStage").custom((value) => {
+  normalizeCustomStage(value);
+  return true;
+});
+
+export const validatePreviewStageDesign = [
+  param("id").isMongoId().withMessage("ID khách hàng F1 không hợp lệ"),
+  customStageBody,
+  handleValidationErrors,
+];
+
+export const validateNextStageDesign = [
+  param("id").isMongoId().withMessage("ID khách hàng F1 không hợp lệ"),
+  param("stageOrder").isInt({ min: 1, max: 20 }).withMessage("Giai đoạn không hợp lệ"),
+  customStageBody,
+  handleValidationErrors,
+];
+
+export const validateDeleteStage = [
+  param("id").isMongoId().withMessage("ID khách hàng F1 không hợp lệ"),
+  param("stageOrder").isInt({ min: 1, max: 20 }).withMessage("Giai đoạn không hợp lệ"),
   handleValidationErrors,
 ];

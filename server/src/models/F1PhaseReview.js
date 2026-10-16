@@ -154,6 +154,8 @@ const f1PhaseReviewSchema = new mongoose.Schema(
     // Mục tiêu, sức khỏe và lối sống cập nhật cho giai đoạn kế tiếp (bước 2 sau khi đánh giá).
     profile: { type: Object, default: null },
     profileConfirmedAt: { type: Date, default: null },
+    // Giai đoạn kế tiếp do hệ thống dựng hay HLV tự thiết kế.
+    nextPlanSource: { type: String, enum: ["system", "trainer"], default: "system" },
 
     // Kết quả do server tính; không nhận từ client.
     evaluation: { type: Object, default: {} },

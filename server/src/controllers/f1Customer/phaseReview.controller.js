@@ -10,6 +10,10 @@ import { evaluatePhaseReview } from "./phaseReview.scoring.js";
 import { buildNextStage } from "./phaseReview.projection.js";
 import { serializeVisual } from "./phaseReview.visual.controller.js";
 import { applyProfile, normalizeProfile } from "./phaseReview.profile.js";
+import { applyOverrides, normalizeCustomStage } from "./stageDesign.helpers.js";
+import { PHASE_META, buildPhaseRoadmap } from "./resultPrediction.helpers.js";
+import F1Media from "../../models/F1Media.js";
+import { queueF1MediaDeletion } from "../../services/f1MediaLifecycle.service.js";
 
 const MAX_STAGES = 20;
 
@@ -81,6 +85,7 @@ const serializeReview = (review) => ({
   nextOutcome: review.nextOutcome,
   profile: review.profile || null,
   profileConfirmed: Boolean(review.profileConfirmedAt),
+  nextPlanSource: review.nextPlanSource || "system",
   visual: serializeVisual(review),
   updatedAt: review.updatedAt,
 });
@@ -270,6 +275,176 @@ export const saveStageProfile = async (req, res, next) => {
       success: true,
       data: buildPayload(updated),
       message: `Đã lưu mục tiêu và dựng lộ trình giai đoạn ${stageOrder + 1}.`,
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+const reviewInput = (review) => ({
+  actual: review.actual,
+  adherence: review.adherence,
+  recommendationChecks: review.recommendationChecks,
+  retests: review.retests,
+  ohsa: review.ohsa,
+  safety: review.safety,
+});
+
+// Dựng giai đoạn kế tiếp theo thiết kế của HLV (giai đoạn NASM, số tuần, số buổi do HLV chọn).
+const buildDesignedNext = ({ chain, review, stageOrder, custom }) => {
+  const base = intakeFor(chain, stageOrder, review.profile);
+  const intake = {
+    ...base,
+    trainingProfileGoal: {
+      ...(base?.trainingProfileGoal || {}),
+      trainingDaysPerWeek: custom.weeklySchedule.sessionsPerWeek,
+    },
+  };
+  const context = contextFor(chain, stageOrder, review.profile);
+  const evaluation = {
+    ...review.evaluation,
+    decision: "advance",
+    nextPhaseKey: custom.phaseKey,
+    nextPhaseTitle: PHASE_META[custom.phaseKey]?.phaseTitle || "",
+    blockedReason: "",
+  };
+  const built = buildNextStage({
+    input: reviewInput(review),
+    context,
+    evaluation,
+    intake,
+    assessment: chain.assessment,
+    aiReport: chain.aiReport,
+    durationOverride: custom.durationWeeks,
+  });
+  return { built, intake };
+};
+
+const loadReviewForDesign = async (req) => {
+  const stageOrder = Number(req.params.stageOrder);
+  const chain = await loadChain(req);
+  if (!chain.prediction || !chain.intake || !chain.assessment || !chain.aiReport) {
+    throw httpError(400, "Cần có dự đoán kết quả trước.");
+  }
+  const review = chain.reviews.find((item) => item.stageOrder === stageOrder);
+  if (!review) throw httpError(409, `Cần lưu kết quả cuối giai đoạn ${stageOrder} trước.`);
+  if (stageOrder < chain.reviews.length) throw httpError(409, "Chỉ sửa được giai đoạn mới nhất.");
+  return { chain, review, stageOrder };
+};
+
+export const previewNextStageDesign = async (req, res, next) => {
+  try {
+    const { chain, review, stageOrder } = await loadReviewForDesign(req);
+    const custom = normalizeCustomStage(req.body.customStage);
+    const { built, intake } = buildDesignedNext({ chain, review, stageOrder, custom });
+    const [systemStage] = buildPhaseRoadmap({
+      personalizedPath: [custom.phaseKey],
+      intake,
+      assessment: chain.assessment,
+      aiReport: chain.aiReport,
+    });
+    res.setHeader("Cache-Control", "private, no-store");
+    return res.json({
+      success: true,
+      data: {
+        suggestion: {
+          durationWeeks: systemStage.durationWeeks,
+          objective: systemStage.objective,
+          entryReason: built.nextPhasePlan.entryReason,
+          keyFocus: built.nextPhasePlan.keyFocus,
+          expectedChanges: systemStage.expectedChanges,
+          exitCriteria: systemStage.exitCriteria,
+        },
+        baseline: built.nextOutcome.baseline,
+        systemProjected: built.nextOutcome.checkpoint.projected,
+      },
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export const saveNextStageDesign = async (req, res, next) => {
+  try {
+    const { chain, review, stageOrder } = await loadReviewForDesign(req);
+    if (!review.profileConfirmedAt) {
+      throw httpError(409, `Cần cập nhật mục tiêu cho giai đoạn ${stageOrder + 1} trước.`);
+    }
+    const custom = normalizeCustomStage(req.body.customStage);
+    const { built } = buildDesignedNext({ chain, review, stageOrder, custom });
+    const checkpoint = applyOverrides({
+      checkpoint: built.nextOutcome.checkpoint,
+      baseline: built.nextOutcome.baseline,
+      overrides: custom.overrides,
+      stageIndex: stageOrder,
+    });
+    const nextPhasePlan = {
+      ...built.nextPhasePlan,
+      durationWeeks: custom.durationWeeks,
+      objective: custom.objective || built.nextPhasePlan.objective,
+      entryReason: custom.entryReason || built.nextPhasePlan.entryReason,
+      keyFocus: custom.keyFocus,
+      expectedChanges: custom.expectedChanges,
+      exitCriteria: custom.exitCriteria,
+      weeklySchedule: custom.weeklySchedule,
+      designedBy: req.user.id,
+    };
+    await F1PhaseReview.updateOne(
+      { _id: review._id },
+      {
+        $set: {
+          nextPhasePlan,
+          nextOutcome: { ...built.nextOutcome, checkpoint },
+          nextPlanSource: "trainer",
+        },
+      },
+    );
+    const updated = await loadChain(req);
+    return res.json({
+      success: true,
+      data: buildPayload(updated),
+      message: `Đã lưu lộ trình giai đoạn ${stageOrder + 1}.`,
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+// Xoá giai đoạn mới nhất: xoá lần đánh giá cuối giai đoạn trước đó cùng ảnh đã tải và ảnh dự đoán của giai đoạn.
+export const deleteLatestStage = async (req, res, next) => {
+  try {
+    const stageOrder = Number(req.params.stageOrder);
+    const chain = await loadChain(req);
+    if (!chain.prediction) throw httpError(400, "Chưa có lộ trình để xoá.");
+    if (stageOrder !== chain.reviews.length) {
+      throw httpError(409, "Chỉ xoá được giai đoạn mới nhất.");
+    }
+    const review = chain.reviews.find((item) => item.stageOrder === stageOrder);
+    const mediaIds = [
+      review.visual?.beforeFrontMediaId,
+      review.visual?.beforeSideMediaId,
+      review.visual?.frontMediaId,
+      review.visual?.sideMediaId,
+    ].filter(Boolean);
+    await F1PhaseReview.deleteOne({ _id: review._id, customerId: chain.customer._id });
+    if (mediaIds.length) {
+      const media = await F1Media.find({ _id: { $in: mediaIds }, customerId: chain.customer._id });
+      await Promise.all(
+        media.map((item) =>
+          queueF1MediaDeletion({
+            media: item,
+            actorId: req.user.id,
+            actorRole: req.user.role,
+            requestContext: { requestId: req.id || "", ipAddress: req.ip || "", userAgent: req.get("user-agent") || "" },
+          }).catch(() => undefined),
+        ),
+      );
+    }
+    const updated = await loadChain(req);
+    return res.json({
+      success: true,
+      data: buildPayload(updated),
+      message: `Đã xoá giai đoạn ${stageOrder + 1}.`,
     });
   } catch (error) {
     return next(error);

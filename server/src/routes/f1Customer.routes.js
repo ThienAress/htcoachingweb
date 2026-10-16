@@ -32,6 +32,10 @@ import {
   getPhaseReviews,
   savePhaseReview,
   saveStageProfile,
+  previewNextStageDesign,
+  saveNextStageDesign,
+  deleteLatestStage,
+  previewStageDesign,
   generateStageVisual,
   uploadStagePhoto,
 } from "../controllers/f1Customer/index.js";
@@ -54,6 +58,9 @@ import {
   validateGenerateResultPredictionStageImages,
   validateSavePhaseReview,
   validateStageProfile,
+  validatePreviewStageDesign,
+  validateNextStageDesign,
+  validateDeleteStage,
   validateStagePhotoUpload,
   validateGenerateStageVisual,
 } from "../middlewares/validation.js";
@@ -296,6 +303,16 @@ router.post(
   generateResultPrediction,
 );
 
+router.post(
+  "/:id/result-predictions/preview",
+  protect,
+  f1GenerationLimiter,
+  csrfProtection,
+  requireTrainerAccess,
+  validatePreviewStageDesign,
+  previewStageDesign,
+);
+
 router.get(
   "/:id/result-predictions/latest",
   protect,
@@ -343,6 +360,35 @@ router.put(
   requireTrainerAccess,
   validateStageProfile,
   saveStageProfile,
+);
+
+router.post(
+  "/:id/phase-reviews/:stageOrder/design-preview",
+  protect,
+  f1GenerationLimiter,
+  csrfProtection,
+  requireTrainerAccess,
+  validateNextStageDesign,
+  previewNextStageDesign,
+);
+
+router.put(
+  "/:id/phase-reviews/:stageOrder/design",
+  protect,
+  f1GenerationLimiter,
+  csrfProtection,
+  requireTrainerAccess,
+  validateNextStageDesign,
+  saveNextStageDesign,
+);
+
+router.delete(
+  "/:id/phase-reviews/:stageOrder",
+  protect,
+  csrfProtection,
+  requireTrainerAccess,
+  validateDeleteStage,
+  deleteLatestStage,
 );
 
 router.post(

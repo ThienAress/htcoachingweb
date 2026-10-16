@@ -13,6 +13,7 @@ import {
   buildVisualStages,
 } from "./resultPrediction.helpers.js";
 import { buildStageImageGenerationPayload } from "./resultPredictionImage.helpers.js";
+import { buildTrainerStageOne, normalizeCustomStage } from "./stageDesign.helpers.js";
 import { generateStageImagesWithAI } from "../../services/aiImageGenerator.service.js";
 import { createIdempotentF1Artifact } from "../../services/f1ArtifactIntegrity.service.js";
 import {
@@ -129,37 +130,50 @@ export const generateResultPrediction = async (req, res, next) => {
       });
     }
 
-    const phaseCeiling = determinePhaseCeiling({
-      intake,
-      assessment,
-      aiReport,
-    });
-    const personalizedPath = buildPersonalizedPath(
-      recommendedStartPhase,
-      phaseCeiling,
-    );
-    const framework = buildFramework({
-      recommendedStartPhase,
-      phaseCeiling,
-      personalizedPath,
-    });
-    const phaseRoadmap = buildPhaseRoadmap({
-      personalizedPath,
-      intake,
-      assessment,
-      aiReport,
-    });
-    const outcomeTable = buildOutcomeTable({
-      intake,
-      assessment,
-      personalizedPath,
-      phaseRoadmap,
-    });
-    const visualStages = buildVisualStages({
-      personalizedPath,
-      intake,
-      assessment,
-    });
+    // HLV tự thiết kế giai đoạn 1 hoặc để hệ thống đề xuất theo khung NASM.
+    const custom = req.body.customStage ? normalizeCustomStage(req.body.customStage) : null;
+    let phaseCeiling;
+    let framework;
+    let phaseRoadmap;
+    let outcomeTable;
+    let visualStages;
+    if (custom) {
+      const built = buildTrainerStageOne({ intake, assessment, aiReport, custom, trainerId: req.user.id });
+      phaseCeiling = custom.phaseKey;
+      ({ framework, phaseRoadmap, outcomeTable, visualStages } = built);
+    } else {
+      phaseCeiling = determinePhaseCeiling({
+        intake,
+        assessment,
+        aiReport,
+      });
+      const personalizedPath = buildPersonalizedPath(
+        recommendedStartPhase,
+        phaseCeiling,
+      );
+      framework = buildFramework({
+        recommendedStartPhase,
+        phaseCeiling,
+        personalizedPath,
+      });
+      phaseRoadmap = buildPhaseRoadmap({
+        personalizedPath,
+        intake,
+        assessment,
+        aiReport,
+      });
+      outcomeTable = buildOutcomeTable({
+        intake,
+        assessment,
+        personalizedPath,
+        phaseRoadmap,
+      });
+      visualStages = buildVisualStages({
+        personalizedPath,
+        intake,
+        assessment,
+      });
+    }
 
     const result = await createIdempotentF1Artifact({
       Model: F1ResultPrediction,
@@ -173,8 +187,10 @@ export const generateResultPrediction = async (req, res, next) => {
       sourceDocuments: [intake, assessment, aiReport],
       engineVersion: "result-prediction-v2",
       requestId: req.body.requestId,
-      regenerate: Boolean(req.body.regenerate),
+      // Bản HLV thiết kế luôn là một phiên bản mới.
+      regenerate: Boolean(req.body.regenerate) || Boolean(custom),
       payload: {
+        planSource: custom ? "trainer" : "system",
         framework,
         phaseRoadmap,
         outcomeTable,
@@ -196,7 +212,7 @@ export const generateResultPrediction = async (req, res, next) => {
             Number(intake?.bodyMetrics?.restingHeartRate || 0) || null,
           overallPhysicalLevel: assessment?.overallPhysicalLevel || "",
           readinessStatus: aiReport?.inputSummary?.readinessStatus || "",
-          startPhase: recommendedStartPhase,
+          startPhase: custom ? custom.phaseKey : recommendedStartPhase,
           phaseCeiling,
           hasBeforeFront: Boolean(frontMedia),
           hasBeforeSide: Boolean(sideMedia),
@@ -541,6 +557,52 @@ export const generateResultPredictionStageImages = async (req, res, next) => {
         }).catch(() => undefined),
       ),
     );
+    return next(error);
+  }
+};
+
+// Xem trước giai đoạn 1 do HLV thiết kế: gợi ý nội dung và bảng dự đoán của hệ thống, không lưu.
+export const previewStageDesign = async (req, res, next) => {
+  try {
+    const customer = await F1Customer.findById(req.params.id);
+    assertCustomerAccess(customer, req);
+    const [intake, assessment, aiReport] = await Promise.all([
+      F1Intake.findOne({ customerId: customer._id, isLatest: true }),
+      F1Assessment.findOne({ customerId: customer._id }).sort({ createdAt: -1 }),
+      F1AiReport.findOne({ customerId: customer._id }).sort({ createdAt: -1 }),
+    ]);
+    if (!intake || intake.isDraft || !assessment || !aiReport) {
+      return res.status(400).json({
+        success: false,
+        message: "Cần có kết quả khảo sát, đánh giá thể chất và phân tích tự động trước khi thiết kế lộ trình.",
+      });
+    }
+    const custom = normalizeCustomStage(req.body.customStage);
+    const built = buildTrainerStageOne({ intake, assessment, aiReport, custom });
+    const [systemStage] = buildPhaseRoadmap({
+      personalizedPath: [custom.phaseKey],
+      intake,
+      assessment,
+      aiReport,
+    });
+    const checkpoint = built.outcomeTable.phaseCheckpoints[0];
+    res.setHeader("Cache-Control", "private, no-store");
+    return res.json({
+      success: true,
+      data: {
+        suggestion: {
+          durationWeeks: systemStage.durationWeeks,
+          objective: systemStage.objective,
+          entryReason: systemStage.entryReason,
+          keyFocus: systemStage.keyFocus,
+          expectedChanges: systemStage.expectedChanges,
+          exitCriteria: systemStage.exitCriteria,
+        },
+        baseline: built.outcomeTable.baseline,
+        systemProjected: checkpoint.systemProjected,
+      },
+    });
+  } catch (error) {
     return next(error);
   }
 };
