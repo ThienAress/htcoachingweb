@@ -52,6 +52,12 @@ export const updateF1CustomerStatus = (customerId, status) =>
 export const deleteF1Customer = (customerId) =>
   unwrap(api.delete(`/f1-customers/${customerId}`));
 
+export const getDeletedF1Customers = () =>
+  unwrap(api.get("/f1-customers/deleted"));
+
+export const restoreF1Customer = (customerId) =>
+  unwrap(api.post(`/f1-customers/${customerId}/restore`));
+
 // =========================
 // INTAKE
 // =========================

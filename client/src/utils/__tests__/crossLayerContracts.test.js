@@ -10,7 +10,9 @@ import { ORDER_STATUS_META } from "../../constants/orderStatus";
 import { CONTRACT_STATUS_META } from "../../constants/contractStatus";
 import {
   F1_CUSTOMER_STATUS_LABELS,
+  getF1CustomerStageLabel,
   getF1Progress,
+  getRemainingDeleteDays,
 } from "../../constants/f1CustomerStatus";
 
 const catalogResponse = {
@@ -159,5 +161,24 @@ describe("cross-layer client contracts", () => {
       assessmentDone: true,
       reportDone: true,
     });
+  });
+
+  it("labels the F1 list status by the pending step and finishes after the prediction", () => {
+    const label = (customer) => getF1CustomerStageLabel(customer);
+    expect(label({ status: "new" })).toBe("Khảo sát");
+    expect(label({ status: "intake_completed" })).toBe("Đánh giá thể chất");
+    expect(label({ status: "assessment_completed" })).toBe("Phân tích tự động");
+    expect(label({ status: "ai_report_generated" })).toBe("Dự đoán");
+    expect(label({ status: "ai_report_generated", lastResultPredictionId: "p1" })).toBe("Đã hoàn thành");
+    expect(label({ status: "program_started", lastResultPredictionId: "p1" })).toBe("Đã hoàn thành");
+    expect(label({ status: "intake_completed", readinessStatus: "hold" })).toBe("Tạm hoãn");
+    expect(label({ status: "archived" })).toBe("Đã lưu trữ");
+  });
+
+  it("counts the remaining restore days up to the deadline", () => {
+    const now = Date.parse("2026-10-16T00:00:00Z");
+    expect(getRemainingDeleteDays("2026-10-23T00:00:00Z", now)).toBe(7);
+    expect(getRemainingDeleteDays("2026-10-16T12:00:00Z", now)).toBe(1);
+    expect(getRemainingDeleteDays("2026-10-15T00:00:00Z", now)).toBe(0);
   });
 });

@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Home,
+  Trash2,
   Users,
   SidebarClose,
   SidebarOpen,
@@ -10,7 +11,9 @@ import {
 import {
   createF1Customer,
   deleteF1Customer as deleteF1CustomerApi,
+  getDeletedF1Customers,
   getF1Customers,
+  restoreF1Customer,
   reviewTestPermission,
 } from "../../services/f1Customer.service";
 import { toast } from "react-toastify";
@@ -19,7 +22,10 @@ import { useDebounce } from "../../hooks/useDebounce";
 import { useConversionOriginOptions } from "../../hooks/useConversionOriginOptions";
 import { useAuth } from "../../context/AuthContext";
 import MorphStateIcon from "../../components/motion/MorphStateIcon";
-import { getF1Progress } from "../../constants/f1CustomerStatus";
+import {
+  F1_SOFT_DELETE_DAYS,
+  getF1Progress,
+} from "../../constants/f1CustomerStatus";
 import { useConfirmDialog } from "../../hooks/useConfirmDialog";
 
 const F1CustomerList = lazy(
@@ -30,6 +36,9 @@ const F1CustomerDetail = lazy(
 );
 const F1IntakeWizard = lazy(
   () => import("../../components/F1/F1IntakeWizard"),
+);
+const F1DeletedCustomers = lazy(
+  () => import("../../components/F1/F1DeletedCustomers"),
 );
 const F1CreateCustomerForm = lazy(
   () => import("../../components/F1/F1CreateCustomerForm"),
@@ -114,10 +123,19 @@ const F1Customers = () => {
     totalPages: 1,
     total: customers.length,
   };
+  const deletedQuery = useQuery({
+    queryKey: ["f1-customers-deleted"],
+    queryFn: getDeletedF1Customers,
+    enabled: viewMode === "deleted",
+  });
+  const deletedCustomers = Array.isArray(deletedQuery.data?.data)
+    ? deletedQuery.data.data
+    : [];
   const invalidateCustomers = () =>
     queryClient.invalidateQueries({ queryKey: ["f1-customers"] });
   const createMutation = useMutation({ mutationFn: createF1Customer });
   const deleteMutation = useMutation({ mutationFn: deleteF1CustomerApi });
+  const restoreMutation = useMutation({ mutationFn: restoreF1Customer });
   const reviewMutation = useMutation({
     mutationFn: ({ customerId, payload }) =>
       reviewTestPermission(customerId, payload),
@@ -159,23 +177,43 @@ const F1Customers = () => {
     if (!selectedCustomer?._id) return;
     const confirmed = await confirm({
       title: "Xóa khách hàng F1?",
-      message: `Bạn có chắc muốn yêu cầu xóa dữ liệu của "${selectedCustomer.fullName}" không?`,
+      message: `Bạn có chắc muốn xóa khách hàng "${selectedCustomer.fullName}" không?`,
       details: [
-        "Ảnh và video sẽ được xóa khỏi kho lưu trữ riêng tư trước.",
-        "Sau đó dữ liệu sức khỏe mới được xóa.",
+        `Bạn có thể khôi phục khách hàng trong vòng ${F1_SOFT_DELETE_DAYS} ngày, sau đó khách hàng sẽ bị xóa vĩnh viễn tự động.`,
+        "Khách hàng đã tạo vẫn được tính vào giới hạn của gói, kể cả khi đã xóa.",
       ],
-      confirmLabel: "Xóa dữ liệu",
+      confirmLabel: "Xóa khách hàng",
       tone: "danger",
     });
     if (!confirmed) return;
     try {
       await deleteMutation.mutateAsync(selectedCustomer._id);
-      toast.success("Đã tiếp nhận yêu cầu xóa dữ liệu an toàn");
+      toast.success(
+        `Đã chuyển vào mục Xóa khách hàng. Bạn có thể khôi phục trong ${F1_SOFT_DELETE_DAYS} ngày.`,
+      );
       setSelectedCustomer(null);
       setViewMode("list");
       await invalidateCustomers();
+      queryClient.invalidateQueries({ queryKey: ["f1-customers-deleted"] });
     } catch (error) {
       toast.error(error?.response?.data?.message || "Xóa khách hàng thất bại");
+    }
+  };
+
+  const handleRestoreCustomer = async (customer) => {
+    const confirmed = await confirm({
+      title: "Khôi phục khách hàng F1?",
+      message: `Khách hàng "${customer.fullName}" sẽ quay lại danh sách cùng toàn bộ dữ liệu và ảnh cũ.`,
+      confirmLabel: "Khôi phục",
+    });
+    if (!confirmed) return;
+    try {
+      const res = await restoreMutation.mutateAsync(customer._id);
+      toast.success(res?.message || "Đã khôi phục khách hàng");
+      await invalidateCustomers();
+      await queryClient.invalidateQueries({ queryKey: ["f1-customers-deleted"] });
+    } catch (error) {
+      toast.error(error?.response?.data?.message || "Khôi phục khách hàng thất bại");
     }
   };
 
@@ -359,6 +397,22 @@ const F1Customers = () => {
               <span>Khách hàng F1</span>
             </button>
 
+            <button
+              data-testid="f1-nav-deleted"
+              onClick={() => {
+                setViewMode("deleted");
+                setMobileMenuOpen(false);
+              }}
+              className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-colors ${
+                viewMode === "deleted"
+                  ? "bg-amber-500/20 text-amber-300 shadow-inner"
+                  : "text-slate-300 hover:bg-white/10 hover:text-white"
+              }`}
+            >
+              <Trash2 size={20} />
+              <span>Xóa khách hàng</span>
+            </button>
+
           </nav>
 
           <div className="border-t border-white/10 p-4">
@@ -400,6 +454,17 @@ const F1Customers = () => {
               onPageChange={setPage}
               onOpenCreate={handleOpenCreate}
               onSelectCustomer={handleSelectCustomer}
+            />
+          )}
+
+          {viewMode === "deleted" && (
+            <F1DeletedCustomers
+              loading={deletedQuery.isLoading}
+              error={deletedQuery.isError}
+              customers={deletedCustomers}
+              restoringId={restoreMutation.isPending ? restoreMutation.variables : ""}
+              onRestore={handleRestoreCustomer}
+              onRetry={() => deletedQuery.refetch()}
             />
           )}
 
