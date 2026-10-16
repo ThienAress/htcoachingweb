@@ -7,6 +7,8 @@ import {
   createF1Customer,
   createF1Media,
   deleteF1Customer,
+  getDeletedF1Customers,
+  restoreF1Customer,
   deleteF1Media,
   generateAiReport,
   generateOutcomeForecast,
@@ -92,6 +94,17 @@ router.post(
 );
 
 router.get("/", protect, requireTrainerAccess, getF1Customers);
+
+router.get("/deleted", protect, requireTrainerAccess, getDeletedF1Customers);
+
+router.post(
+  "/:id/restore",
+  protect,
+  csrfProtection,
+  requireTrainerAccess,
+  validateF1CustomerId,
+  restoreF1Customer,
+);
 
 router.get(
   "/:id",
