@@ -17,20 +17,20 @@ const decisionMeta = {
       "Tiếp tục giữ khách ở trạng thái hoãn đánh giá. Chưa cho sang bước đánh giá thể chất.",
   },
   approve_modified_test: {
-    label: "Duyệt Modified Test",
+    label: "Duyệt test điều chỉnh",
     className:
       "border-orange-200 bg-orange-50 text-orange-700 hover:bg-orange-100 ring-orange-200",
     icon: ClipboardCheck,
     description:
-      "Cho phép khách đi tiếp với modified assessment, ưu tiên các bài an toàn hơn.",
+      "Cho phép khách đi tiếp với đánh giá điều chỉnh, ưu tiên các bài an toàn hơn.",
   },
   approve_full_test: {
-    label: "Duyệt Full Test",
+    label: "Duyệt test đầy đủ",
     className:
       "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 ring-emerald-200",
     icon: ShieldCheck,
     description:
-      "Cho phép khách đi tiếp với assessment đầy đủ như workflow bình thường.",
+      "Cho phép khách đi tiếp với đánh giá đầy đủ như quy trình bình thường.",
   },
 };
 

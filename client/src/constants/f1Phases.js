@@ -31,7 +31,7 @@ const TRAINING_FOCUS_LABELS = {
   lower_body_strength: "Tăng sức mạnh thân dưới",
   core_strength: "Tăng sức mạnh core",
   muscular_endurance: "Cải thiện sức bền cơ",
-  pattern_retraining: "Chỉnh lại pattern vận động",
+  pattern_retraining: "Chỉnh lại kiểu vận động",
   general_foundation: "Xây nền thể lực tổng quát",
   movement_foundation: "Xây nền chuyển động",
   stability_training: "Tăng khả năng ổn định cơ thể",

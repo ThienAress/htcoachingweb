@@ -72,11 +72,11 @@ const STRENGTH_FLAG_LABELS = {
   upper_body_push_low: "Sức mạnh đẩy thân trên còn thấp",
   upper_body_pull_low: "Sức mạnh kéo thân trên còn thấp",
   lower_body_strength_low: "Sức mạnh thân dưới còn thấp",
-  core_strength_low: "Sức mạnh core còn thấp",
+  core_strength_low: "Sức mạnh cơ lõi còn thấp",
 };
 const ENDURANCE_FLAG_LABELS = {
   muscular_endurance_low: "Sức bền cơ còn thấp",
-  core_endurance_low: "Sức bền core còn thấp",
+  core_endurance_low: "Sức bền cơ lõi còn thấp",
 };
 const CARDIO_FLAG_LABELS = {
   resting_hr_elevated: "Nhịp tim nghỉ cao",
@@ -91,7 +91,7 @@ const CORRECTIVE_FOCUS_LABELS = {
   stability_training: "Tăng ổn định nền tảng",
   movement_foundation: "Xây nền chuyển động",
   core_control: "Tăng kiểm soát core",
-  squat_pattern_retraining: "Học lại pattern squat",
+  squat_pattern_retraining: "Học lại kiểu squat",
   lumbopelvic_control: "Kiểm soát lưng - chậu",
   core_bracing: "Học siết core",
   hip_mobility: "Cải thiện linh hoạt hông",
@@ -109,7 +109,7 @@ const TRAINING_FOCUS_LABELS = {
   lower_body_strength: "Ưu tiên sức mạnh thân dưới",
   core_strength: "Ưu tiên sức mạnh core",
   muscular_endurance: "Ưu tiên sức bền cơ",
-  pattern_retraining: "Học lại pattern vận động",
+  pattern_retraining: "Học lại kiểu vận động",
   general_foundation: "Xây nền tổng quát",
   movement_foundation: "Xây nền chuyển động",
   stability_training: "Tăng ổn định nền tảng",

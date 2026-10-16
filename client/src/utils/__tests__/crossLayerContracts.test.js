@@ -171,7 +171,8 @@ describe("cross-layer client contracts", () => {
     expect(label({ status: "ai_report_generated" })).toBe("Dự đoán");
     expect(label({ status: "ai_report_generated", lastResultPredictionId: "p1" })).toBe("Đã hoàn thành");
     expect(label({ status: "program_started", lastResultPredictionId: "p1" })).toBe("Đã hoàn thành");
-    expect(label({ status: "intake_completed", readinessStatus: "hold" })).toBe("Tạm hoãn");
+    // hold is shown by the readiness badge; the status column keeps naming the pending step
+    expect(label({ status: "intake_completed", readinessStatus: "hold" })).toBe("Đánh giá thể chất");
     expect(label({ status: "archived" })).toBe("Đã lưu trữ");
   });
 
