@@ -33,10 +33,12 @@ export const assertCustomerAccess = (
     throw error;
   }
 
+  // assignedTrainerId có thể đã populate thành document; lấy _id để so sánh đúng.
+  const assignedId =
+    customer.assignedTrainerId?._id ?? customer.assignedTrainerId;
   if (
     !req.isAdmin &&
-    (!customer.assignedTrainerId ||
-      customer.assignedTrainerId.toString() !== req.user.id.toString())
+    (!assignedId || assignedId.toString() !== req.user.id.toString())
   ) {
     const error = new Error("Bạn không có quyền truy cập khách hàng F1 này");
     error.status = 403;

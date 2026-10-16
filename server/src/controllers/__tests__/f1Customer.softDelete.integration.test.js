@@ -215,6 +215,26 @@ describe("F1 soft delete", () => {
   });
 });
 
+describe("F1 customer detail", () => {
+  it("lets the assigned trainer read the detail but not another trainer", async () => {
+    const owner = await createTrainer("f1-detail-owner@example.com");
+    const other = await createTrainer("f1-detail-other@example.com");
+    const [customer] = await seedCustomers(owner, 1);
+
+    const own = await withAuth(
+      request(app).get(`/api/f1-customers/${customer._id}`),
+      owner.accessToken,
+    );
+    const foreign = await withAuth(
+      request(app).get(`/api/f1-customers/${customer._id}`),
+      other.accessToken,
+    );
+
+    expect(own.status).toBe(200);
+    expect(foreign.status).toBe(403);
+  });
+});
+
 describe("F1 customer quota", () => {
   it("blocks creating beyond the plan limit with a Vietnamese message", async () => {
     const trainer = await createTrainer("f1-quota-limit@example.com");
