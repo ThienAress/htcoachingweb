@@ -37,6 +37,7 @@ import {
   PHASE_EXPLANATIONS,
   PHASE_NAMES,
   buildStageTabs,
+  getRoadmapIntro,
   translateLevelTitle,
   translateTrainingFocus,
 } from "../../constants/f1Phases";
@@ -1151,7 +1152,7 @@ const F1ResultPredictionPanel = ({ customer, onBack, onGenerated }) => {
               <div className="space-y-4">
                 <SectionHeading
                   title="Lộ trình giai đoạn"
-                  subtitle="Giai đoạn 1 được đề xuất từ kết quả đánh giá ban đầu. Bấm giai đoạn sau để nhập kết quả cuối giai đoạn trước và xem đề xuất tiếp theo."
+                  subtitle={getRoadmapIntro(prediction?.planSource)}
                 />
                 <StageTabs
                   tabs={visibleTabs}

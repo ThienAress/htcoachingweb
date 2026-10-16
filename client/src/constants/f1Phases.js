@@ -116,3 +116,9 @@ export const LEVEL_LABELS = Object.freeze({
 });
 
 export const translateLevelTitle = (value) => LEVEL_LABELS[value] || value || "";
+
+// Câu dẫn ở đầu mục "Lộ trình giai đoạn": nói đúng ai dựng giai đoạn 1.
+export const getRoadmapIntro = (planSource) =>
+  planSource === "trainer"
+    ? "Giai đoạn 1 do HLV thiết kế. Bấm giai đoạn sau để nhập kết quả cuối giai đoạn trước rồi xem lộ trình tiếp theo."
+    : "Giai đoạn 1 được đề xuất từ kết quả đánh giá ban đầu. Bấm giai đoạn sau để nhập kết quả cuối giai đoạn trước và xem đề xuất tiếp theo.";

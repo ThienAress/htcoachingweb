@@ -5,6 +5,7 @@ import {
   createTrainerPlanPurchasePayload,
   normalizeTrainerPlanCatalogResponse,
 } from "../trainerPlanCatalog";
+import { getRoadmapIntro } from "../../constants/f1Phases";
 import { deriveMealPlanAccess } from "../mealPlanAccess";
 import { ORDER_STATUS_META } from "../../constants/orderStatus";
 import { CONTRACT_STATUS_META } from "../../constants/contractStatus";
@@ -181,5 +182,12 @@ describe("cross-layer client contracts", () => {
     expect(getRemainingDeleteDays("2026-10-23T00:00:00Z", now)).toBe(7);
     expect(getRemainingDeleteDays("2026-10-16T12:00:00Z", now)).toBe(1);
     expect(getRemainingDeleteDays("2026-10-15T00:00:00Z", now)).toBe(0);
+  });
+
+  it("says who designed stage 1 in the roadmap intro", () => {
+    expect(getRoadmapIntro("trainer")).toContain("do HLV thiết kế");
+    expect(getRoadmapIntro("trainer")).not.toContain("được đề xuất");
+    expect(getRoadmapIntro("system")).toContain("được đề xuất từ kết quả đánh giá ban đầu");
+    expect(getRoadmapIntro(undefined)).toContain("được đề xuất");
   });
 });
