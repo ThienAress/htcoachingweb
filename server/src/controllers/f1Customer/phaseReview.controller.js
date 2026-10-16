@@ -11,6 +11,7 @@ import { buildNextStage } from "./phaseReview.projection.js";
 import { serializeVisual } from "./phaseReview.visual.controller.js";
 import { applyProfile, normalizeProfile } from "./phaseReview.profile.js";
 import { applyOverrides, normalizeCustomStage } from "./stageDesign.helpers.js";
+import { PLAN_MODE_LABELS, describePlanMode, planModeError, planModeForStage } from "./planMode.helpers.js";
 import { PHASE_META, buildPhaseRoadmap } from "./resultPrediction.helpers.js";
 import F1Media from "../../models/F1Media.js";
 import { queueF1MediaDeletion } from "../../services/f1MediaLifecycle.service.js";
@@ -30,7 +31,7 @@ const loadChain = async (req) => {
   assertCustomerAccess(customer, req);
   const prediction = await F1ResultPrediction.findOne({ customerId: customer._id })
     .sort({ createdAt: -1 })
-    .select("phaseRoadmap outcomeTable intakeId assessmentId aiReportId customerId")
+    .select("phaseRoadmap outcomeTable intakeId assessmentId aiReportId customerId planSource")
     .lean();
   if (!prediction) return { customer, prediction: null };
   const [intake, assessment, aiReport, reviews] = await Promise.all([
@@ -371,6 +372,14 @@ export const saveNextStageDesign = async (req, res, next) => {
       throw httpError(409, `Cần cập nhật mục tiêu cho giai đoạn ${stageOrder + 1} trước.`);
     }
     const custom = normalizeCustomStage(req.body.customStage);
+    // Giai đoạn do HLV thiết kế chỉ lưu được khi giai đoạn đó thuộc cách "HLV tự thiết kế".
+    const mode = planModeForStage(describePlanMode({ customer: chain.customer, prediction: chain.prediction }), stageOrder + 1);
+    if (mode !== "trainer") {
+      throw planModeError(
+        `Khách hàng này đang dùng cách "${PLAN_MODE_LABELS[mode]}" cho giai đoạn ${stageOrder + 1}. Hãy dùng "Thay đổi dự đoán" để đổi cách.`,
+        "F1_PLAN_MODE_MISMATCH",
+      );
+    }
     const { built } = buildDesignedNext({ chain, review, stageOrder, custom });
     const checkpoint = applyOverrides({
       checkpoint: built.nextOutcome.checkpoint,

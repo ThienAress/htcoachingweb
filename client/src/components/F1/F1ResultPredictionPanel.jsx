@@ -25,6 +25,7 @@ import {
   previewNextStageDesign,
   saveNextStageDesign,
   deleteLatestStage,
+  switchPlanMode,
 } from "../../services/f1Customer.service";
 import { phaseReviewsQueryKey } from "../../utils/f1PhaseReview";
 import { toast } from "react-toastify";
@@ -634,6 +635,7 @@ const F1ResultPredictionPanel = ({ customer, onBack, onGenerated }) => {
   const [designDialog, setDesignDialog] = useState(null);
   const [designAfter, setDesignAfter] = useState(null);
   const [savingDesign, setSavingDesign] = useState(false);
+  const [switchingMode, setSwitchingMode] = useState(false);
   const queryClient = useQueryClient();
 
   useEffect(() => {
@@ -693,6 +695,9 @@ const F1ResultPredictionPanel = ({ customer, onBack, onGenerated }) => {
   const visibleTabs = stageTabs.filter((tab) => !tab.locked);
   const pendingReview = allReviewCount > reviews.length;
   const nextStageOrder = pendingReview ? allReviewCount + 1 : reviews.length + 2;
+  // Cách dựng giai đoạn kế tiếp: chọn lúc tạo dự đoán, đổi được đúng một lần (khoá vĩnh viễn sau đó).
+  const initialMode = prediction?.planSource === "trainer" ? "trainer" : "system";
+  const planMode = prediction?.planModeState || { initial: initialMode, current: initialMode, locked: false };
   const selectedTab = stageTabs.find((tab) => tab.key === selectedStageKey);
   const followUpStage = selectedTab && !selectedTab.locked && selectedTab.stageOrder >= 2 ? selectedTab.stageOrder : 0;
   const followUpReview = followUpStage
@@ -739,10 +744,49 @@ const F1ResultPredictionPanel = ({ customer, onBack, onGenerated }) => {
     );
   }, [prediction, selectedStageKey]);
 
+  // Cách dựng đã chọn từ trước nên không hỏi lại: nhập kết quả giai đoạn trước, cập nhật mục tiêu rồi hệ thống đề xuất
+  // hoặc mở bảng thiết kế. Đã lưu kết quả mà chưa cập nhật mục tiêu thì tiếp tục đúng chỗ đang dở.
   const handleAddStage = () => {
-    // Đã lưu kết quả cuối giai đoạn nhưng chưa cập nhật mục tiêu: tiếp tục đúng chỗ đang dở.
-    if (pendingReview) setOpenStage(nextStageOrder);
-    else setModeDialog({ stageOrder: nextStageOrder });
+    if (planMode.current === "trainer") setDesignAfter(nextStageOrder);
+    setOpenStage(nextStageOrder);
+  };
+
+  const handleChangeMode = async (mode) => {
+    const canRegenerate = !planMode.locked && allReviewCount === 0;
+    if (mode === planMode.current) {
+      // Cách đang dùng: giai đoạn 1 chưa có đánh giá thì cho tạo lại hoặc chỉnh, còn lại chỉ đóng hộp thoại.
+      if (!canRegenerate) setModeDialog(null);
+      else if (mode === "system") handleGenerate();
+      else {
+        setModeDialog(null);
+        openDesign(1);
+      }
+      return;
+    }
+    const label = mode === "trainer" ? "Thiết kế lộ trình tập cá nhân" : "Dự đoán lộ trình tập";
+    const confirmed = await confirm({
+      title: "Thay đổi dự đoán?",
+      message: `Chuyển sang "${label}" từ giai đoạn ${modeDialog?.stageOrder || nextStageOrder}. Thay đổi này sẽ được lưu ở khách hàng này vĩnh viễn, bạn sẽ không được thay đổi dự đoán nữa.`,
+      details: [
+        "Các giai đoạn đã tạo giữ nguyên cách dựng cũ.",
+        "Từ giai đoạn kế tiếp, nút Thêm giai đoạn chỉ dùng cách bạn vừa chọn.",
+      ],
+      confirmLabel: "Đồng ý",
+      cancelLabel: "Hủy",
+      tone: "danger",
+    });
+    if (!confirmed) return;
+    try {
+      setSwitchingMode(true);
+      const res = await switchPlanMode(customer._id, mode);
+      setPrediction((previous) => (previous ? { ...previous, planModeState: res?.data } : previous));
+      setModeDialog(null);
+      toast.success(res?.message || "Đã thay đổi cách dự đoán");
+    } catch (error) {
+      toast.error(error?.response?.data?.message || "Thay đổi dự đoán thất bại");
+    } finally {
+      setSwitchingMode(false);
+    }
   };
 
   const handleDeleteStage = async (stageOrder) => {
@@ -926,14 +970,16 @@ const F1ResultPredictionPanel = ({ customer, onBack, onGenerated }) => {
           <F1PredictionModeDialog
             customer={customer}
             stageOrder={modeDialog.stageOrder}
-            busy={generating}
-            warning={
-              modeDialog.stageOrder === 1 && allReviewCount > 0
-                ? "Tạo lại giai đoạn 1 sẽ bắt đầu một lộ trình mới; các giai đoạn đã đánh giá sẽ không còn hiển thị."
-                : ""
-            }
+            busy={generating || switchingMode}
+            currentMode={prediction ? planMode.current : null}
+            locked={Boolean(prediction) && planMode.locked}
+            canRegenerate={!planMode.locked && allReviewCount === 0}
             onClose={() => setModeDialog(null)}
             onSystem={() => {
+              if (prediction) {
+                handleChangeMode("system");
+                return;
+              }
               if (modeDialog.stageOrder === 1) {
                 handleGenerate();
                 return;
@@ -942,6 +988,10 @@ const F1ResultPredictionPanel = ({ customer, onBack, onGenerated }) => {
               setOpenStage(modeDialog.stageOrder);
             }}
             onTrainer={() => {
+              if (prediction) {
+                handleChangeMode("trainer");
+                return;
+              }
               const order = modeDialog.stageOrder;
               setModeDialog(null);
               if (order === 1) {
@@ -1026,15 +1076,15 @@ const F1ResultPredictionPanel = ({ customer, onBack, onGenerated }) => {
               </p>
             </div>
             <button
-              onClick={() => setModeDialog({ stageOrder: 1 })}
-              disabled={generating || loadingLatest}
+              onClick={() => setModeDialog({ stageOrder: prediction ? nextStageOrder : 1 })}
+              disabled={generating || loadingLatest || switchingMode}
               className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-orange-600 to-orange-500 px-5 py-3 font-bold text-white shadow-md transition hover:shadow-lg disabled:opacity-60"
             >
               {prediction ? <RefreshCcw size={18} /> : <TrendingUp size={18} />}
               {generating
                 ? "Đang phân tích..."
                 : prediction
-                  ? "Cập nhật lại dự đoán"
+                  ? "Thay đổi dự đoán"
                   : "Tạo dự đoán"}
             </button>
           </div>

@@ -61,3 +61,4 @@ export {
 
 export { getF1DashboardSummary } from "./dashboard.controller.js";
 export { reviewTestPermission } from "./testPermissionReview.controller.js";
+export { switchPlanMode } from "./planMode.controller.js";

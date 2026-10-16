@@ -129,6 +129,20 @@ const f1CustomerSchema = new mongoose.Schema(
       default: "",
       trim: true,
     },
+    // Cách dựng giai đoạn: đổi đúng một lần (planModeLockedAt đã đặt là khoá vĩnh viễn), áp dụng từ giai đoạn planModeSwitchedAtStage.
+    planModeSwitchTo: {
+      type: String,
+      enum: ["system", "trainer", null],
+      default: null,
+    },
+    planModeSwitchedAtStage: {
+      type: Number,
+      default: null,
+    },
+    planModeLockedAt: {
+      type: Date,
+      default: null,
+    },
   },
   { timestamps: true },
 );
