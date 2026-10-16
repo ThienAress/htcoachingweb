@@ -30,13 +30,16 @@ describe("ExerciseTestCard suggested volume", () => {
     expect(markup).toContain("2–3 sets x 20–30 giây");
     expect(markup).toContain('aria-label="Sửa Sets x Reps"');
     expect(markup).toContain('aria-label="Sửa Sets x Time"');
-    expect(markup).toContain("Hệ số bạn thiết lập sẽ ảnh hưởng đến quá trình chấm điểm bài tập");
+    expect(markup).toContain("Chú thích:");
+    expect(markup).toContain("Hệ số bạn thiết lập dùng để chấm điểm bài tập");
   });
 
-  it("keeps the explanatory sentence above and separate from the volume block", () => {
+  it("puts the short note inside the volume block, starting with Chú thích", () => {
     const markup = render({ value });
-    expect(markup.indexOf("Ưu tiên các bài đẩy")).toBeLessThan(markup.indexOf("Khối lượng tập đề xuất"));
-    expect(markup.indexOf("Hệ số bạn thiết lập")).toBeLessThan(markup.indexOf("Khối lượng tập đề xuất"));
+    const block = markup.slice(markup.indexOf("Khối lượng tập đề xuất"));
+    expect(block).toContain("Chú thích:");
+    expect(block.indexOf("Sets x Time")).toBeLessThan(block.indexOf("Chú thích:"));
+    expect(markup).not.toContain("Ưu tiên các bài đẩy bằng trọng lượng cơ thể");
   });
 
   it("uses a saved exercise protocol as the volume shown", () => {
