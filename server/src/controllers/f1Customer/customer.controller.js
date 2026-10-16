@@ -7,7 +7,11 @@ import {
   generateF1Code,
   buildLifecycleSummary,
 } from "./shared.js";
-import { requestF1CustomerDeletion } from "../../services/f1PrivacyLifecycle.service.js";
+import AuditLog from "../../models/AuditLog.js";
+import {
+  F1_SOFT_DELETE_RETENTION_DAYS,
+  assertF1CreateQuota,
+} from "../../services/f1CustomerQuota.service.js";
 import {
   assertConversionOriginAvailable,
   normalizeConversionOriginPersistenceError,
@@ -28,6 +32,11 @@ export const createF1Customer = async (req, res, next) => {
       await assertConversionOriginAvailable({
         Model: F1Customer,
         conversionOrigin,
+        session,
+      });
+      await assertF1CreateQuota({
+        actor: req.user,
+        isAdmin: req.isAdmin,
         session,
       });
       const code = await generateF1Code(session);
@@ -79,7 +88,7 @@ export const getF1Customers = async (req, res, next) => {
     const status = (req.query.status || "").trim();
     const trainerId = (req.query.trainerId || "").trim();
 
-    const filter = {};
+    const filter = { softDeletedAt: null };
 
     if (!req.isAdmin) {
       filter.assignedTrainerId = req.user.id;
@@ -221,25 +230,98 @@ export const updateF1CustomerStatus = async (req, res, next) => {
   }
 };
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+const auditSoftDelete = (req, customer, action, metadata = {}) =>
+  AuditLog.create({
+    actorId: req.user.id,
+    actorRole: req.user.role === "admin" ? "admin" : "trainer",
+    action,
+    targetType: "f1_customer",
+    targetId: customer._id,
+    metadata: { requestId: req.id || "", ...metadata },
+    ipAddress: req.ip || "",
+    userAgent: req.get("user-agent") || "",
+  });
+
+// Xoá mềm: chỉ ẩn khỏi danh sách và hẹn giờ xoá vĩnh viễn; dữ liệu và ảnh giữ nguyên để khôi phục.
 export const deleteF1Customer = async (req, res, next) => {
   try {
     const customer = await F1Customer.findById(req.params.id);
     assertCustomerAccess(customer, req);
-    const job = await requestF1CustomerDeletion({
-      customer,
-      actorId: req.user.id,
-      actorRole: req.user.role,
-      reason: req.body?.reason || "admin_request",
-      requestContext: {
-        requestId: req.id || "",
-        ipAddress: req.ip || "",
-        userAgent: req.get("user-agent") || "",
-      },
-    });
-    return res.status(202).json({
+    const now = new Date();
+    customer.softDeletedAt = now;
+    customer.purgeAt = new Date(
+      now.getTime() + F1_SOFT_DELETE_RETENTION_DAYS * DAY_MS,
+    );
+    customer.softDeletedBy = req.user.id;
+    await customer.save();
+    await auditSoftDelete(req, customer, "soft_delete_f1_customer");
+    return res.json({
       success: true,
-      data: { deletionJobId: job._id, status: job.status },
-      message: "Yêu cầu xóa dữ liệu F1 đã được đưa vào hàng đợi an toàn",
+      data: {
+        _id: customer._id,
+        softDeletedAt: customer.softDeletedAt,
+        purgeAt: customer.purgeAt,
+      },
+      message: `Đã chuyển khách hàng vào mục Xóa khách hàng. Bạn có thể khôi phục trong ${F1_SOFT_DELETE_RETENTION_DAYS} ngày.`,
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export const getDeletedF1Customers = async (req, res, next) => {
+  try {
+    const filter = {
+      softDeletedAt: { $ne: null },
+      purgeAt: { $gt: new Date() },
+      deletionRequestedAt: null,
+      deletedAt: null,
+    };
+    if (!req.isAdmin) filter.assignedTrainerId = req.user.id;
+
+    const customers = await F1Customer.find(filter)
+      .select("code fullName status softDeletedAt purgeAt")
+      .sort({ softDeletedAt: -1 })
+      .limit(200)
+      .lean();
+    return res.json({ success: true, data: customers });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export const restoreF1Customer = async (req, res, next) => {
+  try {
+    const customer = await F1Customer.findById(req.params.id);
+    assertCustomerAccess(customer, req, { allowSoftDeleted: true });
+    if (!customer.softDeletedAt) {
+      return res.status(409).json({
+        success: false,
+        code: "F1_CUSTOMER_NOT_DELETED",
+        message: "Khách hàng này chưa bị xóa",
+      });
+    }
+    if (
+      customer.deletionRequestedAt ||
+      (customer.purgeAt && customer.purgeAt <= new Date())
+    ) {
+      return res.status(410).json({
+        success: false,
+        code: "F1_RESTORE_EXPIRED",
+        message: "Đã quá thời hạn khôi phục, khách hàng sẽ bị xóa vĩnh viễn",
+      });
+    }
+    customer.softDeletedAt = null;
+    customer.purgeAt = null;
+    customer.softDeletedBy = null;
+    await customer.save();
+    await auditSoftDelete(req, customer, "restore_f1_customer");
+    return res.json({
+      success: true,
+      data: customer,
+      message: "Đã khôi phục khách hàng cùng toàn bộ dữ liệu cũ",
     });
   } catch (error) {
     return next(error);

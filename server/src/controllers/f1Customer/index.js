@@ -5,6 +5,8 @@ export {
   updateF1Customer,
   updateF1CustomerStatus,
   deleteF1Customer,
+  getDeletedF1Customers,
+  restoreF1Customer,
 } from "./customer.controller.js";
 
 export {

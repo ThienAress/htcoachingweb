@@ -22,20 +22,37 @@ export const F1_STATUSES = new Set([
 export const safeRegex = (value = "") =>
   value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-export const assertCustomerAccess = (customer, req) => {
+export const assertCustomerAccess = (
+  customer,
+  req,
+  { allowSoftDeleted = false } = {},
+) => {
   if (!customer) {
     const error = new Error("Không tìm thấy khách hàng F1");
     error.status = 404;
     throw error;
   }
 
+  // assignedTrainerId có thể đã populate thành document; lấy _id để so sánh đúng.
+  const assignedId =
+    customer.assignedTrainerId?._id ?? customer.assignedTrainerId;
   if (
     !req.isAdmin &&
-    (!customer.assignedTrainerId ||
-      customer.assignedTrainerId.toString() !== req.user.id.toString())
+    (!assignedId || assignedId.toString() !== req.user.id.toString())
   ) {
     const error = new Error("Bạn không có quyền truy cập khách hàng F1 này");
     error.status = 403;
+    throw error;
+  }
+
+  // Khách đã xoá mềm chỉ còn xem trong mục "Xóa khách hàng" và khôi phục được.
+  if (customer.softDeletedAt && !allowSoftDeleted) {
+    const error = new Error(
+      "Khách hàng này đã được chuyển vào mục Xóa khách hàng. Hãy khôi phục trước khi tiếp tục.",
+    );
+    error.status = 409;
+    error.code = "F1_CUSTOMER_SOFT_DELETED";
+    error.expose = true;
     throw error;
   }
 };
