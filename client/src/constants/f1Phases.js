@@ -29,13 +29,14 @@ const TRAINING_FOCUS_LABELS = {
   strength_progression: "Tăng sức mạnh theo từng giai đoạn",
   movement_quality_under_load: "Tập nặng hơn nhưng vẫn giữ form chuẩn",
   lower_body_strength: "Tăng sức mạnh thân dưới",
-  core_strength: "Tăng sức mạnh core",
+  core_strength: "Tăng sức mạnh cơ lõi",
   muscular_endurance: "Cải thiện sức bền cơ",
   pattern_retraining: "Chỉnh lại kiểu vận động",
   general_foundation: "Xây nền thể lực tổng quát",
   movement_foundation: "Xây nền chuyển động",
   stability_training: "Tăng khả năng ổn định cơ thể",
-  core_control: "Cải thiện kiểm soát core",
+  core_control: "Cải thiện kiểm soát cơ lõi",
+  form_maintenance: "Duy trì kiểm soát form khi tăng tải",
 };
 
 export const translateTrainingFocus = (items = []) =>

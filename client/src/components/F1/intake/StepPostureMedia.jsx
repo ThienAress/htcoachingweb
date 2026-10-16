@@ -134,10 +134,10 @@ const StepPostureMedia = ({
         <Camera size={20} className="text-orange-600" />
         <div>
           <h3 className="text-xl font-bold text-slate-800">
-            Ảnh posture & before
+            Ảnh tư thế và ảnh trước tập
           </h3>
           <p className="text-sm text-slate-500">
-            Bước này dùng để lưu ảnh posture/before cho giai đoạn assessment.
+            Bước này dùng để lưu ảnh tư thế và ảnh trước tập cho giai đoạn đánh giá.
           </p>
         </div>
       </div>
@@ -146,7 +146,7 @@ const StepPostureMedia = ({
         <div className="flex items-start gap-3">
           <Info size={18} className="mt-0.5 text-orange-600" />
           <p className="text-sm text-orange-800">
-            Preview đã được chỉnh để nhìn rõ full body hơn, tránh crop ảnh.
+            Ảnh xem trước đã được chỉnh để nhìn rõ toàn thân, không bị cắt.
           </p>
         </div>
       </div>
@@ -194,7 +194,7 @@ const StepPostureMedia = ({
           icon={Camera}
           checked={allowMediaStorage}
           onChange={(checked) => setValue("consent.allowMediaStorage", checked, { shouldValidate: true })}
-          helperText="Ảnh posture sẽ được lưu để theo dõi tiến trình."
+          helperText="Ảnh tư thế sẽ được lưu để theo dõi tiến trình."
         />
         <SwitchRow
           label="Đồng ý để hệ thống phân tích dữ liệu"

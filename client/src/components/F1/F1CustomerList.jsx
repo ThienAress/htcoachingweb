@@ -59,7 +59,7 @@ const F1CustomerList = ({
             Hệ thống khách hàng F1
           </h1>
           <p className="text-slate-500 mt-1">
-            Quản lý khách hàng mới trước khi thực hiện Assessment NASM
+            Quản lý khách hàng mới trước khi đánh giá theo NASM
           </p>
         </div>
 

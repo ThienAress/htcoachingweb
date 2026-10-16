@@ -101,6 +101,14 @@ export const determinePhaseCeiling = ({ intake, assessment, aiReport }) => {
   const recommendedStartPhase =
     aiReport?.recommendations?.recommendedStartPhase || "phase_1";
 
+  // Thể chất Thấp cộng bệnh lý hoặc đau nặng: chỉ lập lộ trình giai đoạn 1; giai đoạn sau để HLV quyết định sau khi đánh giá lại.
+  if (
+    overall === "low" &&
+    (systemFlags.medicalReviewFlag || systemFlags.painFlag === "severe")
+  ) {
+    return "phase_1";
+  }
+
   if (systemFlags.testPermission === "modified_test") {
     return "phase_2";
   }
