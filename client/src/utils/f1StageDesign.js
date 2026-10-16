@@ -72,6 +72,14 @@ export const applySuggestion = (values, suggestion) => ({
   exitCriteria: toRows(suggestion.exitCriteria).slice(0, MAX_LIST_ITEMS),
 });
 
+// Nút "Dùng gợi ý của hệ thống" chỉ điền ba danh sách nội dung; số tuần, mục tiêu và lý do HLV đã gõ được giữ nguyên.
+export const applyContentSuggestion = (values, suggestion) => ({
+  ...values,
+  keyFocus: toRows(suggestion.keyFocus).slice(0, MAX_LIST_ITEMS),
+  expectedChanges: toRows(suggestion.expectedChanges).slice(0, MAX_LIST_ITEMS),
+  exitCriteria: toRows(suggestion.exitCriteria).slice(0, MAX_LIST_ITEMS),
+});
+
 const numberOrNull = (value) => {
   if (value === "" || value === null || value === undefined) return null;
   const parsed = Number(String(value).replace(",", "."));

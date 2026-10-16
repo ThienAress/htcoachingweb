@@ -259,6 +259,14 @@ const buildEntryReasonByPhase = ({
     return "Ở thời điểm này, khách đã đủ nền để bước vào giai đoạn tập trung hơn cho phát triển cơ bắp thay vì chỉ dừng ở phần nền tảng.";
   }
 
+  if (phaseKey === "phase_4") {
+    return "Khách đã có nền phát triển cơ bắp tốt, đủ điều kiện tập trung vào sức mạnh tối đa với tải nặng và số lần ít.";
+  }
+
+  if (phaseKey === "phase_5") {
+    return "Khách đã có nền sức mạnh vững, đủ điều kiện rèn sức mạnh bùng nổ (power) với kỹ thuật chuẩn.";
+  }
+
   return "Khách phù hợp với giai đoạn này theo hồ sơ hiện tại.";
 };
 
@@ -293,6 +301,22 @@ export const buildExpectedChangesByPhase = ({ phaseKey, primaryGoal }) => {
     ];
   }
 
+  if (phaseKey === "phase_4") {
+    return [
+      "Sức mạnh các bài compound tăng rõ hơn",
+      "Giữ form chuẩn khi dùng tạ nặng",
+      "Hồi phục ổn định giữa các buổi tập nặng",
+    ];
+  }
+
+  if (phaseKey === "phase_5") {
+    return [
+      "Tốc độ và sự bùng nổ khi vận động tốt hơn",
+      "Phối hợp sức mạnh và tốc độ ổn định hơn",
+      "Giữ kỹ thuật chuẩn khi tập nhanh",
+    ];
+  }
+
   return ["Tiếp tục cải thiện theo đúng mục tiêu đã chọn"];
 };
 
@@ -318,6 +342,22 @@ export const buildExitCriteriaByPhase = (phaseKey) => {
       "Phản ứng tốt với tăng tải",
       "Giữ hồi phục ổn định",
       "Hình thể đi đúng hướng mục tiêu",
+    ];
+  }
+
+  if (phaseKey === "phase_4") {
+    return [
+      "Đạt mức tạ mục tiêu với form chuẩn",
+      "Không đau hoặc khó chịu mới khi tập nặng",
+      "Hồi phục đủ giữa các buổi tập nặng",
+    ];
+  }
+
+  if (phaseKey === "phase_5") {
+    return [
+      "Giữ kỹ thuật chuẩn ở tốc độ cao",
+      "Không đau hoặc khó chịu mới",
+      "Hồi phục ổn định sau buổi tập cường độ cao",
     ];
   }
 

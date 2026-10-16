@@ -38,6 +38,7 @@ const F1PredictionModeDialog = ({
   busy = false,
   currentMode = null,
   locked = false,
+  switchedAtStage = null,
   canRegenerate = false,
   onSystem,
   onTrainer,
@@ -72,7 +73,13 @@ const F1PredictionModeDialog = ({
               {currentMode ? "Thay đổi dự đoán" : isFirst ? "Tạo dự đoán kết quả" : `Thêm giai đoạn ${stageOrder}`}
             </h2>
             <p className="text-sm text-slate-500">
-              {currentMode ? `Chọn cách dựng từ giai đoạn ${stageOrder} trở đi` : `Chọn cách dựng giai đoạn ${stageOrder} cho khách`}
+              {currentMode
+                ? locked
+                  ? switchedAtStage
+                    ? `Cách dựng đã được chốt từ giai đoạn ${switchedAtStage}`
+                    : "Cách dựng đã được chốt"
+                  : `Chọn cách dựng từ giai đoạn ${stageOrder} trở đi`
+                : `Chọn cách dựng giai đoạn ${stageOrder} cho khách`}
             </p>
           </div>
           <button ref={closeRef} type="button" onClick={onClose} disabled={busy} aria-label="Đóng" className="rounded-lg border border-slate-200 bg-white p-2 text-slate-600 hover:bg-slate-50 disabled:opacity-60">

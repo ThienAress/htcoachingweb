@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildExitCriteriaByPhase,
+  buildExpectedChangesByPhase,
   buildGoalProgress,
   buildOutcomeTable,
   buildPhaseRoadmap,
@@ -165,5 +167,18 @@ describe("goal progress", () => {
 
     expect(progress.achievedPercent).toBeNull();
     expect(progress.fitsTimeframe).toBe(true);
+  });
+});
+
+describe("stage content for the heavy phases", () => {
+  it("has its own expected changes and exit criteria for phase 4 and 5", () => {
+    for (const phaseKey of ["phase_4", "phase_5"]) {
+      const changes = buildExpectedChangesByPhase({ phaseKey, primaryGoal: "muscle_gain" });
+      const exit = buildExitCriteriaByPhase(phaseKey);
+      expect(changes).toHaveLength(3);
+      expect(exit).toHaveLength(3);
+      expect(changes.join(" ")).not.toContain("Tiếp tục cải thiện theo đúng mục tiêu");
+      expect(exit.join(" ")).not.toContain("Đạt điều kiện để chuyển sang giai đoạn tiếp theo");
+    }
   });
 });

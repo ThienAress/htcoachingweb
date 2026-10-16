@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   SPLIT_OPTIONS,
+  applyContentSuggestion,
   applySuggestion,
   buildDesignDefaults,
   getSplitLabel,
@@ -104,5 +105,26 @@ describe("training methods", () => {
     base.weeklySchedule.split = "push_pull";
     expect(toCustomStage(base).weeklySchedule).not.toHaveProperty("customSplitName");
     expect(getSplitLabel({ split: "push_pull" })).toBe("Push / Pull");
+  });
+});
+
+describe("applyContentSuggestion", () => {
+  it("fills only the three content lists and keeps the weeks, objective and reason the trainer typed", () => {
+    const values = { ...buildDesignDefaults(), durationWeeks: "24", objective: "Mục tiêu của HLV", entryReason: "Lý do của HLV" };
+    const next = applyContentSuggestion(values, {
+      durationWeeks: 8,
+      objective: "Gợi ý mục tiêu",
+      entryReason: "Gợi ý lý do",
+      keyFocus: ["core_control"],
+      expectedChanges: ["A"],
+      exitCriteria: ["B"],
+    });
+
+    expect(next.durationWeeks).toBe("24");
+    expect(next.objective).toBe("Mục tiêu của HLV");
+    expect(next.entryReason).toBe("Lý do của HLV");
+    expect(next.keyFocus).toHaveLength(1);
+    expect(next.expectedChanges).toEqual([{ value: "A" }]);
+    expect(next.exitCriteria).toEqual([{ value: "B" }]);
   });
 });
