@@ -167,13 +167,14 @@ const buildCarryOver = ({ input }) => {
   return items.slice(0, MAX_CARRY_OVER);
 };
 
-export const buildNextStage = ({ input, context, evaluation, intake, assessment, aiReport }) => {
+export const buildNextStage = ({ input, context, evaluation, intake, assessment, aiReport, durationOverride = null }) => {
   const primaryGoal = context.primaryGoal;
   const phaseKey = evaluation.nextPhaseKey;
   const durationWeeks =
-    evaluation.decision === "extend"
+    durationOverride ||
+    (evaluation.decision === "extend"
       ? evaluation.extendWeeks
-      : estimatePhaseDuration({ phaseKey, intake, assessment, aiReport });
+      : estimatePhaseDuration({ phaseKey, intake, assessment, aiReport }));
   const start = buildStartMetrics({
     actual: input.actual,
     heightCm: context.heightCm,

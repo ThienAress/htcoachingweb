@@ -8,7 +8,8 @@ import {
   getLatestResultPrediction,
   getPhaseReviews,
 } from "../../services/f1Customer.service";
-import { buildStageTabs } from "../../constants/f1Phases";
+import { PHASE_NAMES, buildStageTabs } from "../../constants/f1Phases";
+import F1WeeklyScheduleView from "./stageDesign/F1WeeklyScheduleView";
 import { phaseReviewsQueryKey } from "../../utils/f1PhaseReview";
 import F1PhaseReviewResult, {
   F1NextStagePlan,
@@ -453,6 +454,24 @@ const F1CustomerSummaryReport = ({
                   <Item label="Nghề nghiệp">{info.occupation || customer?.occupation}</Item>
                 </Grid>
               </Group>
+
+              {prediction?.phaseRoadmap?.[0] && (
+                <Group title="Kế hoạch giai đoạn 1">
+                  <Grid>
+                    <Item label="Giai đoạn">{PHASE_NAMES[prediction.phaseRoadmap[0].phaseKey]}</Item>
+                    <Item label="Thời lượng">{`${prediction.phaseRoadmap[0].durationWeeks} tuần`}</Item>
+                    <Item label="Người thiết kế">{prediction.planSource === "trainer" ? "HLV thiết kế" : "Hệ thống đề xuất"}</Item>
+                  </Grid>
+                  {prediction.phaseRoadmap[0].objective && (
+                    <p className="mt-3 text-sm text-slate-700">{prediction.phaseRoadmap[0].objective}</p>
+                  )}
+                  {prediction.phaseRoadmap[0].weeklySchedule && (
+                    <div className="mt-3">
+                      <F1WeeklyScheduleView schedule={prediction.phaseRoadmap[0].weeklySchedule} />
+                    </div>
+                  )}
+                </Group>
+              )}
 
               <HealthLifeGroup health={health} life={life} />
 

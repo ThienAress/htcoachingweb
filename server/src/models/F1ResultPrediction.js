@@ -39,6 +39,9 @@ const phaseRoadmapItemSchema = new mongoose.Schema(
     keyFocus: { type: [String], default: [] },
     expectedChanges: { type: [String], default: [] },
     exitCriteria: { type: [String], default: [] },
+    // Lịch tập mỗi tuần khi HLV tự thiết kế giai đoạn.
+    weeklySchedule: { type: Object, default: null },
+    designedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
   },
   { _id: false },
 );
@@ -56,6 +59,9 @@ const outcomeCheckpointSchema = new mongoose.Schema(
     // Khoảng ước tính {metric: {min, max}} quanh giá trị giữa.
     projectedRange: { type: Object, default: {} },
     deltaFromBaseline: { type: Object, default: {} },
+    // Số hệ thống tính và các chỉ số HLV ghi đè (khi HLV tự thiết kế).
+    systemProjected: { type: Object, default: null },
+    overrides: { type: Object, default: null },
     summary: { type: String, default: "" },
   },
   { _id: false },
@@ -250,6 +256,13 @@ const f1ResultPredictionSchema = new mongoose.Schema(
     sourceSummary: {
       type: Object,
       default: {},
+    },
+
+    // Giai đoạn 1 do hệ thống đề xuất hay HLV tự thiết kế.
+    planSource: {
+      type: String,
+      enum: ["system", "trainer"],
+      default: "system",
     },
 
     engineVersion: {

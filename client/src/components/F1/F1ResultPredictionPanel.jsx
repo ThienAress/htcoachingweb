@@ -11,6 +11,9 @@ import {
   Layers,
   Lock,
   Pencil,
+  PencilRuler,
+  Plus,
+  Trash2,
 } from "lucide-react";
 import { useConfirmDialog } from "../../hooks/useConfirmDialog";
 import {
@@ -18,12 +21,17 @@ import {
   getLatestResultPrediction,
   generateResultPredictionStageImages,
   getPhaseReviews,
+  previewStageDesign,
+  previewNextStageDesign,
+  saveNextStageDesign,
+  deleteLatestStage,
 } from "../../services/f1Customer.service";
 import { phaseReviewsQueryKey } from "../../utils/f1PhaseReview";
 import { toast } from "react-toastify";
 import { resolveMediaUrl } from "../../utils/mediaUrl";
 
 import F1NasmPyramid from "./F1NasmPyramid";
+import F1WeeklyScheduleView from "./stageDesign/F1WeeklyScheduleView";
 import {
   PHASE_EXPLANATIONS,
   PHASE_NAMES,
@@ -33,6 +41,12 @@ import {
 
 const F1PhaseReviewDialog = lazy(
   () => import("./phaseReview/F1PhaseReviewDialog"),
+);
+const F1PredictionModeDialog = lazy(
+  () => import("./stageDesign/F1PredictionModeDialog"),
+);
+const F1StageDesignDialog = lazy(
+  () => import("./stageDesign/F1StageDesignDialog"),
 );
 const F1StagePhotoSection = lazy(
   () => import("./phaseReview/F1StagePhotoSection"),
@@ -92,8 +106,8 @@ const BulletList = ({ items = [], emptyText = "Chưa có dữ liệu" }) => {
   );
 };
 
-// Giai đoạn 2 trở đi sửa được khi bật chế độ chỉnh sửa; chỉ giai đoạn mới nhất sửa được,
-// các giai đoạn trước bị khoá để lộ trình đã đi qua không bị đổi.
+// Cuối hàng tab luôn có "Thêm giai đoạn" và nút bút để bật chỉnh sửa. Khi chỉnh sửa, chỉ giai đoạn mới nhất
+// (từ giai đoạn 2) sửa hoặc xoá được; các giai đoạn trước bị khoá để lộ trình đã đi qua không bị đổi.
 const StageTabs = ({
   tabs = [],
   selectedKey,
@@ -103,12 +117,15 @@ const StageTabs = ({
   editableOrder = 0,
   onToggleEdit,
   onEdit,
+  onDelete,
+  onAdd,
+  addDisabled = false,
 }) => (
   <div className="rounded-xl border border-slate-200 bg-white p-2">
     <div className="flex flex-wrap items-center gap-2" role="tablist">
       {tabs.map((tab) => {
         const active = tab.key === selectedKey;
-        const showEdit = editMode && !tab.locked && tab.stageOrder >= 2;
+        const showEdit = editMode && tab.stageOrder >= 2;
         const editable = tab.stageOrder === editableOrder;
         return (
           <div key={tab.key} className="inline-flex items-center gap-1">
@@ -120,25 +137,33 @@ const StageTabs = ({
               className={`inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors ${
                 active
                   ? "bg-gradient-to-r from-orange-600 to-orange-500 text-white shadow-md"
-                  : tab.locked
-                    ? "border border-dashed border-slate-300 bg-white text-slate-500 hover:bg-slate-50"
-                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
               }`}
             >
-              {tab.locked && <Lock size={14} aria-hidden="true" />}
               {tab.label}
             </button>
             {showEdit &&
               (editable ? (
-                <button
-                  type="button"
-                  onClick={() => onEdit(tab.stageOrder)}
-                  aria-label={`Sửa kết quả dẫn tới giai đoạn ${tab.stageOrder}`}
-                  title="Sửa kết quả cuối giai đoạn trước"
-                  className="rounded-lg border border-orange-200 bg-orange-50 p-2 text-orange-700 transition-colors hover:bg-orange-100"
-                >
-                  <Pencil size={14} aria-hidden="true" />
-                </button>
+                <>
+                  <button
+                    type="button"
+                    onClick={() => onEdit(tab.stageOrder)}
+                    aria-label={`Sửa giai đoạn ${tab.stageOrder}`}
+                    title="Sửa kết quả, mục tiêu hoặc nội dung giai đoạn"
+                    className="rounded-lg border border-orange-200 bg-orange-50 p-2 text-orange-700 transition-colors hover:bg-orange-100"
+                  >
+                    <Pencil size={14} aria-hidden="true" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onDelete(tab.stageOrder)}
+                    aria-label={`Xoá giai đoạn ${tab.stageOrder}`}
+                    title="Xoá giai đoạn"
+                    className="rounded-lg border border-red-200 bg-red-50 p-2 text-red-600 transition-colors hover:bg-red-100"
+                  >
+                    <Trash2 size={14} aria-hidden="true" />
+                  </button>
+                </>
               ) : (
                 <span
                   title="Đã khoá vì giai đoạn sau đã mở"
@@ -151,21 +176,33 @@ const StageTabs = ({
           </div>
         );
       })}
-      {canEdit && (
+      <div className="ml-auto flex items-center gap-2">
         <button
           type="button"
-          onClick={onToggleEdit}
-          aria-pressed={editMode}
-          className={`ml-auto inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-medium transition-colors ${
-            editMode
-              ? "border-orange-300 bg-orange-50 text-orange-800"
-              : "border-slate-200 text-slate-600 hover:bg-slate-50"
-          }`}
+          onClick={onAdd}
+          disabled={addDisabled}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-orange-200 bg-orange-50 px-3 py-2 text-xs font-semibold text-orange-800 transition-colors hover:bg-orange-100 disabled:opacity-60"
         >
-          <Pencil size={13} aria-hidden="true" />
-          {editMode ? "Xong" : "Chỉnh sửa"}
+          <Plus size={14} aria-hidden="true" />
+          Thêm giai đoạn
         </button>
-      )}
+        {canEdit && (
+          <button
+            type="button"
+            onClick={onToggleEdit}
+            aria-pressed={editMode}
+            aria-label={editMode ? "Xong chỉnh sửa" : "Chỉnh sửa giai đoạn"}
+            title={editMode ? "Xong" : "Chỉnh sửa giai đoạn"}
+            className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-2 text-xs font-medium transition-colors ${
+              editMode
+                ? "border-orange-300 bg-orange-50 text-orange-800"
+                : "border-slate-200 text-slate-600 hover:bg-slate-50"
+            }`}
+          >
+            {editMode ? "Xong" : <Pencil size={14} aria-hidden="true" />}
+          </button>
+        )}
+      </div>
     </div>
   </div>
 );
@@ -186,9 +223,17 @@ const StageDetailCard = ({ stage, onShowFramework }) => {
             <p className="text-sm text-slate-500">{stage.levelTitle}</p>
           </div>
         </div>
-        <div className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700">
-          <CalendarDays size={16} />
-          {stage.durationWeeks} tuần
+        <div className="flex flex-wrap items-center gap-2">
+          {stage.designedByTrainer && (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-violet-50 px-3 py-1.5 text-xs font-semibold text-violet-700">
+              <PencilRuler size={14} aria-hidden="true" />
+              HLV thiết kế
+            </span>
+          )}
+          <div className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700">
+            <CalendarDays size={16} />
+            {stage.durationWeeks} tuần
+          </div>
         </div>
       </div>
 
@@ -248,6 +293,12 @@ const StageDetailCard = ({ stage, onShowFramework }) => {
           </div>
         </div>
       </div>
+
+      {stage.weeklySchedule && (
+        <div className="mt-5">
+          <F1WeeklyScheduleView schedule={stage.weeklySchedule} />
+        </div>
+      )}
 
       <div className="mt-5 rounded-lg bg-slate-50 p-4">
         <p className="text-sm font-semibold text-slate-800">
@@ -578,6 +629,11 @@ const F1ResultPredictionPanel = ({ customer, onBack, onGenerated }) => {
   const frameworkRef = useRef(null);
   const [openStage, setOpenStage] = useState(null);
   const [editMode, setEditMode] = useState(false);
+  // Hộp chọn cách dựng giai đoạn, bảng HLV thiết kế và giai đoạn chờ thiết kế sau bước cập nhật mục tiêu.
+  const [modeDialog, setModeDialog] = useState(null);
+  const [designDialog, setDesignDialog] = useState(null);
+  const [designAfter, setDesignAfter] = useState(null);
+  const [savingDesign, setSavingDesign] = useState(false);
   const queryClient = useQueryClient();
 
   useEffect(() => {
@@ -634,6 +690,9 @@ const F1ResultPredictionPanel = ({ customer, onBack, onGenerated }) => {
     if (tab?.locked) setOpenStage(tab.stageOrder);
     else setSelectedStageKey(key);
   };
+  const visibleTabs = stageTabs.filter((tab) => !tab.locked);
+  const pendingReview = allReviewCount > reviews.length;
+  const nextStageOrder = pendingReview ? allReviewCount + 1 : reviews.length + 2;
   const selectedTab = stageTabs.find((tab) => tab.key === selectedStageKey);
   const followUpStage = selectedTab && !selectedTab.locked && selectedTab.stageOrder >= 2 ? selectedTab.stageOrder : 0;
   const followUpReview = followUpStage
@@ -654,6 +713,8 @@ const F1ResultPredictionPanel = ({ customer, onBack, onGenerated }) => {
         keyFocus: plan.keyFocus,
         expectedChanges: plan.expectedChanges,
         exitCriteria: plan.exitCriteria,
+        weeklySchedule: plan.weeklySchedule,
+        designedByTrainer: followUpReview.nextPlanSource === "trainer",
       },
       outcomeTable: {
         baseline: { ...followUpReview.nextOutcome?.baseline, label: "Đầu giai đoạn" },
@@ -678,6 +739,88 @@ const F1ResultPredictionPanel = ({ customer, onBack, onGenerated }) => {
     );
   }, [prediction, selectedStageKey]);
 
+  const handleAddStage = () => {
+    // Đã lưu kết quả cuối giai đoạn nhưng chưa cập nhật mục tiêu: tiếp tục đúng chỗ đang dở.
+    if (pendingReview) setOpenStage(nextStageOrder);
+    else setModeDialog({ stageOrder: nextStageOrder });
+  };
+
+  const handleDeleteStage = async (stageOrder) => {
+    const confirmed = await confirm({
+      title: `Xoá giai đoạn ${stageOrder}?`,
+      message: `Mọi thông tin đã điền cho giai đoạn ${stageOrder} sẽ bị xoá vĩnh viễn.`,
+      details: [
+        `Kết quả cuối giai đoạn ${stageOrder - 1} và mục tiêu đã cập nhật.`,
+        "Nội dung giai đoạn, lịch tập và bảng dự đoán.",
+        "Ảnh hiện tại đã tải và ảnh dự đoán của giai đoạn.",
+      ],
+      confirmLabel: "Xoá giai đoạn",
+      tone: "danger",
+    });
+    if (!confirmed) return;
+    try {
+      const res = await deleteLatestStage(customer._id, stageOrder - 1);
+      queryClient.setQueryData(phaseReviewsQueryKey(customer._id), res);
+      setSelectedStageKey(prediction?.phaseRoadmap?.[0]?.phaseKey || "");
+      setEditMode(false);
+      toast.success(res?.message || "Đã xoá giai đoạn");
+    } catch (error) {
+      toast.error(error?.response?.data?.message || "Xoá giai đoạn thất bại");
+    }
+  };
+
+  const openDesign = (stageOrder) => {
+    if (stageOrder === 1) {
+      const trainerPlan = prediction?.planSource === "trainer" ? prediction.phaseRoadmap?.[0] : null;
+      setDesignDialog({
+        stageOrder,
+        plan: trainerPlan,
+        overrides: trainerPlan ? prediction.outcomeTable?.phaseCheckpoints?.[0]?.overrides : null,
+      });
+      return;
+    }
+    const review = (phaseReviews?.reviews || []).find((item) => item.stageOrder === stageOrder - 1);
+    setDesignDialog({
+      stageOrder,
+      plan: review?.nextPhasePlan || null,
+      overrides: review?.nextOutcome?.checkpoint?.overrides || null,
+    });
+  };
+
+  const handleSaveDesign = async (customStage) => {
+    const { stageOrder } = designDialog;
+    try {
+      setSavingDesign(true);
+      if (stageOrder === 1) {
+        const res = await generateResultPrediction(customer._id, {
+          requestId: predictionRequestIdRef.current,
+          regenerate: Boolean(prediction),
+          customStage,
+        });
+        predictionRequestIdRef.current = crypto.randomUUID();
+        setPrediction(res?.data || null);
+        queryClient.invalidateQueries({ queryKey: phaseReviewsQueryKey(customer._id) });
+        onGenerated?.(res?.data);
+        toast.success("Đã lưu lộ trình giai đoạn 1");
+      } else {
+        const res = await saveNextStageDesign(customer._id, stageOrder - 1, customStage);
+        queryClient.setQueryData(phaseReviewsQueryKey(customer._id), res);
+        setSelectedStageKey(`stage_${stageOrder}`);
+        toast.success(res?.message || `Đã lưu lộ trình giai đoạn ${stageOrder}`);
+      }
+      setDesignDialog(null);
+      setEditMode(false);
+    } catch (error) {
+      toast.error(
+        error?.response?.data?.message ||
+          error?.response?.data?.errors?.[0]?.msg ||
+          "Lưu lộ trình thất bại",
+      );
+    } finally {
+      setSavingDesign(false);
+    }
+  };
+
   const handleGenerate = async () => {
     if (!customer?._id) return;
     try {
@@ -692,6 +835,7 @@ const F1ResultPredictionPanel = ({ customer, onBack, onGenerated }) => {
         queryKey: phaseReviewsQueryKey(customer._id),
       });
       toast.success("Đã tạo dự đoán kết quả thành công");
+      setModeDialog(null);
       onGenerated?.(res?.data);
     } catch (error) {
       toast.error(
@@ -777,6 +921,58 @@ const F1ResultPredictionPanel = ({ customer, onBack, onGenerated }) => {
   return (
     <section className="mx-auto max-w-6xl space-y-6 px-4 py-6 md:px-6">
       {confirmDialog}
+      {modeDialog && (
+        <Suspense fallback={null}>
+          <F1PredictionModeDialog
+            customer={customer}
+            stageOrder={modeDialog.stageOrder}
+            busy={generating}
+            warning={
+              modeDialog.stageOrder === 1 && allReviewCount > 0
+                ? "Tạo lại giai đoạn 1 sẽ bắt đầu một lộ trình mới; các giai đoạn đã đánh giá sẽ không còn hiển thị."
+                : ""
+            }
+            onClose={() => setModeDialog(null)}
+            onSystem={() => {
+              if (modeDialog.stageOrder === 1) {
+                handleGenerate();
+                return;
+              }
+              setModeDialog(null);
+              setOpenStage(modeDialog.stageOrder);
+            }}
+            onTrainer={() => {
+              const order = modeDialog.stageOrder;
+              setModeDialog(null);
+              if (order === 1) {
+                openDesign(1);
+                return;
+              }
+              setDesignAfter(order);
+              setOpenStage(order);
+            }}
+          />
+        </Suspense>
+      )}
+      {designDialog && (
+        <Suspense fallback={null}>
+          <F1StageDesignDialog
+            customer={customer}
+            stageOrder={designDialog.stageOrder}
+            plan={designDialog.plan}
+            overrides={designDialog.overrides}
+            previewKey={["f1-stage-preview", customer?._id, designDialog.stageOrder]}
+            fetchPreview={(stage) =>
+              designDialog.stageOrder === 1
+                ? previewStageDesign(customer._id, stage)
+                : previewNextStageDesign(customer._id, designDialog.stageOrder - 1, stage)
+            }
+            saving={savingDesign}
+            onSave={handleSaveDesign}
+            onClose={() => setDesignDialog(null)}
+          />
+        </Suspense>
+      )}
       {openStage && (
         <Suspense fallback={null}>
           <F1PhaseReviewDialog
@@ -790,6 +986,15 @@ const F1ResultPredictionPanel = ({ customer, onBack, onGenerated }) => {
               setOpenStage(null);
               setEditMode(false);
               setSelectedStageKey(`stage_${order}`);
+              // HLV chọn tự thiết kế: sau khi cập nhật mục tiêu thì mở bảng thiết kế giai đoạn.
+              if (designAfter === order) {
+                setDesignAfter(null);
+                openDesign(order);
+              }
+            }}
+            onDesign={(order) => {
+              setOpenStage(null);
+              openDesign(order);
             }}
           />
         </Suspense>
@@ -821,7 +1026,7 @@ const F1ResultPredictionPanel = ({ customer, onBack, onGenerated }) => {
               </p>
             </div>
             <button
-              onClick={handleGenerate}
+              onClick={() => setModeDialog({ stageOrder: 1 })}
               disabled={generating || loadingLatest}
               className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-orange-600 to-orange-500 px-5 py-3 font-bold text-white shadow-md transition hover:shadow-lg disabled:opacity-60"
             >
@@ -897,17 +1102,26 @@ const F1ResultPredictionPanel = ({ customer, onBack, onGenerated }) => {
                   subtitle="Giai đoạn 1 được đề xuất từ kết quả đánh giá ban đầu. Bấm giai đoạn sau để nhập kết quả cuối giai đoạn trước và xem đề xuất tiếp theo."
                 />
                 <StageTabs
-                  tabs={stageTabs}
+                  tabs={visibleTabs}
                   selectedKey={selectedStageKey}
                   onSelect={handleSelectStage}
                   canEdit={reviews.length > 0}
                   editMode={editMode}
-                  editableOrder={allReviewCount === reviews.length ? reviews.length + 1 : 0}
+                  editableOrder={pendingReview ? 0 : reviews.length + 1}
                   onToggleEdit={() => setEditMode((value) => !value)}
                   onEdit={setOpenStage}
+                  onDelete={handleDeleteStage}
+                  onAdd={handleAddStage}
                 />
                 <StageDetailCard
-                  stage={followUp ? followUp.stage : selectedStage}
+                  stage={
+                    followUp
+                      ? followUp.stage
+                      : selectedStage && {
+                          ...selectedStage,
+                          designedByTrainer: prediction?.planSource === "trainer",
+                        }
+                  }
                   onShowFramework={showFramework}
                 />
               </div>

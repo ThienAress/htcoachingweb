@@ -150,9 +150,24 @@ export const generateResultPrediction = (customerId, payload) =>
     ),
   );
 
+// Xem trước giai đoạn 1 do HLV thiết kế (gợi ý và bảng dự đoán của hệ thống, không lưu).
+export const previewStageDesign = (customerId, customStage) =>
+  unwrap(api.post(`/f1-customers/${customerId}/result-predictions/preview`, { customStage }));
+
 // =========================
 // PHASE REVIEW (đánh giá cuối giai đoạn)
 // =========================
+export const previewNextStageDesign = (customerId, stageOrder, customStage) =>
+  unwrap(
+    api.post(`/f1-customers/${customerId}/phase-reviews/${stageOrder}/design-preview`, { customStage }),
+  );
+
+export const saveNextStageDesign = (customerId, stageOrder, customStage) =>
+  unwrap(api.put(`/f1-customers/${customerId}/phase-reviews/${stageOrder}/design`, { customStage }));
+
+export const deleteLatestStage = (customerId, stageOrder) =>
+  unwrap(api.delete(`/f1-customers/${customerId}/phase-reviews/${stageOrder}`));
+
 export const getPhaseReviews = (customerId) =>
   unwrap(api.get(`/f1-customers/${customerId}/phase-reviews`));
 

@@ -43,12 +43,16 @@ export {
   generateResultPrediction,
   getLatestResultPrediction,
   generateResultPredictionStageImages,
+  previewStageDesign,
 } from "./resultPrediction.controller.js";
 
 export {
   getPhaseReviews,
   savePhaseReview,
   saveStageProfile,
+  previewNextStageDesign,
+  saveNextStageDesign,
+  deleteLatestStage,
 } from "./phaseReview.controller.js";
 export {
   generateStageVisual,
