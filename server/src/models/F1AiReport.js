@@ -123,6 +123,7 @@ const f1AiReportSchema = new mongoose.Schema(
                     {
                       name: { type: String, default: "", trim: true },
                       note: { type: String, default: "", trim: true },
+                      score: { type: String, default: "", trim: true },
                       result: { type: String, default: "", trim: true },
                     },
                     { _id: false },

@@ -1,11 +1,22 @@
 import { translateTrainingFocus } from "../constants/f1Phases";
 
+export const MIN_WEEKS = 4;
+export const MAX_WEEKS = 24;
+export const MAX_SPLIT_NAME = 60;
+
 export const SPLIT_OPTIONS = [
-  { value: "full_body", label: "Toàn thân" },
-  { value: "upper_lower", label: "Trên – dưới" },
-  { value: "push_pull_legs", label: "Đẩy – kéo – chân" },
+  { value: "full_body", label: "Full Body Workout" },
+  { value: "upper_lower", label: "Upper / Lower" },
+  { value: "push_pull", label: "Push / Pull" },
+  { value: "push_pull_legs", label: "Push–Pull–Legs (PPL)" },
   { value: "custom", label: "Tự đặt" },
 ];
+
+// Tên phương pháp hiển thị: "Tự đặt" thì lấy đúng tên HLV đã nhập.
+export const getSplitLabel = (schedule) =>
+  schedule?.split === "custom"
+    ? schedule.customSplitName || "Tự đặt"
+    : SPLIT_LABELS[schedule?.split] || "";
 
 export const SPLIT_LABELS = Object.fromEntries(SPLIT_OPTIONS.map((item) => [item.value, item.label]));
 
@@ -43,6 +54,7 @@ export const buildDesignDefaults = ({ plan = null, overrides = null, fallbackPha
       days: Array.isArray(schedule.days) && schedule.days.length === 7 ? schedule.days.map(Boolean) : DEFAULT_DAYS,
       sessionMinutes: toInput(schedule.sessionMinutes || 60),
       split: schedule.split || "full_body",
+      customSplitName: schedule.customSplitName || "",
       note: schedule.note || "",
     },
     overrides: Object.fromEntries(OUTCOME_METRICS.map(([key]) => [key, toInput(overrides?.[key])])),
@@ -80,6 +92,9 @@ export const toCustomStage = (values) => ({
     days: values.weeklySchedule.days.map(Boolean),
     sessionMinutes: Number(values.weeklySchedule.sessionMinutes),
     split: values.weeklySchedule.split,
+    ...(values.weeklySchedule.split === "custom"
+      ? { customSplitName: values.weeklySchedule.customSplitName.trim() }
+      : {}),
     note: values.weeklySchedule.note.trim(),
   },
   overrides: Object.fromEntries(
@@ -91,7 +106,7 @@ export const toCustomStage = (values) => ({
 
 // Bản rút gọn chỉ để xin bảng dự đoán của hệ thống khi HLV đổi giai đoạn, số tuần hoặc số buổi.
 export const toPreviewStage = ({ phaseKey, durationWeeks, days }) => {
-  const weeks = Math.min(16, Math.max(4, Math.round(Number(durationWeeks) || 8)));
+  const weeks = Math.min(MAX_WEEKS, Math.max(MIN_WEEKS, Math.round(Number(durationWeeks) || 8)));
   const trainingDays = Array.isArray(days) && days.some(Boolean) ? days.map(Boolean) : DEFAULT_DAYS;
   return {
     phaseKey,

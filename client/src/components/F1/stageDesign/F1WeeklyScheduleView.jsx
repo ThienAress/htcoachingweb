@@ -1,5 +1,5 @@
 import { CalendarDays } from "lucide-react";
-import { SPLIT_LABELS, WEEK_DAYS } from "../../../utils/f1StageDesign";
+import { WEEK_DAYS, getSplitLabel } from "../../../utils/f1StageDesign";
 
 // Lịch tập mỗi tuần HLV đã đặt, hiện trên thẻ giai đoạn và trong báo cáo.
 const F1WeeklyScheduleView = ({ schedule }) => {
@@ -14,7 +14,7 @@ const F1WeeklyScheduleView = ({ schedule }) => {
       <p className="mt-1 text-sm text-slate-600">
         {sessions} buổi/tuần
         {schedule.sessionMinutes ? ` · ${schedule.sessionMinutes} phút mỗi buổi` : ""}
-        {SPLIT_LABELS[schedule.split] ? ` · ${SPLIT_LABELS[schedule.split]}` : ""}
+        {getSplitLabel(schedule) ? ` · ${getSplitLabel(schedule)}` : ""}
       </p>
       <ul className="mt-3 grid grid-cols-4 gap-2 sm:grid-cols-7">
         {WEEK_DAYS.map((day, index) => {

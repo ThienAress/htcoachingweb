@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { Plus, X } from "lucide-react";
 import RoundedSelect from "./RoundedSelect";
+import SuggestedVolume from "./SuggestedVolume";
 import {
   scoreAgainstProtocol,
   scoreToLevel,
@@ -57,16 +58,14 @@ const positiveInput = (onChange) => (event) => {
 const ExerciseRow = ({
   exercise,
   scoring,
-  protocolOptions,
+  getProtocol,
   resultLabel,
   resultPlaceholder,
   onPatch,
   onRemove,
 }) => {
   const isCustom = exercise.source === "custom";
-  const topResult = describeTopResult(
-    pickProtocol(exercise.inputMode, protocolOptions),
-  );
+  const topResult = describeTopResult(getProtocol(exercise.inputMode));
 
   return (
     <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4">
@@ -200,6 +199,8 @@ const ExerciseTestCard = ({
 }) => {
   const [tier, setTier] = useState("");
   const [customName, setCustomName] = useState("");
+  // Khối lượng HLV chỉnh trong thẻ này; chưa chỉnh thì lấy theo bài đã lưu hoặc đề xuất của hệ thống.
+  const [overrides, setOverrides] = useState({});
   const exercises = Array.isArray(value.exercises) ? value.exercises : [];
   const tiers = getSuggestionTiers(suggestion);
   const protocolOptions = suggestion?.protocolOptions || [];
@@ -214,13 +215,32 @@ const ExerciseTestCard = ({
     onChange("level", aggregate.level);
   };
 
+  const getProtocol = (mode, map = overrides) =>
+    map[mode] ||
+    exercises.find((item) => item.inputMode === mode && item.selectedProtocol)
+      ?.selectedProtocol ||
+    pickProtocol(mode, protocolOptions);
+
+  // HLV đổi khối lượng đề xuất: chấm lại mọi bài cùng cách ghi kết quả theo chuẩn mới.
+  const changeProtocol = (mode, protocol) => {
+    const map = { ...overrides, [mode]: protocol };
+    setOverrides(map);
+    commit(
+      exercises.map((exercise) =>
+        exercise.inputMode === mode
+          ? { ...exercise, ...scoreExercise(exercise, map) }
+          : exercise,
+      ),
+    );
+  };
+
   // Hệ thống tự chấm: bài hệ thống và bài riêng của HLV dùng cùng một chuẩn.
-  const scoreExercise = (exercise) => {
+  const scoreExercise = (exercise, map = overrides) => {
     if (scoring === "result") {
       const score = computeResultScore ? computeResultScore(exercise.result) : "";
       return { score, level: score === "" ? "" : scoreToLevel(score) };
     }
-    const protocol = pickProtocol(exercise.inputMode, protocolOptions);
+    const protocol = getProtocol(exercise.inputMode, map);
     const score = protocol
       ? scoreAgainstProtocol({
           selectedProtocol: protocol,
@@ -350,13 +370,28 @@ const ExerciseTestCard = ({
           </div>
         )}
 
-        {exercises.length > 0 && suggestion && (suggestion.reason || suggestion.dosage) && (
-          <div className="rounded-xl border border-orange-200 bg-orange-50/40 p-4 text-sm">
-            {suggestion.reason && <p className="text-slate-600">{suggestion.reason}</p>}
-            {suggestion.dosage && (
-              <p className="mt-2 rounded-lg border border-orange-200 bg-white px-3 py-2 text-slate-700">
-                <span className="font-semibold">Gợi ý khởi đầu:</span> {suggestion.dosage}
-              </p>
+        {exercises.length > 0 && suggestion && (
+          <div className="space-y-3">
+            <div className="rounded-xl border border-orange-200 bg-orange-50/40 p-4 text-sm text-slate-600">
+              {suggestion.reason && <p>{suggestion.reason}</p>}
+              {scoring === "protocol" ? (
+                <p className={suggestion.reason ? "mt-2" : ""}>
+                  Hệ số bạn thiết lập sẽ ảnh hưởng đến quá trình chấm điểm bài tập, vì chấm điểm bài tập sẽ dựa vào hệ số bạn thiết lập.
+                </p>
+              ) : (
+                suggestion.dosage && (
+                  <p className="mt-2">
+                    <span className="font-semibold text-slate-700">Khối lượng tập đề xuất:</span> {suggestion.dosage}
+                  </p>
+                )
+              )}
+            </div>
+            {scoring === "protocol" && (
+              <SuggestedVolume
+                repsProtocol={getProtocol("reps")}
+                timeProtocol={getProtocol("time")}
+                onChangeProtocol={changeProtocol}
+              />
             )}
           </div>
         )}
@@ -372,7 +407,7 @@ const ExerciseTestCard = ({
             key={`${exercise.name}-${index}`}
             exercise={exercise}
             scoring={scoring}
-            protocolOptions={protocolOptions}
+            getProtocol={getProtocol}
             resultLabel={resultLabel}
             resultPlaceholder={resultPlaceholder}
             onPatch={(patch) => patchExercise(index, patch)}

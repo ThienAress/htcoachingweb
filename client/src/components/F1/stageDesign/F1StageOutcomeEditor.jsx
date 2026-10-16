@@ -22,7 +22,7 @@ const F1StageOutcomeEditor = ({ control, register, setValue, preview, loading })
         <table className="w-full min-w-[36rem] text-left text-sm tabular-nums">
           <thead className="bg-slate-50 text-xs text-slate-500">
             <tr>
-              {["Chỉ số", "Ban đầu", "Hệ thống tính", "Dự kiến cuối giai đoạn"].map((head) => (
+              {["Chỉ số", "Ban đầu", "Hệ thống đề xuất", "Dự kiến cuối giai đoạn"].map((head) => (
                 <th key={head} className="px-4 py-2.5 font-semibold">{head}</th>
               ))}
             </tr>

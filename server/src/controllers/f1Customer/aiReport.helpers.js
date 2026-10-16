@@ -257,6 +257,8 @@ const buildTestedExerciseFindings = (assessment) => {
       entries: exercises.map((item) => ({
         name: item.name,
         note: TIER_LABELS[item.tier] || "bài riêng của HLV",
+        score:
+          item.score === "" || item.score == null ? "" : String(item.score),
         result: LEVEL_LABELS[item.level] || "Chưa chấm",
       })),
     });

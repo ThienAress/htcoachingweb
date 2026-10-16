@@ -3,11 +3,14 @@ import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useQuery } from "@tanstack/react-query";
-import { Sparkles, X } from "lucide-react";
+import { Loader2, Sparkles, X } from "lucide-react";
 import { useModalScrollLock } from "../../../hooks/useModalScrollLock";
 import RoundedSelect from "../assessment/RoundedSelect";
 import { PHASE_EXPLANATIONS, PHASE_NAMES } from "../../../constants/f1Phases";
 import {
+  MAX_SPLIT_NAME,
+  MAX_WEEKS,
+  MIN_WEEKS,
   SPLIT_OPTIONS,
   WEEK_DAYS,
   applySuggestion,
@@ -35,7 +38,7 @@ const numberText = (label, min, max) =>
 
 const schema = z.object({
   phaseKey: z.string().min(1),
-  durationWeeks: numberText("Số tuần", 4, 16),
+  durationWeeks: numberText("Số tuần", MIN_WEEKS, MAX_WEEKS),
   objective: z.string().max(500, "Tối đa 500 ký tự"),
   entryReason: z.string().max(500, "Tối đa 500 ký tự"),
   keyFocus: z.array(z.object({ value: z.string().max(200) })),
@@ -45,7 +48,12 @@ const schema = z.object({
     days: z.array(z.boolean()).refine((days) => days.some(Boolean), "Chọn ít nhất 1 buổi tập"),
     sessionMinutes: numberText("Thời lượng mỗi buổi", 15, 240),
     split: z.string(),
+    customSplitName: z.string().max(MAX_SPLIT_NAME, `Tối đa ${MAX_SPLIT_NAME} ký tự`),
     note: z.string().max(200, "Tối đa 200 ký tự"),
+  }).superRefine((schedule, ctx) => {
+    if (schedule.split === "custom" && !schedule.customSplitName.trim()) {
+      ctx.addIssue({ code: "custom", path: ["customSplitName"], message: "Nhập tên phương pháp tập luyện" });
+    }
   }),
   overrides: z.record(z.string(), z.string()),
 });
@@ -108,7 +116,9 @@ const F1StageDesignDialog = ({ customer, stageOrder, plan, overrides, fetchPrevi
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [onClose, saving]);
 
+  const split = useWatch({ control, name: "weeklySchedule.split" });
   const sessions = (days || []).filter(Boolean).length;
+  const suggesting = previewQuery.isFetching && !preview?.suggestion;
 
   return (
     <div
@@ -146,7 +156,7 @@ const F1StageDesignDialog = ({ customer, stageOrder, plan, overrides, fetchPrevi
                 />
               </div>
               <label className="grid gap-1 text-xs font-medium text-slate-500">
-                Số tuần (4–16)
+                Số tuần ({MIN_WEEKS}–{MAX_WEEKS})
                 <input inputMode="numeric" className={inputClass} {...register("durationWeeks")} />
                 <FieldError message={errors.durationWeeks?.message} />
               </label>
@@ -167,11 +177,12 @@ const F1StageDesignDialog = ({ customer, stageOrder, plan, overrides, fetchPrevi
               <button
                 type="button"
                 disabled={!preview?.suggestion}
+                aria-busy={suggesting}
                 onClick={() => reset(applySuggestion(getValues(), preview.suggestion))}
                 className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60"
               >
-                <Sparkles size={14} aria-hidden="true" />
-                Dùng gợi ý của hệ thống
+                {suggesting ? <Loader2 size={14} className="animate-spin" aria-hidden="true" /> : <Sparkles size={14} aria-hidden="true" />}
+                {suggesting ? "Đang đề xuất..." : "Dùng gợi ý của hệ thống"}
               </button>
             }
           >
@@ -199,16 +210,28 @@ const F1StageDesignDialog = ({ customer, stageOrder, plan, overrides, fetchPrevi
                 <FieldError message={errors.weeklySchedule?.sessionMinutes?.message} />
               </label>
               <div>
-                <p className="mb-1 text-xs font-medium text-slate-500">Cách chia buổi</p>
+                <p className="mb-1 text-xs font-medium text-slate-500">Phương pháp tập luyện</p>
                 <Controller
                   control={control}
                   name="weeklySchedule.split"
                   render={({ field }) => (
-                    <RoundedSelect label="Cách chia buổi" value={field.value} onChange={field.onChange} options={SPLIT_OPTIONS} />
+                    <RoundedSelect label="Phương pháp tập luyện" value={field.value} onChange={field.onChange} options={SPLIT_OPTIONS} />
                   )}
                 />
               </div>
             </div>
+            {split === "custom" && (
+              <label className="mt-3 grid gap-1 text-xs font-medium text-slate-500">
+                Tên phương pháp tập luyện
+                <input
+                  maxLength={MAX_SPLIT_NAME}
+                  placeholder="Ví dụ: Upper / Lower / Cardio"
+                  className={inputClass}
+                  {...register("weeklySchedule.customSplitName")}
+                />
+                <FieldError message={errors.weeklySchedule?.customSplitName?.message} />
+              </label>
+            )}
             <p className="mt-3 text-xs text-slate-500">Bấm từng ngày để chọn buổi tập hoặc nghỉ. Số buổi mỗi tuần tự tính theo số ngày đã chọn.</p>
             <Controller
               control={control}
