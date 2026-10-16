@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildExitCriteriaByPhase,
+  buildObjectiveByPhase,
   buildExpectedChangesByPhase,
   buildGoalProgress,
   buildPersonalizedPath,
@@ -204,5 +205,16 @@ describe("phase ceiling for high-risk customers", () => {
     expect(ceilingFor({ medicalReviewFlag: true, painFlag: "none" }, "below_average")).toBe("phase_2");
     expect(ceilingFor({ medicalReviewFlag: false, painFlag: "moderate" }, "low")).toBe("phase_2");
     expect(ceilingFor({ testPermission: "modified_test" }, "average")).toBe("phase_2");
+  });
+});
+
+describe("objective for the heavy phases", () => {
+  it("has its own objective for phase 4 and 5 and keeps the generic one only for unknown phases", () => {
+    const generic = "Tiếp tục cải thiện thể chất theo đúng giai đoạn phù hợp.";
+    expect(buildObjectiveByPhase("phase_4", "muscle_gain")).toContain("sức mạnh tối đa");
+    expect(buildObjectiveByPhase("phase_5", "muscle_gain")).toContain("bùng nổ");
+    expect(buildObjectiveByPhase("phase_4", "muscle_gain")).not.toBe(generic);
+    expect(buildObjectiveByPhase("phase_5", "fat_loss")).not.toBe(generic);
+    expect(buildObjectiveByPhase("phase_9", "fat_loss")).toBe(generic);
   });
 });

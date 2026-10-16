@@ -73,7 +73,7 @@ const Section = ({ title, children, action = null }) => (
 const FieldError = ({ message }) => (message ? <p className="mt-1 text-xs font-medium text-red-600">{message}</p> : null);
 
 // Bảng HLV tự thiết kế một giai đoạn: nội dung, lịch tập mỗi tuần và số dự kiến cuối giai đoạn.
-const F1StageDesignDialog = ({ customer, stageOrder, plan, overrides, fetchPreview, previewKey, saving, onSave, onClose }) => {
+const F1StageDesignDialog = ({ customer, stageOrder, plan, overrides, training = null, fetchPreview, previewKey, saving, onSave, onClose }) => {
   const closeRef = useRef(null);
   const filledRef = useRef(Boolean(plan));
   useModalScrollLock(true);
@@ -87,7 +87,7 @@ const F1StageDesignDialog = ({ customer, stageOrder, plan, overrides, fetchPrevi
     formState: { errors },
   } = useForm({
     resolver: zodResolver(schema),
-    defaultValues: buildDesignDefaults({ plan, overrides }),
+    defaultValues: buildDesignDefaults({ plan, overrides, training }),
   });
 
   const phaseKey = useWatch({ control, name: "phaseKey" });

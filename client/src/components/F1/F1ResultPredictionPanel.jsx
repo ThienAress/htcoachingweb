@@ -830,6 +830,7 @@ const F1ResultPredictionPanel = ({ customer, onBack, onGenerated }) => {
       stageOrder,
       plan: review?.nextPhasePlan || null,
       overrides: review?.nextOutcome?.checkpoint?.overrides || null,
+      training: review?.profile?.trainingProfileGoal || null,
     });
   };
 
@@ -1014,6 +1015,7 @@ const F1ResultPredictionPanel = ({ customer, onBack, onGenerated }) => {
             stageOrder={designDialog.stageOrder}
             plan={designDialog.plan}
             overrides={designDialog.overrides}
+            training={designDialog.training}
             previewKey={["f1-stage-preview", customer?._id, designDialog.stageOrder]}
             fetchPreview={(stage) =>
               designDialog.stageOrder === 1

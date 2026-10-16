@@ -39,9 +39,25 @@ const toRows = (items = []) => translateTrainingFocus(items).map((value) => ({ v
 const toInput = (value) =>
   value === null || value === undefined || value === "" ? "" : String(value);
 
+// Số buổi mỗi tuần HLV đã khai trong hồ sơ → các ngày tập rải đều (T2 là ngày đầu tuần).
+const SPREAD_DAYS = { 1: [0], 2: [0, 3], 3: [0, 2, 4], 4: [0, 1, 3, 4], 5: [0, 1, 2, 3, 4], 6: [0, 1, 2, 3, 4, 5], 7: [0, 1, 2, 3, 4, 5, 6] };
+
+export const daysFromCount = (count) => {
+  const picked = SPREAD_DAYS[Math.round(Number(count))];
+  return picked ? Array.from({ length: 7 }, (_, index) => picked.includes(index)) : null;
+};
+
+const profileMinutes = (value) => {
+  const minutes = Math.round(Number(value));
+  return Number.isFinite(minutes) && minutes >= 15 && minutes <= 240 ? minutes : null;
+};
+
 // Giá trị ban đầu của form: lấy từ kế hoạch đã có (roadmap hoặc giai đoạn kế tiếp) nếu có.
-export const buildDesignDefaults = ({ plan = null, overrides = null, fallbackPhaseKey = "phase_1" } = {}) => {
+// Chưa có lịch tập đã lưu thì dùng số buổi và thời lượng trong hồ sơ (training), không có nữa mới dùng mặc định.
+export const buildDesignDefaults = ({ plan = null, overrides = null, fallbackPhaseKey = "phase_1", training = null } = {}) => {
   const schedule = plan?.weeklySchedule || {};
+  const profileDays = daysFromCount(training?.trainingDaysPerWeek);
+  const minutes = profileMinutes(training?.sessionDurationMinutes);
   return {
     phaseKey: plan?.phaseKey || fallbackPhaseKey,
     durationWeeks: toInput(plan?.durationWeeks || 8),
@@ -51,8 +67,8 @@ export const buildDesignDefaults = ({ plan = null, overrides = null, fallbackPha
     expectedChanges: toRows(plan?.expectedChanges),
     exitCriteria: toRows(plan?.exitCriteria),
     weeklySchedule: {
-      days: Array.isArray(schedule.days) && schedule.days.length === 7 ? schedule.days.map(Boolean) : DEFAULT_DAYS,
-      sessionMinutes: toInput(schedule.sessionMinutes || 60),
+      days: Array.isArray(schedule.days) && schedule.days.length === 7 ? schedule.days.map(Boolean) : profileDays || DEFAULT_DAYS,
+      sessionMinutes: toInput(schedule.sessionMinutes || minutes || 60),
       split: schedule.split || "full_body",
       customSplitName: schedule.customSplitName || "",
       note: schedule.note || "",
