@@ -407,17 +407,26 @@ const determineRecommendedStartPhase = ({
   const reasons = [];
   const decide = (phase) => ({ phase, reasons });
 
-  if (
+  // HLV đã xem xét và cho phép đánh giá thì không giữ khách ở "chờ xem xét" nữa.
+  const trainerCleared = ["approve_modified_test", "approve_full_test"].includes(
+    intake?.systemFlags?.reviewDecision,
+  );
+  const needsReview =
     readiness === "hold" ||
     hasWarningSigns ||
     hasDoctorRestrictions ||
-    painFlag === "severe"
-  ) {
+    painFlag === "severe";
+
+  if (needsReview) {
     if (readiness === "hold") reasons.push("Khách đang ở trạng thái hoãn đánh giá.");
     if (hasWarningSigns) reasons.push("Có dấu hiệu cảnh báo sức khỏe cần làm rõ.");
     if (hasDoctorRestrictions) reasons.push("Có hạn chế vận động do bác sĩ.");
     if (painFlag === "severe") reasons.push("Mức đau hiện tại ở mức nặng.");
-    return decide("pending_review");
+    if (!trainerCleared) return decide("pending_review");
+    reasons.push(
+      "HLV đã xem xét và cho phép đánh giá, nên bắt đầu ở Giai đoạn 1 để thận trọng và theo dõi sát.",
+    );
+    return decide("phase_1");
   }
 
   // Chỉ ép Phase 1 khi khách thực sự cần khởi đầu bảo thủ
@@ -931,18 +940,18 @@ const buildBodyFatComment = (gender = "", bodyFat = 0) => {
   const highThreshold = isMale ? 25 : 35;
 
   if (value >= highThreshold) {
-    return `Với body fat khoảng ${value}%, đây là mức cao đối với ${getGenderLabel(gender)}. Nếu không cải thiện vận động và dinh dưỡng, nguy cơ tích lũy mỡ nội tạng, rối loạn chuyển hóa và các vấn đề sức khỏe liên quan sẽ tăng dần theo thời gian.`;
+    return `Với tỷ lệ mỡ khoảng ${value}%, đây là mức cao đối với ${getGenderLabel(gender)}. Nếu không cải thiện vận động và dinh dưỡng, nguy cơ tích lũy mỡ nội tạng, rối loạn chuyển hóa và các vấn đề sức khỏe liên quan sẽ tăng dần theo thời gian.`;
   }
 
   if (value >= elevatedThreshold) {
-    return `Body fat hiện tại khoảng ${value}% đang cao hơn vùng nên hướng tới đối với ${getGenderLabel(gender)}. Khách nên ưu tiên cải thiện vận động, hồi phục và kiểm soát dinh dưỡng để kéo body fat về vùng an toàn hơn.`;
+    return `Tỷ lệ mỡ hiện tại khoảng ${value}% đang cao hơn vùng nên hướng tới đối với ${getGenderLabel(gender)}. Khách nên ưu tiên cải thiện vận động, hồi phục và kiểm soát dinh dưỡng để kéo tỷ lệ mỡ về vùng an toàn hơn.`;
   }
 
   if (value > fitThreshold) {
-    return `Body fat khoảng ${value}% đang ở vùng có thể cải thiện thêm. Nếu mục tiêu là tối ưu hình thể, khách nên tiếp tục giảm dần về vùng gọn gàng hơn.`;
+    return `Tỷ lệ mỡ khoảng ${value}% đang ở vùng có thể cải thiện thêm. Nếu mục tiêu là tối ưu hình thể, khách nên tiếp tục giảm dần về vùng gọn gàng hơn.`;
   }
 
-  return `Body fat hiện tại khoảng ${value}% đang ở mức tương đối ổn để xây nền và tối ưu dần chất lượng hình thể.`;
+  return `Tỷ lệ mỡ hiện tại khoảng ${value}% đang ở mức tương đối ổn để xây nền và tối ưu dần chất lượng hình thể.`;
 };
 
 const buildBmiComment = (bmi = 0) => {
@@ -950,11 +959,11 @@ const buildBmiComment = (bmi = 0) => {
   if (!Number.isFinite(value) || value <= 0) return null;
 
   if (value >= 30) {
-    return `BMI khoảng ${value} cho thấy thể trạng đang ở mức béo phì. Điều này cần được lưu ý khi thiết kế khối lượng tập, cardio và tốc độ progression ban đầu.`;
+    return `BMI khoảng ${value} cho thấy thể trạng đang ở mức béo phì. Điều này cần được lưu ý khi thiết kế khối lượng tập, cardio và tốc độ tăng tiến ban đầu.`;
   }
 
   if (value >= 25) {
-    return `BMI khoảng ${value} đang ở vùng thừa cân. Khách nên ưu tiên tăng vận động, cải thiện chất lượng ăn uống và kiểm soát body composition trong giai đoạn đầu.`;
+    return `BMI khoảng ${value} đang ở vùng thừa cân. Khách nên ưu tiên tăng vận động, cải thiện chất lượng ăn uống và kiểm soát thành phần cơ thể trong giai đoạn đầu.`;
   }
 
   if (value < 18.5) {
@@ -1034,7 +1043,7 @@ const buildQuickOverviewByPhase = ({
     return {
       headline:
         "Hiện tại khách chưa phù hợp để vào giai đoạn tập chính thức. Nên xem xét thêm về sức khỏe và mức an toàn vận động trước khi chốt hướng triển khai.",
-      coachConclusion: `Mức sẵn sàng hiện tại là ${readinessLabel}. Mục tiêu chính là ${goalLabel}, nhưng ở thời điểm này HLV nên ưu tiên an toàn, xác nhận thêm yếu tố sức khỏe và tránh đẩy progression quá sớm.${issueText}`,
+      coachConclusion: `Mức sẵn sàng hiện tại là ${readinessLabel}. Mục tiêu chính là ${goalLabel}, nhưng ở thời điểm này HLV nên ưu tiên an toàn, xác nhận thêm yếu tố sức khỏe và tránh tăng tiến quá sớm.${issueText}`,
     };
   }
 
@@ -1042,7 +1051,7 @@ const buildQuickOverviewByPhase = ({
     return {
       headline:
         "Khách phù hợp bắt đầu từ Cấp độ 1 · Giai đoạn 1 - Ổn định và sức bền nền (Stabilization Endurance) để xây nền ổn định, cải thiện kiểm soát chuyển động và vào lộ trình một cách an toàn.",
-      coachConclusion: `Khách đang ở mức ${overallLabel}, mục tiêu chính là ${goalLabel}. Giai đoạn đầu nên đi theo hướng chỉnh movement, tăng stability và làm quen lại với nhịp tập trước khi tăng tải mạnh hơn.${issueText}`,
+      coachConclusion: `Khách đang ở mức ${overallLabel}, mục tiêu chính là ${goalLabel}. Giai đoạn đầu nên đi theo hướng chỉnh chuyển động, tăng ổn định và làm quen lại với nhịp tập trước khi tăng tải mạnh hơn.${issueText}`,
     };
   }
 
@@ -1077,7 +1086,7 @@ const buildStartupPlanByPhase = ({
       combinedPlan: [
         "Tạm thời chưa nên vào giai đoạn tập chính thức.",
         "Ưu tiên làm rõ thêm triệu chứng, bệnh lý, thuốc đang dùng và giới hạn vận động nếu có.",
-        "Buổi đầu nên xem như buổi rà soát lại thể trạng, kiểm tra movement nhẹ và quan sát phản ứng cơ thể.",
+        "Buổi đầu nên xem như buổi rà soát lại thể trạng, kiểm tra chuyển động nhẹ và quan sát phản ứng cơ thể.",
         "Chỉ nên chuyển sang phase huấn luyện khi mức độ an toàn đã rõ ràng hơn.",
       ],
       cautions: Array.from(trainingNotes),
@@ -1108,7 +1117,7 @@ const buildStartupPlanByPhase = ({
       startPhase: phase,
       combinedPlan: [
         "Có thể bắt đầu giai đoạn sức mạnh bền (strength endurance) thay vì chỉ dừng ở giai đoạn ổn định nền.",
-        "Nên ưu tiên các cặp bài kiểu strength + stabilization để vừa tăng sức mạnh, vừa giữ movement quality.",
+        "Nên ưu tiên các cặp bài kiểu sức mạnh + ổn định để vừa tăng sức mạnh, vừa giữ chất lượng chuyển động.",
         "Tập trung vào bài tập một bên cơ bản, bài đa khớp cơ bản và khối lượng vừa phải để khách thích nghi tốt.",
         `Hướng huấn luyện chính: ${
           translatedTraining.slice(0, 3).join(", ") ||
@@ -1206,7 +1215,7 @@ const buildAiReportSummary = ({
     healthScreening.doctorRestrictions ||
     warningSigns.length
   ) {
-    let sentence = "Intake đang ghi nhận một vài yếu tố sức khỏe cần lưu ý";
+    let sentence = "Kết quả khảo sát đang ghi nhận một vài yếu tố sức khỏe cần lưu ý";
     const details = [];
 
     if (healthScreening.currentConditions) {
@@ -1253,7 +1262,7 @@ const buildAiReportSummary = ({
         ? "Đây là nền khá tốt để tiến triển bài bản."
         : overallPhysicalLevel === "average"
           ? "Khách đã có nền cơ bản nhưng vẫn cần xây chắc thêm trước khi tăng tải mạnh."
-          : "HLV nên ưu tiên xây lại nền thể lực trước khi đẩy progression nhanh."
+          : "HLV nên ưu tiên xây lại nền thể lực trước khi tăng tiến nhanh."
     }`,
     ...buildWeaknessSummary({
       strengthFlags,
@@ -1354,7 +1363,7 @@ const buildAiReportSummary = ({
 
   if (mealsPerDay > 0 && mealsPerDay <= 2) {
     riskFactors.push(
-      "Tần suất ăn thấp có thể khiến khách thiếu năng lượng cho tập luyện và khó duy trì hồi phục tốt, nhất là khi mục tiêu là cải thiện body composition hoặc tăng cơ.",
+      "Tần suất ăn thấp có thể khiến khách thiếu năng lượng cho tập luyện và khó duy trì hồi phục tốt, nhất là khi mục tiêu là cải thiện thành phần cơ thể hoặc tăng cơ.",
     );
   }
 
@@ -1370,7 +1379,7 @@ const buildAiReportSummary = ({
     warningSigns.length
   ) {
     riskFactors.push(
-      "Những yếu tố sức khỏe ghi nhận từ intake khiến HLV cần theo dõi phản ứng buổi đầu kỹ hơn bình thường.",
+      "Những yếu tố sức khỏe ghi nhận từ kết quả khảo sát khiến HLV cần theo dõi phản ứng buổi đầu kỹ hơn bình thường.",
     );
   }
 

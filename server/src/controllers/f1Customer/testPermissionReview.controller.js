@@ -14,14 +14,14 @@ const REVIEW_DECISIONS = {
     testPermission: "modified_test",
     recommendedStartPhase: "phase_1",
     medicalReviewFlag: true,
-    message: "Đã duyệt Modified Test cho khách hàng",
+    message: "Đã duyệt test điều chỉnh cho khách hàng",
   },
   approve_full_test: {
     readinessStatus: "ready",
     testPermission: "full_test",
     recommendedStartPhase: "phase_1",
     medicalReviewFlag: false,
-    message: "Đã duyệt Full Test cho khách hàng",
+    message: "Đã duyệt test đầy đủ cho khách hàng",
   },
 };
 

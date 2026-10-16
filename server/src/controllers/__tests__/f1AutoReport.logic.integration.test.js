@@ -82,6 +82,37 @@ describe("automatic report: phase decision and reasons", () => {
     expect(report.recommendations.reasons.join(" ")).toContain("cảnh báo");
   });
 
+  it("starts at phase 1 once the trainer cleared a customer who still has warning signs", async () => {
+    const intake = experiencedIntake({
+      warningSigns: ["chest_pain"],
+      doctorRestrictions: "Tránh gắng sức",
+    });
+    intake.systemFlags = { painFlag: "severe", reviewDecision: "approve_modified_test" };
+
+    const report = await buildAiReport({
+      customer: { readinessStatus: "caution" },
+      intake,
+      assessment: goodAssessment({ overallPhysicalLevel: "low" }),
+    });
+
+    expect(report.recommendations.recommendedStartPhase).toBe("phase_1");
+    expect(report.recommendations.reasons.join(" ")).toContain("HLV đã xem xét");
+    expect(report.recommendations.reasons.join(" ")).toContain("cảnh báo");
+  });
+
+  it("keeps holding a customer the trainer did not clear", async () => {
+    const intake = experiencedIntake({ warningSigns: ["dizziness"] });
+    intake.systemFlags = { painFlag: "none", reviewDecision: "keep_hold" };
+
+    const report = await buildAiReport({
+      customer: { readinessStatus: "hold" },
+      intake,
+      assessment: goodAssessment(),
+    });
+
+    expect(report.recommendations.recommendedStartPhase).toBe("pending_review");
+  });
+
   it("caps phase 3 at phase 2 for injury history and adds a safety note", async () => {
     const report = await buildAiReport({
       customer: readyCustomer,

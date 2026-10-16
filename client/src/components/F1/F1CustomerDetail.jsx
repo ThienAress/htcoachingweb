@@ -292,7 +292,7 @@ const F1CustomerDetail = ({
               className="shrink-0 inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-orange-600 to-orange-500 px-5 py-3 font-bold text-white shadow-md transition hover:shadow-lg"
             >
               <ClipboardList size={18} />
-              Bắt đầu khảo sát
+              {intakeDone ? "Xem lại khảo sát" : "Bắt đầu khảo sát"}
             </button>
             <button
               data-testid="f1-open-assessment"
