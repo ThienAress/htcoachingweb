@@ -204,6 +204,7 @@ const COUNTER_NAMES = new Set([
   "f1.artifact_idempotency_hits",
   "f1.artifact_conflicts",
   "f1.retention_candidates",
+  "f1.soft_delete_purged",
   "f1.deletion_completed",
   "security.csp_reports",
   "rum.samples",

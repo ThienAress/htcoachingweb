@@ -1,10 +1,16 @@
 import { ChevronLeft, ChevronRight, Search, UserPlus } from "lucide-react";
-import { F1_CUSTOMER_STATUS_LABELS } from "../../constants/f1CustomerStatus";
+import { getF1CustomerStageLabel } from "../../constants/f1CustomerStatus";
 
-const StatusBadge = ({ value }) => {
+const StatusBadge = ({ customer }) => {
+  const label = getF1CustomerStageLabel(customer);
+  const done = label === "Đã hoàn thành";
   return (
-    <span className="inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
-      {F1_CUSTOMER_STATUS_LABELS[value] || value}
+    <span
+      className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
+        done ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-700"
+      }`}
+    >
+      {label}
     </span>
   );
 };
@@ -88,9 +94,8 @@ const F1CustomerList = ({
         <div className="hidden grid-cols-12 gap-4 border-b border-slate-200 bg-slate-50 px-4 py-3 text-xs font-bold uppercase text-slate-500 md:grid">
           <div className="col-span-3">Khách hàng</div>
           <div className="col-span-2">Mã F1</div>
-          <div className="col-span-2">SĐT</div>
-          <div className="col-span-2">Trạng thái</div>
-          <div className="col-span-2">Mức độ phù hợp tập luyện</div>
+          <div className="col-span-3">Trạng thái</div>
+          <div className="col-span-3">Mức độ phù hợp tập luyện</div>
           <div className="col-span-1 text-right">Mở</div>
         </div>
 
@@ -122,18 +127,11 @@ const F1CustomerList = ({
                 {customer.code || "--"}
               </div>
 
-              <div className="col-span-1 text-sm text-slate-700 md:col-span-2">
-                <span className="block text-xs text-slate-400 md:hidden">
-                  SĐT
-                </span>
-                {customer.phone || "--"}
+              <div className="col-span-1 md:col-span-3">
+                <StatusBadge customer={customer} />
               </div>
 
-              <div className="col-span-1 md:col-span-2">
-                <StatusBadge value={customer.status || "new"} />
-              </div>
-
-              <div className="col-span-1 md:col-span-2">
+              <div className="col-span-1 md:col-span-3">
                 <ReadinessBadge value={customer.readinessStatus || "pending"} />
               </div>
 
