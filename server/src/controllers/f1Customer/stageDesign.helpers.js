@@ -10,7 +10,9 @@ import {
 } from "./resultPrediction.helpers.js";
 
 const PHASES = ["phase_1", "phase_2", "phase_3", "phase_4", "phase_5"];
-export const SPLITS = ["full_body", "upper_lower", "push_pull_legs", "custom"];
+export const SPLITS = ["full_body", "upper_lower", "push_pull", "push_pull_legs", "custom"];
+export const MIN_WEEKS = 4;
+export const MAX_WEEKS = 24;
 const MAX_LIST = 6;
 export const OVERRIDE_RANGES = {
   weightKg: [10, 300],
@@ -52,6 +54,13 @@ const integer = (value, min, max, label) => {
   return parsed;
 };
 
+// Phương pháp "Tự đặt" bắt buộc có tên để báo cáo và lịch tập hiển thị đúng ý HLV.
+const customSplitName = (value) => {
+  const name = text(value, 60, "Tên phương pháp tập luyện");
+  if (!name) fail("Nhập tên phương pháp tập luyện");
+  return name;
+};
+
 export const normalizeCustomStage = (input) => {
   if (!isObject(input)) fail("Dữ liệu thiết kế giai đoạn không hợp lệ");
   if (!PHASES.includes(input.phaseKey)) fail("Giai đoạn NASM không hợp lệ");
@@ -77,7 +86,7 @@ export const normalizeCustomStage = (input) => {
 
   return {
     phaseKey: input.phaseKey,
-    durationWeeks: integer(input.durationWeeks, 4, 16, "Số tuần"),
+    durationWeeks: integer(input.durationWeeks, MIN_WEEKS, MAX_WEEKS, "Số tuần"),
     objective: text(input.objective, 500, "Giải thích mục tiêu giai đoạn"),
     entryReason: text(input.entryReason, 500, "Vì sao xếp như vậy"),
     keyFocus: list(input.keyFocus, "Trọng tâm chính"),
@@ -86,7 +95,8 @@ export const normalizeCustomStage = (input) => {
     weeklySchedule: {
       sessionsPerWeek,
       sessionMinutes: integer(schedule.sessionMinutes, 15, 240, "Thời lượng mỗi buổi"),
-      split: SPLITS.includes(schedule.split) ? schedule.split : fail("Cách chia buổi không hợp lệ"),
+      split: SPLITS.includes(schedule.split) ? schedule.split : fail("Phương pháp tập luyện không hợp lệ"),
+      ...(schedule.split === "custom" ? { customSplitName: customSplitName(schedule.customSplitName) } : {}),
       days: trainingDays,
       note: text(schedule.note, 200, "Ghi chú lịch tập"),
     },

@@ -203,9 +203,10 @@ const AssessmentGroup = ({ assessment }) => {
       <div className="mt-4 overflow-x-auto rounded-lg border border-slate-200 px-4 py-2">
         <table className="w-full table-fixed text-left text-sm">
           <colgroup>
-            <col className="w-[34%]" />
-            <col className="w-[46%]" />
-            <col className="w-[20%]" />
+            <col className="w-[28%]" />
+            <col className="w-[38%]" />
+            <col className="w-[17%]" />
+            <col className="w-[17%]" />
           </colgroup>
           <thead>
             <tr className="border-b border-slate-200 text-xs text-slate-500">
@@ -213,7 +214,7 @@ const AssessmentGroup = ({ assessment }) => {
                 Squat tay qua đầu (Overhead Squat)
               </th>
               <th className="py-2 pr-3 font-medium">Kết quả</th>
-              <th className="py-2" aria-hidden="true" />
+              <th colSpan={2} className="py-2" aria-hidden="true" />
             </tr>
           </thead>
           <tbody>
@@ -225,7 +226,7 @@ const AssessmentGroup = ({ assessment }) => {
                 <td className={`py-2 pr-3 font-semibold ${resultToneClass[row.tone]}`}>
                   {row.result}
                 </td>
-                <td aria-hidden="true" />
+                <td colSpan={2} aria-hidden="true" />
               </tr>
             ))}
           </tbody>
@@ -234,15 +235,17 @@ const AssessmentGroup = ({ assessment }) => {
       <div className="mt-4 overflow-x-auto rounded-lg border border-slate-200 px-4 py-2">
         <table className="w-full table-fixed text-left text-sm">
           <colgroup>
-            <col className="w-[34%]" />
-            <col className="w-[46%]" />
-            <col className="w-[20%]" />
+            <col className="w-[28%]" />
+            <col className="w-[38%]" />
+            <col className="w-[17%]" />
+            <col className="w-[17%]" />
           </colgroup>
           <thead>
             <tr className="border-b border-slate-200 text-xs text-slate-500">
               <th className="py-2 pr-3 font-medium">Hạng mục</th>
               <th className="py-2 pr-3 font-medium">Bài đã test</th>
-              <th className="py-2 font-medium">Kết quả</th>
+              <th className="py-2 pr-3 font-medium">Điểm đánh giá</th>
+              <th className="py-2 font-medium">Độ khó</th>
             </tr>
           </thead>
           <tbody>
@@ -255,11 +258,13 @@ const AssessmentGroup = ({ assessment }) => {
                   <td className="py-2 pr-3 text-slate-600">
                     {names.join(" · ") || "--"}
                   </td>
+                  <td className="py-2 pr-3 font-semibold text-slate-800">
+                    {metric.score !== null && metric.score !== undefined && metric.score !== ""
+                      ? `${metric.score}/10`
+                      : "--"}
+                  </td>
                   <td className="py-2">
                     <LevelChip level={metric.level} />
-                    {metric.score !== null && metric.score !== undefined && metric.score !== "" && (
-                      <span className="ml-2 text-xs text-slate-500">{metric.score}/10</span>
-                    )}
                   </td>
                 </tr>
               );

@@ -125,16 +125,16 @@ test("F1 create, intake, private media, assessment command and AI report", async
   const pushCard = page
     .getByTestId("f1-exercise-card")
     .filter({ hasText: "Upper Push" });
-  // Gợi ý và bài tập chỉ hiện sau khi chọn cấp độ rồi chọn bài.
-  await expect(pushCard.getByText("Gợi ý khởi đầu")).toHaveCount(0);
+  // Khối lượng đề xuất và bài tập chỉ hiện sau khi chọn cấp độ rồi chọn bài.
+  await expect(pushCard.getByText("Khối lượng tập đề xuất")).toHaveCount(0);
   const pick = async (card, label, option) => {
     await card.getByRole("combobox", { name: label }).click();
-    await card.getByRole("option", { name: option, exact: true }).click();
+    await page.getByRole("listbox").getByRole("option", { name: option, exact: true }).click();
   };
   await pick(pushCard, "Chọn cấp độ cho bài test", "Mức dễ");
-  await expect(pushCard.getByText("Gợi ý khởi đầu")).toHaveCount(0);
+  await expect(pushCard.getByText("Khối lượng tập đề xuất")).toHaveCount(0);
   await pick(pushCard, "Chọn bài tập", "Wall Push-Up");
-  await expect(pushCard.getByText("Gợi ý khởi đầu")).toBeVisible();
+  await expect(pushCard.getByText("Khối lượng tập đề xuất")).toBeVisible();
   await pick(pushCard, "Cách ghi kết quả", "Theo số lần (reps)");
   await pushCard.getByLabel("Số hiệp (set)").fill("3");
   await pushCard.getByLabel("Số lần mỗi hiệp (reps)").fill("10");

@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  SPLIT_OPTIONS,
   applySuggestion,
   buildDesignDefaults,
+  getSplitLabel,
   toCustomStage,
   toPreviewStage,
 } from "../f1StageDesign";
@@ -71,10 +73,36 @@ describe("applySuggestion", () => {
 });
 
 describe("toPreviewStage", () => {
-  it("clamps the weeks and falls back to a default schedule when no day is picked", () => {
+  it("clamps the weeks to 4-24 and falls back to a default schedule when no day is picked", () => {
     expect(toPreviewStage({ phaseKey: "phase_2", durationWeeks: "30", days: Array(7).fill(false) })).toMatchObject({
-      durationWeeks: 16,
+      durationWeeks: 24,
       weeklySchedule: { days: [true, false, true, false, true, false, false] },
     });
+  });
+});
+
+describe("training methods", () => {
+  it("offers the five methods in order", () => {
+    expect(SPLIT_OPTIONS.map((item) => item.label)).toEqual([
+      "Full Body Workout",
+      "Upper / Lower",
+      "Push / Pull",
+      "Push–Pull–Legs (PPL)",
+      "Tự đặt",
+    ]);
+  });
+
+  it("keeps the custom name only for the custom method and shows it as the label", () => {
+    const base = buildDesignDefaults();
+    base.weeklySchedule.customSplitName = " Cardio + Core ";
+
+    base.weeklySchedule.split = "custom";
+    expect(toCustomStage(base).weeklySchedule).toMatchObject({ split: "custom", customSplitName: "Cardio + Core" });
+    expect(getSplitLabel({ split: "custom", customSplitName: "Cardio + Core" })).toBe("Cardio + Core");
+    expect(getSplitLabel({ split: "custom" })).toBe("Tự đặt");
+
+    base.weeklySchedule.split = "push_pull";
+    expect(toCustomStage(base).weeklySchedule).not.toHaveProperty("customSplitName");
+    expect(getSplitLabel({ split: "push_pull" })).toBe("Push / Pull");
   });
 });

@@ -8,7 +8,13 @@ import F1AiRule from "../../models/F1AiRule.js";
 import { buildAiReport } from "../f1Customer/aiReport.helpers.js";
 
 const metric = (level, score, exercises = []) => ({ level, score, exercises });
-const tested = (name, tier, level) => ({ name, tier, level, source: "system" });
+const tested = (name, tier, level, score) => ({
+  name,
+  tier,
+  level,
+  source: "system",
+  ...(score === undefined ? {} : { score }),
+});
 
 const goodAssessment = (overrides = {}) => ({
   overallPhysicalLevel: "good",
@@ -152,7 +158,7 @@ describe("automatic report: evidence and rules", () => {
         },
         strengthAssessment: {
           upperBodyPush: metric("good", 9, [
-            tested("Wall Push-Up", "easy", "good"),
+            tested("Wall Push-Up", "easy", "good", 8.5),
           ]),
           upperBodyPull: metric("good", 9),
           lowerBody: metric("good", 9),
@@ -170,7 +176,7 @@ describe("automatic report: evidence and rules", () => {
     const [first, ...rest] = report.findings.testedExerciseRows;
     expect(first.label).toContain("Upper Push");
     expect(first.entries).toEqual([
-      { name: "Wall Push-Up", note: "mức dễ", result: "Tốt" },
+      { name: "Wall Push-Up", note: "mức dễ", score: "8.5", result: "Tốt" },
     ]);
     const squat = rest[rest.length - 1];
     expect(squat.entries.map((entry) => entry.result)).toEqual([
