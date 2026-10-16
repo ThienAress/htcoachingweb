@@ -145,6 +145,10 @@ export const generateOutcomeForecast = (customerId, payload) =>
 // =========================
 // RESULT PREDICTION
 // =========================
+// Đổi cách dựng giai đoạn (hệ thống đề xuất hoặc HLV tự thiết kế): chỉ một lần cho mỗi khách.
+export const switchPlanMode = (customerId, mode) =>
+  unwrap(api.post(`/f1-customers/${customerId}/result-predictions/switch-mode`, { mode }));
+
 export const getLatestResultPrediction = (customerId) =>
   unwrap(api.get(`/f1-customers/${customerId}/result-predictions/latest`));
 

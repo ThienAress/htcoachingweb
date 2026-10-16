@@ -58,6 +58,7 @@ const auditLogSchema = new mongoose.Schema(
         "soft_delete_f1_customer",
         "restore_f1_customer",
         "complete_f1_data_deletion",
+        "switch_f1_plan_mode",
         "read_daily_journal",
         "delete_daily_journal_data",
         "retention_delete_daily_journal",

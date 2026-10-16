@@ -2870,3 +2870,9 @@ export const validateDeleteStage = [
   param("stageOrder").isInt({ min: 1, max: 20 }).withMessage("Giai đoạn không hợp lệ"),
   handleValidationErrors,
 ];
+
+export const validateSwitchPlanMode = [
+  param("id").isMongoId().withMessage("ID khách hàng F1 không hợp lệ"),
+  body("mode").isIn(["system", "trainer"]).withMessage("Cách dựng giai đoạn không hợp lệ"),
+  handleValidationErrors,
+];

@@ -67,6 +67,8 @@ import {
   validateGenerateStageVisual,
 } from "../middlewares/validation.js";
 
+import { switchPlanMode } from "../controllers/f1Customer/index.js";
+import { validateSwitchPlanMode } from "../middlewares/validation.js";
 import { uploadF1Media } from "../middlewares/f1MediaUpload.js";
 import { f1GenerationLimiter } from "../middlewares/rateLimit.js";
 
@@ -324,6 +326,15 @@ router.post(
   requireTrainerAccess,
   validatePreviewStageDesign,
   previewStageDesign,
+);
+
+router.post(
+  "/:id/result-predictions/switch-mode",
+  protect,
+  csrfProtection,
+  requireTrainerAccess,
+  validateSwitchPlanMode,
+  switchPlanMode,
 );
 
 router.get(

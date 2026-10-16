@@ -14,6 +14,7 @@ import {
 } from "./resultPrediction.helpers.js";
 import { buildStageImageGenerationPayload } from "./resultPredictionImage.helpers.js";
 import { buildTrainerStageOne, normalizeCustomStage } from "./stageDesign.helpers.js";
+import { PLAN_MODE_LABELS, describePlanMode, planModeError } from "./planMode.helpers.js";
 import { generateStageImagesWithAI } from "../../services/aiImageGenerator.service.js";
 import { createIdempotentF1Artifact } from "../../services/f1ArtifactIntegrity.service.js";
 import {
@@ -60,6 +61,10 @@ const serializePrediction = (prediction) => {
     })),
   };
 };
+
+// Kèm cách dựng giai đoạn hiện tại để giao diện biết nên mở bước nào khi thêm giai đoạn.
+const withPlanMode = (serialized, customer) =>
+  serialized ? { ...serialized, planModeState: describePlanMode({ customer, prediction: serialized }) } : serialized;
 
 const getRequestContext = (req) => ({
   requestId: req.id || "",
@@ -132,6 +137,27 @@ export const generateResultPrediction = async (req, res, next) => {
 
     // HLV tự thiết kế giai đoạn 1 hoặc để hệ thống đề xuất theo khung NASM.
     const custom = req.body.customStage ? normalizeCustomStage(req.body.customStage) : null;
+    // Đã có lộ trình thì chỉ tạo lại giai đoạn 1 theo đúng cách đang dùng và chưa khoá; đổi cách phải qua "Thay đổi dự đoán".
+    const existing = await F1ResultPrediction.findOne({ customerId: customer._id })
+      .sort({ createdAt: -1 })
+      .select("planSource")
+      .lean();
+    if (existing) {
+      const state = describePlanMode({ customer, prediction: existing });
+      if (state.locked) {
+        throw planModeError(
+          "Khách hàng này đã thay đổi cách dự đoán một lần nên không thể tạo lại giai đoạn 1.",
+          "F1_PLAN_MODE_LOCKED",
+        );
+      }
+      const requested = custom ? "trainer" : "system";
+      if (requested !== state.initial) {
+        throw planModeError(
+          `Khách hàng này đang dùng cách "${PLAN_MODE_LABELS[state.initial]}". Hãy dùng "Thay đổi dự đoán" để đổi cách.`,
+          "F1_PLAN_MODE_MISMATCH",
+        );
+      }
+    }
     let phaseCeiling;
     let framework;
     let phaseRoadmap;
@@ -234,7 +260,7 @@ export const generateResultPrediction = async (req, res, next) => {
 
     return res.status(result.idempotentReplay ? 200 : 201).json({
       success: true,
-      data: serializePrediction(result.artifact),
+      data: withPlanMode(serializePrediction(result.artifact), customer),
       idempotentReplay: result.idempotentReplay,
       message: result.idempotentReplay
         ? "Dự đoán đã tồn tại cho nguồn dữ liệu này"
@@ -255,7 +281,7 @@ export const getLatestResultPrediction = async (req, res, next) => {
     res.setHeader("Cache-Control", "private, no-store");
     return res.json({
       success: true,
-      data: serializePrediction(prediction),
+      data: withPlanMode(serializePrediction(prediction), customer),
     });
   } catch (error) {
     return next(error);
