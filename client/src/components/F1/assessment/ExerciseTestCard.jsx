@@ -27,6 +27,9 @@ const inputClass =
 const readOnlyClass =
   "w-full rounded-lg border border-slate-200 bg-slate-100 px-3 py-2 text-sm text-slate-600 outline-none";
 
+const VOLUME_NOTE =
+  "Hệ số bạn thiết lập dùng để chấm điểm bài tập. Ưu tiên bài dễ quan sát và dễ chỉnh form.";
+
 const levelLabel = (level) =>
   LEVEL_OPTIONS.find((item) => item.value === level)?.label || "";
 
@@ -370,28 +373,22 @@ const ExerciseTestCard = ({
           </div>
         )}
 
-        {exercises.length > 0 && suggestion && (
-          <div className="space-y-3">
-            <div className="rounded-xl border border-orange-200 bg-orange-50/40 p-4 text-sm text-slate-600">
-              {suggestion.reason && <p>{suggestion.reason}</p>}
-              {scoring === "protocol" ? (
-                <p className={suggestion.reason ? "mt-2" : ""}>
-                  Hệ số bạn thiết lập sẽ ảnh hưởng đến quá trình chấm điểm bài tập, vì chấm điểm bài tập sẽ dựa vào hệ số bạn thiết lập.
-                </p>
-              ) : (
-                suggestion.dosage && (
-                  <p className="mt-2">
-                    <span className="font-semibold text-slate-700">Khối lượng tập đề xuất:</span> {suggestion.dosage}
-                  </p>
-                )
-              )}
-            </div>
-            {scoring === "protocol" && (
-              <SuggestedVolume
-                repsProtocol={getProtocol("reps")}
-                timeProtocol={getProtocol("time")}
-                onChangeProtocol={changeProtocol}
-              />
+        {exercises.length > 0 && suggestion && scoring === "protocol" && (
+          <SuggestedVolume
+            repsProtocol={getProtocol("reps")}
+            timeProtocol={getProtocol("time")}
+            onChangeProtocol={changeProtocol}
+            note={VOLUME_NOTE}
+          />
+        )}
+
+        {exercises.length > 0 && suggestion && scoring !== "protocol" && (suggestion.reason || suggestion.dosage) && (
+          <div className="rounded-xl border border-orange-200 bg-orange-50/40 p-4 text-sm text-slate-600">
+            {suggestion.reason && <p>{suggestion.reason}</p>}
+            {suggestion.dosage && (
+              <p className="mt-2">
+                <span className="font-semibold text-slate-700">Khối lượng tập đề xuất:</span> {suggestion.dosage}
+              </p>
             )}
           </div>
         )}

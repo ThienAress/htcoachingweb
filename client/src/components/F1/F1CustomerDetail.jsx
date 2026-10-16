@@ -16,7 +16,7 @@ import {
 import F1TestPermissionReviewCard from "./F1TestPermissionReviewCard";
 import { getF1GenderLabel } from "../../constants/f1Labels";
 import {
-  F1_CUSTOMER_STATUS_LABELS,
+  getF1CustomerStageLabel,
   getF1Progress,
 } from "../../constants/f1CustomerStatus";
 
@@ -63,10 +63,16 @@ const ProgressCard = ({ title, done }) => {
   );
 };
 
-const StatusBadge = ({ value }) => {
+const StatusBadge = ({ customer }) => {
+  const label = getF1CustomerStageLabel(customer);
+  const done = label === "Đã hoàn thành";
   return (
-    <span className="inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700 ring-1 ring-inset ring-slate-200">
-      {F1_CUSTOMER_STATUS_LABELS[value] || value}
+    <span
+      className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ring-1 ring-inset ${
+        done ? "bg-emerald-50 text-emerald-700 ring-emerald-200" : "bg-slate-100 text-slate-700 ring-slate-200"
+      }`}
+    >
+      {label}
     </span>
   );
 };
@@ -223,7 +229,7 @@ const F1CustomerDetail = ({
             </div>
             <div className="flex flex-col items-end gap-3">
               <div className="flex flex-wrap items-center justify-end gap-2">
-                <StatusBadge value={customer.status || "new"} />
+                <StatusBadge customer={customer} />
                 <ReadinessBadge value={customer.readinessStatus || "pending"} />
                 <PermissionBadge value={customer.testPermission} />
               </div>

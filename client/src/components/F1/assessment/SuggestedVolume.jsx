@@ -94,11 +94,16 @@ const VolumeLine = ({ title, protocol, onSave }) => {
   );
 };
 
-const SuggestedVolume = ({ repsProtocol, timeProtocol, onChangeProtocol }) => (
+const SuggestedVolume = ({ repsProtocol, timeProtocol, onChangeProtocol, note = "" }) => (
   <div className="space-y-2 rounded-xl border border-orange-200 bg-orange-50/40 p-4">
     <p className="text-sm font-bold text-slate-800">Khối lượng tập đề xuất</p>
     <VolumeLine title="Sets x Reps" protocol={repsProtocol} onSave={(next) => onChangeProtocol("reps", next)} />
     <VolumeLine title="Sets x Time" protocol={timeProtocol} onSave={(next) => onChangeProtocol("time", next)} />
+    {note && (
+      <p className="pt-1 text-xs text-slate-600">
+        <span className="font-semibold text-slate-700">Chú thích:</span> {note}
+      </p>
+    )}
   </div>
 );
 

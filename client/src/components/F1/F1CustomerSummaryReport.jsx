@@ -184,22 +184,41 @@ const AssessmentGroup = ({ assessment }) => {
   const posture = assessment.postureAssessment || {};
   return (
     <Group title="Đánh giá thể chất">
-      <Grid>
-        <Item label="Mức thể chất tổng thể">
-          <LevelChip level={assessment.overallPhysicalLevel} />
-        </Item>
-        <Item label="Nhịp tim nghỉ">
-          {assessment.cardioAssessment?.restingHeartRate
-            ? `${assessment.cardioAssessment.restingHeartRate} nhịp/phút`
-            : ""}
-        </Item>
-        <Item label="Tư thế tĩnh">
-          {[posture.feetAnkles, posture.knees, posture.lphc, posture.shouldersThoracic, posture.headNeck]
-            .filter((value) => value && value !== "normal")
-            .map((value) => labelOf(F1_POSTURE_LABELS, value))
-            .join(", ") || "Bình thường"}
-        </Item>
-      </Grid>
+      <div className="overflow-x-auto rounded-lg border border-slate-200 px-4 py-2">
+        <table className="w-full table-fixed text-left text-sm">
+          <colgroup>
+            <col className="w-[28%]" />
+            <col className="w-[38%]" />
+            <col className="w-[17%]" />
+            <col className="w-[17%]" />
+          </colgroup>
+          <thead>
+            <tr className="border-b border-slate-200 text-xs text-slate-500">
+              <th className="py-2 pr-3 font-medium">Mức thể chất tổng thể</th>
+              <th className="py-2 pr-3 font-medium">Nhịp tim nghỉ</th>
+              <th colSpan={2} className="py-2 font-medium">Tư thế tĩnh</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr className="align-top">
+              <td className="py-2 pr-3">
+                <LevelChip level={assessment.overallPhysicalLevel} />
+              </td>
+              <td className="py-2 pr-3 font-semibold text-slate-800">
+                {assessment.cardioAssessment?.restingHeartRate
+                  ? `${assessment.cardioAssessment.restingHeartRate} nhịp/phút`
+                  : "--"}
+              </td>
+              <td colSpan={2} className="py-2 font-semibold text-slate-800">
+                {[posture.feetAnkles, posture.knees, posture.lphc, posture.shouldersThoracic, posture.headNeck]
+                  .filter((value) => value && value !== "normal")
+                  .map((value) => labelOf(F1_POSTURE_LABELS, value))
+                  .join(", ") || "Bình thường"}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
       <div className="mt-4 overflow-x-auto rounded-lg border border-slate-200 px-4 py-2">
         <table className="w-full table-fixed text-left text-sm">
           <colgroup>
