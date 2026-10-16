@@ -815,7 +815,8 @@ const F1ResultPredictionPanel = ({ customer, onBack, onGenerated }) => {
     }
   };
 
-  const openDesign = (stageOrder) => {
+  // freshData: dữ liệu đánh giá vừa lưu từ server; luôn ưu tiên để bảng thiết kế thấy mục tiêu, số buổi và kế hoạch mới nhất.
+  const openDesign = (stageOrder, freshData = null) => {
     if (stageOrder === 1) {
       const trainerPlan = prediction?.planSource === "trainer" ? prediction.phaseRoadmap?.[0] : null;
       setDesignDialog({
@@ -825,7 +826,7 @@ const F1ResultPredictionPanel = ({ customer, onBack, onGenerated }) => {
       });
       return;
     }
-    const review = (phaseReviews?.reviews || []).find((item) => item.stageOrder === stageOrder - 1);
+    const review = ((freshData || phaseReviews)?.reviews || []).find((item) => item.stageOrder === stageOrder - 1);
     setDesignDialog({
       stageOrder,
       plan: review?.nextPhasePlan || null,
@@ -1037,14 +1038,14 @@ const F1ResultPredictionPanel = ({ customer, onBack, onGenerated }) => {
             loading={phaseReviewsQuery.isLoading}
             error={phaseReviewsQuery.isError}
             onClose={() => setOpenStage(null)}
-            onProfileSaved={(order) => {
+            onProfileSaved={(order, fresh) => {
               setOpenStage(null);
               setEditMode(false);
               setSelectedStageKey(`stage_${order}`);
               // HLV chọn tự thiết kế: sau khi cập nhật mục tiêu thì mở bảng thiết kế giai đoạn.
               if (designAfter === order) {
                 setDesignAfter(null);
-                openDesign(order);
+                openDesign(order, fresh);
               }
             }}
             onDesign={(order) => {
