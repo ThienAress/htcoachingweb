@@ -182,7 +182,8 @@ const EvidenceTable = ({ rows = [], fallbackItems = [] }) => {
           <tr className="border-b border-slate-200 text-xs text-slate-500">
             <th className="py-2 pr-3 font-medium">Hạng mục</th>
             <th className="py-2 pr-3 font-medium">Bài test / góc nhìn</th>
-            <th className="py-2 font-medium">Kết quả</th>
+            <th className="py-2 pr-3 font-medium">Điểm đánh giá</th>
+            <th className="py-2 font-medium">Độ khó</th>
           </tr>
         </thead>
         <tbody>
@@ -202,6 +203,9 @@ const EvidenceTable = ({ rows = [], fallbackItems = [] }) => {
                       {entry.note}
                     </span>
                   )}
+                </td>
+                <td className="py-2 pr-3 font-semibold text-slate-800">
+                  {entry.score ? `${entry.score}/10` : "--"}
                 </td>
                 <td className="py-2 font-semibold text-slate-800">
                   {entry.result}
@@ -661,26 +665,28 @@ const F1AiReportPanel = ({ customer, onBack, onGenerated, onOpenResultPrediction
                     </p>
                   </div>
                 </div>
-              </SectionCard>
 
-              <SectionCard
-                title="Vì sao đề xuất giai đoạn này"
-                subtitle="Các điều kiện đã dẫn tới giai đoạn bắt đầu được đề xuất"
-              >
-                <BulletList
-                  items={report?.recommendations?.reasons || []}
-                  emptyText="Báo cáo này được tạo trước khi hệ thống ghi lý do. Hãy tạo lại để xem lý do."
-                />
-              </SectionCard>
+                <div className="mt-5 border-t border-slate-100 pt-4">
+                  <h4 className="text-sm font-bold text-slate-800">
+                    Vì sao đề xuất giai đoạn này
+                  </h4>
+                  <div className="mt-2">
+                    <BulletList
+                      items={report?.recommendations?.reasons || []}
+                      emptyText="Báo cáo này được tạo trước khi hệ thống ghi lý do. Hãy tạo lại để xem lý do."
+                    />
+                  </div>
+                </div>
 
-              <SectionCard
-                title="Cơ sở đánh giá"
-                subtitle="Các bài đã test và quan sát tư thế dùng để tính kết quả"
-              >
-                <EvidenceTable
-                  rows={report?.findings?.testedExerciseRows || []}
-                  fallbackItems={report?.findings?.testedExercises || []}
-                />
+                <div className="mt-5 border-t border-slate-100 pt-4">
+                  <h4 className="text-sm font-bold text-slate-800">Cơ sở đánh giá</h4>
+                  <div className="mt-2">
+                    <EvidenceTable
+                      rows={report?.findings?.testedExerciseRows || []}
+                      fallbackItems={report?.findings?.testedExercises || []}
+                    />
+                  </div>
+                </div>
               </SectionCard>
 
               <SectionCard

@@ -168,6 +168,61 @@ describe("trainer-designed stage 1", () => {
     expect(noDays.status).toBe(400);
   });
 
+  it("accepts up to 24 weeks and the new training methods, and requires a name for a custom one", async () => {
+    const trainer = await createTrainer("f1-sd-method@example.com");
+    const customer = await createCustomer(trainer.user._id, "METHOD");
+    const url = `/api/f1-customers/${customer._id}/result-predictions/preview`;
+    const schedule = (extra) => ({
+      sessionMinutes: 60,
+      days: [true, false, true, false, true, false, false],
+      ...extra,
+    });
+
+    const longStage = await post(trainer, url, { customStage: design({ durationWeeks: 24 }) });
+    const tooLong = await post(trainer, url, { customStage: design({ durationWeeks: 25 }) });
+    const pushPull = await post(trainer, url, {
+      customStage: design({ weeklySchedule: schedule({ split: "push_pull" }) }),
+    });
+    const noName = await post(trainer, url, {
+      customStage: design({ weeklySchedule: schedule({ split: "custom" }) }),
+    });
+    const longName = await post(trainer, url, {
+      customStage: design({ weeklySchedule: schedule({ split: "custom", customSplitName: "x".repeat(61) }) }),
+    });
+    const named = await post(trainer, url, {
+      customStage: design({ weeklySchedule: schedule({ split: "custom", customSplitName: "Upper / Lower / Cardio" }) }),
+    });
+
+    expect(longStage.status).toBe(200);
+    expect(tooLong.status).toBe(400);
+    expect(pushPull.status).toBe(200);
+    expect(noName.status).toBe(400);
+    expect(longName.status).toBe(400);
+    expect(named.status).toBe(200);
+  });
+
+  it("keeps the custom method name when the design is saved", async () => {
+    const trainer = await createTrainer("f1-sd-savename@example.com");
+    const customer = await createCustomer(trainer.user._id, "SAVENAME");
+    const response = await post(trainer, `/api/f1-customers/${customer._id}/result-predictions/generate`, {
+      requestId: randomUUID(),
+      customStage: design({
+        weeklySchedule: {
+          sessionMinutes: 45,
+          split: "custom",
+          customSplitName: "  Cardio + Core  ",
+          days: [true, false, true, false, true, false, false],
+        },
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(response.body.data.phaseRoadmap[0].weeklySchedule).toMatchObject({
+      split: "custom",
+      customSplitName: "Cardio + Core",
+    });
+  });
+
   it("blocks another trainer", async () => {
     const owner = await createTrainer("f1-sd-owner@example.com");
     const other = await createTrainer("f1-sd-other@example.com");

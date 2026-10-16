@@ -1,9 +1,32 @@
 // RoundedSelect.jsx — ô chọn bo góc thay cho <select> gốc của trình duyệt
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Check, ChevronDown } from "lucide-react";
 
 const triggerClass =
   "flex w-full items-center justify-between gap-2 rounded-xl border bg-white px-3 py-2 text-left text-sm outline-none transition focus-visible:border-orange-400 focus-visible:ring-2 focus-visible:ring-orange-100 disabled:cursor-not-allowed disabled:opacity-60";
+
+const LIST_MAX_HEIGHT = 256;
+const LIST_GAP = 6;
+const VIEWPORT_MARGIN = 8;
+
+// Danh sách hiện ở lớp ngoài cùng (portal) để không bị thẻ cha có overflow cắt mất.
+const computeListStyle = (trigger) => {
+  const rect = trigger.getBoundingClientRect();
+  const below = window.innerHeight - rect.bottom - LIST_GAP - VIEWPORT_MARGIN;
+  const above = rect.top - LIST_GAP - VIEWPORT_MARGIN;
+  const openUp = below < 160 && above > below;
+  const maxHeight = Math.max(Math.min(LIST_MAX_HEIGHT, openUp ? above : below), 96);
+  return {
+    position: "fixed",
+    left: rect.left,
+    width: rect.width,
+    maxHeight,
+    ...(openUp
+      ? { bottom: window.innerHeight - rect.top + LIST_GAP }
+      : { top: rect.bottom + LIST_GAP }),
+  };
+};
 
 const RoundedSelect = ({
   value,
@@ -16,7 +39,9 @@ const RoundedSelect = ({
 }) => {
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
+  const [listStyle, setListStyle] = useState(null);
   const rootRef = useRef(null);
+  const listRef = useRef(null);
   const listId = useId();
 
   const selectedIndex = useMemo(
@@ -28,12 +53,26 @@ const RoundedSelect = ({
   useEffect(() => {
     if (!open) return undefined;
     const handlePointerDown = (event) => {
-      if (rootRef.current && !rootRef.current.contains(event.target)) {
-        setOpen(false);
-      }
+      const inside =
+        rootRef.current?.contains(event.target) ||
+        listRef.current?.contains(event.target);
+      if (!inside) setOpen(false);
     };
     document.addEventListener("mousedown", handlePointerDown);
     return () => document.removeEventListener("mousedown", handlePointerDown);
+  }, [open]);
+
+  useLayoutEffect(() => {
+    if (!open || !rootRef.current) return undefined;
+    const trigger = rootRef.current;
+    const update = () => setListStyle(computeListStyle(trigger));
+    update();
+    window.addEventListener("resize", update);
+    window.addEventListener("scroll", update, true);
+    return () => {
+      window.removeEventListener("resize", update);
+      window.removeEventListener("scroll", update, true);
+    };
   }, [open]);
 
   const openList = () => {
@@ -109,12 +148,14 @@ const RoundedSelect = ({
         />
       </button>
 
-      {open && (
+      {open && listStyle && createPortal(
         <ul
+          ref={listRef}
           id={listId}
           role="listbox"
           aria-label={label}
-          className="absolute z-30 mt-1.5 max-h-64 w-full overflow-y-auto overscroll-contain rounded-xl border border-slate-200 bg-white p-1.5 shadow-lg"
+          style={listStyle}
+          className="z-[60] overflow-y-auto overscroll-contain rounded-xl border border-slate-200 bg-white p-1.5 shadow-lg"
         >
           {options.length === 0 && (
             <li className="px-3 py-2 text-sm text-slate-500">{emptyText}</li>
@@ -140,7 +181,8 @@ const RoundedSelect = ({
               </li>
             );
           })}
-        </ul>
+        </ul>,
+        document.body,
       )}
     </div>
   );
