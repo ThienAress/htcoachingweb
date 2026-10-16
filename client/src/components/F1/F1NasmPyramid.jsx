@@ -221,38 +221,38 @@ const F1NasmPyramid = () => {
       <div className="opt-page">
         <div className="opt-container">
           <div className="opt-pyramid">
-            <div className="opt-phase opt-phase-5" data-group="⚡ POWER">
-              ⚡ PHASE 5: POWER
-              <span className="opt-phase-label">POWER</span>
+            <div className="opt-phase opt-phase-5" data-group="⚡ BÙNG NỔ">
+              ⚡ GIAI ĐOẠN 5: POWER
+              <span className="opt-phase-label">BÙNG NỔ</span>
             </div>
 
-            <div className="opt-phase opt-phase-4" data-group="💪 STRENGTH">
-              💪 PHASE 4: MAXIMAL STRENGTH
-              <span className="opt-phase-label">STRENGTH</span>
+            <div className="opt-phase opt-phase-4" data-group="💪 SỨC MẠNH">
+              💪 GIAI ĐOẠN 4: MAXIMAL STRENGTH
+              <span className="opt-phase-label">SỨC MẠNH</span>
             </div>
 
-            <div className="opt-phase opt-phase-3" data-group="🏋️ STRENGTH">
-              🏋️ PHASE 3: HYPERTROPHY
-              <span className="opt-phase-label">STRENGTH</span>
+            <div className="opt-phase opt-phase-3" data-group="🏋️ SỨC MẠNH">
+              🏋️ GIAI ĐOẠN 3: HYPERTROPHY
+              <span className="opt-phase-label">SỨC MẠNH</span>
             </div>
 
-            <div className="opt-phase opt-phase-2" data-group="🔁 STRENGTH">
-              🔁 PHASE 2: STRENGTH ENDURANCE
-              <span className="opt-phase-label">STRENGTH</span>
+            <div className="opt-phase opt-phase-2" data-group="🔁 SỨC MẠNH">
+              🔁 GIAI ĐOẠN 2: STRENGTH ENDURANCE
+              <span className="opt-phase-label">SỨC MẠNH</span>
             </div>
 
             <div
               className="opt-phase opt-phase-1"
-              data-group="🧘 STABILIZATION"
+              data-group="🧘 ỔN ĐỊNH"
             >
-              🧘 PHASE 1: STABILIZATION ENDURANCE
-              <span className="opt-phase-label">STABILIZATION</span>
+              🧘 GIAI ĐOẠN 1: STABILIZATION ENDURANCE
+              <span className="opt-phase-label">ỔN ĐỊNH</span>
             </div>
 
             <div className="opt-pillars">
-              <div className="opt-pillar">POWER</div>
-              <div className="opt-pillar">STRENGTH</div>
-              <div className="opt-pillar">STABILIZATION</div>
+              <div className="opt-pillar">BÙNG NỔ</div>
+              <div className="opt-pillar">SỨC MẠNH</div>
+              <div className="opt-pillar">ỔN ĐỊNH</div>
             </div>
           </div>
         </div>

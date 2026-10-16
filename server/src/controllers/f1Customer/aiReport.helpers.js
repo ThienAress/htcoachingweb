@@ -207,9 +207,9 @@ const buildCorrectiveFocus = (compensationFlags = []) => {
     focus.add("cervical_alignment");
   }
 
+  // Không có lỗi cần hiệu chỉnh thì chỉ giữ form khi tăng tải, không ép khách quay lại bài ổn định nền.
   if (focus.size === 0) {
-    focus.add("movement_foundation");
-    focus.add("stability_training");
+    focus.add("form_maintenance");
   }
 
   return focus.ranked(MAX_CORRECTIVE_FOCUS);
@@ -812,6 +812,7 @@ export const translateCorrectiveFocus = (items = []) => {
     posture_awareness: "nhận thức tư thế",
     thoracic_extension: "cải thiện ưỡn lưng ngực",
     cervical_alignment: "căn chỉnh cổ",
+    form_maintenance: "duy trì kiểm soát form khi tăng tải",
   };
   return items.map((item) => map[item] || item);
 };
@@ -830,6 +831,7 @@ export const translateTrainingFocus = (items = []) => {
     movement_foundation: "xây nền chuyển động",
     stability_training: "tăng ổn định nền tảng",
     core_control: "tăng kiểm soát cơ lõi",
+    form_maintenance: "duy trì kiểm soát form khi tăng tải",
   };
   return items.map((item) => map[item] || item);
 };

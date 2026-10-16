@@ -90,16 +90,17 @@ const CORRECTIVE_FOCUS_LABELS = {
   lower_body_alignment: "Chỉnh trục thân dưới",
   stability_training: "Tăng ổn định nền tảng",
   movement_foundation: "Xây nền chuyển động",
-  core_control: "Tăng kiểm soát core",
+  core_control: "Tăng kiểm soát cơ lõi",
   squat_pattern_retraining: "Học lại kiểu squat",
   lumbopelvic_control: "Kiểm soát lưng - chậu",
-  core_bracing: "Học siết core",
+  core_bracing: "Học siết cơ lõi",
   hip_mobility: "Cải thiện linh hoạt hông",
   thoracic_mobility: "Cải thiện linh hoạt lưng ngực",
   scapular_control: "Kiểm soát xương bả vai",
   posture_awareness: "Nhận thức tư thế",
   thoracic_extension: "Cải thiện ưỡn lưng ngực",
   cervical_alignment: "Căn chỉnh cổ",
+  form_maintenance: "Duy trì kiểm soát form khi tăng tải",
 };
 const TRAINING_FOCUS_LABELS = {
   energy_expenditure: "Tăng tiêu hao năng lượng",
@@ -107,13 +108,13 @@ const TRAINING_FOCUS_LABELS = {
   strength_progression: "Tăng tiến sức mạnh",
   movement_quality_under_load: "Cải thiện chất lượng chuyển động khi có tải",
   lower_body_strength: "Ưu tiên sức mạnh thân dưới",
-  core_strength: "Ưu tiên sức mạnh core",
+  core_strength: "Ưu tiên sức mạnh cơ lõi",
   muscular_endurance: "Ưu tiên sức bền cơ",
   pattern_retraining: "Học lại kiểu vận động",
   general_foundation: "Xây nền tổng quát",
   movement_foundation: "Xây nền chuyển động",
   stability_training: "Tăng ổn định nền tảng",
-  core_stability: "Ưu tiên ổn định core",
+  core_stability: "Ưu tiên ổn định cơ lõi",
 };
 
 const translateValue = (value, map) => (value ? map[value] || value : "--");

@@ -100,6 +100,16 @@ describe("automatic report: phase decision and reasons", () => {
     expect(report.recommendations.reasons.join(" ")).toContain("cảnh báo");
   });
 
+  it("does not push a customer with no movement faults back to foundation drills", async () => {
+    const report = await buildAiReport({
+      customer: readyCustomer,
+      intake: experiencedIntake(),
+      assessment: goodAssessment(),
+    });
+
+    expect(report.recommendations.correctiveFocus).toEqual(["form_maintenance"]);
+  });
+
   it("keeps holding a customer the trainer did not clear", async () => {
     const intake = experiencedIntake({ warningSigns: ["dizziness"] });
     intake.systemFlags = { painFlag: "none", reviewDecision: "keep_hold" };
