@@ -21,7 +21,9 @@ import {
 import { useAuth } from "../context/AuthContext";
 import { mySubscriptionQueryOptions } from "../queries/subscription.queries";
 import { canAccessF1 } from "../utils/trainerEntitlements";
+import SEO from "../components/SEO";
 import {
+  findNavigationTitle,
   getTrainerNavigationGroups,
   isTrainerNavigationItemActive,
 } from "../navigation/workspaceNavigation";
@@ -146,6 +148,11 @@ const TrainerLayout = () => {
   }));
 
   const visibleGroups = navGroups.filter((g) => g.items.length > 0);
+  const pageTitle = findNavigationTitle(
+    visibleGroups,
+    location.pathname,
+    "Quản lý khách hàng",
+  );
 
   const getInitialOpen = () => {
     const open = {};
@@ -176,6 +183,7 @@ const TrainerLayout = () => {
       className="trainer-workspace flex min-h-screen bg-slate-100 text-slate-950 transition-colors duration-200 motion-reduce:transition-none"
       data-theme={trainerTheme}
     >
+      <SEO title={pageTitle} noindex />
       {/* ── Mobile overlay ── */}
       {isSidebarOpen && (
         <div
