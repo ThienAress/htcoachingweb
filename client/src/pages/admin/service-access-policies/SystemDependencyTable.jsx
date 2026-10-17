@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { Package, Search } from "lucide-react";
+import SelectField from "../../../components/SelectField";
 
 const normalizeSearch = (value) =>
   String(value || "").normalize("NFKC").toLocaleLowerCase("vi").trim();
@@ -63,7 +64,7 @@ export default function SystemDependencyTable({ inventory }) {
         </label>
         <label className="block" htmlFor="system-dependency-scope">
           <span className="text-sm font-semibold text-zinc-800">Phạm vi</span>
-          <select
+          <SelectField
             id="system-dependency-scope"
             value={scope}
             onChange={(event) => setScope(event.target.value)}
@@ -75,7 +76,7 @@ export default function SystemDependencyTable({ inventory }) {
                 {manifest.scopeLabel}
               </option>
             ))}
-          </select>
+          </SelectField>
         </label>
       </div>
 

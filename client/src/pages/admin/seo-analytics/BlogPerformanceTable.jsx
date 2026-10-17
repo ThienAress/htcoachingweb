@@ -1,4 +1,5 @@
 import { AlertCircle, ChevronLeft, ChevronRight, Eye, Search } from "lucide-react";
+import SelectField from "../../../components/SelectField";
 
 const number = new Intl.NumberFormat("vi-VN");
 const percent = new Intl.NumberFormat("vi-VN", { style: "percent", maximumFractionDigits: 1 });
@@ -46,7 +47,7 @@ export default function BlogPerformanceTable({
           </label>
           <label>
             <span className="sr-only">Sắp xếp Blog</span>
-            <select
+            <SelectField
               value={sortValue}
               onChange={(event) => {
                 const [nextSort, nextDirection] = event.target.value.split(":");
@@ -59,7 +60,7 @@ export default function BlogPerformanceTable({
               <option value="leads:desc">Lead cao nhất</option>
               <option value="publishedAt:desc">Mới xuất bản</option>
               <option value="legacyViews:desc">Lượt xem cũ</option>
-            </select>
+            </SelectField>
           </label>
         </div>
       </div>

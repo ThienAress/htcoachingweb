@@ -29,6 +29,7 @@ import {
   getBlogSubCategoryLabel as getSubCategoryLabel,
   normalizeBlogSubCategory,
 } from "../../data/blogCategories";
+import SelectField from "../../components/SelectField";
 
 const emptyForm = {
   title: "", slug: "", content: "", excerpt: "",
@@ -390,10 +391,10 @@ const BlogManagement = () => {
             {/* Card: Trạng thái + Xuất bản */}
             <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-3 shadow-sm">
               <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Trạng thái</p>
-              <select className={inputClass} value={form.status} onChange={(e) => updateForm("status", e.target.value)}>
+              <SelectField className={inputClass} value={form.status} onChange={(e) => updateForm("status", e.target.value)}>
                 <option value="draft">Bản nháp</option>
                 <option value="published">Xuất bản</option>
-              </select>
+              </SelectField>
               <label className="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" checked={form.featured} onChange={(e) => updateForm("featured", e.target.checked)} className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary" />
                 <span className="text-sm font-semibold text-slate-700">Bài nổi bật</span>
@@ -404,7 +405,7 @@ const BlogManagement = () => {
             <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-3 shadow-sm">
               <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Phân loại</p>
               <Field label="Chủ đề">
-                <select
+                <SelectField
                   className={inputClass}
                   value={form.category}
                   onChange={(e) => {
@@ -415,10 +416,10 @@ const BlogManagement = () => {
                   }}
                 >
                   {CATEGORIES.map((c) => (<option key={c.value} value={c.value}>{c.label}</option>))}
-                </select>
+                </SelectField>
               </Field>
               <Field label="Danh mục con">
-                <select
+                <SelectField
                   className={inputClass}
                   value={form.subCategory}
                   onChange={(e) => updateForm("subCategory", e.target.value)}
@@ -427,13 +428,13 @@ const BlogManagement = () => {
                   {(SUB_CATEGORIES[form.category] || []).map((sub) => (
                     <option key={sub.value} value={sub.value}>{sub.label}</option>
                   ))}
-                </select>
+                </SelectField>
               </Field>
               <Field label="Tác giả">
-                <select className={inputClass} value={form.author} onChange={(e) => updateForm("author", e.target.value)}>
+                <SelectField className={inputClass} value={form.author} onChange={(e) => updateForm("author", e.target.value)}>
                   <option value="">— Không chọn —</option>
                   {allTrainers.map((t) => (<option key={t._id} value={t._id}>{t.name}</option>))}
-                </select>
+                </SelectField>
               </Field>
             </div>
 
@@ -515,15 +516,15 @@ const BlogManagement = () => {
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <input value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} placeholder="Tìm theo tiêu đề..." className={`${inputClass} pl-9`} />
         </div>
-        <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }} className={inputClass}>
+        <SelectField value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }} className={inputClass}>
           <option value="">Tất cả trạng thái</option>
           <option value="draft">Bản nháp</option>
           <option value="published">Đã xuất bản</option>
-        </select>
-        <select value={categoryFilter} onChange={(e) => { setCategoryFilter(e.target.value); setPage(1); }} className={inputClass}>
+        </SelectField>
+        <SelectField value={categoryFilter} onChange={(e) => { setCategoryFilter(e.target.value); setPage(1); }} className={inputClass}>
           <option value="">Tất cả chủ đề</option>
           {CATEGORIES.map((c) => (<option key={c.value} value={c.value}>{c.label}</option>))}
-        </select>
+        </SelectField>
       </div>
 
       {/* Table */}

@@ -22,6 +22,7 @@ import {
   updateSuggestionStatus,
   deleteSuggestion,
 } from "../../services/exerciseSuggestion.service";
+import SelectField from "../../components/SelectField";
 
 const ExerciseSuggestionsManagement = () => {
   const queryClient = useQueryClient();
@@ -124,7 +125,7 @@ const ExerciseSuggestionsManagement = () => {
         </div>
         <div className="flex items-center gap-2">
           <Filter className="w-5 h-5 text-gray-400" />
-          <select
+          <SelectField
             className="px-4 py-2.5 border border-gray-200 rounded-xl bg-white shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
@@ -133,7 +134,7 @@ const ExerciseSuggestionsManagement = () => {
             <option value="pending">Chờ xử lý</option>
             <option value="approved">Đã duyệt</option>
             <option value="rejected">Từ chối</option>
-          </select>
+          </SelectField>
         </div>
       </div>
 

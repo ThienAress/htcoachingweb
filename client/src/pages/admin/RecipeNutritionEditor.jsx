@@ -4,6 +4,7 @@ import {
   createAdditionalNutritionRow,
   MAX_ADDITIONAL_RECIPE_NUTRIENTS,
 } from "./recipeNutritionForm";
+import SelectField from "../../components/SelectField";
 
 const inputClass =
   "min-h-11 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-transparent focus:ring-2 focus:ring-primary disabled:opacity-60";
@@ -95,7 +96,7 @@ const RecipeNutritionEditor = ({ value, onChange, disabled = false }) => {
               </label>
               <label className="text-xs font-medium text-gray-600">
                 Đơn vị
-                <select
+                <SelectField
                   value={item.unit}
                   onChange={(event) =>
                     updateAdditional(item.rowId, "unit", event.target.value)
@@ -106,7 +107,7 @@ const RecipeNutritionEditor = ({ value, onChange, disabled = false }) => {
                   <option value="g">g</option>
                   <option value="mcg">mcg</option>
                   <option value="kcal">kcal</option>
-                </select>
+                </SelectField>
               </label>
               <label className="text-xs font-medium text-gray-600">
                 Giá trị

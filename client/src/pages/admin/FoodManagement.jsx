@@ -30,6 +30,7 @@ import {
   createAdminVerifiedFoodSource,
   FOOD_ADMIN_TEXT,
 } from "./foodAdminPresentation";
+import SelectField from "../../components/SelectField";
 
 const createFoodForm = () => ({
   label: "",
@@ -623,7 +624,7 @@ const FoodManagement = () => {
                   </legend>
                   <label className="block text-sm text-slate-700">
                     Trạng thái
-                    <select
+                    <SelectField
                       name="allergenReviewStatus"
                       value={formData.allergenReviewStatus}
                       onChange={(e) => setFormData({
@@ -634,7 +635,7 @@ const FoodManagement = () => {
                     >
                       <option value="unreviewed">Chưa kiểm duyệt</option>
                       <option value="reviewed">Đã kiểm duyệt theo nhãn/nguồn</option>
-                    </select>
+                    </SelectField>
                   </label>
                   {formData.allergenReviewStatus === "reviewed" && (
                     <div className="grid gap-3 sm:grid-cols-2">
@@ -709,7 +710,7 @@ const FoodManagement = () => {
                       </div>
                       <label className="text-sm text-slate-700">
                         Loại nguồn
-                        <select
+                        <SelectField
                           name="allergenSourceType"
                           value={formData.allergenSourceType}
                           onChange={(e) => setFormData({
@@ -721,7 +722,7 @@ const FoodManagement = () => {
                           <option value="package_label">Nhãn bao bì</option>
                           <option value="manufacturer">Nhà sản xuất</option>
                           <option value="official_database">CSDL chính thức</option>
-                        </select>
+                        </SelectField>
                       </label>
                       <label className="text-sm text-slate-700">
                         Ngày kiểm duyệt
@@ -764,7 +765,7 @@ const FoodManagement = () => {
                   <div className="grid gap-3 sm:grid-cols-2">
                     <label className="text-sm text-slate-700">
                       Nguồn giá
-                      <select
+                      <SelectField
                         name="priceSourceKey"
                         value={formData.priceSourceKey}
                         disabled={!editingFood}
@@ -778,7 +779,7 @@ const FoodManagement = () => {
                         <option value="bach_hoa_xanh">Bách Hóa Xanh</option>
                         <option value="winmart">WinMart</option>
                         <option value="coop_online">Co.op Online</option>
-                      </select>
+                      </SelectField>
                       {!editingFood && (
                         <span className="mt-1 block text-xs text-slate-500">
                           {FOOD_ADMIN_TEXT.priceSavedFirst}

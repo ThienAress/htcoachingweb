@@ -1,8 +1,9 @@
 import { useState, useMemo, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { useForm, useWatch } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import SelectField from "../../components/SelectField";
 
 import { keepPreviousData, useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { invalidateByKey } from "../../queries/invalidation";
@@ -719,22 +720,29 @@ const Orders = ({ embedded = false }) => {
                         </p>
                       </>
                     ) : (
-                      <select
-                        id="order-package"
-                        {...register("package")}
-                        className="min-h-11 w-full border border-gray-300 rounded-lg px-3 py-2"
-                      >
-                        <option value="">Chọn gói</option>
-                        <option value="Trail(Trải nghiệm)">
-                          Trail(Trải nghiệm)
-                        </option>
-                        <option value="Cơ Bản(1-1)">Cơ Bản(1-1)</option>
-                        <option value="Nâng Cao(1-1)">Nâng Cao(1-1)</option>
-                        <option value="Vip(1-1)">Vip(1-1)</option>
-                        <option value="Cơ Bản(Online)">Cơ Bản(Online)</option>
-                        <option value="Nâng Cao(Online)">Nâng Cao(Online)</option>
-                        <option value="Vip(Online)">Vip(Online)</option>
-                      </select>
+                      <Controller
+                        control={control}
+                        name="package"
+                        render={({ field }) => (
+                          <SelectField
+                            id="order-package"
+                            value={field.value ?? ""}
+                            onChange={(event) => field.onChange(event.target.value)}
+                            className="min-h-11 w-full border border-gray-300 rounded-lg px-3 py-2"
+                          >
+                            <option value="">Chọn gói</option>
+                            <option value="Trail(Trải nghiệm)">
+                              Trail(Trải nghiệm)
+                            </option>
+                            <option value="Cơ Bản(1-1)">Cơ Bản(1-1)</option>
+                            <option value="Nâng Cao(1-1)">Nâng Cao(1-1)</option>
+                            <option value="Vip(1-1)">Vip(1-1)</option>
+                            <option value="Cơ Bản(Online)">Cơ Bản(Online)</option>
+                            <option value="Nâng Cao(Online)">Nâng Cao(Online)</option>
+                            <option value="Vip(Online)">Vip(Online)</option>
+                          </SelectField>
+                        )}
+                      />
                     )}
                     {errors.package && (
                       <p className="text-red-500 text-xs">
@@ -768,40 +776,47 @@ const Orders = ({ embedded = false }) => {
                       <MapPin className="w-4 h-4 inline mr-1" /> Phòng tập{" "}
                       <span className="text-red-500">*</span>
                     </label>
-                    <select
-                      id="order-gym"
-                      {...register("gym")}
-                      className="min-h-11 w-full border border-gray-300 rounded-lg px-3 py-2"
-                    >
-                      <option value="">Chọn phòng</option>
-                      <option value="Waystation Trương Văn Hải">
-                        Waystation Trương Văn Hải
-                      </option>
-                      <option value="Waystation Dân chủ">
-                        Waystation Dân chủ
-                      </option>
-                      <option value="Waystation Hiệp Bình">
-                        Waystation Hiệp Bình
-                      </option>
-                      <option value="Waystation Nguyễn Xí">
-                        Waystation Nguyễn Xí
-                      </option>
-                      <option value="Waystation Ung Văn Khiêm">
-                        Waystation Ung Văn Khiêm
-                      </option>
-                      <option value="Waystation Trần Thị Điệu">
-                        Waystation Trần Thị Điệu
-                      </option>
-                      <option value="Chung cư Flora Novia">
-                        Chung cư Flora Novia
-                      </option>
-                      <option value="Chung cư Flora Novia">
-                        Chung cư Phú Đông Sky Garden
-                      </option>
-                      <option value="Home gym">
-                        Home gym
-                      </option>
-                    </select>
+                    <Controller
+                      control={control}
+                      name="gym"
+                      render={({ field }) => (
+                        <SelectField
+                          id="order-gym"
+                          value={field.value ?? ""}
+                          onChange={(event) => field.onChange(event.target.value)}
+                          className="min-h-11 w-full border border-gray-300 rounded-lg px-3 py-2"
+                        >
+                          <option value="">Chọn phòng</option>
+                          <option value="Waystation Trương Văn Hải">
+                            Waystation Trương Văn Hải
+                          </option>
+                          <option value="Waystation Dân chủ">
+                            Waystation Dân chủ
+                          </option>
+                          <option value="Waystation Hiệp Bình">
+                            Waystation Hiệp Bình
+                          </option>
+                          <option value="Waystation Nguyễn Xí">
+                            Waystation Nguyễn Xí
+                          </option>
+                          <option value="Waystation Ung Văn Khiêm">
+                            Waystation Ung Văn Khiêm
+                          </option>
+                          <option value="Waystation Trần Thị Điệu">
+                            Waystation Trần Thị Điệu
+                          </option>
+                          <option value="Chung cư Flora Novia">
+                            Chung cư Flora Novia
+                          </option>
+                          <option value="Chung cư Flora Novia">
+                            Chung cư Phú Đông Sky Garden
+                          </option>
+                          <option value="Home gym">
+                            Home gym
+                          </option>
+                        </SelectField>
+                      )}
+                    />
                     {errors.gym && (
                       <p className="text-red-500 text-xs">{errors.gym.message}</p>
                     )}
@@ -858,19 +873,26 @@ const Orders = ({ embedded = false }) => {
                     <label htmlFor="order-trainer" className="text-sm font-medium text-gray-700">
                       Trainer phụ trách
                     </label>
-                    <select
-                      id="order-trainer"
-                      {...register("trainerId")}
-                      className="mt-1 min-h-11 w-full rounded-lg border border-gray-300 px-3 py-2"
-                      disabled={Boolean(editingId && editingTrainerId) || trainersLoading || trainersError}
-                    >
-                      <option value="">-- Không có trainer --</option>
-                      {trainers.map((t) => (
-                        <option key={t._id} value={t._id}>
-                          {t.name} ({t.email})
-                        </option>
-                      ))}
-                    </select>
+                    <Controller
+                      control={control}
+                      name="trainerId"
+                      render={({ field }) => (
+                        <SelectField
+                          id="order-trainer"
+                          value={field.value ?? ""}
+                          onChange={(event) => field.onChange(event.target.value)}
+                          className="mt-1 min-h-11 w-full rounded-lg border border-gray-300 px-3 py-2"
+                          disabled={Boolean(editingId && editingTrainerId) || trainersLoading || trainersError}
+                        >
+                          <option value="">-- Không có trainer --</option>
+                          {trainers.map((t) => (
+                            <option key={t._id} value={t._id}>
+                              {t.name} ({t.email})
+                            </option>
+                          ))}
+                        </SelectField>
+                      )}
+                    />
                     {editingId && editingTrainerId && (
                       <p className="mt-2 text-xs text-amber-700">
                         Đổi HLV được thực hiện tại mục Điều phối HLV để có bước

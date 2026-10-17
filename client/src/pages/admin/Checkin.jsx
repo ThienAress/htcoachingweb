@@ -36,6 +36,7 @@ import { useAuth } from "../../context/AuthContext";
 import SEO from "../../components/SEO";
 import { useDebounce } from "../../hooks/useDebounce";
 import WorkspacePageHeader from "../../components/WorkspacePageHeader";
+import SelectField from "../../components/SelectField";
 
 const muscles = [
   "Ngực",
@@ -344,7 +345,7 @@ const Checkin = ({ embedded = false }) => {
                       <Package className="w-4 h-4" /> Gói tập{" "}
                       <span className="text-red-500">*</span>
                     </label>
-                    <select
+                    <SelectField
                       value={selection.orderId}
                       onChange={(e) => handleSelectOrder(e.target.value)}
                       className="w-full border border-gray-700 bg-gray-800 text-white rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary hover:bg-gray-750 transition"
@@ -357,7 +358,7 @@ const Checkin = ({ embedded = false }) => {
                             {o.package} ({o.sessions} buổi còn lại)
                           </option>
                         ))}
-                    </select>
+                    </SelectField>
                   </div>
 
                   {/* Thời gian */}

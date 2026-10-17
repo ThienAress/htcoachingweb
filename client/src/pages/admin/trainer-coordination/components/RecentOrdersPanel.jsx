@@ -3,6 +3,7 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { AlertCircle, ArrowRight, ChevronLeft, ChevronRight, Search } from "lucide-react";
 
 import { getRecentTrainerOrders } from "../../../../services/trainerCoordination.service";
+import SelectField from "../../../../components/SelectField";
 
 const statusLabel = {
   pending: "Chờ duyệt",
@@ -98,7 +99,7 @@ const RecentOrdersPanel = ({ onStartTransfer }) => {
         <div className="mt-4 flex flex-wrap gap-3">
           <label className="text-sm font-medium text-slate-700">
             <span className="sr-only">Lọc trạng thái</span>
-            <select
+            <SelectField
               value={status}
               onChange={(event) => { setStatus(event.target.value); setPage(1); }}
               className="min-h-11 rounded-lg border border-slate-300 bg-white px-3 text-sm focus:border-cyan-600 focus:outline-none focus:ring-2 focus:ring-cyan-100"
@@ -108,11 +109,11 @@ const RecentOrdersPanel = ({ onStartTransfer }) => {
               <option value="approved">Đang hoạt động</option>
               <option value="completed">Hoàn thành</option>
               <option value="cancelled">Đã hủy</option>
-            </select>
+            </SelectField>
           </label>
           <label className="text-sm font-medium text-slate-700">
             <span className="sr-only">Lọc phân công</span>
-            <select
+            <SelectField
               value={assignment}
               onChange={(event) => { setAssignment(event.target.value); setPage(1); }}
               className="min-h-11 rounded-lg border border-slate-300 bg-white px-3 text-sm focus:border-cyan-600 focus:outline-none focus:ring-2 focus:ring-cyan-100"
@@ -120,7 +121,7 @@ const RecentOrdersPanel = ({ onStartTransfer }) => {
               <option value="">Tất cả phân công</option>
               <option value="unassigned">Chưa có HLV</option>
               <option value="assigned">Đã có HLV</option>
-            </select>
+            </SelectField>
           </label>
         </div>
       </div>

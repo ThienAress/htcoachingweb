@@ -4,6 +4,7 @@ import { Plus, Pencil, Trash2, Search, MapPin, Loader2, Database } from "lucide-
 import { toast } from "react-toastify";
 import SEO from "../../components/SEO";
 import { getAllGyms, createGym, updateGym, deleteGym, seedGyms } from "../../services/gym.service";
+import SelectField from "../../components/SelectField";
 
 const GymManagement = () => {
   const queryClient = useQueryClient();
@@ -253,10 +254,10 @@ const GymModal = ({ gym, onClose }) => {
                 </div>
                 <div className="flex-1">
                   <label className="block text-sm font-semibold text-slate-700 mb-1">Trạng thái</label>
-                  <select value={formData.status} onChange={e => setFormData({ ...formData, status: e.target.value })} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary/50">
+                  <SelectField value={formData.status} onChange={e => setFormData({ ...formData, status: e.target.value })} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary/50">
                     <option value="active">Hoạt động</option>
                     <option value="inactive">Tạm ngưng</option>
-                  </select>
+                  </SelectField>
                 </div>
               </div>
             </div>

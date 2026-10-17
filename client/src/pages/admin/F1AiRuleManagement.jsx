@@ -6,6 +6,7 @@ import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { Plus, Edit, Trash2, X, BrainCircuit, FileWarning, Search, HelpCircle } from "lucide-react";
 import { getF1AiRules, createF1AiRule, updateF1AiRule, deleteF1AiRule } from "../../services/f1AiRule.service";
+import SelectField from "../../components/SelectField";
 
 const F1AiRuleManagement = () => {
   const queryClient = useQueryClient();
@@ -245,9 +246,9 @@ const F1AiRuleManagement = () => {
               <div className="grid grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Category *</label>
-                  <select className="w-full p-2.5 border border-gray-300 rounded-xl" value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})}>
+                  <SelectField className="w-full p-2.5 border border-gray-300 rounded-xl" value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})}>
                     {categories.map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
+                  </SelectField>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Độ ưu tiên (Priority)</label>

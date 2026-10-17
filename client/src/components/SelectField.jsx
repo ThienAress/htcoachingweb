@@ -5,7 +5,7 @@ import RoundedSelect from "./F1/assessment/RoundedSelect";
 import { parseSelectOptions } from "./selectOptions";
 
 // Các lớp bố cục viết cho <select> cũ (flex-1, shrink-0, min-w-...) cần áp lên khung ngoài của ô chọn.
-const WRAPPER_CLASS = /^(flex-\S*|shrink-0|grow|basis-\S+|min-w-\S+|max-w-\S+|self-\S+|col-span-\S+|order-\S+)$/;
+const WRAPPER_CLASS = /^(?:[a-z0-9]+:)*(flex-\S*|shrink-0|grow|basis-\S+|w-\S+|min-w-\S+|max-w-\S+|self-\S+|col-span-\S+|order-\S+)$/;
 
 const wrapperClassFor = (className) => {
   const tokens = String(className || "")

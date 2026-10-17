@@ -10,6 +10,7 @@ import {
   getCommunityFeaturePriorityMeta,
 } from "./serviceAccessPolicyPresentation";
 import CommunityFeatureReportToolbar from "./CommunityFeatureReportToolbar";
+import SelectField from "../../../components/SelectField";
 
 const PRIORITY_BADGE_CLASSES = {
   critical: "border-rose-200 bg-rose-50 text-rose-800",
@@ -58,7 +59,7 @@ export default function CommunityFeatureTable({
               />
               Lọc theo nhóm
             </span>
-            <select
+            <SelectField
               id="community-feature-group"
               name="community-feature-group"
               value={selectedGroup}
@@ -71,7 +72,7 @@ export default function CommunityFeatureTable({
                   {group.label}
                 </option>
               ))}
-            </select>
+            </SelectField>
           </label>
           <label className="block" htmlFor="community-feature-audience">
             <span className="mb-2 flex items-center gap-2 text-sm font-semibold text-zinc-800">
@@ -81,7 +82,7 @@ export default function CommunityFeatureTable({
               />
               Lọc theo đối tượng
             </span>
-            <select
+            <SelectField
               id="community-feature-audience"
               name="community-feature-audience"
               value={selectedAudience}
@@ -94,7 +95,7 @@ export default function CommunityFeatureTable({
                   {audience.label}
                 </option>
               ))}
-            </select>
+            </SelectField>
           </label>
         </div>
         <div className="text-sm text-zinc-600 sm:text-right">
