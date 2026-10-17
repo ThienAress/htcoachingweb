@@ -35,6 +35,7 @@ import { getCheckins, createCheckin } from "../../services/checkin.service";
 import { useAuth } from "../../context/AuthContext";
 import SEO from "../../components/SEO";
 import { useDebounce } from "../../hooks/useDebounce";
+import WorkspacePageHeader from "../../components/WorkspacePageHeader";
 
 const muscles = [
   "Ngực",
@@ -53,7 +54,7 @@ const checkinSchema = z.object({
   note: z.string().max(500, "Ghi chú không được vượt quá 500 ký tự").optional(),
 });
 
-const Checkin = () => {
+const Checkin = ({ embedded = false }) => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const dropdownRef = useRef(null);
@@ -235,9 +236,22 @@ const Checkin = () => {
     <>
       <SEO title="Check-in khách hàng" noindex />
       <phantom-ui loading={isLoading || undefined}>
-        <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white py-12 px-4 md:px-6">
+        <div className={`${embedded ? "min-h-[calc(100vh-3rem)] py-8" : "min-h-screen py-12"} bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white px-4 md:px-6`}>
           <div className="container-custom space-y-6">
             {/* Header */}
+            {embedded ? (
+            <WorkspacePageHeader
+              icon={CheckCircle}
+              title="Check-in khách hàng"
+              description="Xác nhận buổi tập và ghi nhận lịch sử nhanh chóng"
+              actions={
+                <div className="text-sm text-gray-300 bg-gray-800/80 border border-gray-700 px-4 py-2 rounded-full flex items-center gap-2">
+                  <History className="w-4 h-4 text-primary" />
+                  <span>Tổng lượt check‑in: <strong className="text-primary font-bold">{pagination.total}</strong></span>
+                </div>
+              }
+            />
+            ) : (
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div>
                 <div className="inline-flex items-center gap-3 bg-primary/20 backdrop-blur-sm rounded-full px-5 py-2 mb-2">
@@ -256,6 +270,7 @@ const Checkin = () => {
                 <span>Tổng lượt check‑in: <strong className="text-primary font-bold">{pagination.total}</strong></span>
               </div>
             </div>
+            )}
 
             {/* Form checkin */}
             <div className="bg-gray-900/60 backdrop-blur-md rounded-2xl border border-gray-800 p-6 overflow-visible shadow-xl">

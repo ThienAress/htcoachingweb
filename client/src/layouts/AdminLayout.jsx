@@ -172,7 +172,7 @@ const SidebarContent = ({
                           onClick={onItemClick}
                           className={`flex min-h-11 items-center gap-3 rounded-lg px-4 py-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/70 ${
                             isActive
-                              ? "bg-white/20 text-white font-medium"
+                              ? "bg-primary text-white font-medium"
                               : "text-white/80 hover:bg-white/10 hover:text-white"
                           }`}
                         >

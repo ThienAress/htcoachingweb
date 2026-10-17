@@ -34,6 +34,7 @@ import {
   getAppDayOfWeek as dayIndexForDate,
   getVietnamDateKey,
 } from "../../utils/vietnamDate";
+import WorkspacePageHeader from "../../components/WorkspacePageHeader";
 
 // ===== CONSTANTS =====
 const DAY_LABELS = ["Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7", "CN"];
@@ -559,6 +560,13 @@ const TrainingSchedule = ({ embedded = false }) => {
           ) : (
             <>
               {/* ===== HERO HEADER ===== */}
+              {embedded ? (
+              <WorkspacePageHeader
+                icon={CalendarDays}
+                title="Quản lý lịch tập"
+                description="Mỗi buổi tập gắn với ngày cụ thể và được lưu lại trong lịch sử"
+              />
+              ) : (
               <div className="text-center mb-8">
                 <div className="inline-flex items-center gap-3 bg-primary/20 backdrop-blur-sm rounded-full px-5 py-2 mb-4">
                   <Flame className="text-primary w-6 h-6" />
@@ -572,6 +580,7 @@ const TrainingSchedule = ({ embedded = false }) => {
                   Mỗi buổi tập gắn với ngày cụ thể và được lưu lại trong lịch sử
                 </p>
               </div>
+              )}
 
               {/* ===== ACTION BAR ===== */}
               <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-700 p-4 md:p-6 mb-6">
