@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  findNavigationTitle,
   getAccountWorkspaceItems,
   getTrainerNavigationGroups,
   getWorkoutPlanWorkspacePath,
@@ -151,6 +152,56 @@ describe("workspace navigation contract", () => {
     );
     expect(getWorkoutPlanWorkspacePath("plan 1", { embedded: false })).toBe(
       "/workout-plans/plan%201",
+    );
+  });
+});
+
+describe("findNavigationTitle", () => {
+  const groups = [
+    {
+      items: [
+        { path: "/admin/users", label: "Người dùng" },
+        { path: "/admin/trainers", label: "Đội ngũ HLV" },
+        {
+          path: "/trainer",
+          label: "Khách hàng của tôi",
+          exact: true,
+          activePrefixes: ["/trainer/clients/"],
+        },
+        { path: "/trainer/health", label: "Theo dõi sức khỏe" },
+      ],
+    },
+  ];
+
+  it("returns the label of the menu item for the current page", () => {
+    expect(findNavigationTitle(groups, "/admin/users", "Quản trị")).toBe(
+      "Người dùng",
+    );
+    expect(
+      findNavigationTitle(groups, "/admin/trainers/abc/profile", "Quản trị"),
+    ).toBe("Đội ngũ HLV");
+  });
+
+  it("prefers the most specific item when menu paths overlap", () => {
+    expect(findNavigationTitle(groups, "/trainer/health", "x")).toBe(
+      "Theo dõi sức khỏe",
+    );
+    expect(findNavigationTitle(groups, "/trainer/clients/42", "x")).toBe(
+      "Khách hàng của tôi",
+    );
+  });
+
+  it("does not borrow the title of an exact-match item for its sub pages", () => {
+    expect(findNavigationTitle(groups, "/trainer", "x")).toBe("Khách hàng của tôi");
+    expect(findNavigationTitle(groups, "/trainer/orders", "Quản lý khách hàng")).toBe(
+      "Quản lý khách hàng",
+    );
+  });
+
+  it("falls back when no menu item matches", () => {
+    expect(findNavigationTitle(groups, "/admin", "Quản trị")).toBe("Quản trị");
+    expect(findNavigationTitle(undefined, "/admin", "Quản trị")).toBe(
+      "Quản trị",
     );
   });
 });

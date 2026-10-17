@@ -42,7 +42,8 @@ test.describe("public SEO/conversion measurement", () => {
     await contact
       .getByPlaceholder("Trang cá nhân FB or ZALO")
       .fill("https://www.facebook.com/test.user");
-    await contact.locator("select").selectOption("ONLINE");
+    await contact.getByRole("combobox", { name: "Gói tập quan tâm" }).click();
+    await page.getByRole("listbox").getByRole("option", { name: "ONLINE", exact: true }).click();
     await contact.getByRole("button", { name: "Gửi thông tin" }).click();
 
     await expect.poll(() => requestBody).not.toBeNull();

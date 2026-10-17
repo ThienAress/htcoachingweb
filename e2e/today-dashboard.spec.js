@@ -139,11 +139,9 @@ test.describe("Today Dashboard private journey", () => {
     await expect(
       page.getByRole("heading", { name: "Kết quả tuần" }),
     ).toBeVisible();
-    await expect(
-      page
-        .getByRole("combobox", { name: "Tháng", exact: true })
-        .locator("option"),
-    ).toHaveCount(4);
+    await page.getByRole("combobox", { name: "Tháng", exact: true }).click();
+    await expect(page.getByRole("listbox").getByRole("option")).toHaveCount(4);
+    await page.keyboard.press("Escape");
     await expect(page.getByText(/^Tuần \d+:/)).toHaveCount(0);
     await expect(page.getByLabel("Giấc ngủ (giờ)")).toHaveCount(0);
 
@@ -168,16 +166,12 @@ test.describe("Today Dashboard private journey", () => {
     ).toHaveAttribute("aria-selected", "true");
     await expect(
       page.getByRole("combobox", { name: "Tháng", exact: true }),
-    ).toHaveValue(
-      `${dateKey.slice(0, 7)}-01`,
-    );
+    ).toContainText(monthLabel);
     const weekSelect = page.getByRole("combobox", {
       name: `Tuần báo cáo trong ${monthLabel}`,
     });
-    await expect(weekSelect).toHaveValue(period.startDateKey);
-    const activePeriod = weekSelect.locator("option:checked");
-    await expect(activePeriod).toContainText(`Tuần ${period.index}`);
-    await expect(activePeriod).toContainText(
+    await expect(weekSelect).toContainText(`Tuần ${period.index}`);
+    await expect(weekSelect).toContainText(
       `${Number(period.rangeStartDateKey.slice(-2))}/${Number(period.rangeStartDateKey.slice(5, 7))}–${Number(period.endDateKey.slice(-2))}/${Number(period.endDateKey.slice(5, 7))}`,
     );
   });

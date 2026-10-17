@@ -113,7 +113,7 @@ const AccountQueryState = ({
 function AccountPage() {
   const { t } = useTranslation("account");
   const navigate = useNavigate();
-  const { user, refetch } = useAuth();
+  const { user, loading, refetch } = useAuth();
 
   const getAvatarUrl = useCallback((avatar) => {
     if (!avatar) return "https://i.pravatar.cc/100";
@@ -177,6 +177,7 @@ function AccountPage() {
 
   // Authenticate and sync local profile form state.
   useEffect(() => {
+    if (loading) return;
     if (!user) {
       navigate("/login");
       return;
@@ -187,7 +188,7 @@ function AccountPage() {
       phone: user.phone || "",
       address: user.address || "",
     });
-  }, [user, navigate]);
+  }, [user, loading, navigate]);
 
   // Handle single field save — Optimistic UI
   const handleSaveField = async (field) => {

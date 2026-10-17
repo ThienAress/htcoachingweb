@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  ArrowLeft,
   Home,
   Trash2,
   Users,
@@ -346,7 +347,7 @@ const F1Customers = () => {
           aria-label="Mở menu F1"
           aria-expanded="false"
           aria-controls="f1-navigation"
-          className="fixed left-4 top-4 z-50 hidden h-11 w-11 items-center justify-center rounded-xl bg-slate-900 text-white shadow-lg transition hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 md:inline-flex"
+          className="fixed left-4 top-4 z-50 hidden h-11 w-11 items-center justify-center rounded-xl bg-slate-900 text-white shadow-lg transition hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400 md:inline-flex"
         >
           <SidebarOpen size={20} aria-hidden="true" />
         </button>
@@ -369,7 +370,7 @@ const F1Customers = () => {
               aria-label="Thu menu F1"
               aria-expanded="true"
               aria-controls="f1-navigation"
-              className="hidden h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-300 transition hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 md:inline-flex"
+              className="hidden h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-300 transition hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400 md:inline-flex"
             >
               <SidebarClose size={20} aria-hidden="true" />
             </button>
@@ -383,7 +384,7 @@ const F1Customers = () => {
               }}
               className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-colors ${
                 viewMode === "list" || viewMode === "create"
-                  ? "bg-amber-500/20 text-amber-300 shadow-inner"
+                  ? "bg-orange-500/20 text-orange-300 shadow-inner"
                   : "text-slate-300 hover:bg-white/10 hover:text-white"
               }`}
             >
@@ -399,7 +400,7 @@ const F1Customers = () => {
               }}
               className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-colors ${
                 viewMode === "deleted"
-                  ? "bg-amber-500/20 text-amber-300 shadow-inner"
+                  ? "bg-orange-500/20 text-orange-300 shadow-inner"
                   : "text-slate-300 hover:bg-white/10 hover:text-white"
               }`}
             >
@@ -409,7 +410,14 @@ const F1Customers = () => {
 
           </nav>
 
-          <div className="border-t border-white/10 p-4">
+          <div className="space-y-2 border-t border-white/10 p-4">
+            <Link
+              to="/trainer"
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-orange-500/20 px-4 py-3 text-sm font-medium text-orange-200 transition hover:bg-orange-500/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400"
+            >
+              <ArrowLeft size={18} aria-hidden="true" />
+              <span>Về khu HLV</span>
+            </Link>
             <Link
               to="/"
               className="flex w-full items-center justify-center gap-2 rounded-xl bg-white/10 px-4 py-3 text-sm font-medium text-slate-200 transition hover:bg-white/20"

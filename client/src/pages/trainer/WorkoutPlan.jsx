@@ -22,6 +22,8 @@ import {
 import PlanModal from "./WorkoutPlanModal";
 import { getWorkoutPlanWorkspacePath } from "../../navigation/workspaceNavigation";
 import { resolveInitialCustomerDashboardTheme } from "../../utils/customerDashboardTheme";
+import WorkspacePageHeader from "../../components/WorkspacePageHeader";
+import SelectField from "../../components/SelectField";
 
 // ===== STATUS CONFIG =====
 const STATUS_MAP = {
@@ -147,17 +149,28 @@ const WorkoutPlan = ({ embedded = false }) => {
       >
         <div className="container-custom">
           {/* ===== HERO ===== */}
+          {embedded ? (
+          <WorkspacePageHeader
+            icon={Flame}
+            title={isTrainerOrAdmin ? t("plans.title") : t("plan_title")}
+            description={
+              isTrainerOrAdmin
+                ? "Tạo giáo án chi tiết cho từng buổi tập — quản lý bài tập, đánh giá kết quả"
+                : t("plans.desc")
+            }
+          />
+          ) : (
           <div className="text-center mb-8">
             <div className="inline-flex items-center gap-3 bg-primary/20 backdrop-blur-sm rounded-full px-5 py-2 mb-4">
               <Flame className="text-primary w-6 h-6" />
-              <span className="font-semibold text-primary tracking-wide">{t("plan_title").toUpperCase()}</span>
+              <span className="font-semibold text-primary tracking-wide">
+                {(isTrainerOrAdmin ? t("plan_title") : t("plans.title")).toUpperCase()}
+              </span>
             </div>
             <h1 className="font-display text-fluid-6xl font-black uppercase tracking-normal">
-              {isTrainerOrAdmin ? (
-                <>{t("plans.title")} <span className="text-primary">{t("plan_title")}</span></>
-              ) : (
-                <span className="text-primary">{t("plan_title")}</span>
-              )}
+              <span className="text-primary">
+                {isTrainerOrAdmin ? t("plans.title") : t("plan_title")}
+              </span>
             </h1>
             <div className="w-24 h-1 bg-primary mx-auto mt-4 rounded-full" />
             <p className="text-gray-400 mt-4 max-w-xl mx-auto">
@@ -166,6 +179,7 @@ const WorkoutPlan = ({ embedded = false }) => {
                 : t("plans.desc")}
             </p>
           </div>
+          )}
 
           {/* ===== TOOLBAR ===== */}
           <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-700 p-4 md:p-6 mb-6">
@@ -187,7 +201,7 @@ const WorkoutPlan = ({ embedded = false }) => {
                 {isTrainerOrAdmin && (
                   <div className="relative">
                     <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    <select
+                    <SelectField tone="dark"
                       value={filterClient}
                       onChange={(e) => { setFilterClient(e.target.value); setCurrentPage(1); }}
                       className="pl-9 pr-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary/50 appearance-none"
@@ -196,7 +210,7 @@ const WorkoutPlan = ({ embedded = false }) => {
                       {clients.map((c) => (
                         <option key={c._id} value={c.email}>{c.name}</option>
                       ))}
-                    </select>
+                    </SelectField>
                   </div>
                 )}
 

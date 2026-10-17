@@ -38,6 +38,7 @@ import {
   addDaysToDateKey,
   getVietnamDateKey,
 } from "../../utils/vietnamDate";
+import WorkspacePageHeader from "../../components/WorkspacePageHeader";
 
 
 
@@ -424,6 +425,13 @@ const TrainerCoaching = ({ embedded = false }) => {
         <div className="max-w-7xl mx-auto px-4 md:px-6 space-y-6">
 
           {/* Header Tiêu Đề */}
+          {embedded ? (
+          <WorkspacePageHeader
+            icon={Sparkles}
+            title="Setup bài tập Coach Online"
+            description="Thiết lập giáo án cá nhân hóa chi tiết và đánh giá kết quả của học viên"
+          />
+          ) : (
           <div className="text-center mb-10">
             <h1 className="font-display text-fluid-5xl font-black uppercase text-white tracking-normal">
               SETUP BÀI TẬP <span className="text-primary">COACH ONLINE</span>
@@ -433,6 +441,7 @@ const TrainerCoaching = ({ embedded = false }) => {
               Thiết lập giáo án cá nhân hóa chi tiết và đánh giá kết quả của học viên
             </p>
           </div>
+          )}
 
           {/* BỐ CỤC 2 CỘT TỰ DO: TRÁI CHỌN KHÁCH HÀNG, PHẢI SETUP GIÁO ÁN */}
           <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-8 items-start">

@@ -1,6 +1,6 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useState, useCallback, useMemo } from "react";
-import { useForm, useFieldArray } from "react-hook-form";
+import { Controller, useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "react-toastify";
 import { useTranslation, Trans } from "react-i18next";
@@ -19,6 +19,7 @@ import OrderSummary from "./components/OrderSummary";
 import FirstTimeModal from "./components/FirstTimeModal";
 import { trackAnalyticsEventOnce } from "../../utils/analytics";
 import { getPublicAttribution } from "../../utils/publicAttribution";
+import SelectField from "../../components/SelectField";
 
 const createDiscountCode = () => {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ0123456789";
@@ -322,17 +323,24 @@ function RegisterPage() {
                   <label className="block text-gray-700 font-semibold mb-1">
                     {t("register.location")}
                   </label>
-                  <select
-                    {...register("location")}
-                    className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-primary"
-                  >
-                    <option value="">{t("register.location_select")}</option>
-                    <option>WAYSTATION DÂN CHỦ</option>
-                    <option>WAYSTATION TRƯƠNG VĂN HẢI</option>
-                    <option>WAYSTATION HIỆP BÌNH</option>
-                    <option>WAYSTATION QL13</option>
-                    <option>Chung Cư Flora Novia</option>
-                  </select>
+                  <Controller
+                    control={control}
+                    name="location"
+                    render={({ field }) => (
+                      <SelectField
+                        value={field.value ?? ""}
+                        onChange={(event) => field.onChange(event.target.value)}
+                        className="p-3 border rounded-lg focus-visible:ring-2 focus-visible:ring-primary"
+                      >
+                        <option value="">{t("register.location_select")}</option>
+                        <option>WAYSTATION DÂN CHỦ</option>
+                        <option>WAYSTATION TRƯƠNG VĂN HẢI</option>
+                        <option>WAYSTATION HIỆP BÌNH</option>
+                        <option>WAYSTATION QL13</option>
+                        <option>Chung Cư Flora Novia</option>
+                      </SelectField>
+                    )}
+                  />
                   {errors.location && (
                     <p className="text-red-500 text-sm mt-1">
                       {errors.location.message}
@@ -345,7 +353,7 @@ function RegisterPage() {
                     {t("register.schedule")}
                   </label>
                   <div className="flex flex-col sm:flex-row gap-3 mb-3">
-                    <select
+                    <SelectField
                       className="flex-1 p-3 border rounded-lg"
                       value={tempDay}
                       onChange={(e) => setTempDay(e.target.value)}
@@ -358,8 +366,8 @@ function RegisterPage() {
                       <option value="Thứ 6">{t("register.days.fri")}</option>
                       <option value="Thứ 7">{t("register.days.sat")}</option>
                       <option value="Chủ nhật">{t("register.days.sun")}</option>
-                    </select>
-                    <select
+                    </SelectField>
+                    <SelectField
                       className="flex-1 p-3 border rounded-lg"
                       value={tempTime}
                       onChange={(e) => setTempTime(e.target.value)}
@@ -370,7 +378,7 @@ function RegisterPage() {
                           {tOpt}
                         </option>
                       ))}
-                    </select>
+                    </SelectField>
                     <button
                       type="button"
                       onClick={handleAddSchedule}

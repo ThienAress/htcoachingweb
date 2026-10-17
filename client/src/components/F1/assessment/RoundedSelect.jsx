@@ -6,6 +6,35 @@ import { Check, ChevronDown } from "lucide-react";
 const triggerClass =
   "flex w-full items-center justify-between gap-2 rounded-xl border bg-white px-3 py-2 text-left text-sm outline-none transition focus-visible:border-orange-400 focus-visible:ring-2 focus-visible:ring-orange-100 disabled:cursor-not-allowed disabled:opacity-60";
 
+// Khi trang tự truyền triggerClassName (giữ kiểu dáng ô chọn cũ) thì chỉ giữ phần bố cục chung.
+const triggerLayoutClass =
+  "flex w-full items-center justify-between gap-2 text-left outline-none disabled:cursor-not-allowed disabled:opacity-60";
+
+const TONES = {
+  light: {
+    selectedText: "text-slate-800",
+    placeholderText: "text-slate-400",
+    chevron: "text-slate-400",
+    list: "border-slate-200 bg-white shadow-lg",
+    empty: "text-slate-500",
+    option: "text-slate-700",
+    optionActive: "bg-orange-50 text-orange-700",
+    optionDisabled: "text-slate-300",
+    check: "text-orange-600",
+  },
+  dark: {
+    selectedText: "",
+    placeholderText: "text-gray-400",
+    chevron: "text-gray-400",
+    list: "border-zinc-700 bg-zinc-900 shadow-2xl shadow-black/40",
+    empty: "text-zinc-400",
+    option: "text-zinc-200",
+    optionActive: "bg-zinc-800 text-orange-300",
+    optionDisabled: "text-zinc-600",
+    check: "text-orange-400",
+  },
+};
+
 const LIST_MAX_HEIGHT = 256;
 const LIST_GAP = 6;
 const VIEWPORT_MARGIN = 8;
@@ -36,7 +65,12 @@ const RoundedSelect = ({
   label,
   disabled = false,
   emptyText = "Không có lựa chọn",
+  id,
+  tone = "light",
+  triggerClassName,
+  buttonProps,
 }) => {
+  const colors = TONES[tone] || TONES.light;
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
   const [listStyle, setListStyle] = useState(null);
@@ -83,7 +117,7 @@ const RoundedSelect = ({
 
   const choose = (index) => {
     const option = options[index];
-    if (!option) return;
+    if (!option || option.disabled) return;
     onChange?.(option.value);
     setOpen(false);
   };
@@ -124,6 +158,8 @@ const RoundedSelect = ({
   return (
     <div ref={rootRef} className="relative">
       <button
+        {...buttonProps}
+        id={id}
         type="button"
         role="combobox"
         aria-label={label}
@@ -133,16 +169,24 @@ const RoundedSelect = ({
         disabled={disabled}
         onClick={() => (open ? setOpen(false) : openList())}
         onKeyDown={handleKeyDown}
-        className={`${triggerClass} ${
-          open ? "border-orange-400 ring-2 ring-orange-100" : "border-slate-200"
-        }`}
+        className={
+          triggerClassName
+            ? `${triggerLayoutClass} ${triggerClassName}`
+            : `${triggerClass} ${
+                open ? "border-orange-400 ring-2 ring-orange-100" : "border-slate-200"
+              }`
+        }
       >
-        <span className={selected ? "text-slate-800" : "text-slate-400"}>
+        <span
+          className={`min-w-0 truncate ${
+            selected ? colors.selectedText : colors.placeholderText
+          }`}
+        >
           {selected ? selected.label : placeholder}
         </span>
         <ChevronDown
           size={16}
-          className={`shrink-0 text-slate-400 transition-transform ${
+          className={`shrink-0 ${colors.chevron} transition-transform ${
             open ? "rotate-180" : ""
           }`}
         />
@@ -155,10 +199,10 @@ const RoundedSelect = ({
           role="listbox"
           aria-label={label}
           style={listStyle}
-          className="z-[60] overflow-y-auto overscroll-contain rounded-xl border border-slate-200 bg-white p-1.5 shadow-lg"
+          className={`z-[60] overflow-y-auto overscroll-contain rounded-xl border p-1.5 ${colors.list}`}
         >
           {options.length === 0 && (
-            <li className="px-3 py-2 text-sm text-slate-500">{emptyText}</li>
+            <li className={`px-3 py-2 text-sm ${colors.empty}`}>{emptyText}</li>
           )}
           {options.map((option, index) => {
             const isSelected = option.value === value;
@@ -167,17 +211,20 @@ const RoundedSelect = ({
                 key={option.value}
                 role="option"
                 aria-selected={isSelected}
+                aria-disabled={option.disabled || undefined}
                 onMouseEnter={() => setActiveIndex(index)}
                 onMouseDown={(event) => event.preventDefault()}
                 onClick={() => choose(index)}
-                className={`flex cursor-pointer items-center justify-between gap-2 rounded-lg px-3 py-2 text-sm transition ${
-                  index === activeIndex
-                    ? "bg-orange-50 text-orange-700"
-                    : "text-slate-700"
+                className={`flex items-center justify-between gap-2 rounded-lg px-3 py-2 text-sm transition ${
+                  option.disabled
+                    ? `cursor-not-allowed ${colors.optionDisabled}`
+                    : `cursor-pointer ${
+                        index === activeIndex ? colors.optionActive : colors.option
+                      }`
                 } ${isSelected ? "font-semibold" : ""}`}
               >
                 <span>{option.label}</span>
-                {isSelected && <Check size={15} className="shrink-0 text-orange-600" />}
+                {isSelected && <Check size={15} className={`shrink-0 ${colors.check}`} />}
               </li>
             );
           })}

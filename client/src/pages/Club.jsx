@@ -12,6 +12,7 @@ import { useTranslation, Trans } from "react-i18next";
 import { getGyms, getDistricts } from "../services/gym.service";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
+import SelectField from "../components/SelectField";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -130,7 +131,7 @@ const Club = () => {
                 className="pl-10 pr-4 py-2.5 rounded-xl bg-gray-800/60 border border-gray-700 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 transition min-w-[260px] text-sm backdrop-blur-sm"
               />
             </div>
-            <select
+            <SelectField tone="dark"
               id="district-filter"
               value={selectedDistrict}
               onChange={(e) => setSelectedDistrict(e.target.value)}
@@ -142,7 +143,7 @@ const Club = () => {
                   {d}
                 </option>
               ))}
-            </select>
+            </SelectField>
             {filteredGyms && (
               <span className="text-xs text-gray-500 font-medium">
                 {t("filters.gyms_count", { count: filteredGyms.length })}

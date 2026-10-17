@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { BODY_REGIONS, matchingReference, measurementHistory, measurementLabel } from "./bodyAssessment";
+import SelectField from "../SelectField";
 
 const fullDateLabel = (date) => new Intl.DateTimeFormat("vi-VN", {
   day: "2-digit", month: "2-digit", year: "numeric", timeZone: "Asia/Ho_Chi_Minh",
@@ -72,9 +73,9 @@ export const BodyAssessmentHistory = ({ items, region, field, unit, referenceSna
     <section aria-labelledby={titleId} className="mt-6 border-t border-slate-800 pt-5">
       <div className="flex max-w-[600px] flex-wrap items-center justify-between gap-3">
         <h3 id={titleId} className="text-base font-semibold text-slate-100">{regionLabel} — {measureLabel}</h3>
-        {years.length > 0 && <select aria-label="Năm đo" value={activeYear} onChange={(event) => { setSelectedYear(event.target.value); setHoverPointId(""); }} className="min-h-11 shrink-0 rounded-lg border border-slate-600 bg-slate-900 px-3 text-sm font-semibold text-slate-100 outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-400/30">
+        {years.length > 0 && <SelectField tone="dark" aria-label="Năm đo" value={activeYear} onChange={(event) => { setSelectedYear(event.target.value); setHoverPointId(""); }} className="min-h-11 shrink-0 rounded-lg border border-slate-600 bg-slate-900 px-3 text-sm font-semibold text-slate-100 outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-400/30">
           {years.map((year) => <option key={year} value={year}>{year}</option>)}
-        </select>}
+        </SelectField>}
       </div>
       <p className="mt-1 text-xs leading-5 text-slate-400">Ngày trên biểu đồ là ngày đo thực tế. Thiếu số đo tạo khoảng ngắt, không được xem là 0.</p>
       {unit === "%" && <p className="mt-1 text-xs leading-5 text-slate-400">Chỉ nối những kết quả cùng thiết bị và mức tham chiếu với lần đo đang xem.</p>}
