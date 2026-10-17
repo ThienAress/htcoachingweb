@@ -6,6 +6,7 @@ import { ProgressSectionHeader } from "../../pages/progress/ProgressSectionHeade
 import { BodySilhouette } from "./BodySilhouette";
 import { BodyAssessmentHistory } from "./BodyAssessmentHistory";
 import { BODY_REGIONS, assessmentButtonClass, assessmentInputClass, assessmentDelta, matchingReference, measurementLabel } from "./bodyAssessment";
+import SelectField from "../SelectField";
 
 const dateLabel = (date) => new Intl.DateTimeFormat("vi-VN", {
   day: "2-digit", month: "2-digit", year: "numeric", timeZone: "Asia/Ho_Chi_Minh",
@@ -84,16 +85,16 @@ const PublishedReport = ({ items, hasNextPage }) => {
     <>
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="text-sm font-medium text-slate-300">Lần đo đang xem
-          <select className={assessmentInputClass} value={currentRecord.weekStartDateKey} onChange={(event) => setSelectedKey(event.target.value)}>
+          <SelectField tone="dark" className={assessmentInputClass} value={currentRecord.weekStartDateKey} onChange={(event) => setSelectedKey(event.target.value)}>
             {items.map((item) => <option key={item.weekStartDateKey} value={item.weekStartDateKey}>{dateLabel(item.published.measuredDateKey)} · kỳ {dateLabel(item.weekStartDateKey)}</option>)}
-          </select>
+          </SelectField>
         </label>
         <label className="text-sm font-medium text-slate-300">So sánh với
-          <select className={assessmentInputClass} value={compareKey} onChange={(event) => setCompareKey(event.target.value)} disabled={items.length < 2}>
+          <SelectField tone="dark" className={assessmentInputClass} value={compareKey} onChange={(event) => setCompareKey(event.target.value)} disabled={items.length < 2}>
             <option value="previous">Lần đo trước</option>
             <option value="first" disabled={hasNextPage}>Lần đo đầu tiên{hasNextPage ? " (cần tải hết lịch sử)" : ""}</option>
             {items.filter((item) => item !== currentRecord).map((item) => <option key={item.weekStartDateKey} value={item.weekStartDateKey}>{dateLabel(item.published.measuredDateKey)} · kỳ {dateLabel(item.weekStartDateKey)}</option>)}
-          </select>
+          </SelectField>
         </label>
       </div>
       <p className="mt-3 break-words text-sm leading-6 text-slate-300">Ngày đo: <time dateTime={current.measuredDateKey}>{dateLabel(current.measuredDateKey)}</time> · Thiết bị/nguồn: {current.deviceLabel || "Chưa ghi"}{previous ? ` · So với ${dateLabel(previous.measuredDateKey)}` : ""}</p>
@@ -101,13 +102,13 @@ const PublishedReport = ({ items, hasNextPage }) => {
       {deviceChanged && <p role="status" className="mt-3 text-sm leading-6 text-amber-200">Khác thiết bị hoặc nguồn đo; chênh lệch kg có thể không so sánh trực tiếp được.</p>}
       <div className="mt-5 grid gap-4 sm:grid-cols-3">
         <label className="text-sm text-slate-300">Giá trị hiển thị
-          <select value={unit} onChange={(event) => setUnit(event.target.value)} className={assessmentInputClass}><option value="kg">Khối lượng (kg)</option><option value="%">So với mức tham chiếu (%)</option></select>
+          <SelectField tone="dark" value={unit} onChange={(event) => setUnit(event.target.value)} className={assessmentInputClass}><option value="kg">Khối lượng (kg)</option><option value="%">So với mức tham chiếu (%)</option></SelectField>
         </label>
         <label className="text-sm text-slate-300">Vùng xem lịch sử
-          <select value={region || "trunk"} onChange={(event) => setRegion(event.target.value)} className={assessmentInputClass}>{BODY_REGIONS.map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select>
+          <SelectField tone="dark" value={region || "trunk"} onChange={(event) => setRegion(event.target.value)} className={assessmentInputClass}>{BODY_REGIONS.map(([key, label]) => <option key={key} value={key}>{label}</option>)}</SelectField>
         </label>
         <label className="text-sm text-slate-300">Chỉ số lịch sử
-          <select value={kind} onChange={(event) => setKind(event.target.value)} className={assessmentInputClass}><option value="lean">Khối nạc</option><option value="fat">Khối mỡ</option></select>
+          <SelectField tone="dark" value={kind} onChange={(event) => setKind(event.target.value)} className={assessmentInputClass}><option value="lean">Khối nạc</option><option value="fat">Khối mỡ</option></SelectField>
         </label>
       </div>
       {unit === "%" && <p className="mt-3 text-sm leading-6 text-slate-400">Đây là phần trăm so với mức tham chiếu của thiết bị, có thể trên 100%; không phải tỷ lệ mỡ toàn thân. Chênh lệch là phép trừ hai số trên phiếu: 110% → 111% hiển thị +1%, không phải tốc độ tăng tương đối.{!comparable && previous ? " Không tính chênh lệch phần trăm khi thiết bị hoặc mức tham chiếu khác nhau/chưa xác định." : ""}</p>}

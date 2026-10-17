@@ -34,6 +34,7 @@ import {
   getAppDayOfWeek as dayIndexForDate,
   getVietnamDateKey,
 } from "../../utils/vietnamDate";
+import SelectField from "../../components/SelectField";
 
 // ===== CONSTANTS =====
 const DAY_LABELS = ["Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7", "CN"];
@@ -262,7 +263,7 @@ const ScheduleModal = ({ isOpen, onClose, onSubmit, onDelete, initialData, isEdi
             <label className="block text-sm font-medium text-gray-300 mb-1.5">
               <User className="w-3.5 h-3.5 inline mr-1" /> Tên khách hàng *
             </label>
-            <select 
+            <SelectField tone="dark" 
               value={form.clientId} 
               onChange={(e) => {
                 const c = clients.find(x => x._id === e.target.value);
@@ -275,7 +276,7 @@ const ScheduleModal = ({ isOpen, onClose, onSubmit, onDelete, initialData, isEdi
               {clients.map(c => (
                 <option key={c._id} value={c._id}>{c.name} ({c.email})</option>
               ))}
-            </select>
+            </SelectField>
           </div>
 
           <div>
@@ -318,12 +319,12 @@ const ScheduleModal = ({ isOpen, onClose, onSubmit, onDelete, initialData, isEdi
             <label className="block text-sm font-medium text-gray-300 mb-1.5">
               <Dumbbell className="w-3.5 h-3.5 inline mr-1" /> Loại bài tập *
             </label>
-            <select value={useCustomType ? "Khác" : form.exerciseType} onChange={(e) => handleExerciseChange(e.target.value)} className={inputClass}>
+            <SelectField tone="dark" value={useCustomType ? "Khác" : form.exerciseType} onChange={(e) => handleExerciseChange(e.target.value)} className={inputClass}>
               {EXERCISE_TYPES.map((t) => (
                 <option key={t.label} value={t.label}>{t.label}</option>
               ))}
               <option value="Khác">Khác (tự nhập)</option>
-            </select>
+            </SelectField>
             {useCustomType && (
               <input type="text" value={form.customExerciseType} onChange={(e) => setForm((f) => ({ ...f, customExerciseType: e.target.value }))} placeholder="Nhập loại bài tập..." className={`${inputClass} mt-2`} maxLength={50} required />
             )}

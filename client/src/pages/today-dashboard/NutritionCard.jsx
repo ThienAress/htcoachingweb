@@ -20,6 +20,7 @@ import {
 import { PlannedMealExecution } from "./PlannedMealExecution";
 import { QuickMealHistory } from "./QuickMealHistory";
 import { QuickMealLogger } from "./QuickMealLogger";
+import SelectField from "../../components/SelectField";
 
 const newRequestId = () => window.crypto.randomUUID();
 const errorMessage = (error) =>
@@ -222,7 +223,7 @@ export const NutritionCard = ({
             <label htmlFor="saved-plan-assignment" className="sr-only">
               Chọn thực đơn đã lưu
             </label>
-            <select
+            <SelectField tone="dark"
               id="saved-plan-assignment"
               value={selectedPlanId}
               onChange={(event) => setSelectedPlanId(event.target.value)}
@@ -235,7 +236,7 @@ export const NutritionCard = ({
                   {plan.title}
                 </option>
               ))}
-            </select>
+            </SelectField>
             <button
               type="button"
               onClick={assignPlan}

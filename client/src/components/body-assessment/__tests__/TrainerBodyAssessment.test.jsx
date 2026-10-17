@@ -41,7 +41,7 @@ describe("Trainer body assessment form contract", () => {
     mocks.pending = true;
     const rendered = html();
     expect(rendered).toMatch(/<input[^>]*type="month"[^>]*disabled=""/);
-    expect(rendered).toMatch(/Kỳ theo dõi<select[^>]*disabled=""/);
+    expect(rendered).toMatch(/Kỳ theo dõi<div class="relative[^"]*"><div class="relative"><button[^>]*disabled=""/);
   });
   it("opens the mobile panel containing a validation error", () => {
     const rendered = renderToStaticMarkup(<AssessmentFields register={(name) => ({ name })} setFocus={vi.fn()} errors={{ segments: { leftArm: { fatKg: { message: "Invalid" } } } }} disabled={false} />);

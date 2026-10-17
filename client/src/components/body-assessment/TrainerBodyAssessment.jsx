@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery, useQueryClient, useMutation, useIsMutating } from "@tanstack/react-query";
 import { toast } from "react-toastify";
 import { useAuth } from "../../context/AuthContext";
 import { bodyAssessmentKey, getBodyAssessment, saveBodyAssessment, publishBodyAssessment } from "../../services/bodyAssessment.service";
 import { getVietnamDateKey, getMonthWeekPeriods, getMonthWeekPeriod } from "../../utils/vietnamDate";
+import SelectField from "../SelectField";
 import { AssessmentFields } from "./AssessmentFields";
 import { assessmentValues, assessmentFormSchema, assessmentActionCheck, missingMassFields, assessmentButtonClass, assessmentInputClass } from "./bodyAssessment";
 
@@ -84,9 +85,11 @@ const Editor = ({ assessment, clientId, week, queryKey, dirtyRef, onAccessLost }
     <div className="grid gap-4 sm:grid-cols-2">
       <label className="text-sm text-slate-300">Ngày đo thực tế<input type="date" max={getVietnamDateKey()} {...form.register("measuredDateKey")} aria-invalid={Boolean(form.formState.errors.measuredDateKey)} disabled={busy} className={assessmentInputClass} />{form.formState.errors.measuredDateKey && <span role="alert" className="text-red-300">{form.formState.errors.measuredDateKey.message}</span>}</label>
       <label className="text-sm text-slate-300">Thiết bị hoặc nguồn đo<input {...form.register("deviceLabel")} maxLength={120} disabled={busy} className={assessmentInputClass} placeholder="Ví dụ: tên máy trên phiếu" /></label>
-      <label className="text-sm text-slate-300">Mức tham chiếu trên phiếu<select {...form.register("referenceBasis")} disabled={busy} className={assessmentInputClass}>
-        <option value="unspecified">Chưa xác định</option><option value="ideal_weight">Theo cân nặng tham chiếu</option><option value="current_weight">Theo cân nặng hiện tại</option>
-      </select></label>
+      <label className="text-sm text-slate-300">Mức tham chiếu trên phiếu<Controller control={form.control} name="referenceBasis" render={({ field }) => (
+        <SelectField tone="dark" value={field.value ?? ""} onChange={(event) => field.onChange(event.target.value)} disabled={busy} className={assessmentInputClass}>
+          <option value="unspecified">Chưa xác định</option><option value="ideal_weight">Theo cân nặng tham chiếu</option><option value="current_weight">Theo cân nặng hiện tại</option>
+        </SelectField>
+      )} /></label>
     </div>
     <AssessmentFields register={form.register} setFocus={form.setFocus} errors={form.formState.errors} disabled={busy} />
     <label className="block text-sm text-slate-300">Ghi chú cho học viên<textarea {...form.register("note")} maxLength={2000} disabled={busy} className={assessmentInputClass} rows={2} /></label>
@@ -126,7 +129,7 @@ export const TrainerBodyAssessment = ({ clientId, dateKey }) => {
   return <section className="rounded-2xl border border-slate-700 bg-slate-950 p-4 sm:p-6" aria-labelledby="assessment-editor-title">
     <h3 id="assessment-editor-title" className="text-xl font-bold text-slate-100">Kết quả đo thành phần cơ thể</h3>
     <p className="mt-2 text-sm text-slate-400">Ghi kết quả từ phiếu đo và gửi cho học viên.</p>
-    <div className="my-5 grid gap-3 sm:grid-cols-2"><label className="text-sm text-slate-300">Tháng theo dõi<input type="month" value={month} disabled={busy || accessLost || forbidden} max={getVietnamDateKey().slice(0, 7)} onChange={(event) => { if (event.target.value) change(() => setMonth(event.target.value)); }} className={assessmentInputClass} /></label><label className="text-sm text-slate-300">Kỳ theo dõi<select value={week || ""} disabled={busy || accessLost || forbidden} onChange={(event) => change(() => setSelectedWeek(event.target.value))} className={assessmentInputClass}>{periods.map((period) => <option key={period.startDateKey} value={period.startDateKey}>{period.rangeStartDateKey} – {period.endDateKey}</option>)}</select></label></div>
+    <div className="my-5 grid gap-3 sm:grid-cols-2"><label className="text-sm text-slate-300">Tháng theo dõi<input type="month" value={month} disabled={busy || accessLost || forbidden} max={getVietnamDateKey().slice(0, 7)} onChange={(event) => { if (event.target.value) change(() => setMonth(event.target.value)); }} className={assessmentInputClass} /></label><label className="text-sm text-slate-300">Kỳ theo dõi<SelectField tone="dark" value={week || ""} disabled={busy || accessLost || forbidden} onChange={(event) => change(() => setSelectedWeek(event.target.value))} className={assessmentInputClass}>{periods.map((period) => <option key={period.startDateKey} value={period.startDateKey}>{period.rangeStartDateKey} – {period.endDateKey}</option>)}</SelectField></label></div>
     {accessLost || forbidden ? <p role="alert" className="text-sm text-red-300">Bạn không còn quyền xem kết quả đo của học viên này.</p> : query.isError ? <div role="alert" className="text-sm text-red-300"><p>{query.error.response?.data?.message || "Không thể tải kết quả đo."}</p><button type="button" onClick={() => void query.refetch()} className={assessmentButtonClass}>Thử lại</button></div> : query.isLoading ? <p role="status" className="text-slate-300">Đang tải kết quả đo…</p> : week && <Editor key={`${user?._id}:${clientId}:${week}:${query.data?.assessment?.revision || 0}`} assessment={query.data?.assessment} clientId={clientId} week={week} queryKey={queryKey} dirtyRef={dirtyRef} onAccessLost={() => setAccessLost(true)} />}
   </section>;
 };

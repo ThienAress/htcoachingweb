@@ -63,7 +63,8 @@ test("trainer saves/publishes, draft edits stay private, republish updates one c
   await expect(editor.getByRole("button", { name: "Gửi cho học viên", exact: true })).toBeDisabled();
   await editor.getByLabel("Ngày đo thực tế").fill(today);
   await editor.getByLabel("Thiết bị hoặc nguồn đo").fill("Máy đo E2E");
-  await editor.getByLabel("Mức tham chiếu trên phiếu").selectOption("ideal_weight");
+  await editor.getByRole("combobox", { name: /Mức tham chiếu trên phiếu/ }).click();
+  await page.getByRole("listbox").getByRole("option", { name: "Theo cân nặng tham chiếu", exact: true }).click();
   await editor.getByRole("spinbutton", { name: "Phân bổ cơ nạc từng vùng — Bụng — kg", exact: true }).fill("28.5");
   await editor.getByRole("spinbutton", { name: "Phân bổ cơ nạc từng vùng — Bụng — % tham chiếu", exact: true }).fill("110");
   await editor.getByRole("spinbutton", { name: "Phân bổ mỡ từng vùng — Bụng — kg", exact: true }).fill("11.6");
@@ -95,7 +96,9 @@ test("trainer saves/publishes, draft edits stay private, republish updates one c
     await expect.poll(() => store.record.published.segments.trunk.leanKg).toBe(29);
     await student.reload();
     await expect(trunkRow.getByRole("cell", { name: "29", exact: true })).toBeVisible();
-    await expect(report.getByRole("combobox", { name: "Lần đo đang xem" }).locator("option")).toHaveCount(2);
+    await report.getByRole("combobox", { name: /Lần đo đang xem/ }).click();
+    await expect(student.getByRole("listbox").getByRole("option")).toHaveCount(2);
+    await student.keyboard.press("Escape");
   } finally { await studentContext.close(); }
 });
 
@@ -112,7 +115,8 @@ for (const width of [1440, 390, 320]) {
     if (width < 768) await report.getByRole("button", { name: "Khối mỡ", exact: true }).click();
     await expect(report.getByRole("heading", { name: "Phân bổ mỡ từng vùng", exact: true })).toBeVisible();
     await report.screenshot({ path: testInfo.outputPath(`report-fat-${width}.png`) });
-    await report.getByLabel("Giá trị hiển thị").selectOption("%");
+    await report.getByRole("combobox", { name: /Giá trị hiển thị/ }).click();
+    await page.getByRole("listbox").getByRole("option", { name: "So với mức tham chiếu (%)", exact: true }).click();
     await expect(report.getByText(/có thể trên 100%/)).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     store.deny = true;

@@ -15,7 +15,8 @@ describe("WeeklyCheckinCard period selectors", () => {
       </QueryClientProvider>,
     );
 
-    expect((html.match(/<select/g) || [])).toHaveLength(2);
+    expect((html.match(/role="combobox"/g) || [])).toHaveLength(2);
+    expect(html).not.toContain("<select");
     expect(html).toContain("Bạn có thể chọn tháng hiện tại và 3 tháng trước đó.");
     expect(html).toContain("Tháng 8/2026");
     expect(html).toContain("Tuần 4 · 24/8–31/8");

@@ -6,6 +6,7 @@ import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { trackAnalyticsEventOnce } from "../utils/analytics";
 import { getPublicAttribution } from "../utils/publicAttribution";
+import SelectField from "../components/SelectField";
 
 const Contact = () => {
   const { t } = useTranslation("home");
@@ -345,7 +346,7 @@ const Contact = () => {
             </div>
 
             <div>
-              <select
+              <SelectField tone="dark"
                 aria-label="Gói tập quan tâm"
                 className="w-full px-4 py-3 rounded-md border border-gray-700 bg-[#1a1a1a] text-white  "
                 value={formData.package}
@@ -359,7 +360,7 @@ const Contact = () => {
                 <option value="ONLINE">ONLINE</option>
                 <option value="1-1">1-1</option>
                 <option value="TRIAL">TRIAL</option>
-              </select>
+              </SelectField>
               {errors.package && (
                 <p className="text-red-500 text-sm mt-1">{errors.package}</p>
               )}

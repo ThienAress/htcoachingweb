@@ -22,6 +22,7 @@ import {
 import PlanModal from "./WorkoutPlanModal";
 import { getWorkoutPlanWorkspacePath } from "../../navigation/workspaceNavigation";
 import { resolveInitialCustomerDashboardTheme } from "../../utils/customerDashboardTheme";
+import SelectField from "../../components/SelectField";
 
 // ===== STATUS CONFIG =====
 const STATUS_MAP = {
@@ -187,7 +188,7 @@ const WorkoutPlan = ({ embedded = false }) => {
                 {isTrainerOrAdmin && (
                   <div className="relative">
                     <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    <select
+                    <SelectField tone="dark"
                       value={filterClient}
                       onChange={(e) => { setFilterClient(e.target.value); setCurrentPage(1); }}
                       className="pl-9 pr-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary/50 appearance-none"
@@ -196,7 +197,7 @@ const WorkoutPlan = ({ embedded = false }) => {
                       {clients.map((c) => (
                         <option key={c._id} value={c.email}>{c.name}</option>
                       ))}
-                    </select>
+                    </SelectField>
                   </div>
                 )}
 
