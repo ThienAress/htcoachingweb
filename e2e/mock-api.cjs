@@ -141,10 +141,15 @@ const readJsonBody = (req) =>
     req.on("error", reject);
   });
 
+// Quà tặng bảng giá do admin chỉnh (giữ trong bộ nhớ của máy chủ giả).
+const pricingGiftsStore = {};
+const PRICING_GIFT_PATH = /^\/api\/site-settings\/pricing-gifts\/([a-z0-9-]+)$/;
+
 const handleApi = (req, res, path) => {
   const role = req.headers["x-e2e-role"];
   const aiScenario = req.headers["x-e2e-ai-scenario"];
   const actor = ACTORS[role] || null;
+  const isPricingGiftsWrite = PRICING_GIFT_PATH.test(path) && req.method === "PUT";
   const isF1MediaUpload =
     path === "/api/f1-customers/" + F1_CUSTOMER_ID + "/media" &&
     req.method === "POST";
@@ -154,6 +159,7 @@ const handleApi = (req, res, path) => {
     req.method === "POST";
   if (
     !["GET", "HEAD"].includes(req.method) &&
+    !isPricingGiftsWrite &&
     !isF1MediaUpload &&
     !isProviderScenarioChat
   ) {
@@ -187,7 +193,20 @@ const handleApi = (req, res, path) => {
         });
   }
   if (path === "/api/site-settings") {
-    return sendJson(res, { success: true, data: {} });
+    return sendJson(res, { success: true, data: { pricingGifts: pricingGiftsStore } });
+  }
+  if (PRICING_GIFT_PATH.test(path) && actor?.role === "admin") {
+    const key = path.match(PRICING_GIFT_PATH)[1];
+    if (req.method === "PUT") {
+      return readJsonBody(req).then((body) => {
+        pricingGiftsStore[key] = Array.isArray(body.gifts) ? body.gifts : [];
+        return sendJson(res, { success: true, data: { pricingGifts: pricingGiftsStore } });
+      });
+    }
+    if (req.method === "DELETE") {
+      delete pricingGiftsStore[key];
+      return sendJson(res, { success: true, data: { pricingGifts: pricingGiftsStore } });
+    }
   }
   if (path === "/api/exercises" && req.method === "GET") {
     const muscleGroups = ["Chân", "Ngực", "Lưng"];

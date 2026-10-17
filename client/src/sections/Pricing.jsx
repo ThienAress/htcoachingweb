@@ -3,7 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { toast } from "react-toastify";
-import { X, Gift, Sparkles, LogIn, ArrowRight, Wallet, CheckCircle, AlertTriangle, CalendarCheck } from "lucide-react";
+import { X, Sparkles, LogIn, ArrowRight, Wallet, CheckCircle, AlertTriangle, CalendarCheck } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { purchaseTrainerPlan } from "../services/trainerSubscription.service";
 import { useTrainerPlanCatalog } from "../hooks/useTrainerPlanCatalog";
@@ -25,9 +25,11 @@ import {
 } from "../queries/walletAccount.queries";
 import { buildTrainerPlanCategories } from "../utils/trainerPlanBenefits";
 import FitnessPlusPlans from "../components/Pricing/FitnessPlusPlans";
-import OneOnOnePlans from "../components/Pricing/OneOnOnePlans";
+import CoachingPlans from "../components/Pricing/CoachingPlans";
 import PricingSegmentedControl from "../components/Pricing/PricingSegmentedControl";
 import { useModalScrollLock } from "../hooks/useModalScrollLock";
+import { useSiteSettings } from "../hooks/useSiteSettings";
+import { resolvePricingGifts } from "../utils/pricingGifts";
 
 const TODAY_PROGRESS_PROMPT_DISMISSED_KEY =
   "ht_today_progress_prompt_dismissed";
@@ -81,8 +83,6 @@ const Pricing = ({ isHeroAnimDone = false }) => {
 
   const [mode, setMode] = useState("1-1");
   const [billingCycle, setBillingCycle] = useState("month");
-  const [giftModalVisible, setGiftModalVisible] = useState(false);
-  const [selectedGifts, setSelectedGifts] = useState([]);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [pendingPlan, setPendingPlan] = useState(null);
   const [pendingMode, setPendingMode] = useState(null);
@@ -176,6 +176,10 @@ const Pricing = ({ isHeroAnimDone = false }) => {
     return () => clearTimeout(timer);
   }, [countdown]);
 
+  const { data: siteSettingsResponse } = useSiteSettings();
+  const giftOverrides = siteSettingsResponse?.data?.pricingGifts;
+  const giftsFor = (key, defaults = []) => resolvePricingGifts(giftOverrides, key, defaults);
+
   // Gói ONLINE
   const onlinePlans = [
     {
@@ -197,7 +201,7 @@ const Pricing = ({ isHeroAnimDone = false }) => {
         t("pricing.system_features.personal_schedule"),
         t("pricing.system_features.checkin_history"),
       ],
-      gifts: [],
+      gifts: giftsFor("online-basic"),
       totalSessions: 24,
     },
     {
@@ -219,7 +223,7 @@ const Pricing = ({ isHeroAnimDone = false }) => {
         t("pricing.system_features.personal_schedule"),
         t("pricing.system_features.checkin_history"),
       ],
-      gifts: [],
+      gifts: giftsFor("online-advanced"),
       featured: true,
       totalSessions: 48,
     },
@@ -242,7 +246,7 @@ const Pricing = ({ isHeroAnimDone = false }) => {
         t("pricing.system_features.personal_schedule"),
         t("pricing.system_features.checkin_history"),
       ],
-      gifts: [],
+      gifts: giftsFor("online-vip"),
       totalSessions: 72,
     },
   ];
@@ -268,7 +272,7 @@ const Pricing = ({ isHeroAnimDone = false }) => {
         t("pricing.system_features.personal_schedule"),
         t("pricing.system_features.checkin_history"),
       ],
-      gifts: [t("pricing.gifts.shaker")],
+      gifts: giftsFor("1-1-basic", [t("pricing.gifts.shaker")]),
       weeks: 8,
       totalSessions: 24,
     },
@@ -291,7 +295,7 @@ const Pricing = ({ isHeroAnimDone = false }) => {
         t("pricing.system_features.personal_schedule"),
         t("pricing.system_features.checkin_history"),
       ],
-      gifts: [t("pricing.gifts.shaker"), t("pricing.gifts.biscotti")],
+      gifts: giftsFor("1-1-advanced", [t("pricing.gifts.shaker"), t("pricing.gifts.biscotti")]),
       featured: true,
       weeks: 16,
       totalSessions: 48,
@@ -315,11 +319,11 @@ const Pricing = ({ isHeroAnimDone = false }) => {
         t("pricing.system_features.personal_schedule"),
         t("pricing.system_features.checkin_history"),
       ],
-      gifts: [
+      gifts: giftsFor("1-1-vip", [
         t("pricing.gifts.backpack"),
         t("pricing.gifts.shaker"),
         t("pricing.gifts.biscotti"),
-      ],
+      ]),
       weeks: 24,
       totalSessions: 72,
     },
@@ -344,7 +348,7 @@ const Pricing = ({ isHeroAnimDone = false }) => {
       t("pricing.system_features.personal_schedule"),
       t("pricing.system_features.checkin_history"),
     ],
-    gifts: [],
+    gifts: giftsFor("trial"),
     totalSessions: 12,
   };
 
@@ -425,11 +429,6 @@ const Pricing = ({ isHeroAnimDone = false }) => {
   const handleLoginRedirect = () => {
     setShowLoginPrompt(false);
     navigate("/login", { state: { from: "/#pricing" } });
-  };
-
-  const showGiftModal = (gifts) => {
-    setSelectedGifts(gifts);
-    setGiftModalVisible(true);
   };
 
   return (
@@ -548,12 +547,12 @@ const Pricing = ({ isHeroAnimDone = false }) => {
               billingCycle={billingCycle}
               onBillingCycleChange={setBillingCycle}
             />
-          ) : !isTrainer && mode === "1-1" ? (
-            <OneOnOnePlans
-              plans={oneOnOnePlans}
-              sharedFeatures={oneOnOnePlans[0].features}
-              systemFeatures={oneOnOnePlans[0].systemFeatures}
-              onRegister={(plan) => handleRegister(plan, "1-1")}
+          ) : !isTrainer ? (
+            <CoachingPlans
+              plans={mode === "trial" ? [trialPlan] : plans}
+              sharedFeatures={(mode === "trial" ? trialPlan : plans[0]).features}
+              systemFeatures={(mode === "trial" ? trialPlan : plans[0]).systemFeatures}
+              onRegister={(plan) => handleRegister(plan, mode)}
             />
           ) : (
           <div className={`grid grid-cols-1 gap-6 2xl:gap-8 mx-auto ${isTrainer ? "sm:grid-cols-2 xl:grid-cols-4 max-w-7xl" : "sm:grid-cols-2 lg:grid-cols-3 max-w-5xl"}`}>
@@ -677,126 +676,10 @@ const Pricing = ({ isHeroAnimDone = false }) => {
                 </div>
               );
             })
-          ) : (
-            (mode === "trial" ? [trialPlan] : plans).map((plan, idx) => (
-              <div
-                key={idx}
-                className={`relative bg-[#1a1a1a] border-2 rounded-xl p-8 2xl:p-10 transition-all duration-300 w-full ${plan.featured
-                  ? "border-primary bg-gradient-to-br from-[#1a1a1a] to-[#2a2a2a]"
-                  : "border-gray-800"
-                  } hover:-translate-y-2 hover:scale-105 hover:border-primary hover:shadow-red-500/30`}
-              >
-                {plan.featured && (
-                  <div className="absolute -top-3 -right-3 bg-primary text-white text-xs font-bold px-3 py-1 rounded-full shadow-md">
-                    {t("pricing.popular")}
-                  </div>
-                )}
-                <div className="text-center mb-4">
-                  <h3 className="text-fluid-2xl font-bold text-white uppercase">
-                    {plan.title}
-                  </h3>
-                  <div className="mt-1">
-                    <span className="text-fluid-base text-gray-400">
-                      {plan.durationText}
-                    </span>
-                  </div>
-                  <div className="mt-4 rounded-lg border border-primary/30 bg-primary/10 px-4 py-3">
-                    <p className="text-xs font-bold uppercase tracking-wide text-primary">
-                      {t("pricing.coaching_cost_label")}
-                    </p>
-                    <p className="mt-1 text-sm font-semibold leading-5 text-white">
-                      {t("pricing.coaching_cost_assessment")}
-                    </p>
-                  </div>
-                </div>
-                <ul className="space-y-2 mb-4 text-gray-200 text-fluid-base">
-                  {plan.features.map((feature, i) => (
-                    <li
-                      key={i}
-                      className="flex items-start gap-2 border-b border-gray-700 pb-1"
-                    >
-                      <span className="text-primary">{"\u2713"}</span>
-                      <span>{feature}</span>
-                    </li>
-                  ))}
-                </ul>
-                {plan.systemFeatures && plan.systemFeatures.length > 0 && (
-                  <div className="mt-4 mb-4">
-                    <h4 className="text-sm font-semibold text-primary mb-2 uppercase tracking-wide">
-                      {t("pricing.system_benefits")}
-                    </h4>
-                    <ul className="space-y-1.5">
-                      {plan.systemFeatures.map((sf, i) => (
-                        <li key={i} className="flex items-start gap-2 text-fluid-sm text-gray-300">
-                          <span className="text-blue-400 mt-0.5">{"\u2713"}</span>
-                          <span>{sf}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-                {plan.gifts && plan.gifts.length > 0 && (
-                  <div
-                    onClick={() => showGiftModal(plan.gifts)}
-                    className="mt-4 p-2 bg-gradient-to-r from-yellow-500/20 to-orange-500/20 rounded-lg border border-yellow-500/30 text-yellow-400 font-semibold cursor-pointer flex items-center justify-center gap-2 hover:scale-105 transition text-base"
-                  >
-                    <Gift className="w-5 h-5" /> {t("pricing.special_gifts")}
-                  </div>
-                )}
-                <div className="mt-4 pt-3 border-t border-dashed border-gray-700 text-fluid-base text-gray-400 text-center">
-                  {t("pricing.total_sessions")}: {plan.totalSessions}
-                </div>
-                <Link
-                  to="/register"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    handleRegister(plan, mode === "trial" ? "trial" : mode);
-                  }}
-                  className="flex items-center justify-center w-full mt-5 py-3.5 2xl:py-4 bg-gradient-to-r from-primary to-primary-dark text-white font-bold uppercase tracking-wide rounded-xl shadow-lg shadow-orange-500/20 hover:shadow-orange-500/40 hover:-translate-y-0.5 hover:brightness-110 transition-all duration-300 whitespace-nowrap text-fluid-base"
-                >
-                  {t("pricing.book_assessment")}
-                </Link>
-              </div>
-            ))
-          )}
+          ) : null}
           </div>
           )}
         </div>
-
-        {giftModalVisible && (
-          <div
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-            onClick={() => setGiftModalVisible(false)}
-          >
-            <div
-              className="bg-[#1a1a1a] border-2 border-yellow-500 rounded-2xl max-w-md w-full shadow-2xl"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex justify-between items-center p-4 border-b border-yellow-500/30">
-                <h3 className="text-xl font-bold text-yellow-400 flex items-center gap-2">
-                  <Sparkles className="w-6 h-6" /> {t("pricing.special_gifts")}
-                </h3>
-                <button aria-label={t("common:a11y.close")}
-                  onClick={() => setGiftModalVisible(false)}
-                  className="text-gray-400 hover:text-white"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-              <div className="p-4 space-y-3">
-                {selectedGifts.map((gift, i) => (
-                  <div
-                    key={i}
-                    className="flex items-start gap-2 text-gray-300 text-base"
-                  >
-                    <span className="text-yellow-400">{"\u2713"}</span>
-                    <span>{gift}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
 
         {showLoginPrompt && (
           <div

@@ -19,6 +19,7 @@ describe("SiteSetting keyed media schema", () => {
       trainerImagesByKey: {},
       classesImagesByKey: {},
       toolsImagesByKey: {},
+      pricingGifts: {},
     });
   });
 

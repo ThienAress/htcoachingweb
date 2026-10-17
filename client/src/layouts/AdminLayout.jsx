@@ -5,6 +5,7 @@ import { findNavigationTitle } from "../navigation/workspaceNavigation";
 import {
   Package,
   FileText,
+  Gift,
   Sparkles,
   Home,
   Users,
@@ -74,6 +75,7 @@ const ADMIN_NAV_GROUPS = [
     label: "Giao diện",
     items: [
       { path: "/admin/site-settings", label: "Trang chủ", icon: LayoutTemplate },
+      { path: "/admin/pricing-gifts", label: "Quà tặng gói tập", icon: Gift },
     ],
   },
   {

@@ -3,6 +3,7 @@ import SiteSetting from "../models/SiteSetting.js";
 import { uploadBufferToCloudinary } from "../utils/cloudinaryUpload.js";
 import { safeLog } from "../utils/safeLogger.js";
 import { errorHandler } from "../middlewares/errorHandler.js";
+import { isPricingGiftKey, normalizePricingGifts } from "../utils/pricingGifts.js";
 
 const ITEM_KEY_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const MAX_ITEM_KEY_LENGTH = 64;
@@ -175,5 +176,46 @@ export const removeSettingImage = async (req, res) => {
   } catch (error) {
     safeLog.error("site_setting.image_remove_failed", error);
     res.status(500).json({ success: false, message: "Lỗi xóa ảnh" });
+  }
+};
+
+// PUT: Lưu danh sách quà tặng của một gói trên bảng giá
+export const savePricingGifts = async (req, res) => {
+  try {
+    const { key } = req.params;
+    if (!isPricingGiftKey(key)) {
+      return res.status(400).json({ success: false, message: "Gói không hợp lệ" });
+    }
+
+    const normalized = normalizePricingGifts(req.body?.gifts);
+    if (normalized.error) {
+      return res.status(400).json({ success: false, message: normalized.error });
+    }
+
+    const settings = await getSettings();
+    ensureImageMap(settings, "pricingGifts").set(key, normalized.gifts);
+    await settings.save();
+    res.json({ success: true, data: settings, message: "Đã lưu quà tặng!" });
+  } catch (error) {
+    safeLog.error("site_setting.pricing_gifts_save_failed", error);
+    res.status(500).json({ success: false, message: "Không thể lưu quà tặng" });
+  }
+};
+
+// DELETE: Bỏ phần đã chỉnh của một gói, quay về quà tặng mặc định
+export const resetPricingGifts = async (req, res) => {
+  try {
+    const { key } = req.params;
+    if (!isPricingGiftKey(key)) {
+      return res.status(400).json({ success: false, message: "Gói không hợp lệ" });
+    }
+
+    const settings = await getSettings();
+    ensureImageMap(settings, "pricingGifts").delete(key);
+    await settings.save();
+    res.json({ success: true, data: settings, message: "Đã khôi phục quà tặng mặc định!" });
+  } catch (error) {
+    safeLog.error("site_setting.pricing_gifts_reset_failed", error);
+    res.status(500).json({ success: false, message: "Không thể khôi phục quà tặng" });
   }
 };

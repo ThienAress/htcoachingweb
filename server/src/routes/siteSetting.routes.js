@@ -5,6 +5,8 @@ import {
   getSiteSettings,
   uploadSettingImage,
   removeSettingImage,
+  savePricingGifts,
+  resetPricingGifts,
 } from "../controllers/siteSetting.controller.js";
 import {
   uploadHeroImage,
@@ -39,5 +41,9 @@ router.post("/upload/tools", uploadToolsImage.single("image"), (req, res, next) 
 
 // DELETE xoá ảnh
 router.delete("/remove", removeSettingImage);
+
+// Quà tặng trên bảng giá (khóa tab-gói cố định)
+router.put("/pricing-gifts/:key", savePricingGifts);
+router.delete("/pricing-gifts/:key", resetPricingGifts);
 
 export default router;

@@ -40,6 +40,7 @@ const UserManagement = lazy(() => import("./pages/admin/UserManagement"));
 const ContactMessages = lazy(() => import("./pages/admin/ContactMessages"));
 const FoodManagement = lazy(() => import("./pages/admin/FoodManagement"));
 const BookingManagement = lazy(() => import("./pages/admin/BookingManagement"));
+const PricingGiftsManagement = lazy(() => import("./pages/admin/PricingGiftsManagement"));
 const SeoAnalyticsPage = lazy(() => import("./pages/admin/SeoAnalyticsPage"));
 const ServiceAccessPoliciesPage = lazy(() => import("./pages/admin/ServiceAccessPoliciesPage"));
 const TrainerCoordinationPage = lazy(() =>
@@ -326,6 +327,7 @@ function AppContent() {
           <Route path="contact-messages" element={<ContactMessages />} />
           <Route path="foods" element={<FoodManagement />} />
           <Route path="bookings" element={<BookingManagement />} />
+          <Route path="pricing-gifts" element={<PricingGiftsManagement />} />
           <Route path="seo-analytics" element={<SeoAnalyticsPage />} />
           <Route path="service-access-policies" element={<ServiceAccessPoliciesPage />} />
           <Route path="trainer-coordination" element={<TrainerCoordinationPage />} />
