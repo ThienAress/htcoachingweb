@@ -22,6 +22,7 @@ import {
 import PlanModal from "./WorkoutPlanModal";
 import { getWorkoutPlanWorkspacePath } from "../../navigation/workspaceNavigation";
 import { resolveInitialCustomerDashboardTheme } from "../../utils/customerDashboardTheme";
+import WorkspacePageHeader from "../../components/WorkspacePageHeader";
 import SelectField from "../../components/SelectField";
 
 // ===== STATUS CONFIG =====
@@ -148,6 +149,17 @@ const WorkoutPlan = ({ embedded = false }) => {
       >
         <div className="container-custom">
           {/* ===== HERO ===== */}
+          {embedded ? (
+          <WorkspacePageHeader
+            icon={Flame}
+            title={isTrainerOrAdmin ? t("plans.title") : t("plan_title")}
+            description={
+              isTrainerOrAdmin
+                ? "Tạo giáo án chi tiết cho từng buổi tập — quản lý bài tập, đánh giá kết quả"
+                : t("plans.desc")
+            }
+          />
+          ) : (
           <div className="text-center mb-8">
             <div className="inline-flex items-center gap-3 bg-primary/20 backdrop-blur-sm rounded-full px-5 py-2 mb-4">
               <Flame className="text-primary w-6 h-6" />
@@ -167,6 +179,7 @@ const WorkoutPlan = ({ embedded = false }) => {
                 : t("plans.desc")}
             </p>
           </div>
+          )}
 
           {/* ===== TOOLBAR ===== */}
           <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-700 p-4 md:p-6 mb-6">
