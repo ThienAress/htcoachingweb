@@ -158,6 +158,9 @@
       "current": "Current plan",
       "checkout_title": "Subscribe to HT Fitness+",
       "checkout_failed": "This plan could not be activated right now.",
+      "credits_unit": "AI credits per 30 days",
+      "credits_burst": "Up to {{count}} credits per hour",
+      "credits_scope": "AI credits are shared by HT Assistant and Meal Scan.",
       "checkout_success": "HT Fitness+ activated successfully.",
       "success_title": "Activated successfully!",
       "failure_title": "Payment failed",
@@ -225,6 +228,8 @@
     "trainer_plans": {
       "free": "Free trial",
       "free_sub": "All core features for {{count}} days",
+      "students_label": "students max",
+      "extra_label": "Extra in this plan",
       "days": "{{count}} days",
       "trial_used_badge": "Trial used",
       "order_exists_badge": "Existing order",

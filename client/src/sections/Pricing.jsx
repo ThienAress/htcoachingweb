@@ -23,9 +23,10 @@ import {
   applyTrainerPlanPurchaseResponse,
   walletBalanceQueryOptions,
 } from "../queries/walletAccount.queries";
-import { buildTrainerPlanCategories } from "../utils/trainerPlanBenefits";
+import { splitTrainerPlanBenefits } from "../utils/trainerPlanBenefits";
 import FitnessPlusPlans from "../components/Pricing/FitnessPlusPlans";
 import CoachingPlans from "../components/Pricing/CoachingPlans";
+import TrainerPlans from "../components/Pricing/TrainerPlans";
 import PricingSegmentedControl from "../components/Pricing/PricingSegmentedControl";
 import { useModalScrollLock } from "../hooks/useModalScrollLock";
 import { useSiteSettings } from "../hooks/useSiteSettings";
@@ -381,12 +382,12 @@ const Pricing = ({ isHeroAnimDone = false }) => {
       }),
       priceMonth: isFree ? plan.prices.trial : plan.prices.month,
       priceYear: isFree ? plan.prices.trial : plan.prices.year,
-      categories: buildTrainerPlanCategories({
-        plan,
-        benefits: trainerCatalogData.benefits,
-        t,
-      }),
     };
+  });
+  const trainerBenefits = splitTrainerPlanBenefits({
+    plans: trainerPlans,
+    benefits: trainerCatalogData?.benefits,
+    t,
   });
 
   const plans = mode === "online" ? onlinePlans : oneOnOnePlans;
@@ -555,79 +556,23 @@ const Pricing = ({ isHeroAnimDone = false }) => {
               onRegister={(plan) => handleRegister(plan, mode)}
             />
           ) : (
-          <div className={`grid grid-cols-1 gap-6 2xl:gap-8 mx-auto ${isTrainer ? "sm:grid-cols-2 xl:grid-cols-4 max-w-7xl" : "sm:grid-cols-2 lg:grid-cols-3 max-w-5xl"}`}>
-          {isTrainer ? (
-            trainerPlans.map((plan, idx) => {
-              const currentPrice = plan.isFree
-                ? 0
-                : billingCycle === "year"
-                  ? plan.priceYear
-                  : plan.priceMonth;
-              const formattedPrice = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(currentPrice);
-              const averageMonthPrice = !plan.isFree && billingCycle === "year" ? new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(Math.round(plan.priceYear / 12)) : null;
-
-              return (
-                <div
-                  key={plan.code || idx}
-                  className={`relative bg-[#1a1a1a] border-2 rounded-xl p-8 2xl:p-10 transition-all duration-300 w-full flex flex-col ${plan.featured
-                    ? "border-primary bg-gradient-to-br from-[#1a1a1a] to-[#2a2a2a]"
-                    : "border-gray-800"
-                    } hover:-translate-y-2 hover:shadow-xl hover:border-primary`}
-                >
-                  {plan.featured && (
-                    <div className="absolute -top-3 -right-3 bg-primary text-white text-xs font-bold px-3 py-1 rounded-full shadow-md">
-                      {t("pricing.popular")}
-                    </div>
-                  )}
-
-                  {plan.isFree &&
-                    ["used", "ineligible"].includes(freeTrialStatus) && (
-                    <div className="absolute -top-3 -right-3 rounded-full bg-slate-600 px-3 py-1 text-xs font-bold text-white shadow-md">
-                      {t(
-                        freeTrialStatus === "ineligible"
-                          ? "pricing.trainer_plans.order_exists_badge"
-                          : "pricing.trainer_plans.trial_used_badge",
-                      )}
-                    </div>
-                  )}
-                  <div className="mb-6">
-                    <h3 className="text-fluid-2xl font-bold text-white text-center whitespace-nowrap">
-                      {plan.title}
-                    </h3>
-                    <p className="text-gray-400 text-fluid-sm mt-1 text-center">{plan.subtitle}</p>
-
-                    <div className="mt-6">
-                      <div className="flex items-baseline flex-wrap gap-x-1.5 gap-y-0">
-                        <span className="text-3xl xl:text-4xl font-bold text-white leading-tight">{formattedPrice}</span>
-                        <span className="text-gray-400 text-sm shrink-0">/{plan.isFree ? t("pricing.trainer_plans.days", { count: plan.durationDays }) : billingCycle === "year" ? t("pricing.year") : t("pricing.month")}</span>
-                      </div>
-                      {!plan.isFree && billingCycle === "year" && (
-                        <p className="text-sm text-gray-500 mt-1">
-                          {t("pricing.avg_per_month")} {averageMonthPrice}/{t("pricing.month")}
-                        </p>
-                      )}
-                    </div>
+            <TrainerPlans
+              plans={trainerPlans}
+              shared={trainerBenefits.shared}
+              perPlan={trainerBenefits.perPlan}
+              billingCycle={billingCycle}
+              renderBadge={(plan) =>
+                plan.isFree && ["used", "ineligible"].includes(freeTrialStatus) ? (
+                  <div className="absolute -top-3 right-4 rounded-full bg-slate-600 px-3 py-1 text-xs font-bold text-white shadow-md">
+                    {t(
+                      freeTrialStatus === "ineligible"
+                        ? "pricing.trainer_plans.order_exists_badge"
+                        : "pricing.trainer_plans.trial_used_badge",
+                    )}
                   </div>
-
-                  <div className="flex-1 space-y-6">
-                    {plan.categories.map((category, cIdx) => (
-                      <div key={cIdx}>
-                        <h4 className="text-white font-semibold flex items-center gap-2 mb-3">
-                          {category.name} {category.icon && <span className="text-lg">{category.icon}</span>}
-                        </h4>
-                        <ul className="space-y-2.5">
-                          {category.features.map((feature, fIdx) => (
-                            <li key={fIdx} className="flex items-start gap-2 text-fluid-sm text-gray-300">
-                              <span className="text-green-500 mt-0.5">{"\u2713"}</span>
-                              <span className="leading-relaxed">{feature}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="mt-8">
+                ) : null
+              }
+              renderAction={(plan) => (
                     <button
                       disabled={plan.isFree && Boolean(user) && freeTrialStatus === "unknown"}
                       onClick={() => {
@@ -672,12 +617,8 @@ const Pricing = ({ isHeroAnimDone = false }) => {
                                 ? t("pricing.trainer_plans.start_free")
                                 : t("pricing.buy")}
                     </button>
-                  </div>
-                </div>
-              );
-            })
-          ) : null}
-          </div>
+              )}
+            />
           )}
         </div>
 
