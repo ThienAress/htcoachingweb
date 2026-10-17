@@ -25,6 +25,7 @@ import RecipePagination from "./RecipePagination";
 import { useDebounce } from "../../hooks/useDebounce";
 import CountryCombobox from "./CountryCombobox";
 import { buildPublicPageHref } from "../../utils/publicSeoPath.js";
+import SelectField from "../../components/SelectField";
 
 const RecipeExplorer = () => {
   const { t } = useTranslation("recipe");
@@ -176,7 +177,7 @@ const RecipeExplorer = () => {
                 />
               </div>
               {/* Category */}
-              <select
+              <SelectField tone="dark"
                 value={category}
                 onChange={(e) => updateParams({ category: e.target.value || null })}
                 className="px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-xl text-white focus:ring-2 focus:ring-primary appearance-none cursor-pointer"
@@ -185,7 +186,7 @@ const RecipeExplorer = () => {
                 {categories.map((c) => (
                   <option key={c} value={c}>{c}</option>
                 ))}
-              </select>
+              </SelectField>
               {/* Area */}
               <CountryCombobox
                 value={area}

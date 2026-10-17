@@ -19,6 +19,7 @@ import hero3 from "../assets/images/hero/hero3.webp";
 import SEO from "../components/SEO";
 import ScrollToTop from "../components/ScrollToTop";
 import { translateData } from "../utils/localDataTranslator";
+import SelectField from "../components/SelectField";
 
 const normalizeText = (value = "") =>
   String(value)
@@ -95,14 +96,14 @@ const FilterSelect = ({ value, onChange, children, label }) => (
     <span className="mb-2 block text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">
       {label}
     </span>
-    <select
+    <SelectField
       value={value}
       onChange={onChange}
-      className="h-12 w-full appearance-none border border-slate-200 bg-white px-4 pr-10 text-sm font-bold text-slate-800 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/15"
+      aria-label={label}
+      className="h-12 border border-slate-200 bg-white px-4 text-sm font-bold text-slate-800 outline-none transition focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/15"
     >
       {children}
-    </select>
-    <ChevronDown className="pointer-events-none absolute bottom-4 right-4 h-4 w-4 text-slate-400" />
+    </SelectField>
   </label>
 );
 

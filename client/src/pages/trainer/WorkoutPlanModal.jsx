@@ -5,6 +5,7 @@ import { toast } from "react-toastify";
 import { createWorkoutPlan } from "../../services/workoutPlan.service";
 import { WorkoutPlanClientTargetSummary } from "./WorkoutPlanClientTargetSummary";
 import { TODAY_PLATFORM_ENABLED } from "../../config/featureFlags";
+import SelectField from "../../components/SelectField";
 
 const DEFAULT_SECTIONS = [
   { name: "WARM UP", icon: "🔥", sortOrder: 0, exercises: [] },
@@ -150,7 +151,7 @@ const PlanModal = ({ clients, initialClientId, initialDate, onClose, onSaved }) 
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-1.5">Khách hàng *</label>
-              <select
+              <SelectField tone="dark"
                 value={form.clientId}
                 onChange={(e) => handleClientChange(e.target.value)}
                 className={inputClass}
@@ -159,7 +160,7 @@ const PlanModal = ({ clients, initialClientId, initialDate, onClose, onSaved }) 
                 {clients.map((c) => (
                   <option key={c._id} value={c._id}>{c.name} ({c.email})</option>
                 ))}
-              </select>
+              </SelectField>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-1.5">Ngày tập *</label>

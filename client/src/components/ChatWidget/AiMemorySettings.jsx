@@ -15,6 +15,7 @@ import {
   setAiMemoryConsent,
   upsertAiMemory,
 } from "../../services/ai.service";
+import SelectField from "../SelectField";
 
 export default function AiMemorySettings({ onClose }) {
   const { user } = useAuth();
@@ -234,7 +235,7 @@ export default function AiMemorySettings({ onClose }) {
                     <div key={field.kind} className="grid gap-2 sm:grid-cols-[1fr_auto] sm:items-end">
                       <label className="grid gap-1.5 text-sm font-medium text-zinc-800 dark:text-zinc-200">
                         {field.label}
-                        <select
+                        <SelectField
                           value={entry?.value || ""}
                           disabled={!query.data.enabled || isPending}
                           onChange={(event) =>
@@ -246,7 +247,7 @@ export default function AiMemorySettings({ onClose }) {
                           {field.options.map(([value, label]) => (
                             <option key={value} value={value}>{label}</option>
                           ))}
-                        </select>
+                        </SelectField>
                       </label>
                       <button
                         type="button"
