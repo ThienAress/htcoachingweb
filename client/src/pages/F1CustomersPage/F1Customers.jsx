@@ -362,13 +362,7 @@ const F1Customers = () => {
         } ${desktopSidebarCollapsed ? "md:w-0" : "md:w-72"}`}
       >
         <div className="flex h-full w-72 flex-col">
-          <div className="flex items-start justify-between gap-3 border-b border-white/10 p-6">
-            <div>
-              <h3 className="text-2xl font-black tracking-tight">HTCOACHING</h3>
-              <p className="mt-1 text-xs text-slate-400">
-                powered by FitAssess AI
-              </p>
-            </div>
+          <div className="hidden items-center justify-end border-b border-white/10 p-4 md:flex">
             <button
               type="button"
               onClick={() => setDesktopSidebarCollapsed(true)}
@@ -381,7 +375,7 @@ const F1Customers = () => {
             </button>
           </div>
 
-          <nav className="flex-1 space-y-1 px-4 py-8">
+          <nav className="flex-1 space-y-1 px-4 pb-8 pt-16 md:pt-8">
             <button
               onClick={() => {
                 setViewMode("list");
