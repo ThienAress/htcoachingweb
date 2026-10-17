@@ -165,6 +165,7 @@ describe("findNavigationTitle", () => {
         {
           path: "/trainer",
           label: "Khách hàng của tôi",
+          exact: true,
           activePrefixes: ["/trainer/clients/"],
         },
         { path: "/trainer/health", label: "Theo dõi sức khỏe" },
@@ -187,6 +188,13 @@ describe("findNavigationTitle", () => {
     );
     expect(findNavigationTitle(groups, "/trainer/clients/42", "x")).toBe(
       "Khách hàng của tôi",
+    );
+  });
+
+  it("does not borrow the title of an exact-match item for its sub pages", () => {
+    expect(findNavigationTitle(groups, "/trainer", "x")).toBe("Khách hàng của tôi");
+    expect(findNavigationTitle(groups, "/trainer/orders", "Quản lý khách hàng")).toBe(
+      "Quản lý khách hàng",
     );
   });
 

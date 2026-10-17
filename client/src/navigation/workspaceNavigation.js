@@ -158,7 +158,7 @@ export const findNavigationTitle = (groups, pathname, fallback) => {
   const matches = items.filter(
     (item) =>
       pathname === item.path ||
-      pathname.startsWith(`${item.path}/`) ||
+      (!item.exact && pathname.startsWith(`${item.path}/`)) ||
       item.activePrefixes?.some((prefix) => pathname.startsWith(prefix)),
   );
   if (matches.length === 0) return fallback;
