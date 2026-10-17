@@ -40,6 +40,26 @@ describe("public SEO redirects", () => {
     expect(redirects.trim().endsWith("/* /404.html 404")).toBe(true);
   });
 
+  test("lets every fixed admin and trainer page open directly or after a refresh", () => {
+    const lines = redirects.split(/\r?\n/);
+    const app = fs.readFileSync(path.join(__dirname, "../../src/App.jsx"), "utf8");
+    const section = (start, end) => {
+      const from = app.indexOf(start);
+      return app.slice(from, app.indexOf(end, from));
+    };
+    const fixedPaths = (block, prefix) =>
+      [...block.matchAll(/<Route path="([a-z0-9-]+)" element/g)].map((m) => `${prefix}/${m[1]}`);
+
+    const adminPages = fixedPaths(section("{/* ADMIN PANEL */}", "</Routes>"), "/admin");
+    const trainerPages = fixedPaths(section("path=\"/trainer\"", "{/* ADMIN PANEL */}"), "/trainer");
+
+    expect(adminPages.length).toBeGreaterThan(15);
+    expect(trainerPages.length).toBeGreaterThan(5);
+    for (const page of [...adminPages, ...trainerPages]) {
+      expect(lines, `${page} is missing from _redirects`).toContain(`${page} /index.html 200`);
+    }
+  });
+
   test("keeps non-cohort dynamic detail routes usable without broadening the site fallback", () => {
     [
       "/cong-thuc-nau-an/* /dynamic-detail-shell.html 200",
