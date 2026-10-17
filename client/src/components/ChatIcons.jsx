@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { X } from "lucide-react";
+import { MessageCircle, X } from "lucide-react";
 import useScrollDockHidden from "../hooks/useScrollDockHidden";
 
 // ======================= CÁC ICON MẠNG XÃ HỘI =======================
@@ -90,7 +90,6 @@ const getUiConfig = (width) => {
 const ChatIcons = () => {
   const [open, setOpen] = useState(false);
   const [chatWidgetOpen, setChatWidgetOpen] = useState(false);
-  const [currentIconIdx, setCurrentIconIdx] = useState(0);
   const wrapperRef = useRef(null);
 
   const [viewportWidth, setViewportWidth] = useState(
@@ -106,15 +105,6 @@ const ChatIcons = () => {
     window.addEventListener("resize", updateViewportWidth);
     return () => window.removeEventListener("resize", updateViewportWidth);
   }, []);
-
-  // Handle auto cycling icons
-  useEffect(() => {
-    if (open) return;
-    const interval = setInterval(() => {
-      setCurrentIconIdx((prev) => (prev + 1) % socialItems.length);
-    }, 2500); // Change icon every 2.5 seconds
-    return () => clearInterval(interval);
-  }, [open]);
 
   // Ẩn ChatIcons trên mobile khi chat widget mở
   useEffect(() => {
@@ -194,7 +184,7 @@ const ChatIcons = () => {
                 <div className="w-8 h-8 shrink-0 flex items-center justify-center transition-transform group-hover:scale-110">
                   {item.icon}
                 </div>
-                <span className="text-[15px] font-semibold text-slate-700 group-hover:text-[#00A3FF] transition-colors">
+                <span className="text-[15px] font-semibold text-slate-700 group-hover:text-primary transition-colors">
                   {item.label}
                 </span>
               </a>
@@ -204,56 +194,38 @@ const ChatIcons = () => {
           </div>
         </div>
 
-        {/* Main Button (Styled like Image 1) */}
+        {/* Nút chính: một biểu tượng cố định, các kênh liên hệ nằm trong danh sách mở ra */}
         <button
           type="button"
           onClick={() => setOpen((prev) => !prev)}
           aria-label={open ? "Đóng liên hệ" : "Mở liên hệ nhanh"}
           aria-expanded={open}
-          className="relative flex items-center justify-center rounded-full bg-[#00A3FF] shadow-[0_8px_25px_-5px_rgba(0,163,255,0.5)] transition-all duration-300 hover:scale-105 active:scale-95 group"
+          className="relative flex items-center justify-center rounded-full bg-primary shadow-[0_8px_25px_-5px_rgba(255,85,0,0.5)] transition-transform duration-300 hover:scale-105 active:scale-95"
           style={{
             width: `${ui.mainSize}px`,
             height: `${ui.mainSize}px`,
           }}
         >
-          {/* Container holding the colored icons (white background to make them pop) */}
-          <div
-            className="relative bg-white rounded-full flex items-center justify-center overflow-hidden transition-all duration-300 shadow-sm"
-            style={{
-              width: `${ui.mainSize * 0.65}px`,
-              height: `${ui.mainSize * 0.65}px`
-            }}
-          >
-            {/* Rotating Icons */}
-            {socialItems.map((item, idx) => (
-              <div
-                key={item.id}
-                className={`absolute inset-0 flex items-center justify-center transition-all duration-500 ${
-                  !open && idx === currentIconIdx
-                    ? "opacity-100 scale-100 rotate-0"
-                    : "opacity-0 scale-50 -rotate-45"
-                }`}
-                style={{ padding: `${ui.mainSize * 0.12}px` }}
-              >
-                <div className="w-full h-full drop-shadow-sm">
-                  {item.icon}
-                </div>
-              </div>
-            ))}
+          <MessageCircle
+            aria-hidden="true"
+            size={ui.mainSize * 0.45}
+            strokeWidth={2.2}
+            className={`absolute text-white transition-[transform,opacity] duration-300 ${
+              open ? "scale-50 -rotate-45 opacity-0" : "scale-100 rotate-0 opacity-100"
+            }`}
+          />
+          <X
+            aria-hidden="true"
+            size={ui.mainSize * 0.4}
+            strokeWidth={3}
+            className={`absolute text-white transition-[transform,opacity] duration-300 ${
+              open ? "scale-100 rotate-0 opacity-100" : "scale-50 rotate-45 opacity-0"
+            }`}
+          />
 
-            {/* Close Icon (Shows when open) */}
-            <div
-              className={`absolute inset-0 flex items-center justify-center bg-[#00A3FF] transition-all duration-500 ${
-                open ? "opacity-100 scale-100 rotate-0" : "opacity-0 scale-50 rotate-45"
-              }`}
-            >
-              <X size={ui.mainSize * 0.35} strokeWidth={3} className="text-white" />
-            </div>
-          </div>
-
-          {/* Ping Effect Ring (Like Image 1) */}
+          {/* Vòng sóng nhẹ khi đang đóng */}
           {!open && (
-            <span className="absolute inset-0 rounded-full bg-[#00A3FF] chat-icons-ping-slow pointer-events-none -z-10" />
+            <span className="absolute inset-0 rounded-full bg-primary chat-icons-ping-slow pointer-events-none -z-10" />
           )}
         </button>
       </div>

@@ -14,7 +14,7 @@ const NotFound = () => {
         <div className="relative mb-6">
           <p className="text-[120px] sm:text-[160px] font-black leading-none tracking-tight select-none"
             style={{
-              background: "linear-gradient(135deg, #10b981, #06b6d4, #8b5cf6)",
+              background: "linear-gradient(135deg, #ff5500, #ff7b2c)",
               WebkitBackgroundClip: "text",
               WebkitTextFillColor: "transparent",
               opacity: 0.15,
@@ -24,17 +24,17 @@ const NotFound = () => {
           </p>
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="text-center">
-              <div className="w-16 h-16 mx-auto mb-3 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-cyan-500/20 border border-white/10 flex items-center justify-center">
-                <Search size={28} className="text-emerald-400" />
+              <div className="w-16 h-16 mx-auto mb-3 rounded-2xl bg-gradient-to-br from-primary/20 to-primary-light/20 border border-white/10 flex items-center justify-center">
+                <Search size={28} className="text-primary" />
               </div>
-              <p className="text-white text-lg font-bold">Không tìm thấy trang</p>
+              <p className="font-display text-white text-xl font-bold uppercase tracking-wide">Không tìm thấy trang</p>
             </div>
           </div>
         </div>
 
         {/* Message */}
         <p className="text-gray-400 text-sm mb-2">
-          Trang <code className="text-emerald-400/80 bg-white/5 px-1.5 py-0.5 rounded text-xs">{location.pathname}</code> không tồn tại.
+          Trang <code className="text-primary-light bg-white/5 px-1.5 py-0.5 rounded text-xs">{location.pathname}</code> không tồn tại.
         </p>
         <p className="text-gray-500 text-sm mb-8">
           Có thể trang đã bị xóa, đổi tên hoặc bạn nhập sai địa chỉ.
@@ -44,7 +44,7 @@ const NotFound = () => {
         <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
           <Link
             to="/"
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-cyan-600 text-white text-sm font-semibold hover:from-emerald-500 hover:to-cyan-500 transition-all shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/30"
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-white text-sm font-semibold hover:bg-primary-dark transition-colors shadow-lg shadow-primary/20"
           >
             <Home size={16} />
             Về trang chủ

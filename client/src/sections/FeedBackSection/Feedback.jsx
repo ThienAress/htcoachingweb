@@ -6,6 +6,7 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { Flip } from "gsap/Flip";
 import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
+import { moveCompleteStoriesFirst } from "../../utils/customerStoryCompleteness";
 import FeedbackCard from "./FeedbackCard";
 import { getPublicCustomerStories } from "../../services/customerStory.service";
 import { translateData } from "../../utils/localDataTranslator";
@@ -32,7 +33,9 @@ const Feedback = () => {
   });
 
   const rawStories = storiesResponse?.data || [];
-  const stories = translateData(rawStories, "story", i18n.language);
+  const stories = moveCompleteStoriesFirst(
+    translateData(rawStories, "story", i18n.language),
+  );
 
   // Khởi tạo items lần đầu tiên khi tải xong data
   useEffect(() => {
