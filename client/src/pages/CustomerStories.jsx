@@ -14,6 +14,7 @@ import {
   Trophy,
 } from "lucide-react";
 import { getPublicCustomerStories } from "../services/customerStory.service";
+import { isStoryComplete } from "../utils/customerStoryCompleteness";
 import Contact from "../sections/Contact";
 import hero3 from "../assets/images/hero/hero3.webp";
 import SEO from "../components/SEO";
@@ -332,7 +333,7 @@ const CustomerStories = () => {
   });
 
   const stories = useMemo(() => translateData(data?.data || [], "story", i18n.language), [data?.data, i18n.language]);
-  const featuredStory = stories[0];
+  const featuredStory = stories.find(isStoryComplete) || stories[0];
   const heroImage = getStoryImage(featuredStory, "heroImage", hero3);
   const collageBefore = getStoryImage(featuredStory, "beforeImg", null);
   const collageAfter = getStoryImage(featuredStory, "afterImg", null);
@@ -373,6 +374,8 @@ const CustomerStories = () => {
     });
 
     result.sort((a, b) => {
+      const completeness = Number(isStoryComplete(b)) - Number(isStoryComplete(a));
+      if (completeness !== 0) return completeness;
       const dateA = a.publishedAt ? new Date(a.publishedAt) : new Date(a.createdAt);
       const dateB = b.publishedAt ? new Date(b.publishedAt) : new Date(b.createdAt);
       return dateB - dateA;

@@ -151,14 +151,14 @@ const WorkoutPlan = ({ embedded = false }) => {
           <div className="text-center mb-8">
             <div className="inline-flex items-center gap-3 bg-primary/20 backdrop-blur-sm rounded-full px-5 py-2 mb-4">
               <Flame className="text-primary w-6 h-6" />
-              <span className="font-semibold text-primary tracking-wide">{t("plan_title").toUpperCase()}</span>
+              <span className="font-semibold text-primary tracking-wide">
+                {(isTrainerOrAdmin ? t("plan_title") : t("plans.title")).toUpperCase()}
+              </span>
             </div>
             <h1 className="font-display text-fluid-6xl font-black uppercase tracking-normal">
-              {isTrainerOrAdmin ? (
-                <>{t("plans.title")} <span className="text-primary">{t("plan_title")}</span></>
-              ) : (
-                <span className="text-primary">{t("plan_title")}</span>
-              )}
+              <span className="text-primary">
+                {isTrainerOrAdmin ? t("plans.title") : t("plan_title")}
+              </span>
             </h1>
             <div className="w-24 h-1 bg-primary mx-auto mt-4 rounded-full" />
             <p className="text-gray-400 mt-4 max-w-xl mx-auto">
