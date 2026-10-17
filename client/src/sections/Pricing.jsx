@@ -25,6 +25,7 @@ import {
 } from "../queries/walletAccount.queries";
 import { buildTrainerPlanCategories } from "../utils/trainerPlanBenefits";
 import FitnessPlusPlans from "../components/Pricing/FitnessPlusPlans";
+import OneOnOnePlans from "../components/Pricing/OneOnOnePlans";
 import PricingSegmentedControl from "../components/Pricing/PricingSegmentedControl";
 import { useModalScrollLock } from "../hooks/useModalScrollLock";
 
@@ -268,6 +269,7 @@ const Pricing = ({ isHeroAnimDone = false }) => {
         t("pricing.system_features.checkin_history"),
       ],
       gifts: [t("pricing.gifts.shaker")],
+      weeks: 8,
       totalSessions: 24,
     },
     {
@@ -291,6 +293,7 @@ const Pricing = ({ isHeroAnimDone = false }) => {
       ],
       gifts: [t("pricing.gifts.shaker"), t("pricing.gifts.biscotti")],
       featured: true,
+      weeks: 16,
       totalSessions: 48,
     },
     {
@@ -317,6 +320,7 @@ const Pricing = ({ isHeroAnimDone = false }) => {
         t("pricing.gifts.shaker"),
         t("pricing.gifts.biscotti"),
       ],
+      weeks: 24,
       totalSessions: 72,
     },
   ];
@@ -543,6 +547,13 @@ const Pricing = ({ isHeroAnimDone = false }) => {
             <FitnessPlusPlans
               billingCycle={billingCycle}
               onBillingCycleChange={setBillingCycle}
+            />
+          ) : !isTrainer && mode === "1-1" ? (
+            <OneOnOnePlans
+              plans={oneOnOnePlans}
+              sharedFeatures={oneOnOnePlans[0].features}
+              systemFeatures={oneOnOnePlans[0].systemFeatures}
+              onRegister={(plan) => handleRegister(plan, "1-1")}
             />
           ) : (
           <div className={`grid grid-cols-1 gap-6 2xl:gap-8 mx-auto ${isTrainer ? "sm:grid-cols-2 xl:grid-cols-4 max-w-7xl" : "sm:grid-cols-2 lg:grid-cols-3 max-w-5xl"}`}>
