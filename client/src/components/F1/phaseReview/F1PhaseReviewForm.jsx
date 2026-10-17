@@ -2,6 +2,7 @@ import { Controller, useForm, useWatch } from "react-hook-form";
 import RoundedSelect from "../assessment/RoundedSelect";
 import F1PhaseReviewSquat from "./F1PhaseReviewSquat";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { FORM_ERROR_ATTR, scrollToFirstFormError } from "../../../utils/scrollToFormError";
 import { z } from "zod";
 import { TIER_LABELS } from "../../../utils/assessmentExercises";
 import {
@@ -85,7 +86,7 @@ const Field = ({ id, label, error, children }) => (
   <label htmlFor={id} className="grid gap-1 text-xs font-medium text-slate-500">
     {label}
     {children}
-    {error && <span className="text-xs font-medium text-red-600">{error}</span>}
+    {error && <span {...{ [FORM_ERROR_ATTR]: "" }} className="text-xs font-medium text-red-600">{error}</span>}
   </label>
 );
 
@@ -124,7 +125,16 @@ const F1PhaseReviewForm = ({ stageOrder, context, review, saving, onSubmit, onCa
   );
 
   return (
-    <form id="f1-phase-review-form" noValidate onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+    <form
+      id="f1-phase-review-form"
+      noValidate
+      onSubmit={handleSubmit(onSubmit, (_errors, event) => {
+        // Chờ lỗi hiện lên rồi cuộn tới ô lỗi đầu tiên của chính form này.
+        const formElement = event?.target;
+        requestAnimationFrame(() => scrollToFirstFormError(formElement));
+      })}
+      className="space-y-4"
+    >
       <Group title="1. Chỉ số đo lại">
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <Field id={id("date")} label="Ngày đo" error={errors.measuredAt?.message}>
@@ -187,7 +197,7 @@ const F1PhaseReviewForm = ({ stageOrder, context, review, saving, onSubmit, onCa
                     </label>
                   ))}
                   {errors.recommendationChecks?.[index]?.status && (
-                    <span className="ml-1 text-xs font-medium text-red-600">Chọn mức đã làm</span>
+                    <span {...{ [FORM_ERROR_ATTR]: "" }} className="ml-1 text-xs font-medium text-red-600">Chọn mức đã làm</span>
                   )}
                 </div>
               </div>
