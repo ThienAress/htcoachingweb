@@ -429,7 +429,7 @@ const F1Customers = () => {
 
       {/* Main content */}
       <main
-        className={`flex-1 overflow-x-auto p-4 transition-[padding] duration-200 md:p-8 ${
+        className={`flex-1 overflow-x-auto px-4 pb-4 pt-16 transition-[padding] duration-200 md:p-8 ${
           desktopSidebarCollapsed ? "md:pl-20" : ""
         }`}
       >

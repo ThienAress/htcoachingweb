@@ -5,6 +5,7 @@ import {
   describe,
   expect,
   it,
+  vi,
 } from "vitest";
 import request from "supertest";
 import {
@@ -235,6 +236,33 @@ describe("F1 customer detail", () => {
   });
 });
 
+describe("F1 access errors", () => {
+  it("keeps the real reason for forbidden and missing customers in production", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    try {
+      const owner = await createTrainer("f1-err-owner@example.com");
+      const other = await createTrainer("f1-err-other@example.com");
+      const [customer] = await seedCustomers(owner, 1);
+
+      const forbidden = await withAuth(
+        request(app).get(`/api/f1-customers/${customer._id}`),
+        other.accessToken,
+      );
+      const missing = await withAuth(
+        request(app).get("/api/f1-customers/507f1f77bcf86cd799439011"),
+        owner.accessToken,
+      );
+
+      expect(forbidden.status).toBe(403);
+      expect(forbidden.body.message).toBe("Bạn không có quyền truy cập khách hàng F1 này");
+      expect(missing.status).toBe(404);
+      expect(missing.body.message).toBe("Không tìm thấy khách hàng F1");
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+});
+
 describe("F1 customer quota", () => {
   it("blocks creating beyond the plan limit with a Vietnamese message", async () => {
     const trainer = await createTrainer("f1-quota-limit@example.com");
@@ -300,15 +328,60 @@ describe("F1 customer quota", () => {
     expect((await create(trainer)).status).toBe(201);
   });
 
-  it("only counts customers created inside the current plan period", async () => {
-    const trainer = await createTrainer("f1-quota-period@example.com");
+  it("counts customers created before the current plan started", async () => {
+    const trainer = await createTrainer("f1-quota-before-plan@example.com");
     const customers = await seedCustomers(trainer, 20);
     await F1Customer.collection.updateMany(
       { _id: { $in: customers.map((item) => item._id) } },
-      { $set: { createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000) } },
+      { $set: { createdAt: new Date(Date.now() - 400 * 24 * 60 * 60 * 1000) } },
     );
 
-    expect((await create(trainer)).status).toBe(201);
+    const response = await create(trainer);
+    expect(response.status).toBe(403);
+    expect(response.body.code).toBe("F1_QUOTA_EXCEEDED");
+  });
+
+  it("does not reset the count when the same plan is renewed", async () => {
+    const trainer = await createTrainer("f1-quota-renew@example.com");
+    await seedCustomers(trainer, 20);
+    // Gia hạn: gói cũ chuyển sang superseded, gói mới bắt đầu với bộ đếm khách không đổi.
+    await TrainerSubscription.updateOne(
+      { userId: trainer.user._id },
+      { $set: { status: "superseded", isActive: false } },
+    );
+    await TrainerSubscription.create({
+      userId: trainer.user._id,
+      planTitle: "Chuyên nghiệp",
+      planCode: "professional",
+      billingCycle: "month",
+      source: "admin_grant",
+      amount: 0,
+      startDate: new Date(),
+      endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      status: "active",
+      isActive: true,
+    });
+
+    const response = await create(trainer);
+    expect(response.status).toBe(403);
+    expect(response.body.code).toBe("F1_QUOTA_EXCEEDED");
+  });
+
+  it("opens more room after an upgrade but still counts the customers created before", async () => {
+    const trainer = await createTrainer("f1-quota-upgrade@example.com");
+    await seedCustomers(trainer, 20);
+    expect((await create(trainer)).status).toBe(403);
+
+    await TrainerSubscription.updateOne(
+      { userId: trainer.user._id },
+      { $set: { planCode: "premium", planTitle: "Cao cấp" } },
+    );
+    expect((await create(trainer)).status).toBe(201); // 21st customer: 20 old ones were counted, limit is now 50
+
+    await seedCustomers(trainer, 29); // 21 + 29 = 50 reached
+    const full = await create(trainer);
+    expect(full.status).toBe(403);
+    expect(full.body.message).toContain("tối đa 50 khách hàng F1");
   });
 
   it("counts per trainer, not across trainers", async () => {

@@ -30,6 +30,7 @@ export const assertCustomerAccess = (
   if (!customer) {
     const error = new Error("Không tìm thấy khách hàng F1");
     error.status = 404;
+    error.expose = true;
     throw error;
   }
 
@@ -42,6 +43,7 @@ export const assertCustomerAccess = (
   ) {
     const error = new Error("Bạn không có quyền truy cập khách hàng F1 này");
     error.status = 403;
+    error.expose = true;
     throw error;
   }
 

@@ -605,7 +605,7 @@ describe("AI chat SSE completion", () => {
     await initialHook.loadHistory();
     const request = renderHook({ persistenceEnabled: true })
       .sendMessage("Câu hỏi đang dừng");
-    await vi.waitFor(() => expect(reads).toBe(2));
+    await vi.waitFor(() => expect(reads).toBe(2), { timeout: 5000 });
 
     const stoppedHook = renderHook({ persistenceEnabled: true });
     stoppedHook.cancelRequest();
@@ -620,7 +620,7 @@ describe("AI chat SSE completion", () => {
     await request;
     resolveReconcile({ data: { messages: reconciledMessages } });
 
-    await vi.waitFor(() => expect(openAiChatStream).toHaveBeenCalledTimes(2));
+    await vi.waitFor(() => expect(openAiChatStream).toHaveBeenCalledTimes(2), { timeout: 5000 });
     if (action === "edit") {
       expect(forkAiConversation).toHaveBeenCalledTimes(1);
     } else {

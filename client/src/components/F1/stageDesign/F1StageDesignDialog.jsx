@@ -130,12 +130,12 @@ const F1StageDesignDialog = ({ customer, stageOrder, plan, overrides, training =
       }}
     >
       <section role="dialog" aria-modal="true" aria-labelledby="f1-stage-design-title" className="mx-auto flex h-full w-full max-w-7xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
-        <header className="flex items-start justify-between gap-4 border-b border-slate-200 bg-slate-50 px-6 py-4">
+        <header className="flex items-start justify-between gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3 sm:gap-4 sm:px-6 sm:py-4">
           <div className="min-w-0">
             <p className="text-sm text-slate-500">
               {customer?.fullName} · {customer?.code || "--"}
             </p>
-            <h2 id="f1-stage-design-title" className="text-2xl font-extrabold text-slate-800">
+            <h2 id="f1-stage-design-title" className="text-xl font-extrabold text-slate-800 sm:text-2xl">
               Thiết kế giai đoạn {stageOrder}: {PHASE_TITLES[phaseKey]}
             </h2>
           </div>
@@ -144,7 +144,7 @@ const F1StageDesignDialog = ({ customer, stageOrder, plan, overrides, training =
           </button>
         </header>
 
-        <form id="f1-stage-design-form" noValidate onSubmit={handleSubmit((values) => onSave(toCustomStage(values)))} className="flex-1 space-y-4 overflow-y-auto overscroll-contain px-6 py-5">
+        <form id="f1-stage-design-form" noValidate onSubmit={handleSubmit((values) => onSave(toCustomStage(values)))} className="flex-1 space-y-4 overflow-y-auto overscroll-contain px-4 py-4 sm:px-6 sm:py-5">
           <Section title="1. Giai đoạn và thời lượng">
             <div className="grid gap-3 sm:grid-cols-2">
               <div>
@@ -276,7 +276,7 @@ const F1StageDesignDialog = ({ customer, stageOrder, plan, overrides, training =
           </Section>
         </form>
 
-        <footer className="flex flex-wrap justify-between gap-3 border-t border-slate-200 px-6 py-3">
+        <footer className="flex flex-wrap justify-between gap-3 border-t border-slate-200 px-4 py-3 sm:px-6">
           <button type="button" onClick={onClose} disabled={saving} className="rounded-xl border border-slate-200 bg-white px-5 py-2.5 font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60">
             Huỷ
           </button>
