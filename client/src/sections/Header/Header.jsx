@@ -207,8 +207,8 @@ function Header() {
   return (
     <header
       ref={headerRef}
-      className={`fixed top-0 w-full z-50 h-[73px] 2xl:h-20 transition-all duration-300 ${isSolidHeader
-        ? "bg-gradient-to-r from-[#f39c12] to-[#1a1a1a] shadow-md border-transparent"
+      className={`fixed top-0 w-full z-50 h-[73px] 2xl:h-20 transition-[background-color,box-shadow,border-color] duration-300 ${isSolidHeader
+        ? "bg-[#1a1a1a] shadow-md border-b border-white/10"
         : "bg-transparent border-b border-black/10"
         }`}
     >

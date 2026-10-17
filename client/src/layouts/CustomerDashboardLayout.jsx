@@ -45,6 +45,11 @@ const initialsFor = (name = "Học viên") =>
     .join("") || "HV";
 
 /* ── Sidebar nav ── */
+const getNavItems = (accessMode) =>
+  NAV_ITEMS.filter(
+    (item) => accessMode === "coaching" || item.key !== "training",
+  );
+
 const CustomerNav = ({
   activeSection,
   ariaLabel = "Điều hướng bảng theo dõi",
@@ -56,15 +61,13 @@ const CustomerNav = ({
     aria-label={ariaLabel}
     className={
       compact
-        ? accessMode === "self_managed"
+        ? getNavItems(accessMode).length <= 4
           ? "grid grid-cols-4"
           : "grid grid-cols-5"
         : "space-y-0.5"
     }
   >
-    {NAV_ITEMS.filter(
-      (item) => accessMode === "coaching" || item.key !== "training",
-    ).map((item) => {
+    {getNavItems(accessMode).map((item) => {
       const Icon = item.icon;
       const active = activeSection === item.key;
       return (
@@ -94,7 +97,7 @@ const CustomerNav = ({
           >
             <Icon aria-hidden="true" className="h-4 w-4 shrink-0" />
           </span>
-          <span>{item.label}</span>
+          <span className={compact ? "whitespace-nowrap" : undefined}>{item.label}</span>
         </Link>
       );
     })}

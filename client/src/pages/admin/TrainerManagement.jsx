@@ -389,7 +389,7 @@ export default function TrainerManagement() {
       {/* TABLE */}
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
+          <table className="w-full min-w-[720px] text-left text-sm">
             <thead className="bg-slate-50 text-xs font-bold uppercase text-slate-500">
               <tr>
                 <th className="px-6 py-4">Huấn luyện viên</th>
@@ -420,11 +420,11 @@ export default function TrainerManagement() {
                   <tr key={trainer._id} className="group transition-colors hover:bg-slate-50">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-4">
-                        <div className="relative">
+                        <div className="relative shrink-0">
                           <img
                             src={getImageUrl(trainer.images?.[0] || trainer.image)}
                             alt={trainer.name}
-                            className="h-16 w-16 rounded-xl object-cover shadow-sm"
+                            className="h-16 w-16 shrink-0 rounded-xl object-cover shadow-sm"
                           />
                           {trainer.featured && (
                             <div className="absolute -right-2 -top-2 rounded-full bg-yellow-400 p-1 text-white shadow">

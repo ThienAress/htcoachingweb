@@ -1,7 +1,8 @@
 import { Plus, Save, X } from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect } from "react";
-import { useForm, useWatch } from "react-hook-form";
+import SelectField from "../../components/SelectField";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import {
   HABIT_DAY_LABELS,
   getHabitWeekRange,
@@ -115,18 +116,26 @@ export const CreateHabitForm = ({
       >
         Nhóm
       </label>
-      <select
-        id={`habit-category-${idSuffix}`}
-        {...register("category")}
-        disabled={disabled}
-        className="mt-2 min-h-11 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 text-sm text-white focus:border-orange-400 focus:outline-none focus:ring-2 focus:ring-orange-400/30 disabled:opacity-50"
-      >
-        <option value="recovery">Phục hồi</option>
-        <option value="nutrition">Dinh dưỡng</option>
-        <option value="movement">Vận động</option>
-        <option value="mindset">Tinh thần</option>
-        <option value="other">Khác</option>
-      </select>
+      <Controller
+        control={control}
+        name="category"
+        render={({ field }) => (
+          <SelectField
+            tone="dark"
+            id={`habit-category-${idSuffix}`}
+            value={field.value ?? ""}
+            onChange={(event) => field.onChange(event.target.value)}
+            disabled={disabled}
+            className="mt-2 min-h-11 rounded-lg border border-slate-700 bg-slate-950 px-3 text-sm text-white focus-visible:border-orange-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400/30 disabled:opacity-50"
+          >
+            <option value="recovery">Phục hồi</option>
+            <option value="nutrition">Dinh dưỡng</option>
+            <option value="movement">Vận động</option>
+            <option value="mindset">Tinh thần</option>
+            <option value="other">Khác</option>
+          </SelectField>
+        )}
+      />
       {trainerMode && (
         <div className="mt-4 border-l-2 border-orange-400 bg-orange-500/5 px-4 py-3">
           <p className="text-sm font-semibold text-orange-200">
