@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
+import SEO from "../components/SEO";
+import { findNavigationTitle } from "../navigation/workspaceNavigation";
 import {
   Package,
   FileText,
@@ -31,6 +33,63 @@ import {
   ArrowRightLeft,
 } from "lucide-react";
 
+const ADMIN_NAV_GROUPS = [
+  {
+    key: "manage",
+    label: "Quản lý",
+    items: [
+      { path: "/admin/users", label: "Người dùng", icon: Users },
+      { path: "/admin/trainer-subscribers", label: "Huấn luyện viên", icon: Sparkles },
+      { path: "/admin/orders", label: "Đơn hàng", icon: Package },
+      { path: "/admin/contracts", label: "Hợp đồng HLV", icon: FileText },
+      { path: "/admin/bookings", label: "Đặt lịch", icon: ClipboardList },
+      { path: "/admin/deposits", label: "Nạp tiền", icon: Wallet },
+      { path: "/admin/f1-ai-rules", label: "Quy tắc phân tích F1", icon: BrainCircuit },
+      { path: "/admin/knowledge-base", label: "Kiến thức AI", icon: Brain },
+      { path: "/admin/contact-messages", label: "Liên hệ", icon: MessageSquare },
+    ],
+  },
+  {
+    key: "data",
+    label: "Kho dữ liệu",
+    items: [
+      { path: "/admin/exercises", label: "Bài tập", icon: Dumbbell },
+      { path: "/admin/foods", label: "Thực phẩm", icon: Apple },
+      { path: "/admin/gyms", label: "Phòng tập (CLB)", icon: Home },
+    ],
+  },
+  {
+    key: "content",
+    label: "Nội dung",
+    items: [
+      { path: "/admin/trainers", label: "Đội ngũ HLV", icon: Users2 },
+      { path: "/admin/recipes", label: "Công thức nấu ăn", icon: Utensils },
+      { path: "/admin/customer-stories", label: "Câu chuyện khách hàng", icon: BookOpenText },
+      { path: "/admin/blog", label: "Blog", icon: BookOpen },
+      { path: "/admin/exercise-suggestions", label: "Góp ý bài tập", icon: MessageSquareText },
+    ],
+  },
+  {
+    key: "interface",
+    label: "Giao diện",
+    items: [
+      { path: "/admin/site-settings", label: "Trang chủ", icon: LayoutTemplate },
+    ],
+  },
+  {
+    key: "activity",
+    label: "Hoạt động",
+    items: [
+      { path: "/admin/dashboard", label: "Lịch sử Check-in", icon: FileText },
+      { path: "/admin/seo-analytics", label: "SEO & Chuyển đổi", icon: ChartNoAxesCombined },
+      { path: "/admin/service-access-policies", label: "Quyền & hạn mức", icon: ShieldCheck },
+      { path: "/admin/trainer-coordination", label: "Điều phối HLV", icon: ArrowRightLeft },
+      { path: "/admin/practice-center", label: "Trung tâm thực hành", icon: FlaskConical },
+      { path: "/admin/skill-radar", label: "Radar công nghệ", icon: RadioTower },
+    ],
+  },
+];
+
 const SidebarContent = ({
   onItemClick,
   onSidebarToggle,
@@ -39,67 +98,10 @@ const SidebarContent = ({
 }) => {
   const location = useLocation();
 
-  const navGroups = [
-    {
-      key: "manage",
-      label: "Quản lý",
-      items: [
-        { path: "/admin/users", label: "Người dùng", icon: Users },
-        { path: "/admin/trainer-subscribers", label: "Huấn luyện viên", icon: Sparkles },
-        { path: "/admin/orders", label: "Đơn hàng", icon: Package },
-        { path: "/admin/contracts", label: "Hợp đồng HLV", icon: FileText },
-        { path: "/admin/bookings", label: "Đặt lịch", icon: ClipboardList },
-        { path: "/admin/deposits", label: "Nạp tiền", icon: Wallet },
-        { path: "/admin/f1-ai-rules", label: "Quy tắc phân tích F1", icon: BrainCircuit },
-        { path: "/admin/knowledge-base", label: "Kiến thức AI", icon: Brain },
-        { path: "/admin/contact-messages", label: "Liên hệ", icon: MessageSquare },
-      ],
-    },
-    {
-      key: "data",
-      label: "Kho dữ liệu",
-      items: [
-        { path: "/admin/exercises", label: "Bài tập", icon: Dumbbell },
-        { path: "/admin/foods", label: "Thực phẩm", icon: Apple },
-        { path: "/admin/gyms", label: "Phòng tập (CLB)", icon: Home },
-      ],
-    },
-    {
-      key: "content",
-      label: "Nội dung",
-      items: [
-        { path: "/admin/trainers", label: "Đội ngũ HLV", icon: Users2 },
-        { path: "/admin/recipes", label: "Công thức nấu ăn", icon: Utensils },
-        { path: "/admin/customer-stories", label: "Câu chuyện khách hàng", icon: BookOpenText },
-        { path: "/admin/blog", label: "Blog", icon: BookOpen },
-        { path: "/admin/exercise-suggestions", label: "Góp ý bài tập", icon: MessageSquareText },
-      ],
-    },
-    {
-      key: "interface",
-      label: "Giao diện",
-      items: [
-        { path: "/admin/site-settings", label: "Trang chủ", icon: LayoutTemplate },
-      ],
-    },
-    {
-      key: "activity",
-      label: "Hoạt động",
-      items: [
-        { path: "/admin/dashboard", label: "Lịch sử Check-in", icon: FileText },
-        { path: "/admin/seo-analytics", label: "SEO & Chuyển đổi", icon: ChartNoAxesCombined },
-        { path: "/admin/service-access-policies", label: "Quyền & hạn mức", icon: ShieldCheck },
-        { path: "/admin/trainer-coordination", label: "Điều phối HLV", icon: ArrowRightLeft },
-        { path: "/admin/practice-center", label: "Trung tâm thực hành", icon: FlaskConical },
-        { path: "/admin/skill-radar", label: "Radar công nghệ", icon: RadioTower },
-      ],
-    },
-  ];
-
   // Auto-expand group containing active page
   const getInitialOpen = () => {
     const open = {};
-    navGroups.forEach((group) => {
+    ADMIN_NAV_GROUPS.forEach((group) => {
       const hasActive = group.items.some((item) => location.pathname === item.path);
       open[group.key] = hasActive;
     });
@@ -139,7 +141,7 @@ const SidebarContent = ({
 
       {/* Navigation Groups */}
       <div className="flex-1 space-y-2 overflow-y-auto">
-        {navGroups.map((group) => {
+        {ADMIN_NAV_GROUPS.map((group) => {
           const isOpen = !!openGroups[group.key];
           return (
             <div key={group.key}>
@@ -205,6 +207,8 @@ const SidebarContent = ({
 };
 
 const AdminLayout = () => {
+  const { pathname } = useLocation();
+  const pageTitle = findNavigationTitle(ADMIN_NAV_GROUPS, pathname, "Quản trị");
   const [isMobile, setIsMobile] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isDesktopCollapsed, setIsDesktopCollapsed] = useState(false);
@@ -223,6 +227,7 @@ const AdminLayout = () => {
   if (!isMobile) {
     return (
       <div className="flex min-h-screen bg-slate-100">
+        <SEO title={pageTitle} noindex />
         {/* Sidebar cố định với màu #1C2D42 */}
         <aside
           id="admin-desktop-sidebar"
@@ -267,6 +272,7 @@ const AdminLayout = () => {
   // Mobile/Tablet layout
   return (
     <div className="min-h-screen bg-slate-100 relative">
+      <SEO title={pageTitle} noindex />
       <button
         type="button"
         onClick={() => setIsSidebarOpen(true)}

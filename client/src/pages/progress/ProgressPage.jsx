@@ -8,8 +8,10 @@ import Footer from "../../sections/Footer/Footer";
 import Header from "../../sections/Header/Header";
 import { getMyProgress } from "../../services/progress.service";
 import { getVietnamDateKey } from "../../utils/vietnamDate";
+import ProgressEntitlementRequired from "./ProgressEntitlementRequired";
 import { ProgressSummary } from "./ProgressSummary";
 import {
+  isProgressEntitlementError,
   normalizeProgressDaysForSection,
   progressRangeLabel,
   progressRangeOptions,
@@ -77,9 +79,11 @@ const ProgressPage = ({ embedded = false }) => {
         <div className="mx-auto max-w-6xl space-y-5">
           {query.isLoading ? (
             <LoadingState />
+          ) : isProgressEntitlementError(query.error) ? (
+            <ProgressEntitlementRequired />
           ) : query.isError ? (
             <section className="rounded-2xl border border-red-900/60 bg-slate-950 p-6">
-              <h2 className="font-bold text-white">Không thể tải tổng quan</h2>
+              <h2 className="text-lg font-bold text-white">Không thể tải tổng quan</h2>
               <p className="mt-2 text-sm text-slate-400">
                 {query.error?.response?.data?.message ||
                   "Dữ liệu đang tạm gián đoạn."}

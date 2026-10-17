@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, useNavigate } from "react-router-dom";
+import { BrowserRouter, Navigate, Routes, Route, useNavigate } from "react-router-dom";
 import { useEffect, useState, useCallback, lazy, Suspense } from "react";
 
 import { AuthProvider } from "./context/AuthContext";
@@ -316,6 +316,7 @@ function AppContent() {
             </AdminRoute>
           }
         >
+          <Route index element={<Navigate to="users" replace />} />
           <Route path="orders" element={<Orders />} />
           <Route path="dashboard" element={<CheckinHistory />} />
           {/* Ẩn: trainer giờ dựa trên subscription, không tạo thủ công */}
