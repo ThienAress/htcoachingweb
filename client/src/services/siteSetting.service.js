@@ -34,3 +34,9 @@ export const removeSettingItemImage = (fieldName, itemKey, imageUrl) => {
     data: { fieldName, itemKey, imageUrl },
   });
 };
+
+export const savePricingGifts = (key, gifts) =>
+  api.put(`${API_URL}/pricing-gifts/${encodeURIComponent(key)}`, { gifts });
+
+export const resetPricingGifts = (key) =>
+  api.delete(`${API_URL}/pricing-gifts/${encodeURIComponent(key)}`);

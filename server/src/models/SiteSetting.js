@@ -62,6 +62,12 @@ const SiteSettingSchema = new mongoose.Schema(
       of: String,
       default: {},
     },
+    // Quà tặng trên bảng giá theo khóa tab-gói (xem utils/pricingGifts.js). Thiếu khóa = dùng quà mặc định ở giao diện.
+    pricingGifts: {
+      type: Map,
+      of: [String],
+      default: {},
+    },
   },
   { timestamps: true }
 );
