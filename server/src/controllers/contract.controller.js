@@ -200,7 +200,7 @@ export const downloadContract = async (req, res) => {
 };
 
 /**
- * PUT /api/contracts/:id/cancel — Hủy hợp đồng.
+ * POST /api/contracts/:id/cancel — Hủy hợp đồng (PUT cũ còn là bí danh).
  */
 export const cancelContract = async (req, res) => {
   try {

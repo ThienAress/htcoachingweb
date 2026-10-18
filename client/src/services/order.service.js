@@ -32,6 +32,6 @@ export const createOrder = (payload) => {
 
 export const updateOrder = (id, data) => api.put(`/orders/${id}`, data);
 
-export const approveOrder = (id) => api.put(`/orders/${id}/approve`);
+export const approveOrder = (id) => api.post(`/orders/${id}/approve`);
 
 export const deleteOrder = (id) => api.delete(`/orders/${id}`);

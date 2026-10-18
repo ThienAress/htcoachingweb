@@ -127,7 +127,7 @@ describe("Order explicit conversion origin", () => {
     ).send(orderPayload());
 
     const approved = await withAuth(
-      request(app).put(`/api/orders/${created.body.data._id}/approve`),
+      request(app).post(`/api/orders/${created.body.data._id}/approve`),
       admin.accessToken,
     );
     const stored = await Order.findById(created.body.data._id)
@@ -164,7 +164,7 @@ describe("Order explicit conversion origin", () => {
     });
 
     const approved = await withAuth(
-      request(app).put(`/api/orders/${pending._id}/approve`),
+      request(app).post(`/api/orders/${pending._id}/approve`),
       lead.accessToken,
     );
     expect(approved.status).toBe(200);
@@ -191,6 +191,28 @@ describe("Order explicit conversion origin", () => {
     );
   });
 
+  it("still approves a pending order through the deprecated PUT alias with the same result", async () => {
+    const lead = await createLeadAdmin({ email: "approval-alias-lead@example.com" });
+    const client = await createTestUser({ email: "approval-alias-client@example.com" });
+    const pending = await Order.create({
+      ...orderPayload({ email: client.user.email }),
+      userId: client.user._id,
+      status: "pending",
+      trainerId: null,
+      totalSessions: 12,
+    });
+
+    const approved = await withAuth(
+      request(app).put(`/api/orders/${pending._id}/approve`),
+      lead.accessToken,
+    );
+
+    expect(approved.status).toBe(200);
+    expect(approved.headers.deprecation).toBe("true");
+    expect(String(approved.body.data.trainerId)).toBe(String(lead.user._id));
+    expect((await Order.findById(pending._id).lean()).status).toBe("approved");
+  });
+
   it("does not approve a null assignment when no default lead is configured", async () => {
     vi.stubEnv("DEFAULT_ADMIN_TRAINER_ID", "");
     vi.stubEnv("ADMIN_EMAIL", "");
@@ -210,7 +232,7 @@ describe("Order explicit conversion origin", () => {
     });
 
     const response = await withAuth(
-      request(app).put(`/api/orders/${pending._id}/approve`),
+      request(app).post(`/api/orders/${pending._id}/approve`),
       admin.accessToken,
     );
 
