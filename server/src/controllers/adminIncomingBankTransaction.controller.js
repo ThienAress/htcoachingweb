@@ -7,6 +7,7 @@ import {
 import { WalletLedgerError } from "../services/walletLedger.service.js";
 import { safeLog } from "../utils/safeLogger.js";
 import { resolveDepositCreditSnapshot } from "../services/depositPolicy.service.js";
+import { DEFAULT_ERROR_MESSAGE } from "../utils/errorMessages.js";
 
 const LIST_STATUSES = new Set([
   "all",
@@ -45,7 +46,7 @@ const sendError = (res, error, event) => {
       error instanceof WalletLedgerError
         ? error.code
         : error.code || "FINANCIAL_OPERATION_FAILED",
-    message: status >= 500 ? "Lỗi hệ thống khi xử lý giao dịch" : error.message,
+    message: status >= 500 ? "Không thể xử lý giao dịch lúc này. Vui lòng thử lại." : error.message,
   });
 };
 
@@ -118,7 +119,7 @@ export const getIncomingBankTransactions = async (req, res) => {
     });
   } catch (error) {
     safeLog.error("financial.incoming_list_failed", error);
-    return res.status(500).json({ success: false, message: "Lỗi hệ thống" });
+    return res.status(500).json({ success: false, code: "INTERNAL_ERROR", message: DEFAULT_ERROR_MESSAGE });
   }
 };
 

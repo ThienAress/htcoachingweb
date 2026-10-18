@@ -20,6 +20,7 @@ import {
   serializeCoachingPlanMedia,
   serializeCoachingPlansMedia,
 } from "../services/coachingPrivateMedia.service.js";
+import { sendApiError } from "../utils/sendApiError.js";
 
 const MAX_CLIENT_FEEDBACK_TEXT_LENGTH = 5000;
 const privateResponse = (res) =>
@@ -138,10 +139,7 @@ export const submitFeedback = async (req, res) => {
         stripClientFeedbackMedia(req.body.exercises),
       );
     } catch (error) {
-      return res.status(400).json({
-        success: false,
-        message: error.message,
-      });
+      return sendApiError(res, error, "coaching.request_failed", { status: 400, exposeClientMessage: true });
     }
 
     if (clientFeedbackText !== undefined) {
@@ -326,10 +324,7 @@ export const upsertCoachingDay = async (req, res) => {
         existingPlan?.exercises || [],
       );
     } catch (error) {
-      return res.status(400).json({
-        success: false,
-        message: error.message,
-      });
+      return sendApiError(res, error, "coaching.request_failed", { status: 400, exposeClientMessage: true });
     }
 
     let plan;

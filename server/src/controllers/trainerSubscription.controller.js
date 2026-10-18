@@ -6,6 +6,7 @@ import { escapeRegex } from "../utils/escapeRegex.js";
 import { incrementMetric } from "../observability/metrics.js";
 import { safeLog } from "../utils/safeLogger.js";
 import { calculateRetentionDeadlines } from "../services/trainerSubscriptionLifecycle.service.js";
+import { DEFAULT_ERROR_MESSAGE } from "../utils/errorMessages.js";
 
 const httpError = (status, code, message) =>
   Object.assign(new Error(message), { status, code });
@@ -54,7 +55,7 @@ export const getAllSubscribers = async (req, res) => {
     });
   } catch (error) {
     safeLog.error("financial.subscription_list_failed", error);
-    return res.status(500).json({ success: false, message: "Lỗi hệ thống" });
+    return res.status(500).json({ success: false, code: "INTERNAL_ERROR", message: DEFAULT_ERROR_MESSAGE });
   }
 };
 
@@ -154,7 +155,7 @@ export const cancelSubscription = async (req, res) => {
       code: error.code || "SUBSCRIPTION_CANCEL_FAILED",
       message:
         (error.status || 500) >= 500
-          ? "Lỗi hệ thống khi hủy gói"
+          ? "Không thể hủy gói lúc này. Vui lòng thử lại."
           : error.message,
     });
   } finally {

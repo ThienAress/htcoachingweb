@@ -5,6 +5,7 @@ import { csrfProtection } from "../middlewares/csrf.js";
 import User from "../models/User.js";
 import { getServiceAccessPolicy } from "../constants/serviceAccessPolicies.js";
 import { resolveServiceAccessTier } from "../services/serviceAccessPolicy.service.js";
+import { DEFAULT_ERROR_MESSAGE } from "../utils/errorMessages.js";
 
 const router = express.Router();
 
@@ -40,7 +41,7 @@ router.get("/check", protect, async (req, res) => {
     });
   } catch (err) {
     safeLog.error("mealplan.access_check_failed", err);
-    res.status(500).json({ success: false, message: "Lỗi server" });
+    res.status(500).json({ success: false, code: "INTERNAL_ERROR", message: DEFAULT_ERROR_MESSAGE });
   }
 });
 
@@ -101,7 +102,7 @@ router.post("/record", protect, csrfProtection, async (req, res) => {
     });
   } catch (err) {
     safeLog.error("mealplan.generation_record_failed", err);
-    res.status(500).json({ success: false, message: "Lỗi server" });
+    res.status(500).json({ success: false, code: "INTERNAL_ERROR", message: DEFAULT_ERROR_MESSAGE });
   }
 });
 
