@@ -3,6 +3,7 @@ import { sendContractMail } from "../utils/sendMail.js";
 import { referencesSameDocument } from "../utils/mongooseReference.js";
 import { safeLog } from "../utils/safeLogger.js";
 import { errorHandler } from "../middlewares/errorHandler.js";
+import { sendApiError } from "../utils/sendApiError.js";
 
 const sendSigningError = (res, error) => {
   if (Number.isInteger(error?.statusCode) && error?.code) {
@@ -37,7 +38,7 @@ export const createContract = async (req, res) => {
     res.status(201).json({ success: true, data: contract });
   } catch (error) {
     const status = error.message.includes("không tồn tại") ? 404 : 400;
-    res.status(status).json({ success: false, message: error.message });
+    sendApiError(res, error, "contract.request_failed", { status, exposeClientMessage: true });
   }
 };
 
@@ -110,7 +111,7 @@ export const updateContract = async (req, res) => {
   } catch (error) {
     if (error.code && error.statusCode) return sendSigningError(res, error);
     const status = error.message.includes("không tồn tại") ? 404 : 400;
-    res.status(status).json({ success: false, message: error.message });
+    sendApiError(res, error, "contract.request_failed", { status, exposeClientMessage: true });
   }
 };
 
@@ -144,7 +145,7 @@ export const sendContract = async (req, res) => {
   } catch (error) {
     if (error.code && error.statusCode) return sendSigningError(res, error);
     const status = error.message.includes("không tồn tại") ? 404 : 400;
-    res.status(status).json({ success: false, message: error.message });
+    sendApiError(res, error, "contract.request_failed", { status, exposeClientMessage: true });
   }
 };
 
@@ -194,7 +195,7 @@ export const downloadContract = async (req, res) => {
     res.setHeader("Content-Disposition", `attachment; filename=hop-dong-${contract._id}.pdf`);
     stream.pipe(res);
   } catch (error) {
-    res.status(400).json({ success: false, message: error.message });
+    sendApiError(res, error, "contract.request_failed", { status: 400, exposeClientMessage: true });
   }
 };
 
@@ -212,7 +213,7 @@ export const cancelContract = async (req, res) => {
     res.json({ success: true, data: contract });
   } catch (error) {
     const status = error.message.includes("không tồn tại") ? 404 : 400;
-    res.status(status).json({ success: false, message: error.message });
+    sendApiError(res, error, "contract.request_failed", { status, exposeClientMessage: true });
   }
 };
 
@@ -254,7 +255,7 @@ export const deleteContract = async (req, res) => {
     res.json({ success: true, message: "Đã xóa hợp đồng" });
   } catch (error) {
     const status = error.message.includes("không tồn tại") ? 404 : 400;
-    res.status(status).json({ success: false, message: error.message });
+    sendApiError(res, error, "contract.request_failed", { status, exposeClientMessage: true });
   }
 };
 
@@ -290,6 +291,6 @@ export const clientDownloadContract = async (req, res) => {
     res.setHeader("Content-Disposition", `attachment; filename=hop-dong-${contract._id}.pdf`);
     stream.pipe(res);
   } catch (error) {
-    res.status(400).json({ success: false, message: error.message });
+    sendApiError(res, error, "contract.request_failed", { status: 400, exposeClientMessage: true });
   }
 };

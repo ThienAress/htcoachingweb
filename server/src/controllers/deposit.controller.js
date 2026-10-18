@@ -12,6 +12,7 @@ import {
   getCurrentDepositPolicy,
   resolveDepositCreditSnapshot,
 } from "../services/depositPolicy.service.js";
+import { DEFAULT_ERROR_MESSAGE } from "../utils/errorMessages.js";
 
 const depositSnapshotFields = (deposit) => {
   const snapshot = resolveDepositCreditSnapshot(deposit);
@@ -174,7 +175,7 @@ export const createDeposit = async (req, res) => {
     safeLog.error("financial.deposit_create_failed", err);
     return res.status(500).json({
       success: false,
-      message: "Lỗi hệ thống khi tạo yêu cầu nạp tiền",
+      message: "Không thể tạo yêu cầu nạp tiền lúc này. Vui lòng thử lại.",
     });
   }
 };
@@ -221,7 +222,7 @@ export const getDepositById = async (req, res) => {
     safeLog.error("financial.deposit_detail_failed", err);
     return res.status(500).json({
       success: false,
-      message: "Lỗi hệ thống",
+      message: DEFAULT_ERROR_MESSAGE,
     });
   }
 };
@@ -258,7 +259,7 @@ export const getMyDeposits = async (req, res) => {
     safeLog.error("financial.deposit_history_failed", err);
     return res.status(500).json({
       success: false,
-      message: "Lỗi hệ thống",
+      message: DEFAULT_ERROR_MESSAGE,
     });
   }
 };
@@ -286,7 +287,7 @@ export const getMyWallet = async (req, res) => {
     safeLog.error("financial.wallet_read_failed", err);
     return res.status(500).json({
       success: false,
-      message: "Lỗi hệ thống",
+      message: DEFAULT_ERROR_MESSAGE,
     });
   }
 };
@@ -325,7 +326,7 @@ export const confirmDeposit = async (req, res) => {
     safeLog.error("financial.deposit_confirm_failed", err);
     return res.status(500).json({
       success: false,
-      message: "Lỗi hệ thống",
+      message: DEFAULT_ERROR_MESSAGE,
     });
   }
 };

@@ -36,7 +36,7 @@ const sendCommandError = (res, error, event) => {
     message:
       error.statusCode
         ? error.message
-        : "Lỗi hệ thống khi xử lý lịch tập",
+        : "Không thể xử lý lịch tập lúc này. Vui lòng thử lại.",
   });
 };
 

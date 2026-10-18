@@ -17,7 +17,7 @@ const sendPolicyError = (res, error, event) => {
   return res.status(status).json({
     success: false,
     code: error.code || "DEPOSIT_POLICY_OPERATION_FAILED",
-    message: status >= 500 ? "Lỗi hệ thống khi xử lý chính sách nạp tiền" : error.message,
+    message: status >= 500 ? "Không thể xử lý chính sách nạp tiền lúc này. Vui lòng thử lại." : error.message,
   });
 };
 

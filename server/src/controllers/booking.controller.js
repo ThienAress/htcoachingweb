@@ -7,6 +7,7 @@ import { normalizeLeadAttribution } from "../models/leadAttribution.schema.js";
 import { incrementMetric } from "../observability/metrics.js";
 import { sendBookingNotificationToAdmin } from "../utils/sendMail.js";
 import { safeLog } from "../utils/safeLogger.js";
+import { DEFAULT_ERROR_MESSAGE } from "../utils/errorMessages.js";
 
 const STATUS_TRANSITIONS = {
   pending: new Set(["contacted", "cancelled"]),
@@ -40,7 +41,7 @@ const sendError = (res, error, event) => {
   return res.status(error.statusCode || 500).json({
     success: false,
     code: error.codeName,
-    message: error.statusCode ? error.message : "Lỗi hệ thống",
+    message: error.statusCode ? error.message : DEFAULT_ERROR_MESSAGE,
   });
 };
 

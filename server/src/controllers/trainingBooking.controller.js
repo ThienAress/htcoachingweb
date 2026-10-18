@@ -31,7 +31,7 @@ const sendError = (res, error, event) => {
     message:
       error.statusCode
         ? error.message
-        : "Lỗi hệ thống khi xử lý lịch đăng ký",
+        : "Không thể xử lý lịch đăng ký lúc này. Vui lòng thử lại.",
   });
 };
 
