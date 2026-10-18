@@ -96,7 +96,7 @@ describe("trainer subscription lifecycle", () => {
     const actor = await createTestUser({ email: "stale-catalog@example.com" });
 
     const response = await postAs(
-      "/api/trainer-subscriptions/purchase",
+      "/api/trainer-subscriptions",
       actor.accessToken,
       {
         planCode: "free",
@@ -123,7 +123,7 @@ describe("trainer subscription lifecycle", () => {
     body.catalogFingerprint = "b".repeat(64);
 
     const response = await postAs(
-      "/api/trainer-subscriptions/purchase",
+      "/api/trainer-subscriptions",
       actor.accessToken,
       body,
     );
@@ -142,7 +142,7 @@ describe("trainer subscription lifecycle", () => {
     const actor = await createTestUser({ email: "Trial.User@Example.com" });
 
     const activated = await postAs(
-      "/api/trainer-subscriptions/purchase",
+      "/api/trainer-subscriptions",
       actor.accessToken,
       confirmedPurchaseBody("free", "trial", "11111111-1111-4111-8111-111111111112"),
     );
@@ -182,7 +182,7 @@ describe("trainer subscription lifecycle", () => {
       { $set: { status: "expired", isActive: false } },
     );
     const repeated = await postAs(
-      "/api/trainer-subscriptions/purchase",
+      "/api/trainer-subscriptions",
       actor.accessToken,
       confirmedPurchaseBody("free", "trial", "11111111-1111-4111-8111-111111111113"),
     );
@@ -213,7 +213,7 @@ describe("trainer subscription lifecycle", () => {
   it("returns canonical entitlements with the active subscription", async () => {
     const actor = await createTestUser({ email: "free-entitlements@example.com" });
     await postAs(
-      "/api/trainer-subscriptions/purchase",
+      "/api/trainer-subscriptions",
       actor.accessToken,
       confirmedPurchaseBody(
         "free",
@@ -238,7 +238,7 @@ describe("trainer subscription lifecycle", () => {
       version: 0,
     });
     await postAs(
-      "/api/trainer-subscriptions/purchase",
+      "/api/trainer-subscriptions",
       actor.accessToken,
       confirmedPurchaseBody("free", "trial", "11111111-1111-4111-8111-111111111114"),
     );
@@ -253,7 +253,7 @@ describe("trainer subscription lifecycle", () => {
     });
 
     const upgraded = await postAs(
-      "/api/trainer-subscriptions/purchase",
+      "/api/trainer-subscriptions",
       actor.accessToken,
       confirmedPurchaseBody("standard", "month", "11111111-1111-4111-8111-111111111115"),
     );
@@ -285,7 +285,7 @@ describe("trainer subscription lifecycle", () => {
     });
 
     const response = await postAs(
-      "/api/trainer-subscriptions/purchase",
+      "/api/trainer-subscriptions",
       actor.accessToken,
       confirmedPurchaseBody(
         "free",
@@ -319,7 +319,7 @@ describe("trainer subscription lifecycle", () => {
       actor.accessToken,
     );
     const purchase = await postAs(
-      "/api/trainer-subscriptions/purchase",
+      "/api/trainer-subscriptions",
       actor.accessToken,
       confirmedPurchaseBody(
         "free",

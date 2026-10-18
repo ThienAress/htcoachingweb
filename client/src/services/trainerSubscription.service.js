@@ -4,7 +4,7 @@ export const getTrainerPlanCatalog = () =>
   api.get("/trainer-subscriptions/catalog");
 
 export const purchaseTrainerPlan = (payload) =>
-  api.post("/trainer-subscriptions/purchase", payload);
+  api.post("/trainer-subscriptions", payload);
 
 export const getMySubscription = ({ signal } = {}) =>
   api.get("/trainer-subscriptions/my", { signal });

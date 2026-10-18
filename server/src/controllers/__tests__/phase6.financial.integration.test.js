@@ -322,12 +322,12 @@ describe("Phase 6 financial state machines", () => {
     };
 
     const purchased = await postAs(
-      "/api/trainer-subscriptions/purchase",
+      "/api/trainer-subscriptions",
       actor.accessToken,
       body,
     );
     const repeated = await postAs(
-      "/api/trainer-subscriptions/purchase",
+      "/api/trainer-subscriptions",
       actor.accessToken,
       body,
     );
