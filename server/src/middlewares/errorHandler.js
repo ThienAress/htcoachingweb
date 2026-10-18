@@ -40,6 +40,14 @@ export const errorHandler = (err, req, res, next) => {
     return send(400, "VALIDATION_FAILED", "Dữ liệu chưa hợp lệ. Vui lòng kiểm tra lại các thông tin đã nhập.");
   }
 
+  // Mã (ObjectId) sai định dạng: bản ghi không thể tồn tại nên trả 404; giá trị sai kiểu ở chỗ khác là dữ liệu không hợp lệ.
+  if (err.name === "CastError") {
+    if (err.path === "_id" || err.kind === "ObjectId") {
+      return send(404, "NOT_FOUND", messageForStatus(404));
+    }
+    return send(400, "VALIDATION_FAILED", "Dữ liệu chưa hợp lệ. Vui lòng kiểm tra lại các thông tin đã nhập.");
+  }
+
   // Lỗi duplicate key (unique): không lộ tên trường trong database
   if (err.code === 11000) {
     return send(409, "DUPLICATE_VALUE", "Thông tin này đã tồn tại. Vui lòng kiểm tra lại.");
