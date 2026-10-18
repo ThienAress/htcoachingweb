@@ -22,6 +22,12 @@ paths:
   URL public kebab-case tiếng Việt không dấu (`/ket-qua-khach-hang`).
 - Page public: theo `.claude/rules/seo.md`. Sửa UI: dùng skill `ui-quality`.
 
+## Ô chọn và hộp thoại
+
+- Không dùng `<select>`, `window.confirm` hoặc `alert` gốc của trình duyệt: danh sách thả xuống không bo góc, hộp thoại không theo giao diện.
+  Dùng `SelectField`/`RoundedSelect` và `useConfirmDialog` (`client/src/hooks/useConfirmDialog.jsx`).
+- Cổng `client/src/__tests__/nativeDialogs.contract.test.js` chặn file mới và chặn số lần tăng; file cũ nằm trong danh sách nợ, chuyển xong thì xóa khỏi danh sách.
+
 ## Overflow và scrollbar
 
 - Vùng `overflow-auto|scroll|x-auto|y-auto` dùng shared scrollbar tokens trong `client/src/index.css`;
