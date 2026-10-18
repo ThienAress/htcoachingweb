@@ -26,6 +26,7 @@ Nền tảng coaching thể hình: website public (SEO), workspace HLV/admin, c�
 - `e2e/` Playwright · `workers/` Cloudflare watchdog · `scripts/` release/ops/security gates · `docs/` tài liệu.
 - Luồng backend: route → controller → service → model. Frontend gọi API qua `client/src/services/*.service.js`
   và axios instance `client/src/utils/api.js`.
+- Đặt tên endpoint: `.claude/rules/api-design.md` (ADR 0002); cổng `server/src/routes/__tests__/apiNaming.contract.test.js`.
 - HT Assistant nằm ở `server/src/services/ai/` (provider deepseek/gemini/mock) và `client/src/components/ChatWidget/`.
 - Deploy: frontend Netlify, backend Render (Docker, `server/Dockerfile`). Node version lấy từ `.node-version`.
 - Từ vựng nghiệp vụ canonical: `CONTEXT.md` (User vs Coaching Customer, Trainer, Effective Coach,
