@@ -13,6 +13,7 @@ import {
   stopAiChatStreamSession,
 } from "./aiChatStreamPacer.js";
 import { isAllowedAiUiCard } from "../components/ChatWidget/aiCardPolicy.js";
+import { getUserErrorMessage } from "../utils/errorMessages";
 
 const STREAM_FLUSH_MS = 80;
 
@@ -760,7 +761,7 @@ export default function useAiChat({
           updateView(activeSession.viewKey, (view) => ({
             error: staleConversation
               ? "Cuộc trò chuyện này không còn tồn tại. Hãy bắt đầu cuộc trò chuyện mới rồi gửi lại câu hỏi."
-              : requestError.message || "Không thể kết nối tới server",
+              : getUserErrorMessage(requestError, "Không thể kết nối. Hãy kiểm tra mạng rồi thử lại."),
             terminalOutcome: "error",
             retryableFailedLocalId: retryableTransportError
               ? activeSession.userLocalId

@@ -39,6 +39,7 @@ import {
   getVietnamDateKey,
 } from "../../utils/vietnamDate";
 import WorkspacePageHeader from "../../components/WorkspacePageHeader";
+import { getUserErrorMessage } from "../../utils/errorMessages";
 
 
 
@@ -360,7 +361,7 @@ const TrainerCoaching = ({ embedded = false }) => {
         await handleSelectClient(selectedClient);
         return;
       }
-      toast.error(err.response?.data?.message || "Lưu giáo án thất bại");
+      toast.error(getUserErrorMessage(err, "Lưu giáo án thất bại"));
     } finally {
       setIsSaving(false);
     }

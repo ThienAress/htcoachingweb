@@ -33,6 +33,7 @@ import { getAdminTrainers } from "../../services/trainer.service";
 import CustomerStoryDetail from "../CustomerStoryDetail";
 import { useDebounce } from "../../hooks/useDebounce";
 import SelectField from "../../components/SelectField";
+import { getUserErrorMessage } from "../../utils/errorMessages";
 
 const getPreviewData = (form, API_ORIGIN) => {
   const getUrl = (url) => (url && url.startsWith("/uploads/") ? `${API_ORIGIN}${url}` : url);
@@ -296,7 +297,7 @@ const CustomerStoryManagement = () => {
       if (err.response?.status === 409 && err.response?.data?.existingStoryId) {
         setConfirmModal({ isOpen: true, existingStoryId: err.response.data.existingStoryId });
       } else {
-        toast.error(err.response?.data?.message || "Lỗi tạo câu chuyện");
+        toast.error(getUserErrorMessage(err, "Không thể tạo câu chuyện. Vui lòng thử lại."));
       }
     },
   });
@@ -322,7 +323,7 @@ const CustomerStoryManagement = () => {
       closeModal();
     },
     onError: (err) =>
-      toast.error(err.response?.data?.message || "Lỗi cập nhật câu chuyện"),
+      toast.error(getUserErrorMessage(err, "Không thể cập nhật câu chuyện. Vui lòng thử lại.")),
   });
 
   const statusMutation = useMutation({
@@ -333,7 +334,7 @@ const CustomerStoryManagement = () => {
       queryClient.invalidateQueries({ queryKey: ["public-customer-stories"] });
     },
     onError: (err) =>
-      toast.error(err.response?.data?.message || "Lỗi cập nhật trạng thái"),
+      toast.error(getUserErrorMessage(err, "Không thể cập nhật trạng thái. Vui lòng thử lại.")),
   });
 
   const deleteMutation = useMutation({
@@ -344,7 +345,7 @@ const CustomerStoryManagement = () => {
       queryClient.invalidateQueries({ queryKey: ["public-customer-stories"] });
     },
     onError: (err) =>
-      toast.error(err.response?.data?.message || "Lỗi xóa câu chuyện"),
+      toast.error(getUserErrorMessage(err, "Không thể xóa câu chuyện. Vui lòng thử lại.")),
   });
 
   const updateForm = (field, value) => {
@@ -369,7 +370,7 @@ const CustomerStoryManagement = () => {
       updateForm(field, imageUrl);
       toast.success("Upload ảnh thành công");
     } catch (err) {
-      toast.error(err.response?.data?.message || "Lỗi upload ảnh");
+      toast.error(getUserErrorMessage(err, "Không thể tải lên ảnh. Vui lòng thử lại."));
     } finally {
       setUploadingField("");
     }
@@ -470,7 +471,7 @@ const CustomerStoryManagement = () => {
       updateMilestone(index, field, imageUrl);
       toast.success("Upload ảnh thành công");
     } catch (err) {
-      toast.error(err.response?.data?.message || "Lỗi upload ảnh");
+      toast.error(getUserErrorMessage(err, "Không thể tải lên ảnh. Vui lòng thử lại."));
     } finally {
       setUploadingField("");
     }
@@ -496,7 +497,7 @@ const CustomerStoryManagement = () => {
       }
       createMutation.mutate(payload);
     } catch (err) {
-      toast.error(err.message);
+      toast.error(getUserErrorMessage(err, "Dữ liệu chưa hợp lệ. Vui lòng kiểm tra lại."));
     }
   };
 
@@ -616,7 +617,7 @@ const CustomerStoryManagement = () => {
                       const imageUrl = res.data?.data?.url;
                       if (imageUrl) uploaded.push(imageUrl);
                     } catch (err) {
-                      toast.error(`Lỗi upload ${file.name}: ${err.response?.data?.message || "Lỗi không xác định"}`);
+                      toast.error(`Không tải lên được ${file.name}. ${getUserErrorMessage(err, "Vui lòng thử lại.")}`);
                     }
                   }
                   if (uploaded.length) {
@@ -702,7 +703,7 @@ const CustomerStoryManagement = () => {
                       const imageUrl = res.data?.data?.url;
                       if (imageUrl) uploaded.push(imageUrl);
                     } catch (err) {
-                      toast.error(`Lỗi upload ${file.name}: ${err.response?.data?.message || "Lỗi không xác định"}`);
+                      toast.error(`Không tải lên được ${file.name}. ${getUserErrorMessage(err, "Vui lòng thử lại.")}`);
                     }
                   }
                   if (uploaded.length) {

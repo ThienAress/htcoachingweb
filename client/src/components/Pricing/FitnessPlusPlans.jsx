@@ -13,6 +13,7 @@ import { applyFitnessPlusPurchaseResponse, fitnessPlusCatalogQueryOptions, myFit
 import { createFitnessPlusPurchasePayload } from "../../utils/fitnessPlusCatalog";
 import PricingSegmentedControl from "./PricingSegmentedControl";
 import { useModalScrollLock } from "../../hooks/useModalScrollLock";
+import { getUserErrorMessage } from "../../utils/errorMessages";
 
 const FITNESS_PLUS_CATALOG_CHANGED_CODE = "FITNESS_PLUS_CATALOG_CHANGED";
 
@@ -99,8 +100,7 @@ export default function FitnessPlusPlans({ billingCycle, onBillingCycleChange })
           t("pricing.fitness_plus.checkout_failed"),
       });
       toast.error(
-        error.response?.data?.message ||
-          t("pricing.fitness_plus.checkout_failed"),
+        getUserErrorMessage(error, t("pricing.fitness_plus.checkout_failed")),
       );
       if (errorCode === FITNESS_PLUS_CATALOG_CHANGED_CODE) {
         requestIdRef.current = null;

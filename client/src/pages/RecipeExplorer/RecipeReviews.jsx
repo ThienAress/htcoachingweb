@@ -8,6 +8,7 @@ import { toast } from "react-toastify";
 import { deleteRecipeReview, saveRecipeReview } from "../../services/recipe.service";
 import { useAuth } from "../../context/AuthContext";
 import { recipeReviewsQueryOptions } from "../../queries/recipe.queries";
+import { getUserErrorMessage } from "../../utils/errorMessages";
 
 const Stars = ({ value, onChange, readOnly = false, label }) => (
   <div className="flex items-center gap-1" aria-label={label}>
@@ -48,7 +49,7 @@ const RecipeReviews = ({ recipeId }) => {
     },
     onError: (error) =>
       toast.error(
-        error.response?.data?.message || t("detail.reviews.save_error"),
+        getUserErrorMessage(error, t("detail.reviews.save_error")),
       ),
   });
   const deleteMutation = useMutation({
@@ -60,7 +61,7 @@ const RecipeReviews = ({ recipeId }) => {
     },
     onError: (error) =>
       toast.error(
-        error.response?.data?.message || "Không thể xóa đánh giá công thức",
+        getUserErrorMessage(error, "Không thể xóa đánh giá công thức"),
       ),
   });
 

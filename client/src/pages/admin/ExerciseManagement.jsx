@@ -34,6 +34,7 @@ import ExerciseTechnicalDifficultyFields from "./ExerciseTechnicalDifficultyFiel
 import ExerciseVideoUploadField from "./ExerciseVideoUploadField";
 import ExerciseInstructionsImportModal from "./ExerciseInstructionsImportModal";
 import SelectField from "../../components/SelectField";
+import { getUserErrorMessage } from "../../utils/errorMessages";
 
 const ExerciseManagement = () => {
   const queryClient = useQueryClient();
@@ -80,7 +81,7 @@ const ExerciseManagement = () => {
       invalidateByKey(queryClient, adminQueryKeys.exercises.all());
     },
     onError: (err) =>
-      toast.error(err.response?.data?.message || "Lỗi khi thêm"),
+      toast.error(getUserErrorMessage(err, "Không thể thêm. Vui lòng thử lại.")),
   });
   const updateMutation = useMutation({
     mutationFn: ({ id, data }) => updateExercise(id, data),
@@ -90,7 +91,7 @@ const ExerciseManagement = () => {
       invalidateByKey(queryClient, adminQueryKeys.exercises.all());
     },
     onError: (err) =>
-      toast.error(err.response?.data?.message || "Lỗi cập nhật"),
+      toast.error(getUserErrorMessage(err, "Không thể cập nhật. Vui lòng thử lại.")),
   });
   const deleteMutation = useMutation({
     mutationFn: deleteExercise,
@@ -98,7 +99,7 @@ const ExerciseManagement = () => {
       toast.success(" Xóa thành công");
       invalidateByKey(queryClient, adminQueryKeys.exercises.all());
     },
-    onError: (err) => toast.error(err.response?.data?.message || "Lỗi xóa"),
+    onError: (err) => toast.error(getUserErrorMessage(err, "Không thể xóa. Vui lòng thử lại.")),
   });
   const batchMutation = useMutation({
     mutationFn: createManyExercises,
@@ -109,7 +110,7 @@ const ExerciseManagement = () => {
       invalidateByKey(queryClient, adminQueryKeys.exercises.all());
     },
     onError: (err) =>
-      toast.error(err.response?.data?.message || "Lỗi thêm hàng loạt"),
+      toast.error(getUserErrorMessage(err, "Không thể thêm hàng loạt. Vui lòng thử lại.")),
   });
   const videoUploadMutation = useMutation({
     mutationFn: ({ id, file }) => uploadExerciseVideo(id, file),
@@ -122,7 +123,7 @@ const ExerciseManagement = () => {
       invalidateByKey(queryClient, adminQueryKeys.exercises.all());
     },
     onError: (error) =>
-      toast.error(error.response?.data?.message || "Lỗi upload video"),
+      toast.error(getUserErrorMessage(error, "Không thể tải lên video. Vui lòng thử lại.")),
   });
   const videoDeleteMutation = useMutation({
     mutationFn: deleteExerciseVideo,
@@ -132,7 +133,7 @@ const ExerciseManagement = () => {
       invalidateByKey(queryClient, adminQueryKeys.exercises.all());
     },
     onError: (error) =>
-      toast.error(error.response?.data?.message || "Lỗi xóa video"),
+      toast.error(getUserErrorMessage(error, "Không thể xóa video. Vui lòng thử lại.")),
   });
 
   const resetModal = () => {

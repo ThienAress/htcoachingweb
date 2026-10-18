@@ -18,6 +18,7 @@ import {
   getLatestAiReport,
 } from "../../services/f1Customer.service";
 import { toast } from "react-toastify";
+import { getUserErrorMessage } from "../../utils/errorMessages";
 
 const READINESS_LABELS = {
   pending: "Chờ đánh giá",
@@ -454,7 +455,7 @@ const F1AiReportPanel = ({ customer, onBack, onGenerated, onOpenResultPrediction
       toast.success("Tạo phân tích tự động thành công");
       onGenerated?.(res?.data);
     } catch (error) {
-      toast.error(error?.response?.data?.message || "Tạo phân tích tự động thất bại");
+      toast.error(getUserErrorMessage(error, "Tạo phân tích tự động thất bại"));
     } finally {
       setGenerating(false);
     }

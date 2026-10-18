@@ -16,6 +16,7 @@ import { useTranslation } from "react-i18next";
 
 import { getMyCheckins } from "../services/checkin.service";
 import { resolveInitialCustomerDashboardTheme } from "../utils/customerDashboardTheme";
+import { getUserErrorMessage } from "../utils/errorMessages";
 
 const MyHistory = () => {
   const { t, i18n } = useTranslation("account");
@@ -45,7 +46,7 @@ const MyHistory = () => {
         data-theme={customerTheme}
       >
         <div className="p-6 text-center text-red-500 bg-red-50 rounded-xl border border-red-200">
-          {t("profile.errors.fetch_failed")}: {error?.message}
+          {getUserErrorMessage(error, t("profile.errors.fetch_failed"))}
           <button
             onClick={() => refetch()}
             className="ml-4 px-3 py-1 bg-blue-500 text-white rounded"

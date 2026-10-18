@@ -27,6 +27,7 @@ import {
 import { utcToLocalDateTime, localDateTimeToUTC } from "../../utils/date";
 import { useDebounce } from "../../hooks/useDebounce";
 import SelectField from "../../components/SelectField";
+import { getUserErrorMessage } from "../../utils/errorMessages";
 
 const CheckinHistory = () => {
   const queryClient = useQueryClient();
@@ -99,7 +100,7 @@ const CheckinHistory = () => {
       toast.success("Xóa check-in thành công");
       invalidateByKey(queryClient, adminQueryKeys.checkins.all());
     },
-    onError: (err) => toast.error(err.message),
+    onError: (err) => toast.error(getUserErrorMessage(err, "Không thực hiện được. Vui lòng thử lại.")),
   });
 
   // Update mutation
@@ -110,7 +111,7 @@ const CheckinHistory = () => {
       setShowModal(false);
       invalidateByKey(queryClient, adminQueryKeys.checkins.all());
     },
-    onError: (err) => toast.error(err.message),
+    onError: (err) => toast.error(getUserErrorMessage(err, "Không thực hiện được. Vui lòng thử lại.")),
   });
 
   const handleDelete = (id) => {

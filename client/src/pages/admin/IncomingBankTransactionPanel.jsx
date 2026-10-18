@@ -29,6 +29,7 @@ import {
 } from "./depositAdmin.ui";
 import IncomingBankTransactionPagination from "./IncomingBankTransactionPagination";
 import SelectField from "../../components/SelectField";
+import { getUserErrorMessage } from "../../utils/errorMessages";
 
 const IncomingBankTransactionPanel = () => {
   const queryClient = useQueryClient();
@@ -85,7 +86,7 @@ const IncomingBankTransactionPanel = () => {
       closeAction();
     },
     onError: (error) =>
-      toast.error(error.response?.data?.message || "Không thể xử lý giao dịch"),
+      toast.error(getUserErrorMessage(error, "Không thể xử lý giao dịch")),
   });
 
   const items = incomingQuery.data?.items || [];

@@ -15,6 +15,7 @@ import {
   parseDepositMinimumDraft,
 } from "../../../utils/depositPolicy";
 import { invalidateDepositPolicy } from "../../../queries/walletAccount.queries";
+import { getUserErrorMessage } from "../../../utils/errorMessages";
 
 const QUERY_KEY = ["admin-deposit-policy"];
 const DEFAULT_NAMES = { starter: "Khởi đầu", growth: "Tăng tốc", premium: "Tối ưu" };
@@ -89,7 +90,7 @@ const DepositPolicyEditor = () => {
       toast.success(response.data.message);
     },
     onError: (error) =>
-      toast.error(error.response?.data?.message || "Không thể cập nhật chính sách thưởng"),
+      toast.error(getUserErrorMessage(error, "Không thể cập nhật chính sách thưởng")),
   });
 
   if (policyQuery.isPending) {

@@ -40,6 +40,7 @@ import {
   getAiPageContext,
   getAiPageSuggestions,
 } from "../../config/aiPageContext";
+import { getUserErrorMessage } from "../../utils/errorMessages";
 
 // eslint-disable-next-line react-refresh/only-export-components
 export function getPageType(pathname) {
@@ -338,7 +339,7 @@ export default function ChatPanel({ initiallyOpen = false }) {
     try {
       setSelectedImage(await compressChatImage(file));
     } catch (imageError) {
-      toast.error(imageError.message);
+      toast.error(getUserErrorMessage(imageError, "Không xử lý được ảnh. Vui lòng chọn ảnh khác."));
     }
     e.target.value = "";
   };

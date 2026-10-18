@@ -9,6 +9,7 @@ import {
 } from "../../../services/trainerSubscription.service";
 import { useTrainerPlanCatalog } from "../../../hooks/useTrainerPlanCatalog";
 import SelectField from "../../../components/SelectField";
+import { getUserErrorMessage } from "../../../utils/errorMessages";
 
 
 const TrainerGrantPanel = () => {
@@ -69,7 +70,7 @@ const TrainerGrantPanel = () => {
       refreshLists();
     },
     onError: (error) =>
-      toast.error(error.response?.data?.message || "Không thể cấp gói"),
+      toast.error(getUserErrorMessage(error, "Không thể cấp gói")),
   });
 
   const revokeMutation = useMutation({
@@ -79,7 +80,7 @@ const TrainerGrantPanel = () => {
       refreshLists();
     },
     onError: (error) =>
-      toast.error(error.response?.data?.message || "Không thể thu hồi gói"),
+      toast.error(getUserErrorMessage(error, "Không thể thu hồi gói")),
   });
 
   const handlePlanChange = (event) => {

@@ -43,6 +43,7 @@ import { getOrderStatusMeta } from "../../constants/orderStatus";
 import { useAuth } from "../../context/AuthContext";
 import { useConversionOriginOptions } from "../../hooks/useConversionOriginOptions";
 import ConversionOriginFields from "../../components/admin/ConversionOriginFields";
+import { getUserErrorMessage } from "../../utils/errorMessages";
 
 const orderSchema = z
   .object({
@@ -198,9 +199,7 @@ const Orders = ({ embedded = false }) => {
     },
     onError: (err) =>
       toast.error(
-        err.response?.data?.message ||
-          err.response?.data?.errors?.[0]?.msg ||
-          "Lỗi hệ thống",
+        getUserErrorMessage(err, "Không thể thực hiện thao tác. Vui lòng thử lại."),
       ),
   });
 
@@ -212,7 +211,7 @@ const Orders = ({ embedded = false }) => {
       resetForm();
     },
     onError: (err) =>
-      toast.error(err.response?.data?.message || "Lỗi hệ thống"),
+      toast.error(getUserErrorMessage(err, "Không thể thực hiện thao tác. Vui lòng thử lại.")),
   });
 
   const approveOrderMutation = useMutation({
@@ -222,7 +221,7 @@ const Orders = ({ embedded = false }) => {
       toast.success("Đã xác nhận đơn hàng");
     },
     onError: (err) =>
-      toast.error(err.response?.data?.message || "Lỗi xác nhận"),
+      toast.error(getUserErrorMessage(err, "Không thể xác nhận. Vui lòng thử lại.")),
   });
 
   const deleteOrderMutation = useMutation({
@@ -231,7 +230,7 @@ const Orders = ({ embedded = false }) => {
       invalidateByKey(queryClient, adminQueryKeys.orders.all());
       toast.success("Đã xóa đơn hàng");
     },
-    onError: (err) => toast.error(err.response?.data?.message || "Lỗi xóa"),
+    onError: (err) => toast.error(getUserErrorMessage(err, "Không thể xóa. Vui lòng thử lại.")),
   });
 
   const createContractMutation = useMutation({
@@ -241,7 +240,7 @@ const Orders = ({ embedded = false }) => {
       toast.success("Tạo hợp đồng thành công!");
       navigate(isAdmin ? "/admin/contracts" : "/trainer/contracts");
     },
-    onError: (err) => toast.error(err.response?.data?.message || "Lỗi tạo hợp đồng"),
+    onError: (err) => toast.error(getUserErrorMessage(err, "Không thể tạo hợp đồng. Vui lòng thử lại.")),
   });
 
   const onSubmit = useCallback(
@@ -319,7 +318,7 @@ const Orders = ({ embedded = false }) => {
         }
       >
         <div className="text-center py-12 bg-white rounded-lg shadow">
-          <p className="text-red-500">Lỗi tải dữ liệu: {error?.message}</p>
+          <p className="text-red-500">{getUserErrorMessage(error, "Không tải được dữ liệu. Vui lòng thử lại.")}</p>
           <button
             onClick={() => refetch()}
             className="mt-4 min-h-11 rounded-lg bg-red-500 px-4 py-2 text-white hover:bg-red-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400"

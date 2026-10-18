@@ -31,6 +31,7 @@ import {
   deleteContactMessage,
 } from "../../services/contact.service";
 import SelectField from "../../components/SelectField";
+import { getUserErrorMessage } from "../../utils/errorMessages";
 
 // ================= COMPONENT =================
 const ContactMessages = () => {
@@ -92,7 +93,7 @@ const ContactMessages = () => {
       invalidateByKey(queryClient, adminQueryKeys.contactMessages.all());
     },
     onError: (err) =>
-      toast.error(err.response?.data?.message || "Cập nhật thất bại"),
+      toast.error(getUserErrorMessage(err, "Cập nhật thất bại")),
   });
 
   const deleteMutation = useMutation({
@@ -102,7 +103,7 @@ const ContactMessages = () => {
       invalidateByKey(queryClient, adminQueryKeys.contactMessages.all());
     },
     onError: (err) =>
-      toast.error(err.response?.data?.message || "Xóa thất bại"),
+      toast.error(getUserErrorMessage(err, "Xóa thất bại")),
   });
 
   // ================= HANDLER =================
@@ -136,7 +137,7 @@ const ContactMessages = () => {
     return (
       <div className="min-h-screen bg-gray-50 p-4 md:p-6">
         <div className="text-center py-12 bg-white rounded-lg shadow">
-          <p className="text-red-500">Lỗi tải dữ liệu: {error?.message}</p>
+          <p className="text-red-500">{getUserErrorMessage(error, "Không tải được dữ liệu. Vui lòng thử lại.")}</p>
           <button
             onClick={() => window.location.reload()}
             className="mt-4 px-4 py-2 bg-red-500 text-white rounded-lg"

@@ -36,6 +36,7 @@ import {
 } from "../../utils/vietnamDate";
 import WorkspacePageHeader from "../../components/WorkspacePageHeader";
 import SelectField from "../../components/SelectField";
+import { getUserErrorMessage } from "../../utils/errorMessages";
 
 // ===== CONSTANTS =====
 const DAY_LABELS = ["Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7", "CN"];
@@ -411,7 +412,7 @@ const TrainingSchedule = ({ embedded = false }) => {
       if (err.response?.status === 409) {
         queryClient.invalidateQueries({ queryKey: ["training-schedules"] });
       }
-      toast.error(err.response?.data?.message || "Lỗi khi tạo lịch tập");
+      toast.error(getUserErrorMessage(err, "Không thể tạo lịch tập. Vui lòng thử lại."));
     },
   });
 
@@ -422,7 +423,7 @@ const TrainingSchedule = ({ embedded = false }) => {
       if (err.response?.status === 409) {
         queryClient.invalidateQueries({ queryKey: ["training-schedules"] });
       }
-      toast.error(err.response?.data?.message || "Lỗi khi cập nhật");
+      toast.error(getUserErrorMessage(err, "Không thể cập nhật. Vui lòng thử lại."));
     },
   });
 
@@ -433,14 +434,14 @@ const TrainingSchedule = ({ embedded = false }) => {
       if (err.response?.status === 409) {
         queryClient.invalidateQueries({ queryKey: ["training-schedules"] });
       }
-      toast.error(err.response?.data?.message || "Lỗi khi hủy");
+      toast.error(getUserErrorMessage(err, "Không thể hủy. Vui lòng thử lại."));
     },
   });
 
   const clearMut = useMutation({
     mutationFn: (data) => clearAllSchedules(data),
     onSuccess: (res) => { toast.success(res.data.message || "Đã hủy tất cả!"); queryClient.invalidateQueries({ queryKey: ["training-schedules"] }); setConfirmAction(null); },
-    onError: (err) => toast.error(err.response?.data?.message || "Lỗi"),
+    onError: (err) => toast.error(getUserErrorMessage(err, "Không thực hiện được. Vui lòng thử lại.")),
   });
 
   const today = useMemo(() => { const d = new Date().getDay(); return d === 0 ? 6 : d - 1; }, []);
@@ -540,7 +541,7 @@ const TrainingSchedule = ({ embedded = false }) => {
         {!embedded && <Header />}
         <div className={`${embedded ? "min-h-[60vh]" : "min-h-screen"} bg-gradient-to-br from-gray-900 via-gray-800 to-black flex items-center justify-center`}>
           <div className="text-center text-white">
-            <p className="text-red-400 mb-4">Lỗi tải dữ liệu: {error?.message}</p>
+            <p className="text-red-400 mb-4">{getUserErrorMessage(error, "Không tải được dữ liệu. Vui lòng thử lại.")}</p>
             <button onClick={() => refetch()} className="px-4 py-2 bg-primary text-white rounded-lg">Thử lại</button>
           </div>
         </div>

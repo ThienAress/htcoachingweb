@@ -24,6 +24,7 @@ import { getWorkoutPlanWorkspacePath } from "../../navigation/workspaceNavigatio
 import { resolveInitialCustomerDashboardTheme } from "../../utils/customerDashboardTheme";
 import WorkspacePageHeader from "../../components/WorkspacePageHeader";
 import SelectField from "../../components/SelectField";
+import { getUserErrorMessage } from "../../utils/errorMessages";
 
 // ===== STATUS CONFIG =====
 const STATUS_MAP = {
@@ -99,7 +100,7 @@ const WorkoutPlan = ({ embedded = false }) => {
       toast.success(t("plans.toasts.delete_success"));
       queryClient.invalidateQueries({ queryKey: ["workout-plans"] });
     },
-    onError: (err) => toast.error(err.response?.data?.message || t("plans.toasts.delete_failed")),
+    onError: (err) => toast.error(getUserErrorMessage(err, t("plans.toasts.delete_failed"))),
   });
 
   const duplicateMut = useMutation({
@@ -108,7 +109,7 @@ const WorkoutPlan = ({ embedded = false }) => {
       toast.success(t("plans.toasts.duplicate_success"));
       queryClient.invalidateQueries({ queryKey: ["workout-plans"] });
     },
-    onError: (err) => toast.error(err.response?.data?.message || t("plans.toasts.duplicate_failed")),
+    onError: (err) => toast.error(getUserErrorMessage(err, t("plans.toasts.duplicate_failed"))),
   });
 
   const handleDelete = (plan) => {

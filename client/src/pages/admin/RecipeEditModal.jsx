@@ -13,6 +13,7 @@ import {
   recipeNutritionPayload,
 } from "./recipeNutritionForm";
 import SelectField from "../../components/SelectField";
+import { getUserErrorMessage } from "../../utils/errorMessages";
 
 const ingredientLines = (ingredients = []) =>
   ingredients
@@ -148,7 +149,7 @@ const RecipeEditModal = ({ recipe, onClose }) => {
       queryClient.invalidateQueries({ queryKey: ["recipes"] });
       onClose();
     } catch (err) {
-      toast.error(err.response?.data?.message || "Có lỗi xảy ra khi cập nhật");
+      toast.error(getUserErrorMessage(err, "Có lỗi xảy ra khi cập nhật"));
     }
   };
 

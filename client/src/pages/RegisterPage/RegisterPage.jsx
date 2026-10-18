@@ -21,6 +21,7 @@ import { trackAnalyticsEventOnce } from "../../utils/analytics";
 import { getPublicAttribution } from "../../utils/publicAttribution";
 import SelectField from "../../components/SelectField";
 import { useLoginPromo } from "../../hooks/useLoginPromo";
+import { getUserErrorMessage, isFriendlyMessage } from "../../utils/errorMessages";
 
 const createDiscountCode = () => {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ0123456789";
@@ -185,15 +186,13 @@ function RegisterPage() {
         setTimeout(() => navigate("/"), 1500);
       } catch (error) {
         if (error.response) setBookingRequestId(null);
-        if (error.response?.data?.errors) {
-          const errorMessages = error.response.data.errors
-            .map((e) => e.msg)
-            .join("\n");
-          toast.error(errorMessages);
-        } else if (error.response?.data?.message) {
-          toast.error(error.response.data.message);
+        const fieldMessages = (error.response?.data?.errors || [])
+          .map((e) => e.msg)
+          .filter(isFriendlyMessage);
+        if (fieldMessages.length > 0) {
+          toast.error(fieldMessages.join("\n"));
         } else {
-          toast.error(t("register.error_general"));
+          toast.error(getUserErrorMessage(error, t("register.error_general")));
         }
       }
     },

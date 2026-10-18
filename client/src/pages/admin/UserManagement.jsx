@@ -7,6 +7,7 @@ import { Search, Trash2, User, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "react-toastify";
 import { getUsers, deleteUser } from "../../services/user.service";
 import { useDebounce } from "../../hooks/useDebounce";
+import { getUserErrorMessage } from "../../utils/errorMessages";
 
 const UserManagement = () => {
   const queryClient = useQueryClient();
@@ -39,7 +40,7 @@ const UserManagement = () => {
       toast.success("Xóa người dùng thành công");
       invalidateByKey(queryClient, adminQueryKeys.users.all());
     },
-    onError: (err) => toast.error(err.response?.data?.message || "Lỗi xóa"),
+    onError: (err) => toast.error(getUserErrorMessage(err, "Không thể xóa. Vui lòng thử lại.")),
   });
 
   const handleDelete = (id, name) => {
@@ -50,7 +51,7 @@ const UserManagement = () => {
   if (isError) {
     return (
       <div className="p-6 text-center text-red-500">
-        Lỗi tải dữ liệu: {error.message}
+        {getUserErrorMessage(error, "Không tải được dữ liệu. Vui lòng thử lại.")}
       </div>
     );
   }
