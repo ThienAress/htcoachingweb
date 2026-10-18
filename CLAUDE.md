@@ -63,6 +63,8 @@ Sản phẩm phục vụ HLV và khách hàng Việt Nam: **tiếng Việt là �
   giao diện. Luôn dùng `client/src/components/F1/assessment/RoundedSelect.jsx` (trong form React Hook Form thì bọc bằng
   `Controller`); trước khi bàn giao form có ô chọn, rà `grep -rn "<select" client/src` cho file vừa sửa.
 - Tên có chú thích Anh chỉ dùng một cặp ngoặc: "Sức mạnh bền (Strength Endurance)"; không lồng ngoặc trong ngoặc.
+- Thông báo lỗi cho người dùng: tiếng Việt thân thiện (chuyện gì đã xảy ra, nên làm gì), không có server/API/token/mã HTTP. Client dùng `getUserErrorMessage`,
+  server dùng `sendApiError`; chi tiết chỉ ghi log (`.claude/rules/frontend.md`, `.claude/rules/backend.md`).
 - Không lặp lại cùng một thông tin ở tiêu đề, phụ đề và thân hộp thoại; tên giai đoạn viết một lần dạng
   "Giai đoạn 2: Hypertrophy".
 - Thêm tính năng/UI mới: rà toàn bộ chuỗi hiển thị trước khi bàn giao, cả message trả về từ server.

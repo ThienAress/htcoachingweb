@@ -65,6 +65,22 @@ describe("openAiChatStream", () => {
     expect(fetchMock.mock.calls[1][1].headers["X-CSRF-Token"]).toBe("fresh-token");
   });
 
+  it("also recognises a CSRF failure by its code when the message is no longer the old English text", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(
+        JSON.stringify({ code: "CSRF_TOKEN_MISSING", message: "Phiên làm việc đã hết hạn" }),
+        { status: 403, headers: { "Content-Type": "application/json", "X-CSRF-Token": "fresh-token" } },
+      ))
+      .mockResolvedValueOnce(new Response("", { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await openAiChatStream({ message: "Xin chào" });
+
+    expect(response.status).toBe(200);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
   it("refreshes an expired session and retries with the rotated CSRF token", async () => {
     const payload = {
       message: "Xin chào",

@@ -58,6 +58,14 @@ paths:
   trên UI. Chuỗi request chỉ toast một lần cho kết quả cuối.
 - Chỉ có một `ToastContainer` global (trong `App.jsx`); không mount container thứ hai.
 
+## Thông báo lỗi cho người dùng
+
+- Lỗi hiển thị cho khách hàng và HLV đi qua `getUserErrorMessage(error, "câu thay thế cụ thể")` (`client/src/utils/errorMessages.js`); không đưa
+  `error.message` hay `response.data.message` thô vào toast, banner, trang lỗi hoặc `setError`.
+- Câu lỗi nói điều gì đã xảy ra và bước tiếp theo ("Không lưu được bài viết. Vui lòng thử lại."), không có từ server, API, token, timeout, mã HTTP,
+  "đồng bộ", "cơ sở dữ liệu". Chi tiết kỹ thuật chỉ ở console hoặc log máy chủ.
+- Cổng `client/src/__tests__/errorMessages.contract.test.js` chặn thêm mới; file cũ nằm trong `errorMessageDebt.json`, chuyển xong thì xóa khỏi danh sách.
+
 ## Hiển thị số thập phân
 
 - Giữ nguyên độ chính xác ở dữ liệu, API, phép tính; chỉ làm tròn ở presentation. Đổi đơn vị trước, format sau.

@@ -77,7 +77,7 @@ describe("protect middleware", () => {
 
     expect(res.status).toBe(401);
     expect(res.body.success).toBe(false);
-    expect(res.body.message).toBe("Không có token");
+    expect(res.body).toMatchObject({ code: "AUTH_REQUIRED", message: "Bạn cần đăng nhập để tiếp tục." });
   });
 
   it("trả 401 khi JWT đã hết hạn", async () => {
@@ -94,7 +94,7 @@ describe("protect middleware", () => {
       .set("Cookie", [`accessToken=${expiredToken}`]);
 
     expect(res.status).toBe(401);
-    expect(res.body.message).toBe("Token không hợp lệ");
+    expect(res.body).toMatchObject({ code: "SESSION_INVALID", message: "Phiên đăng nhập không hợp lệ. Vui lòng đăng nhập lại." });
   });
 
   it("trả 401 khi JWT bị giả mạo (sai secret)", async () => {
@@ -125,7 +125,8 @@ describe("protect middleware", () => {
       .set("Cookie", [`accessToken=${tokenForGhost}`]);
 
     expect(res.status).toBe(401);
-    expect(res.body.message).toBe("Tài khoản không tồn tại");
+    expect(res.body).toMatchObject({ code: "ACCOUNT_NOT_FOUND" });
+    expect(res.body.message).not.toMatch(/token|server|API/i);
   });
 });
 
@@ -149,7 +150,7 @@ describe("requireRoles middleware", () => {
       .set("Cookie", [`accessToken=${accessToken}`]);
 
     expect(res.status).toBe(403);
-    expect(res.body.message).toBe("Không có quyền");
+    expect(res.body).toMatchObject({ code: "FORBIDDEN", message: "Bạn không có quyền thực hiện thao tác này." });
   });
 
   it("trainer bị chặn khỏi route admin-only → 403", async () => {
