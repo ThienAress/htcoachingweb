@@ -158,6 +158,9 @@
       "current": "Đang sử dụng",
       "checkout_title": "Đăng ký HT Fitness+",
       "checkout_failed": "Không thể kích hoạt gói lúc này.",
+      "credits_unit": "credit AI mỗi 30 ngày",
+      "credits_burst": "Tối đa {{count}} credit mỗi giờ",
+      "credits_scope": "Credit AI dùng chung cho HT Assistant và Meal Scan.",
       "checkout_success": "Kích hoạt HT Fitness+ thành công.",
       "success_title": "Kích hoạt thành công!",
       "failure_title": "Thanh toán thất bại",
@@ -225,6 +228,8 @@
     "trainer_plans": {
       "free": "Dùng thử",
       "free_sub": "Đầy đủ tính năng cốt lõi trong {{count}} ngày",
+      "students_label": "học viên tối đa",
+      "extra_label": "Thêm trong gói này",
       "days": "{{count}} ngày",
       "trial_used_badge": "Đã dùng thử",
       "order_exists_badge": "Đã có đơn",
