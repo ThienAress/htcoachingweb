@@ -6,6 +6,7 @@ import { createWorkoutPlan } from "../../services/workoutPlan.service";
 import { WorkoutPlanClientTargetSummary } from "./WorkoutPlanClientTargetSummary";
 import { TODAY_PLATFORM_ENABLED } from "../../config/featureFlags";
 import SelectField from "../../components/SelectField";
+import { getUserErrorMessage } from "../../utils/errorMessages";
 
 const DEFAULT_SECTIONS = [
   { name: "WARM UP", icon: "🔥", sortOrder: 0, exercises: [] },
@@ -97,7 +98,7 @@ const PlanModal = ({ clients, initialClientId, initialDate, onClose, onSaved }) 
       toast.success("Tạo giáo án thành công!"); 
       onSaved(res.data.data._id); // Pass new ID back to navigate
     },
-    onError: (err) => toast.error(err.response?.data?.message || "Lỗi tạo giáo án"),
+    onError: (err) => toast.error(getUserErrorMessage(err, "Không thể tạo giáo án. Vui lòng thử lại.")),
   });
 
   const handleSave = () => {

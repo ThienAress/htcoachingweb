@@ -7,6 +7,7 @@ import {
   updateNotificationPreferences,
 } from "../services/notification.service";
 import { getInitialEmailSelectionError } from "./notificationPreferences.utils";
+import { getUserErrorMessage } from "../utils/errorMessages";
 
 const IN_APP_OPTIONS = [
   ["inAppEnabled", "Bật thông báo trong ứng dụng"],
@@ -72,10 +73,9 @@ export const NotificationPreferences = ({
         void queryClient.invalidateQueries({ queryKey });
       }
       toast.error(
-        error.response?.data?.message ||
-          (isEmailChannel
+        getUserErrorMessage(error, (isEmailChannel
             ? "Không thể lưu tùy chọn email"
-            : "Không thể lưu tùy chọn thông báo"),
+            : "Không thể lưu tùy chọn thông báo")),
       );
     },
   });

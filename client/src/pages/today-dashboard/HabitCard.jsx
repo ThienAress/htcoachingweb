@@ -17,6 +17,7 @@ import {
   upsertHabitCompletion,
 } from "./dailyHabits";
 import { HabitDefinitionActions } from "./HabitDefinitionActions";
+import { getUserErrorMessage } from "../../utils/errorMessages";
 
 const requestId = () => window.crypto.randomUUID();
 const apiMessage = (error) =>
@@ -231,8 +232,9 @@ export const HabitCard = ({
         },
       });
     } catch (error) {
-      setLocalError(error.message);
-      toast.error(error.message);
+      const message = getUserErrorMessage(error, "Không lưu được. Vui lòng thử lại.");
+      setLocalError(message);
+      toast.error(message);
     }
   };
 

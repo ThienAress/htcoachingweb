@@ -16,6 +16,7 @@ import {
 } from "../../services/coachingComment.service";
 import { commentThreadKey } from "./coachingCommentViewModel";
 import { CoachingCommentItem } from "./CoachingCommentItem";
+import { getUserErrorMessage } from "../../utils/errorMessages";
 
 const requestId = () => window.crypto.randomUUID();
 const errorMessage = (error) =>
@@ -71,7 +72,7 @@ export const CoachingCommentThread = ({
     onError: (error, variables) => {
       setFailedCommand(variables);
       toast.error(
-        error.response?.data?.message || "Không thể cập nhật trao đổi",
+        getUserErrorMessage(error, "Không thể cập nhật trao đổi"),
       );
     },
   });

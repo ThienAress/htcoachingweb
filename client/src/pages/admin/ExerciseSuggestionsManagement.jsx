@@ -23,6 +23,7 @@ import {
   deleteSuggestion,
 } from "../../services/exerciseSuggestion.service";
 import SelectField from "../../components/SelectField";
+import { getUserErrorMessage } from "../../utils/errorMessages";
 
 const ExerciseSuggestionsManagement = () => {
   const queryClient = useQueryClient();
@@ -60,7 +61,7 @@ const ExerciseSuggestionsManagement = () => {
       invalidateByKey(queryClient, adminQueryKeys.exerciseSuggestions.all());
     },
     onError: (err) =>
-      toast.error(err.response?.data?.message || "Lỗi cập nhật"),
+      toast.error(getUserErrorMessage(err, "Không thể cập nhật. Vui lòng thử lại.")),
   });
   const deleteMutation = useMutation({
     mutationFn: deleteSuggestion,
@@ -68,7 +69,7 @@ const ExerciseSuggestionsManagement = () => {
       toast.success(" Xóa góp ý thành công");
       invalidateByKey(queryClient, adminQueryKeys.exerciseSuggestions.all());
     },
-    onError: (err) => toast.error(err.response?.data?.message || "Lỗi xóa"),
+    onError: (err) => toast.error(getUserErrorMessage(err, "Không thể xóa. Vui lòng thử lại.")),
   });
 
   const handleStatusChange = (id, status) => {

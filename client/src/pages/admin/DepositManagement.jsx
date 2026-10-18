@@ -29,6 +29,7 @@ import {
   deleteAdminDeposit,
 } from "../../services/adminDeposit.service";
 import DepositPolicyEditor from "./deposits/DepositPolicyEditor";
+import { getUserErrorMessage } from "../../utils/errorMessages";
 
 const formatDateTime = (d) =>
   d ? new Date(d).toLocaleString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: false }) : "—";
@@ -101,7 +102,7 @@ const DepositManagement = () => {
       queryClient.invalidateQueries({ queryKey: ["admin-deposits"] });
       toast.success(res.data.message);
     },
-    onError: (err) => toast.error(err.response?.data?.message || "Lỗi duyệt"),
+    onError: (err) => toast.error(getUserErrorMessage(err, "Không thể duyệt. Vui lòng thử lại.")),
   });
 
   const rejectMutation = useMutation({
@@ -112,7 +113,7 @@ const DepositManagement = () => {
       setRejectModal(null);
       setRejectReason("");
     },
-    onError: (err) => toast.error(err.response?.data?.message || "Lỗi từ chối"),
+    onError: (err) => toast.error(getUserErrorMessage(err, "Không thể từ chối. Vui lòng thử lại.")),
   });
 
   const handleApprove = (deposit) => {
@@ -135,7 +136,7 @@ const DepositManagement = () => {
       setReverseReason("");
     },
     onError: (err) =>
-      toast.error(err.response?.data?.message || "Lỗi hoàn tác giao dịch"),
+      toast.error(getUserErrorMessage(err, "Không thể hoàn tác giao dịch. Vui lòng thử lại.")),
   });
 
   const handleReverseSubmit = () => {
@@ -152,7 +153,7 @@ const DepositManagement = () => {
       queryClient.invalidateQueries({ queryKey: ["admin-deposits"] });
       toast.success("Đã xóa");
     },
-    onError: (err) => toast.error(err.response?.data?.message || "Lỗi xóa"),
+    onError: (err) => toast.error(getUserErrorMessage(err, "Không thể xóa. Vui lòng thử lại.")),
   });
 
   const handleDelete = (deposit) => {

@@ -17,6 +17,7 @@ import {
   HOME_TOOL_CATALOG,
 } from "../../config/homeSectionCatalog";
 import KeyedMediaSection from "../../components/admin/KeyedMediaSection";
+import { getUserErrorMessage } from "../../utils/errorMessages";
 
 const SiteSettings = () => {
   const queryClient = useQueryClient();
@@ -40,7 +41,7 @@ const SiteSettings = () => {
       invalidateByKey(queryClient, adminQueryKeys.siteSettings.all());
     },
     onError: (error) => {
-      toast.error(error.response?.data?.message || "Không thể cập nhật ảnh. Vui lòng thử lại.");
+      toast.error(getUserErrorMessage(error, "Không thể cập nhật ảnh. Vui lòng thử lại."));
     },
   });
 
@@ -53,7 +54,7 @@ const SiteSettings = () => {
       invalidateByKey(queryClient, adminQueryKeys.siteSettings.all());
     },
     onError: (error) => {
-      toast.error(error.response?.data?.message || "Không thể xóa ảnh. Vui lòng thử lại.");
+      toast.error(getUserErrorMessage(error, "Không thể xóa ảnh. Vui lòng thử lại."));
     },
   });
 

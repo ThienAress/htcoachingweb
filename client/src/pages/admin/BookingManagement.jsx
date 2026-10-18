@@ -26,6 +26,7 @@ import {
   Clock,
 } from "lucide-react";
 import SelectField from "../../components/SelectField";
+import { getUserErrorMessage } from "../../utils/errorMessages";
 
 const BookingManagement = () => {
   const queryClient = useQueryClient();
@@ -70,7 +71,7 @@ const BookingManagement = () => {
       await statusMutation.mutateAsync({ booking, status });
       toast.success("Đã cập nhật trạng thái booking");
     } catch (err) {
-      toast.error(err.response?.data?.message || "Không thể cập nhật booking");
+      toast.error(getUserErrorMessage(err, "Không thể cập nhật booking"));
       if (err.response?.status === 409) {
         await invalidateByKey(queryClient, adminQueryKeys.bookings.all());
       }
@@ -83,7 +84,7 @@ const BookingManagement = () => {
       await archiveMutation.mutateAsync(booking);
       toast.success("Đã lưu trữ booking");
     } catch (err) {
-      toast.error(err.response?.data?.message || "Không thể lưu trữ booking");
+      toast.error(getUserErrorMessage(err, "Không thể lưu trữ booking"));
       if (err.response?.status === 409) {
         await invalidateByKey(queryClient, adminQueryKeys.bookings.all());
       }

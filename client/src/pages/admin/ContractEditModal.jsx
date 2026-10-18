@@ -22,6 +22,7 @@ import {
   getSavedDraftRevision,
   isContractRevisionConflict,
 } from "../../utils/contractConsistency";
+import { getUserErrorMessage } from "../../utils/errorMessages";
 
 const inputCls = "w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600/20";
 const errCls = "text-[11px] text-red-500 mt-0.5";
@@ -152,7 +153,7 @@ const ContractEditModal = ({ contract, onClose }) => {
       );
       return;
     }
-    toast.error(error.response?.data?.message || fallbackMessage);
+    toast.error(getUserErrorMessage(error, fallbackMessage));
   };
 
   const updateMut = useMutation({

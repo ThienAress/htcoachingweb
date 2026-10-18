@@ -31,6 +31,7 @@ import {
   toDateInputValue,
 } from "./knowledgeBaseAdmin";
 import SelectField from "../../components/SelectField";
+import { getUserErrorMessage } from "../../utils/errorMessages";
 
 const emptyForm = (variants = []) => ({
   question: "",
@@ -351,7 +352,7 @@ export default function KnowledgeBase() {
       setForm(emptyForm());
       await refreshKnowledge();
     } catch (err) {
-      toast.error(err.response?.data?.message || "Lỗi");
+      toast.error(getUserErrorMessage(err, "Không thực hiện được. Vui lòng thử lại."));
     } finally {
       setSaving(false);
     }
@@ -380,7 +381,7 @@ export default function KnowledgeBase() {
       setForm(emptyForm());
       await refreshKnowledge();
     } catch (err) {
-      toast.error(err.response?.data?.message || "Lỗi");
+      toast.error(getUserErrorMessage(err, "Không thực hiện được. Vui lòng thử lại."));
     } finally {
       setSaving(false);
     }
@@ -400,7 +401,7 @@ export default function KnowledgeBase() {
       setForm(emptyForm());
       await refreshKnowledge();
     } catch (err) {
-      toast.error(err.response?.data?.message || "Lỗi merge");
+      toast.error(getUserErrorMessage(err, "Không thể merge. Vui lòng thử lại."));
     } finally {
       setSaving(false);
     }
@@ -486,7 +487,7 @@ export default function KnowledgeBase() {
       toast.success("Đã tạo lại embedding");
       await refreshKnowledge();
     } catch (error) {
-      toast.error(error.response?.data?.message || "Không thể tạo lại embedding");
+      toast.error(getUserErrorMessage(error, "Không thể tạo lại embedding"));
       await refreshKnowledge();
     } finally {
       setRegeneratingId(null);
@@ -595,7 +596,7 @@ export default function KnowledgeBase() {
           : "Đã bỏ qua phản hồi này",
       );
     } catch (error) {
-      toast.error(error.response?.data?.message || "Không thể cập nhật phản hồi");
+      toast.error(getUserErrorMessage(error, "Không thể cập nhật phản hồi"));
     } finally {
       setReviewingMessageId(null);
     }

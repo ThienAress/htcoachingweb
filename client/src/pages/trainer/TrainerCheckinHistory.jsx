@@ -22,6 +22,7 @@ import {
   readCheckinPageSize,
   saveCheckinPageSize,
 } from "./checkinPageSize";
+import { getUserErrorMessage } from "../../utils/errorMessages";
 const TrainerCheckinHistory = () => {
   const queryClient = useQueryClient();
 
@@ -85,7 +86,7 @@ const TrainerCheckinHistory = () => {
       setShowModal(false);
       invalidateByKey(queryClient, adminQueryKeys.checkins.all());
     },
-    onError: (err) => toast.error(err.message),
+    onError: (err) => toast.error(getUserErrorMessage(err, "Không thực hiện được. Vui lòng thử lại.")),
   });
 
   const handleEdit = (c) => {

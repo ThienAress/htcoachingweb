@@ -11,6 +11,7 @@ import {
 } from "../../utils/savedMealPlan";
 import { getVietnamDateKey } from "../../utils/vietnamDate";
 import MealPlanSaveConfirmDialog from "./MealPlanSaveConfirmDialog";
+import { getUserErrorMessage } from "../../utils/errorMessages";
 
 const requestId = () => window.crypto.randomUUID();
 const queryKey = ["saved-meal-plans", "active"];
@@ -42,7 +43,7 @@ export default function SaveCurrentMealPlanButton({
     onError: (error, payload) => {
       setFailedPayload(payload);
       toast.error(
-        error.response?.data?.message || "Không thể lưu thực đơn lúc này",
+        getUserErrorMessage(error, "Không thể lưu thực đơn lúc này"),
       );
     },
   });

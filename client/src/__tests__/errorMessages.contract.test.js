@@ -32,7 +32,8 @@ export const countLeaks = (source) => {
     const argument = code.slice(match.index, match.index + 260).split(");")[0];
     if (/\.message\b/.test(argument) && !/getUserErrorMessage/.test(argument)) total += 1;
   }
-  total += (code.match(/\{\s*(?:error|err)\??\.message\s*\}/g) || []).length;
+  // Chỉ tính chỗ ghép lỗi vào câu ("Lỗi tải dữ liệu: {error.message}"); lỗi từng ô của react-hook-form là câu tiếng Việt do form tự đặt.
+  total += (code.match(/:\s*\{\s*(?:error|err)\??\.message\s*\}/g) || []).length;
   total += (code.match(/["'`](?:Lỗi server|Lỗi đồng bộ|Không thể kết nối tới server)/g) || []).length;
   return total;
 };
@@ -63,6 +64,8 @@ describe("error messages shown in the interface", () => {
     expect(countLeaks("toast.error(err.message)")).toBe(1);
     expect(countLeaks('toast.error(error.response?.data?.message || "Không thể lưu")')).toBe(1);
     expect(countLeaks("<p>Lỗi tải dữ liệu: {error.message}</p>")).toBe(1);
+    expect(countLeaks('{t("profile.errors.fetch_failed")}: {error?.message}')).toBe(1);
+    expect(countLeaks('{error && <p className="mt-1 text-xs text-red-500">{error.message}</p>}')).toBe(0);
     expect(countLeaks('setError("Lỗi đồng bộ")')).toBe(1);
     expect(countLeaks('toast.error(getUserErrorMessage(error, "Không thể lưu"))')).toBe(0);
     expect(countLeaks('toast.error("Không thể lưu. Vui lòng thử lại.")')).toBe(0);

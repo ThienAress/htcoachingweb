@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { toast } from "react-toastify";
 import { isSampleMenuExcluded } from "../utils/foodCategory";
+import { getUserErrorMessage } from "../utils/errorMessages";
 
 export const useMealGenerator = ({
   selectedPlan,
@@ -807,7 +808,7 @@ export const useMealGenerator = ({
       toast.success("Tạo thực đơn thành công!");
       return true;
     } catch (err) {
-      toast.error("Lỗi tạo thực đơn: " + err.message);
+      toast.error(getUserErrorMessage(err, "Không tạo được thực đơn. Vui lòng thử lại."));
       return false;
     } finally {
       setIsGenerating(false);

@@ -3,6 +3,7 @@ import { FileText, Eye, Download } from "lucide-react";
 import { toast } from "react-toastify";
 import { clientDownloadContract } from "../../../services/contract.service";
 import { useTranslation } from "react-i18next";
+import { getUserErrorMessage } from "../../../utils/errorMessages";
 
 function ContractsTab({ myContracts }) {
   const { t, i18n } = useTranslation("account");
@@ -29,7 +30,7 @@ function ContractsTab({ myContracts }) {
       window.URL.revokeObjectURL(url);
       toast.success(t("contracts.download_success"));
     } catch (err) {
-      toast.error(err.response?.data?.message || t("contracts.download_failed"));
+      toast.error(getUserErrorMessage(err, t("contracts.download_failed")));
     }
   };
 

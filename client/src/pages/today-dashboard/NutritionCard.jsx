@@ -21,6 +21,7 @@ import { PlannedMealExecution } from "./PlannedMealExecution";
 import { QuickMealHistory } from "./QuickMealHistory";
 import { QuickMealLogger } from "./QuickMealLogger";
 import SelectField from "../../components/SelectField";
+import { getUserErrorMessage } from "../../utils/errorMessages";
 
 const newRequestId = () => window.crypto.randomUUID();
 const errorMessage = (error) =>
@@ -87,7 +88,7 @@ export const NutritionCard = ({
       setNotice("");
       setFailedCommand(variables);
       toast.error(
-        error.response?.data?.message || "Không thể cập nhật dinh dưỡng",
+        getUserErrorMessage(error, "Không thể cập nhật dinh dưỡng"),
       );
     },
   });
@@ -119,14 +120,14 @@ export const NutritionCard = ({
         }),
       });
     } catch (error) {
-      setLocalError(error.message);
+      setLocalError(getUserErrorMessage(error, "Không lưu được. Vui lòng thử lại."));
     }
   };
   const addQuickEntry = (entry) => {
     try {
       persistNutrition({ entries: appendNutritionEntry(entries, entry) });
     } catch (error) {
-      setLocalError(error.message);
+      setLocalError(getUserErrorMessage(error, "Không lưu được. Vui lòng thử lại."));
     }
   };
   const adjustPlannedMeal = (mealKey, adjustments) => {
@@ -139,8 +140,9 @@ export const NutritionCard = ({
         }),
       });
     } catch (error) {
-      setLocalError(error.message);
-      toast.error(error.message);
+      const message = getUserErrorMessage(error, "Không lưu được. Vui lòng thử lại.");
+      setLocalError(message);
+      toast.error(message);
     }
   };
   const submitNutrition = () => {
@@ -158,7 +160,7 @@ export const NutritionCard = ({
         entries: updateManualMealEntry(entries, values),
       });
     } catch (error) {
-      setLocalError(error.message);
+      setLocalError(getUserErrorMessage(error, "Không lưu được. Vui lòng thử lại."));
     }
   };
 

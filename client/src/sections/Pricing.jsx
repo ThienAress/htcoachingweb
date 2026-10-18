@@ -33,6 +33,7 @@ import { useSiteSettings } from "../hooks/useSiteSettings";
 import { resolvePricingGifts } from "../utils/pricingGifts";
 import { buildDefaultPricingContent, resolvePricingContent } from "../utils/pricingContent";
 import { useLoginPromo } from "../hooks/useLoginPromo";
+import { getUserErrorMessage } from "../utils/errorMessages";
 
 const TODAY_PROGRESS_PROMPT_DISMISSED_KEY =
   "ht_today_progress_prompt_dismissed";
@@ -848,7 +849,7 @@ const Pricing = ({ isHeroAnimDone = false }) => {
                 code: err.response?.data?.code,
               });
               toast.error(
-                err.response?.data?.message || "Không thể kích hoạt gói HLV",
+                getUserErrorMessage(err, "Không thể kích hoạt gói HLV"),
               );
             }
           };

@@ -7,6 +7,7 @@ import "react-toastify/dist/ReactToastify.css";
 import { trackAnalyticsEventOnce } from "../utils/analytics";
 import { getPublicAttribution } from "../utils/publicAttribution";
 import SelectField from "../components/SelectField";
+import { getUserErrorMessage } from "../utils/errorMessages";
 
 const Contact = () => {
   const { t } = useTranslation("home");
@@ -226,8 +227,7 @@ const Contact = () => {
       setShowSuccess(true);
     } catch (err) {
       toast.error(
-        err.response?.data?.message ||
-          "Gửi thông tin thất bại, vui lòng thử lại.",
+        getUserErrorMessage(err, "Gửi thông tin thất bại, vui lòng thử lại."),
       );
     } finally {
       setIsSubmitting(false);

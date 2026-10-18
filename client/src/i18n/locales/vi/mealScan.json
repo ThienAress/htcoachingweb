@@ -194,7 +194,7 @@
   },
   "source": {
     "nutrition_label": "Theo nhãn",
-    "food_database": "Food DB",
+    "food_database": "Thư viện thực phẩm",
     "packaged_reference": "Barcode tham khảo"
   },
   "review": {
@@ -208,18 +208,18 @@
     "restore": "Khôi phục",
     "questions_acknowledged": "Tôi đã đọc các câu hỏi về dầu, sốt, đường, topping hoặc thành phần bị che khuất.",
     "add_missing": "Thêm thành phần bị thiếu",
-    "food_database_notice": "Dữ liệu Food DB tính theo 100 g và chỉ dùng tham khảo. Mỗi mục hiển thị nguồn đã khai báo; legacy_unknown nghĩa là chưa xác minh được provenance.",
+    "food_database_notice": "Dữ liệu thư viện thực phẩm tính theo 100 g và chỉ dùng tham khảo. Mỗi mục hiển thị nguồn đã khai báo; mục chưa rõ nguồn nghĩa là chưa xác minh được nguồn dữ liệu.",
     "search_food": "Tìm thực phẩm tham khảo",
     "amount_grams": "Khối lượng gram",
     "add": "Thêm",
-    "loading_foods": "Đang tải Food DB...",
+    "loading_foods": "Đang tải thư viện thực phẩm...",
     "no_foods": "Không tìm thấy thực phẩm phù hợp.",
     "remove_added": "Xóa {{item}} khỏi kết quả",
     "complete_before_confirm": "Hãy kiểm tra các thành phần và câu hỏi trước khi xác nhận."
   },
   "barcode": {
     "title": "Tra cứu thực phẩm đóng gói",
-    "description": "Barcode chỉ giúp nhận diện sản phẩm. Ảnh được giải mã ngay trên thiết bị; chỉ mã GTIN được gửi để tra cứu và kết quả không tự lưu vào Food DB.",
+    "description": "Barcode chỉ giúp nhận diện sản phẩm. Ảnh được giải mã ngay trên thiết bị; chỉ mã GTIN được gửi để tra cứu và kết quả không tự lưu vào thư viện thực phẩm.",
     "gtin": "Nhập GTIN 8, 12, 13 hoặc 14 số",
     "lookup": "Tra cứu",
     "scan_image": "Đọc từ ảnh",
@@ -231,7 +231,7 @@
       "BARCODE_INVALID": "Barcode không thuộc GTIN-8/12/13/14 hợp lệ.",
       "FOOD_REFERENCE_GTIN_INVALID": "Mã GTIN không hợp lệ.",
       "FOOD_REFERENCE_NOT_FOUND": "Chưa tìm thấy sản phẩm có đủ calo và P/C/F trên 100 g.",
-      "FOOD_REFERENCE_LOOKUP_DISABLED": "Tra cứu barcode chưa được bật trên máy chủ.",
+      "FOOD_REFERENCE_LOOKUP_DISABLED": "Tính năng tra cứu mã vạch hiện chưa mở.",
       "FOOD_REFERENCE_NOT_CONFIGURED": "Nguồn dữ liệu barcode chưa được cấu hình.",
       "FOOD_REFERENCE_PROVIDER_UNAVAILABLE": "Nguồn dữ liệu sản phẩm đang bận. Hãy thử lại sau.",
       "FOOD_REFERENCE_RATE_LIMITED": "Bạn đã tra cứu quá nhiều lần. Hãy thử lại sau.",
@@ -242,7 +242,7 @@
     "q1": "Quét món ăn có cho kết quả chính xác tuyệt đối không?",
     "a1": "Không. Kết quả là khoảng ước tính từ hình ảnh và có thể sai do khẩu phần, dầu, sốt hoặc nguyên liệu bị che khuất.",
     "q2": "HTCOACHING có lưu ảnh món ăn không?",
-    "a2": "Trong tính năng này, ảnh chỉ được nén và gửi tạm thời để phân tích, không lưu vào hồ sơ, cơ sở dữ liệu hoặc Cloudinary.",
+    "a2": "Trong tính năng này, ảnh chỉ được nén và gửi tạm thời để phân tích, không lưu vào hồ sơ hay kho lưu trữ ảnh.",
     "q3": "Tôi nên làm gì để ước tính sát hơn?",
     "a3": "Hãy chụp đủ sáng, lấy trọn phần ăn, dùng góc nhìn rõ và chỉnh lại gram khi bạn biết khẩu phần thực tế."
   }

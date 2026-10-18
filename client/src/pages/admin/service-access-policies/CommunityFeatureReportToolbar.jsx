@@ -10,6 +10,7 @@ import {
   getCommunityFeatureHistoryDateRange,
 } from "./serviceAccessPolicyPresentation";
 import SelectField from "../../../components/SelectField";
+import { getUserErrorMessage } from "../../../utils/errorMessages";
 
 const downloadBlob = (response, filename) => {
   const blob =
@@ -62,7 +63,7 @@ export default function CommunityFeatureReportToolbar({
     },
     onError: (error) =>
       toast.error(
-        error.response?.data?.message || "Không thể tải báo cáo PDF",
+        getUserErrorMessage(error, "Không thể tải báo cáo PDF"),
       ),
   });
   const summary = reportQuery.data?.summary;

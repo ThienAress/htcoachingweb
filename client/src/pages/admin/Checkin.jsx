@@ -37,6 +37,7 @@ import SEO from "../../components/SEO";
 import { useDebounce } from "../../hooks/useDebounce";
 import WorkspacePageHeader from "../../components/WorkspacePageHeader";
 import SelectField from "../../components/SelectField";
+import { getUserErrorMessage } from "../../utils/errorMessages";
 
 const muscles = [
   "Ngực",
@@ -196,7 +197,7 @@ const Checkin = ({ embedded = false }) => {
       });
     },
     onError: (err) => {
-      toast.error(err.response?.data?.message || "Check-in thất bại");
+      toast.error(getUserErrorMessage(err, "Check-in thất bại"));
     },
   });
 

@@ -30,6 +30,7 @@ import {
   normalizeBlogSubCategory,
 } from "../../data/blogCategories";
 import SelectField from "../../components/SelectField";
+import { getUserErrorMessage } from "../../utils/errorMessages";
 
 const emptyForm = {
   title: "", slug: "", content: "", excerpt: "",
@@ -149,19 +150,19 @@ const BlogManagement = () => {
   const createMut = useMutation({
     mutationFn: createBlogPost,
     onSuccess: () => { toast.success("Tạo bài viết thành công"); invalidate(); goList(); },
-    onError: (err) => toast.error(err.response?.data?.message || "Lỗi tạo bài viết"),
+    onError: (err) => toast.error(getUserErrorMessage(err, "Không thể tạo bài viết. Vui lòng thử lại.")),
   });
 
   const updateMut = useMutation({
     mutationFn: ({ id, payload }) => updateBlogPost(id, payload),
     onSuccess: () => { toast.success("Cập nhật thành công"); invalidate(); goList(); },
-    onError: (err) => toast.error(err.response?.data?.message || "Lỗi cập nhật"),
+    onError: (err) => toast.error(getUserErrorMessage(err, "Không thể cập nhật. Vui lòng thử lại.")),
   });
 
   const deleteMut = useMutation({
     mutationFn: deleteBlogPost,
     onSuccess: () => { toast.success("Xóa thành công"); invalidate(); },
-    onError: (err) => toast.error(err.response?.data?.message || "Lỗi xóa"),
+    onError: (err) => toast.error(getUserErrorMessage(err, "Không thể xóa. Vui lòng thử lại.")),
   });
 
   const handleSubmit = (e) => {
@@ -189,7 +190,7 @@ const BlogManagement = () => {
       updateForm("coverImage", res.data?.url);
       toast.success("Upload ảnh bìa thành công");
     } catch (err) {
-      toast.error(err.response?.data?.message || "Lỗi upload ảnh");
+      toast.error(getUserErrorMessage(err, "Không thể tải lên ảnh. Vui lòng thử lại."));
     } finally {
       setUploadingCover(false);
     }

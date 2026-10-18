@@ -22,6 +22,7 @@ import {
   wellnessFormSchema,
   wellnessValuesToPatch,
 } from "./wellness";
+import { getUserErrorMessage } from "../../utils/errorMessages";
 
 const newRequestId = () => window.crypto.randomUUID();
 
@@ -111,10 +112,9 @@ export const WellnessCard = ({
         failedRef.current = pending;
         setSaveState(error.response?.status === 409 ? "conflict" : "error");
         toast.error(
-          error.response?.data?.message ||
-            (selfManaged
+          getUserErrorMessage(error, (selfManaged
               ? "Không thể lưu Mục tiêu sức khỏe lúc này"
-              : "Không thể gửi sức khỏe hôm nay"),
+              : "Không thể gửi sức khỏe hôm nay")),
         );
       }
     },

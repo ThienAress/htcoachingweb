@@ -41,6 +41,7 @@ import {
   translateLevelTitle,
   translateTrainingFocus,
 } from "../../constants/f1Phases";
+import { getUserErrorMessage } from "../../utils/errorMessages";
 
 const F1PhaseReviewDialog = lazy(
   () => import("./phaseReview/F1PhaseReviewDialog"),
@@ -785,7 +786,7 @@ const F1ResultPredictionPanel = ({ customer, onBack, onGenerated }) => {
       setModeDialog(null);
       toast.success(res?.message || "Đã thay đổi cách dự đoán");
     } catch (error) {
-      toast.error(error?.response?.data?.message || "Thay đổi dự đoán thất bại");
+      toast.error(getUserErrorMessage(error, "Thay đổi dự đoán thất bại"));
     } finally {
       setSwitchingMode(false);
     }
@@ -811,7 +812,7 @@ const F1ResultPredictionPanel = ({ customer, onBack, onGenerated }) => {
       setEditMode(false);
       toast.success(res?.message || "Đã xoá giai đoạn");
     } catch (error) {
-      toast.error(error?.response?.data?.message || "Xoá giai đoạn thất bại");
+      toast.error(getUserErrorMessage(error, "Xoá giai đoạn thất bại"));
     }
   };
 
@@ -860,9 +861,8 @@ const F1ResultPredictionPanel = ({ customer, onBack, onGenerated }) => {
       setEditMode(false);
     } catch (error) {
       toast.error(
-        error?.response?.data?.message ||
-          error?.response?.data?.errors?.[0]?.msg ||
-          "Lưu lộ trình thất bại",
+        getUserErrorMessage(error, error?.response?.data?.errors?.[0]?.msg ||
+          "Lưu lộ trình thất bại"),
       );
     } finally {
       setSavingDesign(false);
@@ -887,7 +887,7 @@ const F1ResultPredictionPanel = ({ customer, onBack, onGenerated }) => {
       onGenerated?.(res?.data);
     } catch (error) {
       toast.error(
-        error?.response?.data?.message || "Tạo dự đoán kết quả thất bại",
+        getUserErrorMessage(error, "Tạo dự đoán kết quả thất bại"),
       );
     } finally {
       setGenerating(false);
@@ -959,7 +959,7 @@ const F1ResultPredictionPanel = ({ customer, onBack, onGenerated }) => {
       );
     } catch (error) {
       toast.error(
-        error?.response?.data?.message || "Tạo ảnh AI cho phase thất bại",
+        getUserErrorMessage(error, "Tạo ảnh AI cho phase thất bại"),
       );
     } finally {
       setGeneratingStageKey("");
