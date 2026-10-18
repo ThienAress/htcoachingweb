@@ -173,6 +173,9 @@ const DepositPolicyEditor = () => {
                 className={`mt-1 ${inputClass}`}
               />
             )}
+            {key !== "starter" && parsed[key] !== null && (
+              <p className="mt-1 text-xs text-gray-500" aria-live="polite">= {formatVND(parsed[key])}</p>
+            )}
 
             <label className="mt-3 block text-xs font-semibold text-gray-600" htmlFor={`deposit-tier-rate-${key}`}>
               Tỷ lệ thưởng (%)

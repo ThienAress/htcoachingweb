@@ -33,6 +33,11 @@ describe("DepositPolicyEditor", () => {
     expect(html).toContain("Bậc 3 · Tối ưu");
   });
 
+  it("writes each editable threshold out in thousands so 150000 is easy to read", () => {
+    expect(html).toContain("= 150.000");
+    expect(html).toContain("= 500.000");
+  });
+
   it("keeps the first tier's threshold fixed at the minimum deposit", () => {
     expect(html).toContain("mức nạp tối thiểu");
     expect(html).not.toContain('id="deposit-tier-min-starter" type="number"');
