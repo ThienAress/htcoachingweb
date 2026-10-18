@@ -34,7 +34,7 @@ Chưa có cổng cho: kiểu "của tôi" (`/me`, `/my`, `/my-plans`, `/my-booki
 
 | Nhóm | Nội dung | Rủi ro |
 |---|---|---|
-| B2 (không tiền) | `training-bookings` thay `/book` và `/my-booking`; `meal-plan-access`; `practice-center/messages`; xóa ảnh `site-settings`; `PATCH coaching-habits/:id`; `gyms` (bỏ `/all`) | Thấp, cần cập nhật client service và `e2e/mock-api.cjs` |
+| B2 (không tiền) — **đã làm** | `training-bookings` (thay `/book`, `/my-booking`, `/my-trainer`), `meal-plan-access` (thay `/check`, `/record`), `practice-center/messages` (thay `/send`), `DELETE site-settings/images` (thay `/remove`). Route cũ giữ làm bí danh (header `Deprecation`, đếm `api.deprecated_route_hits`). Không làm: `coaching-habits/:id/status` và `gyms/all` (không vi phạm bộ quy tắc), `meal-scans/analyze` (chuỗi middleware phụ thuộc đường dẫn), `site-settings/upload/*` | Thấp |
 | B3 (tiền, hợp đồng) | `POST /orders/:id/approve`, `POST /contracts/:id/cancel`, `POST /trainer-subscriptions`, `POST /fitness-plus-subscriptions` thay `purchase` | Cao: `impact-check` + review bảo mật; giữ ownership, CSRF, idempotency |
 | Sau | Tiền tố số ít, kiểu `/me`, lồng sâu của `f1-customers`, tiền tố admin | Cần kiểm rate limiter, cổng tính năng và script |
 

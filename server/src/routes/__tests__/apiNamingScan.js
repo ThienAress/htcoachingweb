@@ -22,7 +22,8 @@ export const ALLOWED_ACTIONS = new Set([
 ]);
 
 // Tiền tố tài nguyên không đếm được hoặc là tên hệ thống; còn lại phải ở dạng số nhiều.
-const UNCOUNTABLE_RESOURCES = new Set(["auth", "ops", "ai", "me", "progress"]);
+// "practice-center" là một trang chức năng duy nhất (singleton), không phải tập hợp bản ghi.
+const UNCOUNTABLE_RESOURCES = new Set(["auth", "ops", "ai", "me", "progress", "practice-center"]);
 
 const KEBAB = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const isParam = (segment) => segment.startsWith(":");

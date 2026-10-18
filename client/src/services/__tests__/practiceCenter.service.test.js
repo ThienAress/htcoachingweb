@@ -29,6 +29,6 @@ describe("practiceCenter.service", () => {
     await sendPracticeCenterSimulation(payload);
 
     expect(api.get).toHaveBeenCalledWith("/practice-center", { signal });
-    expect(api.post).toHaveBeenCalledWith("/practice-center/send", payload);
+    expect(api.post).toHaveBeenCalledWith("/practice-center/messages", payload);
   });
 });

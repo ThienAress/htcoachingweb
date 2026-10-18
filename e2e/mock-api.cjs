@@ -803,13 +803,13 @@ const handleApi = (req, res, path) => {
     };
     return sendJson(res, { success: true, data: f1Report }, 201);
   }
-  if (path === "/api/training-booking/my-trainer") {
+  if (path === "/api/training-bookings/me/trainer") {
     return sendJson(res, {
       success: true,
       data: { _id: ACTORS.trainer._id, name: ACTORS.trainer.name },
     });
   }
-  if (path === "/api/training-booking/my-booking") {
+  if (path === "/api/training-bookings/me") {
     return sendJson(res, {
       success: true,
       data: [
@@ -832,11 +832,11 @@ const handleApi = (req, res, path) => {
       ],
     });
   }
-  if (path === "/api/training-booking/busy-times") {
+  if (path === "/api/training-bookings/busy-times") {
     return sendJson(res, { success: true, data: [] });
   }
   if (
-    path === "/api/training-booking/book" &&
+    path === "/api/training-bookings" &&
     req.method === "POST"
   ) {
     return sendJson(
@@ -849,7 +849,7 @@ const handleApi = (req, res, path) => {
     );
   }
   if (
-    path.startsWith("/api/training-booking/book/") &&
+    path.startsWith("/api/training-bookings/") &&
     ["PUT", "DELETE"].includes(req.method)
   ) {
     return sendJson(res, {

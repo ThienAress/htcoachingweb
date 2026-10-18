@@ -54,6 +54,7 @@ import exerciseSuggestionRoutes from "./src/routes/exerciseSuggestion.routes.js"
 import customerStoryRoutes from "./src/routes/customerStory.routes.js";
 import depositRoutes from "./src/routes/deposit.routes.js";
 import mealplanAccessRoutes from "./src/routes/mealplanAccess.routes.js";
+import mealplanAccessLegacyRoutes from "./src/routes/mealplanAccessLegacy.routes.js";
 import mealScanRoutes from "./src/routes/mealScan.routes.js";
 import { TODAY_PLATFORM_API_PREFIXES } from "./src/config/todayPlatform.js";
 import { requireTodayPlatform } from "./src/middlewares/todayPlatform.middleware.js";
@@ -258,7 +259,8 @@ import trainerRoutes from "./src/routes/trainer.routes.js";
 app.use("/api/trainers", trainerRoutes);
 
 app.use("/api/deposits", depositRoutes);
-app.use("/api/mealplan-access", mealplanAccessRoutes);
+app.use("/api/meal-plan-access", mealplanAccessRoutes);
+app.use("/api/mealplan-access", mealplanAccessLegacyRoutes);
 app.use("/api/meal-scans", mealScanRoutes);
 app.use(TODAY_PLATFORM_API_PREFIXES, requireTodayPlatform);
 app.use("/api/today-dashboard", todayDashboardRoutes);
@@ -292,7 +294,9 @@ import trainingScheduleRoutes from "./src/routes/trainingSchedule.routes.js";
 app.use("/api/training-schedules", trainingScheduleRoutes);
 
 import trainingBookingRoutes from "./src/routes/trainingBooking.routes.js";
-app.use("/api/training-booking", trainingBookingRoutes);
+import trainingBookingLegacyRoutes from "./src/routes/trainingBookingLegacy.routes.js";
+app.use("/api/training-bookings", trainingBookingRoutes);
+app.use("/api/training-booking", trainingBookingLegacyRoutes);
 
 import coachingRoutes from "./src/routes/coaching.routes.js";
 app.use("/api/coaching", coachingRoutes);
