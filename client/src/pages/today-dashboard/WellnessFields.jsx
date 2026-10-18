@@ -4,6 +4,8 @@ import {
   wellnessSemanticValue,
 } from "./wellness";
 import { useId } from "react";
+import { Controller } from "react-hook-form";
+import SelectField from "../../components/SelectField";
 
 const fieldClass =
   "mt-1.5 min-h-11 w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white outline-none transition focus:border-orange-400 focus:ring-2 focus:ring-orange-400/30 disabled:cursor-not-allowed disabled:opacity-60";
@@ -25,7 +27,7 @@ const NumberField = ({ label, name, register, error, ...inputProps }) => (
 const RatingField = ({
   label,
   name,
-  register,
+  control,
   error,
   helperId,
   disabled,
@@ -41,8 +43,14 @@ const RatingField = ({
   return (
     <label className="text-sm font-medium text-slate-300">
       {label}
-      <select
-        {...register(name)}
+      <Controller
+        control={control}
+        name={name}
+        render={({ field }) => (
+      <SelectField
+        tone="dark"
+        value={field.value ?? ""}
+        onChange={(event) => field.onChange(event.target.value)}
         disabled={disabled}
         aria-invalid={Boolean(error)}
         aria-describedby={helperId}
@@ -59,7 +67,9 @@ const RatingField = ({
             {option.label}
           </option>
         ))}
-      </select>
+      </SelectField>
+        )}
+      />
       {error && (
         <span role="alert" className="mt-1 block text-xs text-red-300">
           {error}
@@ -71,6 +81,7 @@ const RatingField = ({
 
 export const WellnessFields = ({
   register,
+  control,
   errors,
   disabled,
   painValue,
@@ -127,7 +138,7 @@ export const WellnessFields = ({
             key={name}
             label={label}
             name={name}
-            register={register}
+            control={control}
             error={errors[name]?.message}
             helperId={ratingHelperId}
             disabled={disabled}
@@ -136,7 +147,7 @@ export const WellnessFields = ({
         <RatingField
           label="Mức đau"
           name="pain"
-          register={register}
+          control={control}
           error={errors.pain?.message}
           helperId={ratingHelperId}
           disabled={disabled}

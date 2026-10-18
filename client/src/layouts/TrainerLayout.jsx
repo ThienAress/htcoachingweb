@@ -22,6 +22,8 @@ import { useAuth } from "../context/AuthContext";
 import { mySubscriptionQueryOptions } from "../queries/subscription.queries";
 import { canAccessF1 } from "../utils/trainerEntitlements";
 import SEO from "../components/SEO";
+import { WorkspaceBrand, WorkspaceHomeLink } from "../components/workspace/WorkspaceSidebarParts";
+import { workspaceGroupLabelClass, workspaceItemClass } from "../components/workspace/workspaceSidebarClasses";
 import {
   findNavigationTitle,
   getTrainerNavigationGroups,
@@ -208,38 +210,26 @@ const TrainerLayout = () => {
           // Desktop width animate
           isDesktopCollapsed ? "md:w-0" : "md:w-64",
           // Shared
-          "w-64 bg-slate-900 shadow-lg transition-all duration-200 ease-out",
+          "w-64 bg-[#1C2D42] shadow-lg transition-[transform,width] duration-200 ease-out",
         ].join(" ")}
       >
-        <div className="relative h-full flex flex-col text-white w-64 min-h-screen overflow-y-auto">
+        <div className="relative flex h-full min-h-screen w-64 flex-col overflow-y-auto text-[#e2e8f0]">
           {/* Nút đóng — mobile only */}
           <button
             type="button"
             onClick={closeMobileSidebar}
-            className="absolute right-4 top-4 flex h-11 w-11 items-center justify-center rounded-lg text-slate-300 transition-colors hover:bg-slate-800 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 md:hidden"
+            className="absolute right-4 top-4 flex h-11 w-11 items-center justify-center rounded-lg text-[#cbd5e1] transition-colors hover:bg-[#ffffff1a] hover:text-[#ffffff] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400 md:hidden"
             aria-label="Đóng menu"
           >
             <X className="w-5 h-5" />
           </button>
 
           {/* Branding */}
-          <div className="flex items-center justify-between border-b border-white/10 p-5">
-            <div>
-              <p className="text-lg font-bold leading-tight tracking-tight">
-                HTCOACHING
-              </p>
-              <p className="text-xs text-slate-400">Quản lý khách hàng</p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setIsDesktopCollapsed(true)}
-              className="hidden size-11 shrink-0 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-800 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 md:flex"
-              aria-label="Thu sidebar HLV"
-              title="Thu sidebar HLV"
-            >
-              <SidebarClose className="w-5 h-5" />
-            </button>
-          </div>
+          <WorkspaceBrand
+            subtitle="Khu HLV"
+            onToggle={() => setIsDesktopCollapsed(true)}
+            toggleLabel="Thu sidebar HLV"
+          />
 
           {/* Navigation Groups */}
           <nav className="flex-1 p-4 space-y-2">
@@ -249,7 +239,7 @@ const TrainerLayout = () => {
                 <div key={group.key}>
                   <button
                     onClick={() => toggleGroup(group.key)}
-                    className="flex min-h-11 w-full cursor-pointer items-center justify-between rounded-lg px-4 py-2 text-left text-xs font-bold uppercase tracking-widest text-slate-400 transition-colors hover:bg-slate-800 hover:text-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
+                    className={workspaceGroupLabelClass}
                     aria-expanded={isOpen}
                   >
                     <span className="flex-1 pr-2 leading-relaxed">{group.label}</span>
@@ -272,15 +262,7 @@ const TrainerLayout = () => {
                               to={item.path}
                               onClick={() => setIsSidebarOpen(false)}
                               aria-current={isActive ? "page" : undefined}
-                              className={`
-                                flex min-h-11 items-center gap-3 rounded-lg px-4 py-2 transition-colors
-                                ${
-                                  isActive
-                                    ? "bg-slate-700 text-white font-semibold"
-                                    : "text-slate-300 hover:bg-slate-800 hover:text-white"
-                                }
-                                focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400
-                              `}
+                              className={workspaceItemClass(isActive)}
                             >
                               <Icon className="w-5 h-5" />
                               <span>{item.label}</span>
@@ -296,36 +278,27 @@ const TrainerLayout = () => {
           </nav>
 
           {/* Trang chủ */}
-          <div className="p-4 border-t border-white/10">
-            <Link
-              to="/"
-              onClick={() => setIsSidebarOpen(false)}
-              className="flex min-h-11 items-center gap-3 rounded-lg px-4 py-2 text-slate-300 transition-colors hover:bg-slate-800 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
-            >
-              <Home className="w-5 h-5" />
-              <span>Trang chủ</span>
-            </Link>
-          </div>
+          <WorkspaceHomeLink onClick={() => setIsSidebarOpen(false)} />
         </div>
       </aside>
 
       {/* ── Main content ── */}
       <div className="flex-1 min-w-0 flex flex-col">
         {/* Topbar mobile */}
-        <div className="sticky top-0 z-20 flex items-center gap-3 border-b border-white/10 bg-slate-900 px-4 py-3 shadow-sm md:hidden">
+        <div className="sticky top-0 z-20 flex items-center gap-3 border-b border-[#34475f] bg-[#1C2D42] px-4 py-3 shadow-sm md:hidden">
           <button
             type="button"
             ref={mobileMenuButtonRef}
             onClick={() => setIsSidebarOpen(true)}
-            className="flex h-11 w-11 items-center justify-center rounded-lg text-white hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
+            className="flex h-11 w-11 items-center justify-center rounded-lg text-[#ffffff] hover:bg-[#ffffff1a] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400"
             aria-label="Mở menu huấn luyện viên"
             aria-expanded={isSidebarOpen}
             aria-controls="trainer-sidebar"
           >
             <Menu aria-hidden="true" className="w-5 h-5" />
           </button>
-          <div className="flex-1 text-center font-semibold text-white">
-            Quản lý khách hàng
+          <div className="flex-1 text-center font-semibold text-[#ffffff]">
+            Khu HLV
           </div>
         </div>
 
@@ -334,7 +307,7 @@ const TrainerLayout = () => {
           <button
             type="button"
             onClick={() => setIsDesktopCollapsed(false)}
-            className="fixed left-4 top-4 z-40 hidden size-11 items-center justify-center rounded-lg bg-slate-900 text-slate-300 shadow-md transition-colors hover:bg-slate-800 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 md:flex"
+            className="fixed left-4 top-4 z-40 hidden size-11 items-center justify-center rounded-lg bg-[#1C2D42] text-[#cbd5e1] shadow-md transition-colors hover:text-[#ffffff] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400 md:flex"
             aria-label="Mở sidebar HLV"
             aria-controls="trainer-sidebar"
             aria-expanded="false"

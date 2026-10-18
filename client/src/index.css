@@ -837,7 +837,7 @@ input:-webkit-autofill:focus {
 :is(.trainer-workspace, .customer-tool-surface)[data-theme="light"]
   #trainer-sidebar
   a[aria-current="page"] {
-  background-color: var(--color-orange-500);
+  background-color: var(--color-primary);
   color: var(--color-white);
 }
 

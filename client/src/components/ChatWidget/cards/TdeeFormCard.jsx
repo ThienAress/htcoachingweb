@@ -24,6 +24,7 @@ import {
   getTdeeFormErrors,
   GOALS,
 } from "./tdeeForm.config";
+import SelectField from "../../SelectField";
 
 export default function TdeeFormCard({ data, disabled = false, onSubmit }) {
   const [form, setForm] = useState(() => {
@@ -161,7 +162,7 @@ export default function TdeeFormCard({ data, disabled = false, onSubmit }) {
                 <span className="mb-2 block text-xs font-medium text-slate-500 dark:text-zinc-400">
                   {label}
                 </span>
-                <select
+                <SelectField tone="auto"
                   aria-invalid={Boolean(showErrors && errors[key])}
                   aria-label={label}
                   autoComplete="off"
@@ -180,7 +181,7 @@ export default function TdeeFormCard({ data, disabled = false, onSubmit }) {
                       {optionLabel}
                     </option>
                   ))}
-                </select>
+                </SelectField>
                 {showErrors && errors[key] && (
                   <span className="mt-1 block text-xs text-rose-700 dark:text-rose-300" role="alert">
                     {errors[key]}
@@ -193,7 +194,7 @@ export default function TdeeFormCard({ data, disabled = false, onSubmit }) {
 
         <CardSection>
           <CardSectionLabel>Khoảng hệ số đề xuất</CardSectionLabel>
-          <select
+          <SelectField tone="auto"
             aria-label="Khoảng hệ số đề xuất"
             className={fieldClass}
             disabled
@@ -205,7 +206,7 @@ export default function TdeeFormCard({ data, disabled = false, onSubmit }) {
                 {label}
               </option>
             ))}
-          </select>
+          </SelectField>
           <p className="mt-2 text-xs leading-5 text-cyan-800 dark:text-cyan-100">
             Dùng toàn bộ vận động cả ngày; số buổi tập riêng lẻ không quyết định hệ số.
           </p>

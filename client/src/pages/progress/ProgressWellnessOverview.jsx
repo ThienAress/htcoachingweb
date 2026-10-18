@@ -16,6 +16,7 @@ import {
 } from "../../utils/wellnessSemantics";
 import { ProgressSectionHeader } from "./ProgressSectionHeader";
 import { WellnessMetricChart } from "./WellnessMetricChart";
+import SelectField from "../../components/SelectField";
 
 const METRICS = [
   { key: "sleepHours", label: "Giấc ngủ", unit: "giờ", icon: Moon },
@@ -155,7 +156,7 @@ const WellnessMetricSelector = ({ activeKey, onSelect, wellness }) => {
         >
           Chỉ số sức khỏe
         </label>
-        <select
+        <SelectField tone="dark"
           id="wellness-metric-select"
           value={activeKey}
           onChange={(event) => onSelect(event.target.value)}
@@ -171,7 +172,7 @@ const WellnessMetricSelector = ({ activeKey, onSelect, wellness }) => {
               ))}
             </optgroup>
           ))}
-        </select>
+        </SelectField>
       </div>
 
       <div

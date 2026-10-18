@@ -1,5 +1,5 @@
 // RoundedSelect.jsx — ô chọn bo góc thay cho <select> gốc của trình duyệt
-import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Check, ChevronDown } from "lucide-react";
 
@@ -21,6 +21,19 @@ const TONES = {
     optionActive: "bg-orange-50 text-orange-700",
     optionDisabled: "text-slate-300",
     check: "text-orange-600",
+    group: "text-slate-400",
+  },
+  auto: {
+    selectedText: "",
+    placeholderText: "text-slate-400 dark:text-zinc-500",
+    chevron: "text-slate-400 dark:text-zinc-500",
+    list: "border-slate-200 bg-white shadow-lg dark:border-zinc-700 dark:bg-zinc-900 dark:shadow-black/40",
+    empty: "text-slate-500 dark:text-zinc-400",
+    option: "text-slate-700 dark:text-zinc-200",
+    optionActive: "bg-orange-50 text-orange-700 dark:bg-zinc-800 dark:text-orange-300",
+    optionDisabled: "text-slate-300 dark:text-zinc-600",
+    check: "text-orange-600 dark:text-orange-400",
+    group: "text-slate-400 dark:text-zinc-500",
   },
   dark: {
     selectedText: "",
@@ -32,6 +45,7 @@ const TONES = {
     optionActive: "bg-zinc-800 text-orange-300",
     optionDisabled: "text-zinc-600",
     check: "text-orange-400",
+    group: "text-zinc-500",
   },
 };
 
@@ -71,7 +85,7 @@ const computeListStyle = (trigger) => {
 const RoundedSelect = ({
   value,
   onChange,
-  options = [],
+  options: allOptions = [],
   placeholder = "Chọn",
   label,
   disabled = false,
@@ -82,6 +96,8 @@ const RoundedSelect = ({
   buttonProps,
 }) => {
   const colors = TONES[tone] || TONES.light;
+  // Mục ẩn (hidden) chỉ để hiển thị nhãn khi dữ liệu cũ đang chọn; không có trong danh sách.
+  const options = useMemo(() => allOptions.filter((item) => !item.hidden), [allOptions]);
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
   const [listStyle, setListStyle] = useState(null);
@@ -93,7 +109,10 @@ const RoundedSelect = ({
     () => options.findIndex((item) => item.value === value),
     [options, value],
   );
-  const selected = selectedIndex >= 0 ? options[selectedIndex] : null;
+  const selected =
+    selectedIndex >= 0
+      ? options[selectedIndex]
+      : allOptions.find((item) => item.value === value) || null;
 
   useEffect(() => {
     if (!open) return undefined;
@@ -217,9 +236,15 @@ const RoundedSelect = ({
           )}
           {options.map((option, index) => {
             const isSelected = option.value === value;
+            const showGroup = option.group && option.group !== options[index - 1]?.group;
             return (
+              <Fragment key={option.value}>
+                {showGroup && (
+                  <li role="presentation" className={`px-3 pb-1 pt-2 text-xs font-semibold uppercase tracking-wide ${colors.group}`}>
+                    {option.group}
+                  </li>
+                )}
               <li
-                key={option.value}
                 role="option"
                 aria-selected={isSelected}
                 aria-disabled={option.disabled || undefined}
@@ -237,6 +262,7 @@ const RoundedSelect = ({
                 <span>{option.label}</span>
                 {isSelected && <Check size={15} className={`shrink-0 ${colors.check}`} />}
               </li>
+              </Fragment>
             );
           })}
         </ul>,

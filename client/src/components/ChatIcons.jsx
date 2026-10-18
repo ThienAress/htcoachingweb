@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { MessageCircle, X } from "lucide-react";
+import { X } from "lucide-react";
 import useScrollDockHidden from "../hooks/useScrollDockHidden";
 
 // ======================= CÁC ICON MẠNG XÃ HỘI =======================
@@ -81,6 +81,8 @@ const socialItems = [
   },
 ];
 
+const ICON_CYCLE_MS = 3000;
+
 const getUiConfig = (width) => {
   if (width < 640) return { right: 16, bottom: 100, mainSize: 56 };
   if (width < 1024) return { right: 20, bottom: 92, mainSize: 60 };
@@ -90,6 +92,9 @@ const getUiConfig = (width) => {
 const ChatIcons = () => {
   const [open, setOpen] = useState(false);
   const [chatWidgetOpen, setChatWidgetOpen] = useState(false);
+  const [currentIconIdx, setCurrentIconIdx] = useState(0);
+  const [hovered, setHovered] = useState(false);
+  const [reducedMotion, setReducedMotion] = useState(false);
   const wrapperRef = useRef(null);
 
   const [viewportWidth, setViewportWidth] = useState(
@@ -105,6 +110,25 @@ const ChatIcons = () => {
     window.addEventListener("resize", updateViewportWidth);
     return () => window.removeEventListener("resize", updateViewportWidth);
   }, []);
+
+  // Người dùng bật "giảm chuyển động" thì chỉ hiện một biểu tượng cố định.
+  useEffect(() => {
+    if (typeof window.matchMedia !== "function") return undefined;
+    const query = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const sync = () => setReducedMotion(query.matches);
+    sync();
+    query.addEventListener?.("change", sync);
+    return () => query.removeEventListener?.("change", sync);
+  }, []);
+
+  // Đổi biểu tượng mỗi 3 giây; dừng khi rê chuột, khi mở danh sách hoặc khi giảm chuyển động.
+  useEffect(() => {
+    if (open || hovered || reducedMotion) return undefined;
+    const timer = setInterval(() => {
+      setCurrentIconIdx((index) => (index + 1) % socialItems.length);
+    }, ICON_CYCLE_MS);
+    return () => clearInterval(timer);
+  }, [open, hovered, reducedMotion]);
 
   // Ẩn ChatIcons trên mobile khi chat widget mở
   useEffect(() => {
@@ -194,38 +218,57 @@ const ChatIcons = () => {
           </div>
         </div>
 
-        {/* Nút chính: một biểu tượng cố định, các kênh liên hệ nằm trong danh sách mở ra */}
+        {/* Nút chính: đĩa trắng chứa các biểu tượng luân phiên, viền và bóng màu cam */}
         <button
           type="button"
           onClick={() => setOpen((prev) => !prev)}
+          onMouseEnter={() => setHovered(true)}
+          onMouseLeave={() => setHovered(false)}
+          onFocus={() => setHovered(true)}
+          onBlur={() => setHovered(false)}
           aria-label={open ? "Đóng liên hệ" : "Mở liên hệ nhanh"}
           aria-expanded={open}
-          className="relative flex items-center justify-center rounded-full bg-primary shadow-[0_8px_25px_-5px_rgba(255,85,0,0.5)] transition-transform duration-300 hover:scale-105 active:scale-95"
+          className="relative flex items-center justify-center rounded-full bg-primary shadow-[0_8px_25px_-5px_rgba(255,85,0,0.55)] transition-transform duration-300 hover:scale-105 active:scale-95 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-orange-300"
           style={{
             width: `${ui.mainSize}px`,
             height: `${ui.mainSize}px`,
           }}
         >
-          <MessageCircle
-            aria-hidden="true"
-            size={ui.mainSize * 0.45}
-            strokeWidth={2.2}
-            className={`absolute text-white transition-[transform,opacity] duration-300 ${
-              open ? "scale-50 -rotate-45 opacity-0" : "scale-100 rotate-0 opacity-100"
-            }`}
-          />
-          <X
-            aria-hidden="true"
-            size={ui.mainSize * 0.4}
-            strokeWidth={3}
-            className={`absolute text-white transition-[transform,opacity] duration-300 ${
-              open ? "scale-100 rotate-0 opacity-100" : "scale-50 rotate-45 opacity-0"
-            }`}
-          />
+          <div
+            className="relative flex items-center justify-center overflow-hidden rounded-full bg-white shadow-sm"
+            style={{
+              width: `${ui.mainSize * 0.7}px`,
+              height: `${ui.mainSize * 0.7}px`,
+            }}
+          >
+            {socialItems.map((item, idx) => (
+              <div
+                key={item.id}
+                aria-hidden="true"
+                className={`absolute inset-0 flex items-center justify-center transition-[transform,opacity] duration-500 motion-reduce:transition-none ${
+                  !open && idx === currentIconIdx
+                    ? "scale-100 rotate-0 opacity-100"
+                    : "scale-50 -rotate-45 opacity-0"
+                }`}
+                style={{ padding: `${ui.mainSize * 0.12}px` }}
+              >
+                <div className="h-full w-full">{item.icon}</div>
+              </div>
+            ))}
 
-          {/* Vòng sóng nhẹ khi đang đóng */}
+            <div
+              aria-hidden="true"
+              className={`absolute inset-0 flex items-center justify-center bg-primary transition-[transform,opacity] duration-500 motion-reduce:transition-none ${
+                open ? "scale-100 rotate-0 opacity-100" : "scale-50 rotate-45 opacity-0"
+              }`}
+            >
+              <X size={ui.mainSize * 0.34} strokeWidth={3} className="text-white" />
+            </div>
+          </div>
+
+          {/* Vòng sóng cam khi đang đóng (App.css tắt khi giảm chuyển động) */}
           {!open && (
-            <span className="absolute inset-0 rounded-full bg-primary chat-icons-ping-slow pointer-events-none -z-10" />
+            <span className="absolute inset-0 -z-10 rounded-full bg-primary chat-icons-ping-slow pointer-events-none" />
           )}
         </button>
       </div>

@@ -21,13 +21,13 @@ test("F1 desktop sidebar can be collapsed and reopened", async ({ page }) => {
   await page.goto("/f1-customers");
 
   const sidebar = page.locator("#f1-navigation");
-  await expect(sidebar).toHaveCSS("width", "288px");
+  await expect(sidebar).toHaveCSS("width", "256px");
 
   await page.getByRole("button", { name: "Thu menu F1" }).click();
   await expect(sidebar).toHaveCSS("width", "0px");
 
   await page.getByRole("button", { name: "Mở menu F1" }).click();
-  await expect(sidebar).toHaveCSS("width", "288px");
+  await expect(sidebar).toHaveCSS("width", "256px");
 });
 
 test("F1 create, intake, private media, assessment command and AI report", async ({
