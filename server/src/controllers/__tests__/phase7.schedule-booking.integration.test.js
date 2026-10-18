@@ -85,7 +85,7 @@ beforeAll(async () => {
   await setupTestDB();
   app = createTestApp();
   app.use("/api/bookings", bookingRoutes);
-  app.use("/api/training-booking", trainingBookingRoutes);
+  app.use("/api/training-bookings", trainingBookingRoutes);
   app.use("/api/training-schedules", trainingScheduleRoutes);
   await Promise.all([
     AuditLog.init(),
@@ -235,12 +235,12 @@ describe("Phase 7 training occurrence integrity", () => {
     };
 
     const created = await postAs(
-      "/api/training-booking/book",
+      "/api/training-bookings",
       client.accessToken,
       createBody,
     );
     const replayed = await postAs(
-      "/api/training-booking/book",
+      "/api/training-bookings",
       client.accessToken,
       createBody,
     );
@@ -258,17 +258,17 @@ describe("Phase 7 training occurrence integrity", () => {
       requestId: "74444444-4444-4444-8444-444444444444",
     };
     const updated = await putAs(
-      "/api/training-booking/book/" + created.body.data._id,
+      "/api/training-bookings/" + created.body.data._id,
       client.accessToken,
       updateBody,
     );
     const updateReplay = await putAs(
-      "/api/training-booking/book/" + created.body.data._id,
+      "/api/training-bookings/" + created.body.data._id,
       client.accessToken,
       updateBody,
     );
     const stale = await putAs(
-      "/api/training-booking/book/" + created.body.data._id,
+      "/api/training-bookings/" + created.body.data._id,
       client.accessToken,
       {
         ...updateBody,
@@ -298,7 +298,7 @@ describe("Phase 7 training occurrence integrity", () => {
     await createApprovedOrder(client.user._id, trainer.user._id);
     const dateKey = futureDateKey(1);
     const created = await postAs(
-      "/api/training-booking/book",
+      "/api/training-bookings",
       client.accessToken,
       {
         occurrenceDateKey: dateKey,
@@ -308,7 +308,7 @@ describe("Phase 7 training occurrence integrity", () => {
       },
     );
     const forbidden = await withAuth(
-      request(app).get("/api/training-booking/busy-times").query({
+      request(app).get("/api/training-bookings/busy-times").query({
         trainerId: otherTrainer.user._id.toString(),
         occurrenceDateKey: dateKey,
       }),
@@ -317,7 +317,7 @@ describe("Phase 7 training occurrence integrity", () => {
     expect(forbidden.status).toBe(403);
 
     const cancelled = await deleteAs(
-      "/api/training-booking/book/" + created.body.data._id,
+      "/api/training-bookings/" + created.body.data._id,
       client.accessToken,
       {
         revision: 0,

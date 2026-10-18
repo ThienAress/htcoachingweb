@@ -24,13 +24,13 @@ export const uploadSettingItemImage = (section, itemKey, formData) => {
 };
 
 export const removeSettingImage = (fieldName, imageUrl) => {
-  return api.delete(`${API_URL}/remove`, {
+  return api.delete(`${API_URL}/images`, {
     data: { fieldName, imageUrl },
   });
 };
 
 export const removeSettingItemImage = (fieldName, itemKey, imageUrl) => {
-  return api.delete(`${API_URL}/remove`, {
+  return api.delete(`${API_URL}/images`, {
     data: { fieldName, itemKey, imageUrl },
   });
 };

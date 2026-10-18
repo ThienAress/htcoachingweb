@@ -24,7 +24,7 @@ let app;
 beforeAll(async () => {
   await setupTestDB();
   app = createTestApp();
-  app.use("/api/mealplan-access", mealplanAccessRoutes);
+  app.use("/api/meal-plan-access", mealplanAccessRoutes);
 });
 
 afterEach(async () => {
@@ -44,11 +44,11 @@ describe("meal plan generation quota", () => {
 
     const responses = await Promise.all([
       withAuth(
-        request(app).post("/api/mealplan-access/record"),
+        request(app).post("/api/meal-plan-access/usages"),
         actor.accessToken,
       ),
       withAuth(
-        request(app).post("/api/mealplan-access/record"),
+        request(app).post("/api/meal-plan-access/usages"),
         actor.accessToken,
       ),
     ]);

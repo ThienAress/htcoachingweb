@@ -17,6 +17,7 @@ const COUNTER_NAMES = new Set([
   "http.requests",
   "http.errors",
   "server.errors",
+  "api.deprecated_route_hits",
   "ai.requests",
   "ai.completed",
   "ai.errors",

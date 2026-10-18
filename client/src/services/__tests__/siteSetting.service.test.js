@@ -60,7 +60,7 @@ describe("site setting keyed media service", () => {
   it("removes only the selected item key", async () => {
     await removeSettingItemImage("tools", "meal-scan", "meal-scan.webp");
 
-    expect(api.delete).toHaveBeenCalledWith("/site-settings/remove", {
+    expect(api.delete).toHaveBeenCalledWith("/site-settings/images", {
       data: {
         fieldName: "tools",
         itemKey: "meal-scan",

@@ -1,5 +1,5 @@
 import api from "../utils/api";
 
-export const checkMealPlanAccess = () => api.get("/mealplan-access/check");
+export const checkMealPlanAccess = () => api.get("/meal-plan-access");
 
-export const recordMealPlanGeneration = () => api.post("/mealplan-access/record");
+export const recordMealPlanGeneration = () => api.post("/meal-plan-access/usages");

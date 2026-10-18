@@ -143,7 +143,7 @@ describe("Practice Center routes", () => {
     });
 
     const rejected = await withAuth(
-      request(app).post("/api/practice-center/send").send({
+      request(app).post("/api/practice-center/messages").send({
         scenario: "order",
         requestId: requestId(),
         recipient: "attacker@example.com",
@@ -151,7 +151,7 @@ describe("Practice Center routes", () => {
       trainer.accessToken,
     );
     const sent = await withAuth(
-      request(app).post("/api/practice-center/send").send({
+      request(app).post("/api/practice-center/messages").send({
         scenario: "order",
         requestId: requestId(),
       }),
@@ -174,21 +174,21 @@ describe("Practice Center routes", () => {
     });
     const replayId = requestId();
     const withoutCsrf = await request(app)
-      .post("/api/practice-center/send")
+      .post("/api/practice-center/messages")
       .set("Cookie", [
         `accessToken=${trainer.accessToken}`,
         "csrfToken=test-csrf-token",
       ])
       .send({ scenario: "order", requestId: requestId() });
     const first = await withAuth(
-      request(app).post("/api/practice-center/send").send({
+      request(app).post("/api/practice-center/messages").send({
         scenario: "order",
         requestId: replayId,
       }),
       trainer.accessToken,
     );
     const replayed = await withAuth(
-      request(app).post("/api/practice-center/send").send({
+      request(app).post("/api/practice-center/messages").send({
         scenario: "order",
         requestId: replayId,
       }),
@@ -217,7 +217,7 @@ describe("Practice Center routes", () => {
     });
 
     const response = await withAuth(
-      request(app).post("/api/practice-center/send").send({
+      request(app).post("/api/practice-center/messages").send({
         scenario: "journey",
         requestId: requestId(),
       }),
@@ -240,7 +240,7 @@ describe("Practice Center routes", () => {
     });
     const send = () =>
       withAuth(
-        request(app).post("/api/practice-center/send").send({
+        request(app).post("/api/practice-center/messages").send({
           scenario: "checkin",
           requestId: requestId(),
         }),
@@ -277,7 +277,7 @@ describe("Practice Center routes", () => {
     );
     const send = () =>
       withAuth(
-        request(app).post("/api/practice-center/send").send({
+        request(app).post("/api/practice-center/messages").send({
           scenario: "order",
           requestId: requestId(),
         }),
@@ -315,7 +315,7 @@ describe("Practice Center routes", () => {
       .mockResolvedValueOnce({ providerMessageId: "checkin-sent" });
     const send = () =>
       withAuth(
-        request(app).post("/api/practice-center/send").send({
+        request(app).post("/api/practice-center/messages").send({
           scenario: "journey",
           requestId: journeyRequestId,
         }),
@@ -351,7 +351,7 @@ describe("Practice Center routes", () => {
     const staleRequestId = requestId();
     const send = () =>
       withAuth(
-        request(app).post("/api/practice-center/send").send({
+        request(app).post("/api/practice-center/messages").send({
           scenario: "order",
           requestId: staleRequestId,
         }),
@@ -403,7 +403,7 @@ describe("Practice Center routes", () => {
     });
 
     const response = await withAuth(
-      request(app).post("/api/practice-center/send").send({
+      request(app).post("/api/practice-center/messages").send({
         scenario: "order",
         requestId: failedRequestId,
       }),
