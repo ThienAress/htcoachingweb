@@ -1,7 +1,6 @@
 import express from "express";
 import { protect, requireRoles, requireTrainerAccess } from "../middlewares/auth.middleware.js";
 import { csrfProtection } from "../middlewares/csrf.js";
-import { deprecatedRoute } from "../middlewares/deprecatedRoute.js";
 import {
   validateCreateOrder,
   validateUpdateOrder,
@@ -37,21 +36,12 @@ router.get(
   requireTrainerAccess,
   getCheckinOrderOptions,
 );
-// Duyệt đơn là hành động: POST. PUT cũ giữ làm bí danh (cùng chuỗi middleware); gỡ khi api.deprecated_route_hits về 0.
+// Duyệt đơn là hành động nên dùng POST.
 router.post(
   "/:id/approve",
   protect,
   csrfProtection,
   requireRoles("admin"),
-  validateId,
-  approveOrder,
-);
-router.put(
-  "/:id/approve",
-  protect,
-  csrfProtection,
-  requireRoles("admin"),
-  deprecatedRoute("/api/orders/:id/approve"),
   validateId,
   approveOrder,
 );

@@ -5,7 +5,6 @@ import {
   requireTrainerAccess,
 } from "../middlewares/auth.middleware.js";
 import { csrfProtection } from "../middlewares/csrf.js";
-import { deprecatedRoute } from "../middlewares/deprecatedRoute.js";
 import {
   validateCreateContract,
   validateSignContract,
@@ -62,16 +61,8 @@ router.get("/:id/download", protect, downloadContract);
 router.get("/:id/client-download", protect, clientDownloadContract);
 
 // Admin: Hủy hợp đồng
-// Hủy là hành động: POST. PUT cũ giữ làm bí danh (cùng chuỗi middleware); gỡ khi api.deprecated_route_hits về 0.
+// Hủy là hành động nên dùng POST.
 router.post("/:id/cancel", protect, requireTrainerAccess, csrfProtection, cancelContract);
-router.put(
-  "/:id/cancel",
-  protect,
-  requireTrainerAccess,
-  csrfProtection,
-  deprecatedRoute("/api/contracts/:id/cancel"),
-  cancelContract,
-);
 
 // Admin: Xóa hợp đồng
 router.delete("/:id", protect, requireRoles("admin"), csrfProtection, deleteContract);

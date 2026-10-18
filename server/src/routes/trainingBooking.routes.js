@@ -17,7 +17,7 @@ const router = express.Router();
 router.use(protect);
 
 // Chỉ user mới được tạo lịch booking. (Thực tế trainer cũng có role user, nhưng logic này dành cho client interface)
-// Đường mới theo quy tắc đặt tên API (.claude/rules/api-design.md). Đường cũ (/api/training-booking/...) nằm ở trainingBookingLegacy.routes.js.
+// Đặt tên theo quy tắc API (.claude/rules/api-design.md).
 router.get("/me", getMyBookings);
 router.get("/me/trainer", getMyTrainer);
 router.get("/busy-times", getBusyTimes);
