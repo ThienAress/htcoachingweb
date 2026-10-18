@@ -19,3 +19,4 @@ Chỉ tạo ADR khi quyết định đồng thời:
 ## Records
 
 - [ADR 0001: Bind staging AI acceptance to a runtime cohort](./0001-bind-staging-ai-acceptance-to-a-runtime-cohort.md)
+- [ADR 0002: API naming rules without URL versioning](./0002-api-naming-and-versioning.md)
