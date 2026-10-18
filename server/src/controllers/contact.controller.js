@@ -41,7 +41,7 @@ export const createContactMessage = async (req, res) => {
     safeLog.error("contact.create_failed", err);
     res.status(500).json({
       success: false,
-      message: "Lỗi server, vui lòng thử lại sau.",
+      message: "Không gửi được liên hệ lúc này. Vui lòng thử lại sau.",
     });
   }
 };

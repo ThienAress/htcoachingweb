@@ -4,10 +4,11 @@ import {
   getRecipeReviews,
   upsertRecipeReview,
 } from "../services/recipeReview.service.js";
+import { sendApiError } from "../utils/sendApiError.js";
 
 const handleError = (res, error) => {
   if (error?.statusCode) {
-    return res.status(error.statusCode).json({ success: false, message: error.message });
+    return sendApiError(res, error, "recipeReview.request_failed", { status: error.statusCode, exposeClientMessage: true });
   }
   if (error?.code === 11000) {
     return res.status(409).json({ success: false, message: "Đánh giá đã được cập nhật, vui lòng thử lại." });

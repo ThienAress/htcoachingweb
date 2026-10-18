@@ -1074,7 +1074,7 @@ export const chatStream = async (req, res) => {
       success: false,
       message: error.status
         ? error.message
-        : "Lỗi hệ thống khi chuẩn bị cuộc trò chuyện",
+        : "Không thể chuẩn bị cuộc trò chuyện lúc này. Vui lòng thử lại.",
       ...(quota ? { meta: { quota } } : {}),
     });
   }

@@ -72,7 +72,7 @@ export const purchaseFitnessPlusPlan = async (req, res) => {
       res,
       error,
       "FITNESS_PLUS_PURCHASE_FAILED",
-      "Lỗi hệ thống khi kích hoạt gói HT Fitness+",
+      "Không thể kích hoạt gói HT Fitness+ lúc này. Vui lòng thử lại.",
     );
   }
 };
@@ -97,7 +97,7 @@ export const getMyFitnessPlusSubscription = async (req, res) => {
       res,
       error,
       "FITNESS_PLUS_SUBSCRIPTION_READ_FAILED",
-      "Lỗi hệ thống khi đọc gói HT Fitness+",
+      "Không thể đọc gói HT Fitness+ lúc này. Vui lòng thử lại.",
     );
   }
 };

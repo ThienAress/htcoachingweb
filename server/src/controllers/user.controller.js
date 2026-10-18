@@ -2,6 +2,7 @@ import User from "../models/User.js";
 import { escapeRegex } from "../utils/escapeRegex.js";
 import { deleteAccountData } from "../services/accountDeletion.service.js";
 import { safeLog } from "../utils/safeLogger.js";
+import { DEFAULT_ERROR_MESSAGE } from "../utils/errorMessages.js";
 
 export const getUsers = async (req, res) => {
   try {
@@ -36,7 +37,7 @@ export const getUsers = async (req, res) => {
     });
   } catch (err) {
     safeLog.error("user.list_failed", err);
-    res.status(500).json({ success: false, message: "Lỗi server" });
+    res.status(500).json({ success: false, code: "INTERNAL_ERROR", message: DEFAULT_ERROR_MESSAGE });
   }
 };
 

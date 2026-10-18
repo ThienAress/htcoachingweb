@@ -11,6 +11,7 @@ import {
 } from "../services/dailyJournalRetentionPolicy.service.js";
 import { isCheckinEmailEnabled } from "../services/notificationPreference.service.js";
 import { errorHandler } from "../middlewares/errorHandler.js";
+import { sendApiError } from "../utils/sendApiError.js";
 
 // Helper để parse time an toàn
 const parseSafeTime = (timeInput) => {
@@ -29,10 +30,7 @@ export const createCheckin = async (req, res) => {
   try {
     formattedTime = parseSafeTime(time);
   } catch (err) {
-    return res.status(400).json({
-      success: false,
-      message: err.message,
-    });
+    return sendApiError(res, err, "checkin.request_failed", { status: 400, exposeClientMessage: true });
   }
 
   const session = await mongoose.startSession();
@@ -188,10 +186,7 @@ export const updateCheckin = async (req, res) => {
       try {
         updateData.time = parseSafeTime(req.body.time);
       } catch (err) {
-        return res.status(400).json({
-          success: false,
-          message: err.message,
-        });
+        return sendApiError(res, err, "checkin.request_failed", { status: 400, exposeClientMessage: true });
       }
     }
 

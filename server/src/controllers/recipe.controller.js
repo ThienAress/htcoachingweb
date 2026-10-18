@@ -143,7 +143,11 @@ const sendRecipeWriteError = (req, res, error) => {
     error.name === "ValidationError" ||
     error.name === "CastError"
   ) {
-    return res.status(400).json({ success: false, message: error.message });
+    return res.status(400).json({
+      success: false,
+      code: "VALIDATION_FAILED",
+      message: "Dữ liệu chưa hợp lệ. Vui lòng kiểm tra lại các thông tin đã nhập.",
+    });
   }
   return errorHandler(error, req, res);
 };
