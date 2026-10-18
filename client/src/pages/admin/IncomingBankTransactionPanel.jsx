@@ -28,6 +28,7 @@ import {
   resolveSelectedDeposit,
 } from "./depositAdmin.ui";
 import IncomingBankTransactionPagination from "./IncomingBankTransactionPagination";
+import SelectField from "../../components/SelectField";
 
 const IncomingBankTransactionPanel = () => {
   const queryClient = useQueryClient();
@@ -276,7 +277,7 @@ const IncomingBankTransactionPanel = () => {
             {action.type === "approve" && (
               <label className="mt-4 block text-sm font-semibold text-gray-700">
                 Yêu cầu nạp của khách hàng
-                <select
+                <SelectField
                   value={depositRequestId}
                   autoFocus
                   onChange={(event) => setDepositRequestId(event.target.value)}
@@ -288,7 +289,7 @@ const IncomingBankTransactionPanel = () => {
                       {deposit.depositCode} · {deposit.userId?.name || "Khách hàng"} · {formatVND(deposit.amount)}
                     </option>
                   ))}
-                </select>
+                </SelectField>
               </label>
             )}
             <div

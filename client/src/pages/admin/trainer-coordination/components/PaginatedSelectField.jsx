@@ -1,4 +1,5 @@
 import { ChevronLeft, ChevronRight, Search } from "lucide-react";
+import SelectField from "../../../../components/SelectField";
 
 const PaginatedSelectField = ({
   label,
@@ -48,7 +49,7 @@ const PaginatedSelectField = ({
         Tìm
       </button>
     </span>
-    <select
+    <SelectField
       {...field}
       onChange={(event) => {
         field.onChange(event);
@@ -62,7 +63,7 @@ const PaginatedSelectField = ({
           {getOptionLabel(option)}
         </option>
       ))}
-    </select>
+    </SelectField>
     {errorMessage && (
       <span className="mt-1 block text-xs font-normal text-rose-700">
         {errorMessage}

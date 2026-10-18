@@ -12,6 +12,7 @@ import {
   recipeNutritionFormValues,
   recipeNutritionPayload,
 } from "./recipeNutritionForm";
+import SelectField from "../../components/SelectField";
 
 const ingredientLines = (ingredients = []) =>
   ingredients
@@ -342,7 +343,7 @@ const RecipeEditModal = ({ recipe, onClose }) => {
                 <label className="block text-sm font-medium text-gray-700">
                   Nguồn dữ liệu
                 </label>
-                <select
+                <SelectField
                   name="source"
                   value={formData.source}
                   onChange={handleChange}
@@ -351,7 +352,7 @@ const RecipeEditModal = ({ recipe, onClose }) => {
                   <option value="manual">Thủ công</option>
                   <option value="ai">AI</option>
                   <option value="mealdb">MealDB</option>
-                </select>
+                </SelectField>
               </div>
               <label className="flex items-center gap-3 self-end min-h-10 text-sm font-medium text-gray-700">
                 <input

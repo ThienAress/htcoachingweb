@@ -26,6 +26,7 @@ import {
 } from "../../services/checkin.service";
 import { utcToLocalDateTime, localDateTimeToUTC } from "../../utils/date";
 import { useDebounce } from "../../hooks/useDebounce";
+import SelectField from "../../components/SelectField";
 
 const CheckinHistory = () => {
   const queryClient = useQueryClient();
@@ -191,7 +192,7 @@ const CheckinHistory = () => {
         <div className="flex flex-wrap gap-2">
           <div className="relative flex-1 sm:flex-none">
             <CalendarDays className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <select
+            <SelectField
               value={selectedMonth}
               onChange={(e) => {
                 setSelectedMonth(e.target.value);
@@ -207,11 +208,11 @@ const CheckinHistory = () => {
                   Tháng {parseInt(m)}
                 </option>
               ))}
-            </select>
+            </SelectField>
           </div>
           <div className="relative flex-1 sm:flex-none">
             <CalendarDays className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <select
+            <SelectField
               value={selectedYear}
               onChange={(e) => {
                 setSelectedYear(e.target.value);
@@ -225,7 +226,7 @@ const CheckinHistory = () => {
                   {year}
                 </option>
               ))}
-            </select>
+            </SelectField>
           </div>
           {(searchInput || selectedMonth || selectedYear) && (
             <button

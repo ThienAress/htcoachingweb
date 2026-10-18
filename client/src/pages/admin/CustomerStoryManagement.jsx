@@ -32,6 +32,7 @@ import { getAllOrders } from "../../services/orderCollection.service";
 import { getAdminTrainers } from "../../services/trainer.service";
 import CustomerStoryDetail from "../CustomerStoryDetail";
 import { useDebounce } from "../../hooks/useDebounce";
+import SelectField from "../../components/SelectField";
 
 const getPreviewData = (form, API_ORIGIN) => {
   const getUrl = (url) => (url && url.startsWith("/uploads/") ? `${API_ORIGIN}${url}` : url);
@@ -766,7 +767,7 @@ const CustomerStoryManagement = () => {
             className={`${inputClass} pl-9`}
           />
         </div>
-        <select
+        <SelectField
           value={status}
           onChange={(event) => {
             setStatus(event.target.value);
@@ -777,7 +778,7 @@ const CustomerStoryManagement = () => {
           <option value="">Tất cả trạng thái</option>
           <option value="draft">Draft</option>
           <option value="published">Published</option>
-        </select>
+        </SelectField>
       </div>
 
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
@@ -982,7 +983,7 @@ const CustomerStoryManagement = () => {
                 />
                 <div className="grid grid-cols-2 gap-3">
                   <Field label="Chọn khách hàng">
-                    <select
+                    <SelectField
                       className={inputClass}
                       value={form.orderId || ""}
                       onChange={async (e) => {
@@ -1024,10 +1025,10 @@ const CustomerStoryManagement = () => {
                           {order.name} - {order.package}
                         </option>
                       ))}
-                    </select>
+                    </SelectField>
                   </Field>
                   <Field label="Chọn Huấn luyện viên">
-                    <select
+                    <SelectField
                       className={inputClass}
                       value={form.trainerId || ""}
                       onChange={(e) => updateForm("trainerId", e.target.value)}
@@ -1038,7 +1039,7 @@ const CustomerStoryManagement = () => {
                           {trainer.name}
                         </option>
                       ))}
-                    </select>
+                    </SelectField>
                   </Field>
                 </div>
                 <Field label="Tên khách hàng">
@@ -1380,7 +1381,7 @@ const CustomerStoryManagement = () => {
                 />
                 <div className="grid gap-3 sm:grid-cols-3">
                   <Field label="Trạng thái">
-                    <select
+                    <SelectField
                       className={inputClass}
                       value={form.status}
                       onChange={(event) =>
@@ -1389,7 +1390,7 @@ const CustomerStoryManagement = () => {
                     >
                       <option value="draft">Draft</option>
                       <option value="published">Published</option>
-                    </select>
+                    </SelectField>
                   </Field>
                   <Field label="Thứ tự">
                     <input

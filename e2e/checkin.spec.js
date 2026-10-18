@@ -19,7 +19,8 @@ test.describe("trainer check-in journey", () => {
     await page.goto("/checkin");
     await page.getByText("Chọn khách hàng", { exact: true }).click();
     await page.getByText("E2E Client", { exact: true }).click();
-    await page.locator("select").first().selectOption("order-e2e");
+    await page.getByRole("combobox").first().click();
+    await page.getByRole("listbox").getByRole("option", { name: /PT 10/ }).click();
     await page.locator('input[type="datetime-local"]').fill("2026-07-19T09:00");
     await page.getByText("Chọn nhóm cơ", { exact: true }).click();
     await page.getByText("Ngực", { exact: true }).click();

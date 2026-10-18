@@ -24,6 +24,7 @@ import {
 } from "../../services/recipe.service";
 import RecipeEditModal from "./RecipeEditModal";
 import RecipeNutritionImportModal from "./RecipeNutritionImportModal";
+import SelectField from "../../components/SelectField";
 
 const RecipeManagement = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -142,7 +143,7 @@ const RecipeManagement = () => {
               size={20}
             />
           </div>
-          <select
+          <SelectField
             aria-label="Lọc theo trạng thái"
             className="w-full sm:w-48 px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent outline-none text-gray-700 bg-white"
             value={filterPublished}
@@ -154,7 +155,7 @@ const RecipeManagement = () => {
             <option value="">Tất cả trạng thái</option>
             <option value="true">Đã duyệt (Public)</option>
             <option value="false">Chưa duyệt (Draft)</option>
-          </select>
+          </SelectField>
         </div>
       </div>
 

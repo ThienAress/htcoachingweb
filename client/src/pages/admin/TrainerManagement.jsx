@@ -37,6 +37,7 @@ import {
 import { useDebounce } from "../../hooks/useDebounce";
 import Trainers from "../../sections/Trainers";
 import SetupProfileModal from "./SetupProfileModal";
+import SelectField from "../../components/SelectField";
 
 const API_URL = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? "http://localhost:5000/api" : "");
 const API_ORIGIN = API_URL.replace(/\/api\/?$/, "");
@@ -375,7 +376,7 @@ export default function TrainerManagement() {
             className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-4 text-sm font-medium text-slate-800 placeholder:text-slate-400 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
           />
         </div>
-        <select
+        <SelectField
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
           className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary md:w-48"
@@ -383,7 +384,7 @@ export default function TrainerManagement() {
           <option value="">Tất cả trạng thái</option>
           <option value="published">Đã xuất bản</option>
           <option value="draft">Bản nháp</option>
-        </select>
+        </SelectField>
       </div>
 
       {/* TABLE */}
@@ -443,7 +444,7 @@ export default function TrainerManagement() {
                       <div className="text-xs text-slate-500 mt-1">{trainer.experience || "Chưa có"}</div>
                     </td>
                     <td className="px-6 py-4">
-                      <select
+                      <SelectField
                         value={trainer.status}
                         onChange={(e) =>
                           statusMutation.mutate({ id: trainer._id, status: e.target.value })
@@ -456,7 +457,7 @@ export default function TrainerManagement() {
                       >
                         <option value="published">Đã xuất bản</option>
                         <option value="draft">Bản nháp</option>
-                      </select>
+                      </SelectField>
                     </td>
                     <td className="px-6 py-4">
                       <span className="inline-flex h-8 min-w-[2rem] items-center justify-center rounded-lg bg-slate-100 px-2 font-bold text-slate-600">
@@ -686,7 +687,7 @@ export default function TrainerManagement() {
                       <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-5">
                         {form.specialties.map((spec, index) => (
                           <div key={spec._id} className="flex items-center gap-2 bg-slate-50 rounded-lg p-2 border border-slate-100">
-                            <select
+                            <SelectField
                               value={spec.icon}
                               onChange={(e) => {
                                 const newArr = [...form.specialties];
@@ -699,7 +700,7 @@ export default function TrainerManagement() {
                               <option value="utensils">🥗</option>
                               <option value="chart-line">📈</option>
                               <option value="heart-pulse">❤️</option>
-                            </select>
+                            </SelectField>
                             <input
                               type="text"
                               value={spec.label}
@@ -734,14 +735,14 @@ export default function TrainerManagement() {
                       <FormSectionTitle number="04" title="Trạng thái & Hiển thị" />
                       <div className="grid gap-4 sm:grid-cols-2 rounded-xl border border-slate-200 bg-white p-5">
                         <Field label="Trạng thái">
-                          <select
+                          <SelectField
                             value={form.status}
                             onChange={(e) => setForm({ ...form, status: e.target.value })}
                             className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-700 focus:border-primary focus:bg-white focus:outline-none focus:ring-1 focus:ring-primary"
                           >
                             <option value="draft">Bản nháp</option>
                             <option value="published">Đã xuất bản</option>
-                          </select>
+                          </SelectField>
                         </Field>
                         <Field label="Thứ tự hiển thị">
                           <input

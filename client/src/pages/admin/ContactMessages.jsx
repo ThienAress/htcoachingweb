@@ -30,6 +30,7 @@ import {
   updateContactStatus,
   deleteContactMessage,
 } from "../../services/contact.service";
+import SelectField from "../../components/SelectField";
 
 // ================= COMPONENT =================
 const ContactMessages = () => {
@@ -175,7 +176,7 @@ const ContactMessages = () => {
           />
         </div>
         <div className="flex gap-2">
-          <select
+          <SelectField
             className="px-4 py-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-red-400"
             value={statusFilter}
             onChange={(e) => {
@@ -186,7 +187,7 @@ const ContactMessages = () => {
             <option value="">Tất cả trạng thái</option>
             <option value="pending">Chờ xử lý</option>
             <option value="processed">Đã xử lý</option>
-          </select>
+          </SelectField>
           <div className="px-4 py-2 bg-gray-100 rounded-lg text-gray-600">
             Tổng: {pagination.total}
           </div>

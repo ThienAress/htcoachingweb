@@ -89,9 +89,11 @@ test.describe("Explicit conversion origin controls", () => {
     await page.getByLabel(/Họ tên/).fill("Order Customer");
     await page.getByLabel(/Email/).fill("order@example.com");
     await page.getByLabel(/Số điện thoại/).fill("0912345678");
-    await page.getByLabel(/Gói tập/).selectOption("Cơ Bản(Online)");
+    await page.getByRole("combobox", { name: /Gói tập/ }).click();
+    await page.getByRole("listbox").getByRole("option", { name: "Cơ Bản(Online)", exact: true }).click();
     await page.getByLabel(/Số buổi/).fill("12");
-    await page.getByLabel(/Phòng tập/).selectOption("Home gym");
+    await page.getByRole("combobox", { name: /Phòng tập/ }).click();
+    await page.getByRole("listbox").getByRole("option", { name: "Home gym", exact: true }).click();
     await page.getByLabel(/Thời gian/).fill("Thứ 2, 8 giờ");
     await page.getByRole("button", { name: "Lưu" }).click();
 

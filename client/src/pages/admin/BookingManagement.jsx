@@ -25,6 +25,7 @@ import {
   User,
   Clock,
 } from "lucide-react";
+import SelectField from "../../components/SelectField";
 
 const BookingManagement = () => {
   const queryClient = useQueryClient();
@@ -138,7 +139,7 @@ const BookingManagement = () => {
           />
         </div>
         <div className="flex gap-2">
-          <select
+          <SelectField
             className="px-4 py-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-red-400"
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
@@ -148,7 +149,7 @@ const BookingManagement = () => {
             <option value="contacted">Đã liên hệ</option>
             <option value="completed">Hoàn thành</option>
             <option value="cancelled">Đã hủy</option>
-          </select>
+          </SelectField>
         </div>
       </div>
 

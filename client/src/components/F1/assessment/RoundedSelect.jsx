@@ -39,6 +39,16 @@ const LIST_MAX_HEIGHT = 256;
 const LIST_GAP = 6;
 const VIEWPORT_MARGIN = 8;
 
+// Lớp xếp chồng của danh sách phải cao hơn hộp thoại chứa ô chọn (có hộp thoại dùng z-100 trở lên).
+const stackLevelAbove = (element) => {
+  let level = 60;
+  for (let node = element; node && node !== document.body; node = node.parentElement) {
+    const z = Number.parseInt(window.getComputedStyle(node).zIndex, 10);
+    if (Number.isFinite(z)) level = Math.max(level, z + 1);
+  }
+  return level;
+};
+
 // Danh sách hiện ở lớp ngoài cùng (portal) để không bị thẻ cha có overflow cắt mất.
 const computeListStyle = (trigger) => {
   const rect = trigger.getBoundingClientRect();
@@ -48,6 +58,7 @@ const computeListStyle = (trigger) => {
   const maxHeight = Math.max(Math.min(LIST_MAX_HEIGHT, openUp ? above : below), 96);
   return {
     position: "fixed",
+    zIndex: stackLevelAbove(trigger),
     left: rect.left,
     width: rect.width,
     maxHeight,
@@ -199,7 +210,7 @@ const RoundedSelect = ({
           role="listbox"
           aria-label={label}
           style={listStyle}
-          className={`z-[60] overflow-y-auto overscroll-contain rounded-xl border p-1.5 ${colors.list}`}
+          className={`overflow-y-auto overscroll-contain rounded-xl border p-1.5 ${colors.list}`}
         >
           {options.length === 0 && (
             <li className={`px-3 py-2 text-sm ${colors.empty}`}>{emptyText}</li>

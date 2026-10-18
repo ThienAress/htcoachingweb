@@ -33,6 +33,7 @@ import ExerciseInstructionsEditor from "./ExerciseInstructionsEditor";
 import ExerciseTechnicalDifficultyFields from "./ExerciseTechnicalDifficultyFields";
 import ExerciseVideoUploadField from "./ExerciseVideoUploadField";
 import ExerciseInstructionsImportModal from "./ExerciseInstructionsImportModal";
+import SelectField from "../../components/SelectField";
 
 const ExerciseManagement = () => {
   const queryClient = useQueryClient();
@@ -478,7 +479,7 @@ const ExerciseManagement = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Nhóm cơ *
                 </label>
-                <select
+                <SelectField
                   className="w-full p-2.5 border border-gray-300 rounded-xl bg-white focus:ring-2 focus:ring-indigo-500"
                   value={formData.muscleGroup}
                   onChange={(e) =>
@@ -492,7 +493,7 @@ const ExerciseManagement = () => {
                       {g}
                     </option>
                   ))}
-                </select>
+                </SelectField>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">

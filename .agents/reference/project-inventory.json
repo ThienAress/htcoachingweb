@@ -10,7 +10,7 @@
   "testFiles": {
     "client": 193,
     "server": 373,
-    "e2e": 30
+    "e2e": 31
   },
   "serverModules": {
     "models": 83,
