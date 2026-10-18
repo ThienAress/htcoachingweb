@@ -131,8 +131,7 @@ describe("ProgressSummary", () => {
     expect((html.match(/Sức khỏe trung bình/g) || [])).toHaveLength(1);
     expect(html).toContain('data-wellness-selector="desktop"');
     expect(html).toContain('data-wellness-selector="mobile"');
-    expect(html).toContain('<optgroup label="Số liệu">');
-    expect(html).toContain('<optgroup label="Cảm nhận">');
+    expect(html).toMatch(/data-wellness-selector="mobile"[\s\S]*role="combobox"/);
     expect(html).toContain("Giải thích biểu đồ");
     expect(html).toContain("Biểu đồ chỉ hiển thị những ngày đã gửi dữ liệu");
     expect(html).toContain(

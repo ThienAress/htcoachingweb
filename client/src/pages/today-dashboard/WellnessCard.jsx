@@ -207,6 +207,7 @@ export const WellnessCard = ({
       >
         <WellnessFields
           register={register}
+          control={control}
           errors={errors}
           disabled={disabled}
           painValue={painValue}

@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
 import SEO from "../components/SEO";
+import { WorkspaceBrand, WorkspaceHomeLink } from "../components/workspace/WorkspaceSidebarParts";
+import { workspaceGroupLabelClass, workspaceItemClass } from "../components/workspace/workspaceSidebarClasses";
 import { findNavigationTitle } from "../navigation/workspaceNavigation";
 import {
   Package,
@@ -121,28 +123,15 @@ const SidebarContent = ({
   return (
     <div className="flex flex-col h-full text-white">
       {/* Branding */}
-      <div className="mb-6 flex items-center justify-between gap-3 border-b border-white/10 pb-4">
-        <div className="min-w-0">
-          <h3 className="text-lg font-bold tracking-tight leading-tight">
-            HTCOACHING
-          </h3>
-          <p className="text-xs text-white/60">Admin Panel</p>
-        </div>
-        {onSidebarToggle && (
-          <button
-            type="button"
-            onClick={onSidebarToggle}
-            className="inline-flex size-11 shrink-0 items-center justify-center rounded-lg text-white/60 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
-            aria-label={sidebarToggleLabel}
-            title={sidebarToggleLabel}
-          >
-            <SidebarToggleIcon className="size-5" aria-hidden="true" />
-          </button>
-        )}
-      </div>
+      <WorkspaceBrand
+        subtitle="Quản trị"
+        onToggle={onSidebarToggle}
+        toggleLabel={sidebarToggleLabel}
+        ToggleIcon={SidebarToggleIcon}
+      />
 
       {/* Navigation Groups */}
-      <div className="flex-1 space-y-2 overflow-y-auto">
+      <div className="flex-1 space-y-2 overflow-y-auto px-4 py-2">
         {ADMIN_NAV_GROUPS.map((group) => {
           const isOpen = !!openGroups[group.key];
           return (
@@ -152,7 +141,7 @@ const SidebarContent = ({
                 onClick={() => toggleGroup(group.key)}
                 aria-expanded={isOpen}
                 aria-controls={`admin-nav-${group.key}`}
-                className="flex min-h-11 w-full cursor-pointer items-center justify-between px-4 py-2 text-[11px] font-bold uppercase tracking-widest text-white/50 transition-colors hover:text-white/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/70"
+                className={workspaceGroupLabelClass}
               >
                 <span>{group.label}</span>
                 <ChevronDown
@@ -174,11 +163,7 @@ const SidebarContent = ({
                         <Link
                           to={item.path}
                           onClick={onItemClick}
-                          className={`flex min-h-11 items-center gap-3 rounded-lg px-4 py-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/70 ${
-                            isActive
-                              ? "bg-primary text-white font-medium"
-                              : "text-white/80 hover:bg-white/10 hover:text-white"
-                          }`}
+                          className={workspaceItemClass(isActive)}
                         >
                           <Icon className="w-5 h-5" />
                           <span>{item.label}</span>
@@ -194,16 +179,7 @@ const SidebarContent = ({
       </div>
 
       {/* Nút về trang chủ */}
-      <div className="mt-auto pt-4 border-t border-white/10">
-        <Link
-          to="/"
-          onClick={onItemClick}
-          className="flex min-h-11 items-center gap-3 rounded-lg px-4 py-2 text-white/80 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/70"
-        >
-          <Home className="w-5 h-5" />
-          <span>Trang chủ</span>
-        </Link>
-      </div>
+      <WorkspaceHomeLink onClick={onItemClick} />
     </div>
   );
 };
@@ -239,7 +215,7 @@ const AdminLayout = () => {
             isDesktopCollapsed ? "w-0" : "w-64"
           }`}
         >
-          <div className="flex h-full w-64 flex-col p-4">
+          <div className="flex h-full w-64 flex-col">
             <SidebarContent
               onSidebarToggle={() => setIsDesktopCollapsed(true)}
               sidebarToggleLabel="Thu sidebar Admin"
@@ -251,7 +227,7 @@ const AdminLayout = () => {
           <button
             type="button"
             onClick={() => setIsDesktopCollapsed(false)}
-            className="fixed left-4 top-4 z-30 hidden size-11 items-center justify-center rounded-lg bg-[#1C2D42] text-white/80 shadow-md transition-colors hover:bg-slate-700 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 md:inline-flex"
+            className="fixed left-4 top-4 z-30 hidden size-11 items-center justify-center rounded-lg bg-[#1C2D42] text-white/80 shadow-md transition-colors hover:bg-slate-700 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400 md:inline-flex"
             aria-label="Mở sidebar Admin"
             aria-controls="admin-desktop-sidebar"
             aria-expanded="false"
@@ -278,7 +254,7 @@ const AdminLayout = () => {
       <button
         type="button"
         onClick={() => setIsSidebarOpen(true)}
-        className="fixed left-4 top-4 z-30 inline-flex size-11 items-center justify-center rounded-md bg-white text-slate-700 shadow-md transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 md:hidden"
+        className="fixed left-4 top-4 z-30 inline-flex size-11 items-center justify-center rounded-md bg-white text-slate-700 shadow-md transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400 md:hidden"
         aria-label="Mở menu"
         aria-controls="admin-mobile-sidebar"
         aria-expanded={isSidebarOpen}
@@ -301,7 +277,7 @@ const AdminLayout = () => {
           isSidebarOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        <div className="flex h-full flex-col p-4">
+        <div className="flex h-full flex-col">
           <SidebarContent
             onItemClick={() => setIsSidebarOpen(false)}
             onSidebarToggle={() => setIsSidebarOpen(false)}

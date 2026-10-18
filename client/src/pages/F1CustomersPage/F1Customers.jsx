@@ -28,6 +28,8 @@ import {
   getF1Progress,
 } from "../../constants/f1CustomerStatus";
 import { useConfirmDialog } from "../../hooks/useConfirmDialog";
+import { WorkspaceBrand } from "../../components/workspace/WorkspaceSidebarParts";
+import { workspaceItemClass } from "../../components/workspace/workspaceSidebarClasses";
 
 const F1CustomerList = lazy(
   () => import("../../components/F1/F1CustomerList"),
@@ -358,35 +360,26 @@ const F1Customers = () => {
         id="f1-navigation"
         aria-hidden={isDesktopViewport && desktopSidebarCollapsed}
         inert={isDesktopViewport && desktopSidebarCollapsed}
-        className={`fixed inset-y-0 left-0 z-40 w-72 transform bg-gradient-to-b from-slate-800 to-slate-900 text-white shadow-2xl transition-[transform,width] duration-300 ease-in-out md:relative md:translate-x-0 md:overflow-hidden md:duration-200 ${
+        className={`fixed inset-y-0 left-0 z-40 w-64 transform bg-[#1C2D42] text-[#e2e8f0] shadow-2xl transition-[transform,width] duration-300 ease-in-out md:relative md:translate-x-0 md:overflow-hidden md:duration-200 ${
           mobileMenuOpen ? "translate-x-0" : "-translate-x-full"
-        } ${desktopSidebarCollapsed ? "md:w-0" : "md:w-72"}`}
+        } ${desktopSidebarCollapsed ? "md:w-0" : "md:w-64"}`}
       >
-        <div className="flex h-full w-72 flex-col">
-          <div className="hidden items-center justify-end border-b border-white/10 p-4 md:flex">
-            <button
-              type="button"
-              onClick={() => setDesktopSidebarCollapsed(true)}
-              aria-label="Thu menu F1"
-              aria-expanded="true"
-              aria-controls="f1-navigation"
-              className="hidden h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-300 transition hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400 md:inline-flex"
-            >
-              <SidebarClose size={20} aria-hidden="true" />
-            </button>
+        <div className="flex h-full w-64 flex-col">
+          <div className="hidden md:block">
+            <WorkspaceBrand
+              subtitle="Khách hàng F1"
+              onToggle={() => setDesktopSidebarCollapsed(true)}
+              toggleLabel="Thu menu F1"
+            />
           </div>
 
-          <nav className="flex-1 space-y-1 px-4 pb-8 pt-16 md:pt-8">
+          <nav className="flex-1 space-y-1 px-4 pb-8 pt-16 md:pt-4">
             <button
               onClick={() => {
                 setViewMode("list");
                 setMobileMenuOpen(false);
               }}
-              className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-colors ${
-                viewMode === "list" || viewMode === "create"
-                  ? "bg-orange-500/20 text-orange-300 shadow-inner"
-                  : "text-slate-300 hover:bg-white/10 hover:text-white"
-              }`}
+              className={workspaceItemClass(viewMode === "list" || viewMode === "create")}
             >
               <Users size={20} />
               <span>Khách hàng F1</span>
@@ -398,11 +391,7 @@ const F1Customers = () => {
                 setViewMode("deleted");
                 setMobileMenuOpen(false);
               }}
-              className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-colors ${
-                viewMode === "deleted"
-                  ? "bg-orange-500/20 text-orange-300 shadow-inner"
-                  : "text-slate-300 hover:bg-white/10 hover:text-white"
-              }`}
+              className={workspaceItemClass(viewMode === "deleted")}
             >
               <Trash2 size={20} />
               <span>Xóa khách hàng</span>
@@ -410,20 +399,20 @@ const F1Customers = () => {
 
           </nav>
 
-          <div className="space-y-2 border-t border-white/10 p-4">
+          <div className="space-y-1 border-t border-[#34475f] p-4">
             <Link
               to="/trainer"
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-orange-500/20 px-4 py-3 text-sm font-medium text-orange-200 transition hover:bg-orange-500/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400"
+              className={workspaceItemClass(false)}
             >
-              <ArrowLeft size={18} aria-hidden="true" />
+              <ArrowLeft size={20} aria-hidden="true" />
               <span>Về khu HLV</span>
             </Link>
             <Link
               to="/"
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-white/10 px-4 py-3 text-sm font-medium text-slate-200 transition hover:bg-white/20"
+              className={workspaceItemClass(false)}
             >
-              <Home size={18} />
-              <span>Trở về trang chủ</span>
+              <Home size={20} aria-hidden="true" />
+              <span>Trang chủ</span>
             </Link>
           </div>
         </div>

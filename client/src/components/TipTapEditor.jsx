@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 
 import { createTipTapExtensions } from "./tiptap/createTipTapExtensions";
+import SelectField from "./SelectField";
 
 
 const MenuButton = ({ onClick, active, disabled, title, children }) => (
@@ -377,7 +378,7 @@ const TipTapEditor = ({ content, coverImage, onChange, onImageUpload }) => {
     }`}>
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-1.5 border-b border-slate-200 bg-slate-50/80 px-2 py-1.5">
-        <select
+        <SelectField tone="light"
           onChange={(e) => {
             const val = e.target.value;
             if (val === "default") {
@@ -402,9 +403,9 @@ const TipTapEditor = ({ content, coverImage, onChange, onImageUpload }) => {
           <option value="Merriweather">Merriweather</option>
           <option value="Arial">Arial</option>
           <option value="Times New Roman">Times New Roman</option>
-        </select>
+        </SelectField>
 
-        <select
+        <SelectField tone="light"
           onChange={(e) => {
             const val = e.target.value;
             if (val === "default") {
@@ -426,7 +427,7 @@ const TipTapEditor = ({ content, coverImage, onChange, onImageUpload }) => {
           <option value="30px">30px</option>
           <option value="36px">36px</option>
           <option value="48px">48px</option>
-        </select>
+        </SelectField>
 
         <Divider />
 

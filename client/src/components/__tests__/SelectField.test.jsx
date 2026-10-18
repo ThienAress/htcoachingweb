@@ -34,6 +34,44 @@ describe("parseSelectOptions", () => {
   });
 });
 
+describe("parseSelectOptions groups and hidden options", () => {
+  it("keeps the group label of each option inside an optgroup", () => {
+    const options = parseSelectOptions([
+      <optgroup key="a" label="Số liệu">
+        <option value="sleep">Giấc ngủ</option>
+      </optgroup>,
+      <optgroup key="b" label="Cảm nhận">
+        <option value="energy">Năng lượng</option>
+      </optgroup>,
+      <option key="c" value="x">Khác</option>,
+    ]);
+
+    expect(options).toEqual([
+      { value: "sleep", label: "Giấc ngủ", disabled: false, group: "Số liệu" },
+      { value: "energy", label: "Năng lượng", disabled: false, group: "Cảm nhận" },
+      { value: "x", label: "Khác", disabled: false },
+    ]);
+  });
+
+  it("marks hidden options so old saved values still show their label", () => {
+    const [legacy, visible] = parseSelectOptions([
+      <option key="l" value="7" hidden>Mức cũ</option>,
+      <option key="v" value="8">Mức mới</option>,
+    ]);
+
+    expect(legacy).toMatchObject({ value: "7", hidden: true });
+    expect(visible.hidden).toBeUndefined();
+
+    const html = renderToStaticMarkup(
+      <SelectField aria-label="Mức" value="7">
+        <option value="7" hidden>Mức cũ</option>
+        <option value="8">Mức mới</option>
+      </SelectField>,
+    );
+    expect(html).toContain("Mức cũ");
+  });
+});
+
 describe("SelectField", () => {
   const render = (props) =>
     renderToStaticMarkup(
