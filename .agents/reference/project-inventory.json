@@ -4,11 +4,11 @@
     "agentGovernance": "working_tree_candidates",
     "productSurfaces": "git_index"
   },
-  "skills": 15,
+  "skills": 16,
   "evalCorpora": 9,
   "evalScenarios": 49,
   "testFiles": {
-    "client": 195,
+    "client": 196,
     "server": 375,
     "e2e": 32
   },

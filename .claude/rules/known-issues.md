@@ -25,6 +25,7 @@ paths:
 | Inline imports trong `server/server.js` | Giữ nguyên nếu không thuộc task |
 | File UI rất lớn (`KnowledgeBase.jsx`, `CustomerStoryManagement.jsx`, `TrainerCoaching.jsx`, `OnlineCoaching.jsx`, `sections/Pricing.jsx`) | Đã biết, chưa ưu tiên tách; chỉ sửa đúng đoạn cần |
 | Quote style `""` và `''` lẫn lộn | Không enforce; giữ style của file đang sửa |
+| Netlify preview đỏ với `Rendered ... does not match the approved cohort` khi các check GitHub khác xanh | Backend Render ngủ lúc prerender, không phải lỗi code. Ping `/api/health` tới khi trả dưới 2 giây rồi Retry deploy; chỉ điều tra code khi vẫn đỏ sau khi backend đã tỉnh |
 
 Thêm domain/service ngoài mới thì cập nhật directive CSP tương ứng trong `buildCspDirectives`; nếu không,
 resource bị chặn trên production. Danh sách domain canonical là chính code, không chép ra tài liệu.

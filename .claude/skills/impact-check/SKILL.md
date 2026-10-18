@@ -82,6 +82,7 @@ Không chạy migration/seed/cleanup trên staging hoặc production nếu user 
 - Sau mỗi thay đổi contract, chạy lại cùng truy vấn rg ở bước 2.
 - So git diff --check và rà import/biến/code thừa do chính thay đổi tạo ra.
 - Nếu xuất hiện consumer mới ngoài dependency map, cập nhật phạm vi và test trước khi tiếp tục.
+- Đổi component dùng chung (Select, modal, layout): `grep` role/label/text cũ trong `e2e/` và `__tests__/`, cập nhật locator rồi chạy lại spec liên quan trước khi push.
 
 ### 7. Bàn giao impact matrix
 

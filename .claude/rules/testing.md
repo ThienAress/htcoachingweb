@@ -31,3 +31,11 @@ Server test helpers trong `server/src/__tests__/setup.js`: `setupTestDB()`, `tea
   → SEO rendering, Zod schemas (P2).
 - E2E: đọc accessibility snapshot trước, dùng locator theo role/label; synthetic account và fixture cô lập,
   không dùng auth state production; assert trạng thái cuối, không chỉ assert đã click.
+
+## Tệp sinh tự động và đổi component dùng chung
+
+- `.agents/reference/project-inventory.json` do `npm run agents:inventory` sinh. Mọi PR thêm hoặc xóa test, script, skill, rule đều làm nó lệch
+  và CI `secrets` đỏ. Sau `git add` file mới: `npm run agents:inventory`, `npm run agents:inventory:check`, rồi stage lại file JSON.
+- Conflict ở file này: lấy bản của nhánh nền rồi tái tạo bằng `npm run agents:inventory`; không sửa tay, không chọn từng hunk.
+- Đổi component dùng chung (`SelectField`, `RoundedSelect`, modal, layout): trước khi push `grep` role, label, text cũ trong `e2e/` và
+  `**/__tests__/`, cập nhật locator rồi chạy lại spec liên quan (ví dụ `getByRole("option").first()` hỏng sau khi đổi ô chọn).

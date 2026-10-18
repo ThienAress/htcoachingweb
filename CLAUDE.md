@@ -76,6 +76,9 @@ Sản phẩm phục vụ HLV và khách hàng Việt Nam: **tiếng Việt là �
 - Việc nhiều bước hoặc rủi ro cao: nêu plan kèm tiêu chí kiểm chứng trước khi sửa. Plan cần lưu lại
   thì dùng skill `plan-template`; feature mới chưa rõ hành vi thì dùng `feature-spec`.
 - Báo cáo cuối gồm: kết quả, file chính, lệnh kiểm tra đã chạy và kết quả, phần chưa chạy, side effect.
+- Thêm hoặc xóa file test/script/skill/rule: chạy `npm run agents:inventory` trước khi push (CI `secrets` đỏ nếu lệch).
+- Windows: script nhiều dòng ghi ra file rồi chạy, commit bằng `-F <file>`, Node qua `fnm`, worktree mỗi lệnh git một lần gọi (`.claude/rules/windows-environment.md`).
+- Sau khi user báo đã merge PR: dùng skill `staging-verify`, đợi deploy đúng bản rồi mới kiểm.
 
 ## Kiểm chứng
 
