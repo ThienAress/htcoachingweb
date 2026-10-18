@@ -20,6 +20,7 @@ import FirstTimeModal from "./components/FirstTimeModal";
 import { trackAnalyticsEventOnce } from "../../utils/analytics";
 import { getPublicAttribution } from "../../utils/publicAttribution";
 import SelectField from "../../components/SelectField";
+import { useLoginPromo } from "../../hooks/useLoginPromo";
 
 const createDiscountCode = () => {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ0123456789";
@@ -123,7 +124,8 @@ function RegisterPage() {
     staleTime: 60_000,
   });
   const hasExistingBooking = bookingStatus?.hasBookings || false;
-  const discountCode = bookingStatus?.discountCode || "";
+  const loginPromo = useLoginPromo();
+  const discountCode = loginPromo.enabled ? bookingStatus?.discountCode || "" : "";
   const loadingCheck = isLoggedIn && loadingBookingStatus;
 
   useEffect(() => {
@@ -162,7 +164,7 @@ function RegisterPage() {
         note: formValues.note || "",
         package: `${planMode === "trial" ? "Trải nghiệm" : planMode === "1-1" ? "1-1" : "Online"} - ${selectedPackage.title}`,
         sessions: selectedPackage.totalSessions,
-        discountCode: isLoggedIn && !hasExistingBooking ? discountCode : null,
+        discountCode: isLoggedIn && !hasExistingBooking ? discountCode || null : null,
         gifts: gifts,
         attribution: getPublicAttribution(),
         clientRequestId:
@@ -215,14 +217,14 @@ function RegisterPage() {
   const onFormSubmit = useCallback(
     (data) => {
       // schedules đã được Zod validate tự động qua useFieldArray
-      if (isLoggedIn && !hasExistingBooking && !loadingCheck) {
+      if (isLoggedIn && !hasExistingBooking && !loadingCheck && loginPromo.enabled) {
         setPendingFormData(data);
         setShowFirstTimeModal(true);
         return;
       }
       performSubmit(data);
     },
-    [isLoggedIn, hasExistingBooking, loadingCheck, performSubmit],
+    [isLoggedIn, hasExistingBooking, loadingCheck, loginPromo.enabled, performSubmit],
   );
 
   const confirmFirstTimeSubmit = useCallback(() => {
@@ -470,6 +472,7 @@ function RegisterPage() {
               isLoggedIn={isLoggedIn}
               hasExistingBooking={hasExistingBooking}
               discountCode={discountCode}
+              promoPercent={loginPromo.enabled ? loginPromo.percent : 0}
               gifts={gifts}
               onCopyCode={handleCopyCode}
             />
@@ -483,6 +486,7 @@ function RegisterPage() {
       {showFirstTimeModal && (
         <FirstTimeModal
           discountCode={discountCode}
+          percent={loginPromo.percent}
           onConfirm={confirmFirstTimeSubmit}
           onCancel={() => setShowFirstTimeModal(false)}
         />

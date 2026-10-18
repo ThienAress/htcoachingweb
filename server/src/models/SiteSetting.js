@@ -68,6 +68,17 @@ const SiteSettingSchema = new mongoose.Schema(
       of: [String],
       default: {},
     },
+    // Quyền lợi khách hàng/hệ thống của các tab 1-1, ONLINE, Trải nghiệm (xem utils/pricingContent.js). Thiếu khóa = dùng nội dung gốc ở giao diện.
+    pricingContent: {
+      type: Map,
+      of: [String],
+      default: {},
+    },
+    // Ưu đãi giảm giá cho lần đăng ký đầu có tài khoản. Chưa lưu = bật, 15%.
+    loginPromo: {
+      enabled: { type: Boolean, default: true },
+      percent: { type: Number, default: 15, min: 1, max: 100, validate: Number.isSafeInteger },
+    },
   },
   { timestamps: true }
 );

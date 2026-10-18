@@ -35,6 +35,15 @@ describe("CoachingPlans", () => {
     expect(html.match(/Thư viện bài tập/g)).toHaveLength(1);
   });
 
+  it("titles the customer list at the same level as the system list", () => {
+    const html = render();
+    const heading = (key) => html.match(new RegExp(`<h4 class="([^"]*)">${key}</h4>`))?.[1];
+
+    expect(heading("pricing.customer_benefits")).toBeTruthy();
+    expect(heading("pricing.customer_benefits")).toBe(heading("pricing.system_benefits_plain"));
+    expect(html.indexOf("pricing.customer_benefits")).toBeLessThan(html.indexOf("Tập 1 kèm 1"));
+  });
+
   it("centres the plan name and duration and does not show a session count", () => {
     const html = render();
 
