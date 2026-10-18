@@ -235,7 +235,7 @@ export const getMyDeposits = async (req, res) => {
       .sort({ createdAt: -1 })
       .limit(20)
       .select(
-        "amount bonusRate bonusAmount creditedAmount bonusTierKey policyVersion depositCode qrPayload status expiresAt paidAt reversedAt reverseReason createdAt",
+        "amount bonusRate bonusAmount creditedAmount bonusTierKey bonusTierMinAmount policyVersion depositCode qrPayload status expiresAt paidAt reversedAt reverseReason createdAt",
       );
 
     const summaryMap = await getDepositSettlementSummaryMap(

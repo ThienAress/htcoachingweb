@@ -4,12 +4,16 @@ import {
   buildDepositPolicy,
   calculateDepositCreditSnapshot,
   DEFAULT_DEPOSIT_BONUS_RATES,
+  DEFAULT_DEPOSIT_TIER_LABELS,
+  DEFAULT_DEPOSIT_TIER_MINIMUMS,
   DEPOSIT_POLICY,
   DEPOSIT_POLICY_ID,
   DEPOSIT_POLICY_KEY,
   DEPOSIT_TIER_DEFINITIONS,
   resolveDepositTier,
   validateDepositBonusRates,
+  validateDepositTierLabels,
+  validateDepositTierMinimums,
 } from "../constants/depositPolicy.js";
 import AuditLog from "../models/AuditLog.js";
 import DepositPolicy from "../models/DepositPolicy.js";
@@ -25,11 +29,27 @@ const ratesFromDocument = (document) => ({
   premium: document.rates.premium,
 });
 
+// Tài liệu cũ chưa có mốc nạp hoặc tên bậc thì dùng mặc định (lean() không tự điền default).
+const thresholdsFromDocument = (document) => ({
+  growth: document.minimums?.growth ?? DEFAULT_DEPOSIT_TIER_MINIMUMS.growth,
+  premium: document.minimums?.premium ?? DEFAULT_DEPOSIT_TIER_MINIMUMS.premium,
+});
+
+const labelsFromDocument = (document) => ({
+  starter: document.labels?.starter ?? DEFAULT_DEPOSIT_TIER_LABELS.starter,
+  growth: document.labels?.growth ?? DEFAULT_DEPOSIT_TIER_LABELS.growth,
+  premium: document.labels?.premium ?? DEFAULT_DEPOSIT_TIER_LABELS.premium,
+});
+
 const materializePolicy = (document) => {
   if (!document) return DEPOSIT_POLICY;
   const ratesValidation = validateDepositBonusRates(ratesFromDocument(document));
+  const minimumsValidation = validateDepositTierMinimums(thresholdsFromDocument(document));
+  const labelsValidation = validateDepositTierLabels(labelsFromDocument(document));
   if (
     !ratesValidation.valid ||
+    !minimumsValidation.valid ||
+    !labelsValidation.valid ||
     !Number.isSafeInteger(document.policyVersion) ||
     document.policyVersion < 1
   ) {
@@ -41,6 +61,8 @@ const materializePolicy = (document) => {
   }
   return buildDepositPolicy({
     rates: ratesValidation.rates,
+    minimums: minimumsValidation.minimums,
+    labels: labelsValidation.labels,
     policyVersion: document.policyVersion,
   });
 };
@@ -51,14 +73,21 @@ export const getCurrentDepositPolicy = async ({ session } = {}) => {
   return materializePolicy(await query);
 };
 
-const sameRates = (left, right) =>
+const sameByTier = (left, right) =>
   DEPOSIT_TIER_DEFINITIONS.every(({ key }) => left[key] === right[key]);
 
-export const updateDepositBonusRates = async ({ rates, actor }) => {
-  const validation = validateDepositBonusRates(rates);
-  if (!validation.valid) {
-    throw financialError(400, validation.code, validation.message);
-  }
+const checked = (validation) => {
+  if (!validation.valid) throw financialError(400, validation.code, validation.message);
+  return validation;
+};
+
+// Cập nhật tỷ lệ thưởng và, nếu có gửi, mốc nạp và tên bậc. Thiếu thì giữ giá trị hiện tại.
+export const updateDepositBonusRates = async ({ rates, thresholds, labels, actor }) => {
+  const validation = checked(validateDepositBonusRates(rates));
+  const requestedMinimums =
+    thresholds === undefined ? null : checked(validateDepositTierMinimums(thresholds)).minimums;
+  const requestedLabels =
+    labels === undefined ? null : checked(validateDepositTierLabels(labels)).labels;
 
   let lastError;
   for (let attempt = 1; attempt <= MAX_POLICY_UPDATE_ATTEMPTS; attempt += 1) {
@@ -73,7 +102,19 @@ export const updateDepositBonusRates = async ({ rates, actor }) => {
         const currentRates = Object.fromEntries(
           currentPolicy.tiers.map((tier) => [tier.key, tier.bonusRate]),
         );
-        if (sameRates(currentRates, validation.rates)) {
+        const currentMinimums = Object.fromEntries(
+          currentPolicy.tiers.map((tier) => [tier.key, tier.minAmount]),
+        );
+        const currentLabels = Object.fromEntries(
+          currentPolicy.tiers.map((tier) => [tier.key, tier.label || ""]),
+        );
+        const nextMinimums = requestedMinimums || currentMinimums;
+        const nextLabels = requestedLabels || currentLabels;
+        if (
+          sameByTier(currentRates, validation.rates) &&
+          sameByTier(currentMinimums, nextMinimums) &&
+          sameByTier(currentLabels, nextLabels)
+        ) {
           outcome = { changed: false, policy: currentPolicy };
           return;
         }
@@ -89,6 +130,8 @@ export const updateDepositBonusRates = async ({ rates, actor }) => {
             {
               $set: {
                 rates: validation.rates,
+                minimums: { growth: nextMinimums.growth, premium: nextMinimums.premium },
+                labels: nextLabels,
                 updatedBy: actor.id,
                 policyVersion: nextVersion,
               },
@@ -110,6 +153,8 @@ export const updateDepositBonusRates = async ({ rates, actor }) => {
                 policyKey: DEPOSIT_POLICY_KEY,
                 policyVersion: nextVersion,
                 rates: validation.rates,
+                minimums: { growth: nextMinimums.growth, premium: nextMinimums.premium },
+                labels: nextLabels,
                 updatedBy: actor.id,
               },
             ],
@@ -131,6 +176,10 @@ export const updateDepositBonusRates = async ({ rates, actor }) => {
               metadata: {
                 previousRates: currentRates,
                 nextRates: validation.rates,
+                previousMinimums: currentMinimums,
+                nextMinimums,
+                previousLabels: currentLabels,
+                nextLabels,
                 previousVersion: currentPolicy.policyVersion,
                 nextVersion,
               },
@@ -172,6 +221,7 @@ export const resolveDepositCreditSnapshot = (deposit) => {
     deposit.bonusAmount,
     deposit.creditedAmount,
     deposit.bonusTierKey,
+    deposit.bonusTierMinAmount,
     deposit.policyVersion,
   ];
   if (fields.every((value) => value === undefined || value === null)) {
@@ -180,12 +230,23 @@ export const resolveDepositCreditSnapshot = (deposit) => {
       bonusAmount: 0,
       creditedAmount: amount,
       bonusTierKey: null,
+      bonusTierMinAmount: null,
       policyVersion: null,
       legacy: true,
     };
   }
 
-  const expectedTier = resolveDepositTier(DEPOSIT_POLICY, amount);
+  // Hóa đơn mới lưu mốc của bậc lúc tạo nên vẫn đúng khi admin đổi mốc sau đó.
+  // Hóa đơn cũ chưa lưu mốc: tạo trong thời mốc cố định nên đối chiếu với mốc mặc định.
+  const hasSnapshotMinimum =
+    deposit.bonusTierMinAmount !== undefined && deposit.bonusTierMinAmount !== null;
+  const tierMatches = hasSnapshotMinimum
+    ? Number.isSafeInteger(deposit.bonusTierMinAmount) &&
+      amount >= deposit.bonusTierMinAmount &&
+      (deposit.bonusTierKey === "starter"
+        ? deposit.bonusTierMinAmount === DEPOSIT_POLICY.minAmount
+        : deposit.bonusTierMinAmount > DEPOSIT_POLICY.minAmount)
+    : resolveDepositTier(DEPOSIT_POLICY, amount)?.key === deposit.bonusTierKey;
   const expectedBonus = Math.floor((amount * deposit.bonusRate) / 100);
   const valid =
     Number.isSafeInteger(deposit.bonusRate) &&
@@ -196,7 +257,7 @@ export const resolveDepositCreditSnapshot = (deposit) => {
     Number.isSafeInteger(deposit.creditedAmount) &&
     deposit.creditedAmount > 0 &&
     DEPOSIT_TIER_DEFINITIONS.some(({ key }) => key === deposit.bonusTierKey) &&
-    expectedTier?.key === deposit.bonusTierKey &&
+    tierMatches &&
     Number.isSafeInteger(deposit.policyVersion) &&
     deposit.policyVersion >= 1 &&
     deposit.bonusAmount === expectedBonus &&
@@ -213,6 +274,7 @@ export const resolveDepositCreditSnapshot = (deposit) => {
     bonusAmount: deposit.bonusAmount,
     creditedAmount: deposit.creditedAmount,
     bonusTierKey: deposit.bonusTierKey,
+    bonusTierMinAmount: hasSnapshotMinimum ? deposit.bonusTierMinAmount : null,
     policyVersion: deposit.policyVersion,
     legacy: false,
   };

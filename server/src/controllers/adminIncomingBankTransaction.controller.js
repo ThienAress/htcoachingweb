@@ -71,7 +71,7 @@ export const getIncomingBankTransactions = async (req, res) => {
         .skip((page - 1) * limit)
         .limit(limit)
         .populate("userId", "name email")
-        .populate("depositRequestId", "amount bonusRate bonusAmount creditedAmount bonusTierKey policyVersion depositCode status userId")
+        .populate("depositRequestId", "amount bonusRate bonusAmount creditedAmount bonusTierKey bonusTierMinAmount policyVersion depositCode status userId")
         .populate("reviewedBy", "name email")
         .lean(),
       IncomingBankTransaction.countDocuments(filter),

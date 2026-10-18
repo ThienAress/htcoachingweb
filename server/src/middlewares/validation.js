@@ -25,7 +25,11 @@ import {
   AI_MEMORY_VALUES,
 } from "../constants/aiMemory.js";
 import { MAX_ADDITIONAL_RECIPE_NUTRIENTS } from "../constants/recipeNutrition.js";
-import { validateDepositBonusRates } from "../constants/depositPolicy.js";
+import {
+  validateDepositBonusRates,
+  validateDepositTierLabels,
+  validateDepositTierMinimums,
+} from "../constants/depositPolicy.js";
 import {
   assertBodyAssessmentDelete,
   assertBodyAssessmentTarget,
@@ -2763,14 +2767,17 @@ export const validateDepositPolicyUpdate = [
       !value ||
       typeof value !== "object" ||
       Array.isArray(value) ||
-      Object.keys(value).length !== 1 ||
-      !Object.hasOwn(value, "rates")
+      !Object.hasOwn(value, "rates") ||
+      Object.keys(value).some((key) => !["rates", "thresholds", "labels"].includes(key))
     ) {
       throw new Error("Payload chính sách nạp tiền không hợp lệ");
     }
 
-    const validation = validateDepositBonusRates(value.rates);
-    if (!validation.valid) throw new Error(validation.message);
+    const checks = [validateDepositBonusRates(value.rates)];
+    if (Object.hasOwn(value, "thresholds")) checks.push(validateDepositTierMinimums(value.thresholds));
+    if (Object.hasOwn(value, "labels")) checks.push(validateDepositTierLabels(value.labels));
+    const failed = checks.find((check) => !check.valid);
+    if (failed) throw new Error(failed.message);
     return true;
   }),
   handleValidationErrors,
