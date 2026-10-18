@@ -1,7 +1,7 @@
 import { Tag } from "lucide-react";
 import { useTranslation, Trans } from "react-i18next";
 
-function FirstTimeModal({ discountCode, onConfirm, onCancel }) {
+function FirstTimeModal({ discountCode, percent, onConfirm, onCancel }) {
   const { t } = useTranslation("auth");
 
   return (
@@ -15,7 +15,7 @@ function FirstTimeModal({ discountCode, onConfirm, onCancel }) {
             {t("modal.title")}
           </h3>
           <p className="text-gray-600 mb-4">
-            <Trans t={t} i18nKey="modal.desc">
+            <Trans t={t} i18nKey="modal.desc" values={{ percent }}>
               Mỗi tài khoản chỉ được nhận{" "}
               <strong className="text-green-600">mã giảm giá 15%</strong> cho{" "}
               <strong>lần đăng ký đầu tiên</strong>.<br />

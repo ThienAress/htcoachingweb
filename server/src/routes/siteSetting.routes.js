@@ -7,6 +7,10 @@ import {
   removeSettingImage,
   savePricingGifts,
   resetPricingGifts,
+  savePricingContent,
+  resetPricingContent,
+  saveLoginPromo,
+  resetLoginPromo,
 } from "../controllers/siteSetting.controller.js";
 import {
   uploadHeroImage,
@@ -45,5 +49,9 @@ router.delete("/remove", removeSettingImage);
 // Quà tặng trên bảng giá (khóa tab-gói cố định)
 router.put("/pricing-gifts/:key", savePricingGifts);
 router.delete("/pricing-gifts/:key", resetPricingGifts);
+router.put("/pricing-content/:key", savePricingContent);
+router.delete("/pricing-content/:key", resetPricingContent);
+router.put("/login-promo", saveLoginPromo);
+router.delete("/login-promo", resetLoginPromo);
 
 export default router;

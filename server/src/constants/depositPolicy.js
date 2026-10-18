@@ -13,9 +13,31 @@ export const DEFAULT_DEPOSIT_BONUS_RATES = Object.freeze({
   premium: 20,
 });
 
-const buildTiers = (rates = DEFAULT_DEPOSIT_BONUS_RATES) =>
-  DEPOSIT_TIER_DEFINITIONS.map(({ key, minAmount }) =>
-    Object.freeze({ key, minAmount, bonusRate: rates[key] }),
+export const DEFAULT_DEPOSIT_TIER_MINIMUMS = Object.freeze(
+  Object.fromEntries(DEPOSIT_TIER_DEFINITIONS.map(({ key, minAmount }) => [key, minAmount])),
+);
+
+export const DEFAULT_DEPOSIT_TIER_LABELS = Object.freeze({
+  starter: "",
+  growth: "",
+  premium: "",
+});
+
+export const DEPOSIT_TIER_MINIMUM_STEP = 1_000;
+export const MAX_DEPOSIT_TIER_LABEL_LENGTH = 40;
+
+const buildTiers = (
+  rates = DEFAULT_DEPOSIT_BONUS_RATES,
+  minimums = DEFAULT_DEPOSIT_TIER_MINIMUMS,
+  labels = DEFAULT_DEPOSIT_TIER_LABELS,
+) =>
+  DEPOSIT_TIER_DEFINITIONS.map(({ key }) =>
+    Object.freeze({
+      key,
+      minAmount: minimums[key],
+      bonusRate: rates[key],
+      label: labels[key] || null,
+    }),
   );
 
 export const DEPOSIT_POLICY = Object.freeze({
@@ -87,6 +109,60 @@ export const validateDepositBonusRates = (rates) => {
   return { valid: true, rates: normalized };
 };
 
+const isPlainObject = (value) =>
+  Boolean(value) && typeof value === "object" && !Array.isArray(value);
+
+// Mốc nạp của bậc 1 luôn là mức nạp tối thiểu; admin chỉ chỉnh mốc của bậc 2 và bậc 3.
+export const validateDepositTierMinimums = (thresholds) => {
+  const invalid = {
+    valid: false,
+    code: "INVALID_DEPOSIT_TIER_MINIMUMS",
+    message:
+      "Mốc nạp phải là số nguyên VND chia hết cho 1.000, tăng dần và không vượt quá 1.000.000.000đ",
+  };
+  if (
+    !isPlainObject(thresholds) ||
+    Object.keys(thresholds).length !== 2 ||
+    !Object.hasOwn(thresholds, "growth") ||
+    !Object.hasOwn(thresholds, "premium")
+  ) {
+    return invalid;
+  }
+  const { growth, premium } = thresholds;
+  const starter = DEPOSIT_POLICY.minAmount;
+  const steps = [growth, premium].every(
+    (value) => Number.isSafeInteger(value) && value % DEPOSIT_TIER_MINIMUM_STEP === 0,
+  );
+  if (!steps || !(starter < growth && growth < premium && premium <= DEPOSIT_POLICY.maxAmount)) {
+    return invalid;
+  }
+  return { valid: true, minimums: { starter, growth, premium } };
+};
+
+// Nhãn tùy chọn cho từng bậc; chuỗi rỗng nghĩa là dùng tên mặc định.
+export const validateDepositTierLabels = (labels) => {
+  const keys = DEPOSIT_TIER_DEFINITIONS.map(({ key }) => key);
+  const invalid = {
+    valid: false,
+    code: "INVALID_DEPOSIT_TIER_LABELS",
+    message: `Tên bậc tối đa ${MAX_DEPOSIT_TIER_LABEL_LENGTH} ký tự và không chứa ký tự điều khiển`,
+  };
+  if (!isPlainObject(labels) || Object.keys(labels).some((key) => !keys.includes(key))) {
+    return invalid;
+  }
+  const normalized = {};
+  for (const key of keys) {
+    const value = Object.hasOwn(labels, key) ? labels[key] : "";
+    if (typeof value !== "string") return invalid;
+    const text = value.replace(/\s+/g, " ").trim();
+    if (text.length > MAX_DEPOSIT_TIER_LABEL_LENGTH || /[\u0000-\u001f\u007f]/.test(text)) {
+      return invalid;
+    }
+    normalized[key] = text;
+  }
+  return { valid: true, labels: normalized };
+};
+
 export const resolveDepositTier = (policy, amount) => {
   if (!Number.isSafeInteger(amount)) return null;
   return (
@@ -116,6 +192,7 @@ export const calculateDepositCreditSnapshot = (policy, amount) => {
   }
   return {
     bonusTierKey: tier.key,
+    bonusTierMinAmount: tier.minAmount,
     bonusRate: tier.bonusRate,
     bonusAmount,
     creditedAmount,
@@ -123,10 +200,10 @@ export const calculateDepositCreditSnapshot = (policy, amount) => {
   };
 };
 
-export const buildDepositPolicy = ({ rates, policyVersion }) => ({
+export const buildDepositPolicy = ({ rates, minimums, labels, policyVersion }) => ({
   currency: DEPOSIT_POLICY.currency,
   minAmount: DEPOSIT_POLICY.minAmount,
   maxAmount: DEPOSIT_POLICY.maxAmount,
   policyVersion,
-  tiers: buildTiers(rates),
+  tiers: buildTiers(rates, minimums, labels),
 });

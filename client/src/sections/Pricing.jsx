@@ -31,6 +31,8 @@ import PricingSegmentedControl from "../components/Pricing/PricingSegmentedContr
 import { useModalScrollLock } from "../hooks/useModalScrollLock";
 import { useSiteSettings } from "../hooks/useSiteSettings";
 import { resolvePricingGifts } from "../utils/pricingGifts";
+import { buildDefaultPricingContent, resolvePricingContent } from "../utils/pricingContent";
+import { useLoginPromo } from "../hooks/useLoginPromo";
 
 const TODAY_PROGRESS_PROMPT_DISMISSED_KEY =
   "ht_today_progress_prompt_dismissed";
@@ -180,6 +182,9 @@ const Pricing = ({ isHeroAnimDone = false }) => {
   const { data: siteSettingsResponse } = useSiteSettings();
   const giftOverrides = siteSettingsResponse?.data?.pricingGifts;
   const giftsFor = (key, defaults = []) => resolvePricingGifts(giftOverrides, key, defaults);
+  const contentOverrides = siteSettingsResponse?.data?.pricingContent;
+  const defaultContent = buildDefaultPricingContent(t);
+  const loginPromo = useLoginPromo();
 
   // Gói ONLINE
   const onlinePlans = [
@@ -393,6 +398,20 @@ const Pricing = ({ isHeroAnimDone = false }) => {
   const plans = mode === "online" ? onlinePlans : oneOnOnePlans;
 
   const handleRegister = (plan, planMode) => {
+    if (!user && !loginPromo.enabled) {
+      navigate("/register", {
+        state: {
+          selectedPackage: {
+            title: plan.title,
+            durationText: plan.durationText,
+            totalSessions: plan.totalSessions,
+          },
+          planMode,
+          gifts: plan.gifts || [],
+        },
+      });
+      return;
+    }
     if (!user) {
       setPendingPlan(plan);
       setPendingMode(planMode);
@@ -551,8 +570,8 @@ const Pricing = ({ isHeroAnimDone = false }) => {
           ) : !isTrainer ? (
             <CoachingPlans
               plans={mode === "trial" ? [trialPlan] : plans}
-              sharedFeatures={(mode === "trial" ? trialPlan : plans[0]).features}
-              systemFeatures={(mode === "trial" ? trialPlan : plans[0]).systemFeatures}
+              sharedFeatures={resolvePricingContent(contentOverrides, `${mode}-customer`, defaultContent[`${mode}-customer`])}
+              systemFeatures={resolvePricingContent(contentOverrides, `${mode}-system`, defaultContent[`${mode}-system`])}
               onRegister={(plan) => handleRegister(plan, mode)}
             />
           ) : (
@@ -645,7 +664,7 @@ const Pricing = ({ isHeroAnimDone = false }) => {
               <div className="p-6 space-y-4">
                 <p className="text-gray-300 text-center text-lg">
                   {t("pricing.login_promo_text")}{" "}
-                  <strong className="text-primary">{t("pricing.login_promo_discount")}</strong> {t("pricing.login_promo_suffix")}
+                  <strong className="text-primary">{t("pricing.login_promo_discount", { percent: loginPromo.percent })}</strong> {t("pricing.login_promo_suffix")}
                 </p>
                 <div className="flex flex-col sm:flex-row gap-3 mt-4">
                   <button

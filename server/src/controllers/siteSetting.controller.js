@@ -4,6 +4,12 @@ import { uploadBufferToCloudinary } from "../utils/cloudinaryUpload.js";
 import { safeLog } from "../utils/safeLogger.js";
 import { errorHandler } from "../middlewares/errorHandler.js";
 import { isPricingGiftKey, normalizePricingGifts } from "../utils/pricingGifts.js";
+import {
+  DEFAULT_LOGIN_PROMO,
+  isPricingContentKey,
+  normalizeLoginPromo,
+  normalizePricingContent,
+} from "../utils/pricingContent.js";
 
 const ITEM_KEY_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const MAX_ITEM_KEY_LENGTH = 64;
@@ -217,5 +223,77 @@ export const resetPricingGifts = async (req, res) => {
   } catch (error) {
     safeLog.error("site_setting.pricing_gifts_reset_failed", error);
     res.status(500).json({ success: false, message: "Không thể khôi phục quà tặng" });
+  }
+};
+
+// PUT: Lưu danh sách quyền lợi (khách hàng hoặc hệ thống) của một tab trên bảng giá
+export const savePricingContent = async (req, res) => {
+  try {
+    const { key } = req.params;
+    if (!isPricingContentKey(key)) {
+      return res.status(400).json({ success: false, message: "Danh sách không hợp lệ" });
+    }
+
+    const normalized = normalizePricingContent(req.body?.items);
+    if (normalized.error) {
+      return res.status(400).json({ success: false, message: normalized.error });
+    }
+
+    const settings = await getSettings();
+    ensureImageMap(settings, "pricingContent").set(key, normalized.items);
+    await settings.save();
+    res.json({ success: true, data: settings, message: "Đã lưu quyền lợi!" });
+  } catch (error) {
+    safeLog.error("site_setting.pricing_content_save_failed", error);
+    res.status(500).json({ success: false, message: "Không thể lưu quyền lợi" });
+  }
+};
+
+// DELETE: Bỏ phần đã chỉnh, quay về quyền lợi gốc
+export const resetPricingContent = async (req, res) => {
+  try {
+    const { key } = req.params;
+    if (!isPricingContentKey(key)) {
+      return res.status(400).json({ success: false, message: "Danh sách không hợp lệ" });
+    }
+
+    const settings = await getSettings();
+    ensureImageMap(settings, "pricingContent").delete(key);
+    await settings.save();
+    res.json({ success: true, data: settings, message: "Đã khôi phục quyền lợi mặc định!" });
+  } catch (error) {
+    safeLog.error("site_setting.pricing_content_reset_failed", error);
+    res.status(500).json({ success: false, message: "Không thể khôi phục quyền lợi" });
+  }
+};
+
+// PUT: Bật/tắt và đổi phần trăm ưu đãi cho lần đăng ký đầu có tài khoản
+export const saveLoginPromo = async (req, res) => {
+  try {
+    const normalized = normalizeLoginPromo(req.body);
+    if (normalized.error) {
+      return res.status(400).json({ success: false, message: normalized.error });
+    }
+
+    const settings = await getSettings();
+    settings.loginPromo = normalized.loginPromo;
+    await settings.save();
+    res.json({ success: true, data: settings, message: "Đã lưu ưu đãi!" });
+  } catch (error) {
+    safeLog.error("site_setting.login_promo_save_failed", error);
+    res.status(500).json({ success: false, message: "Không thể lưu ưu đãi" });
+  }
+};
+
+// DELETE: Quay về ưu đãi mặc định (bật, 15%)
+export const resetLoginPromo = async (req, res) => {
+  try {
+    const settings = await getSettings();
+    settings.loginPromo = { ...DEFAULT_LOGIN_PROMO };
+    await settings.save();
+    res.json({ success: true, data: settings, message: "Đã khôi phục ưu đãi mặc định!" });
+  } catch (error) {
+    safeLog.error("site_setting.login_promo_reset_failed", error);
+    res.status(500).json({ success: false, message: "Không thể khôi phục ưu đãi" });
   }
 };

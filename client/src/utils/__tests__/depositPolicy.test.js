@@ -13,9 +13,9 @@ const policy = {
   maxAmount: 1000000000,
   policyVersion: 3,
   tiers: [
-    { key: "starter", minAmount: 10000, bonusRate: 5 },
-    { key: "growth", minAmount: 100000, bonusRate: 15 },
-    { key: "premium", minAmount: 200000, bonusRate: 20 },
+    { key: "starter", minAmount: 10000, bonusRate: 5, label: null },
+    { key: "growth", minAmount: 100000, bonusRate: 15, label: null },
+    { key: "premium", minAmount: 200000, bonusRate: 20, label: null },
   ],
 };
 
@@ -42,8 +42,31 @@ describe("deposit policy client contract", () => {
     });
   });
 
+  it("accepts moved thresholds and a label, and shows a missing label as null", () => {
+    const moved = {
+      ...policy,
+      tiers: [
+        { key: "starter", minAmount: 10000, bonusRate: 5 },
+        { key: "growth", minAmount: 150000, bonusRate: 15, label: "Phổ biến" },
+        { key: "premium", minAmount: 500000, bonusRate: 20 },
+      ],
+    };
+
+    const result = normalizeDepositPolicyResponse({ data: { data: moved } });
+
+    expect(result.tiers.map((tier) => tier.minAmount)).toEqual([10000, 150000, 500000]);
+    expect(result.tiers.map((tier) => tier.label)).toEqual([null, "Phổ biến", null]);
+    expect(selectDepositTier(result, 160000)?.key).toBe("growth");
+    expect(selectDepositTier(result, 149000)?.key).toBe("starter");
+  });
+
   it.each([
     { ...policy, currency: "USD" },
+    { ...policy, tiers: policy.tiers.map((tier, index) => (index === 0 ? { ...tier, minAmount: 20000 } : tier)) },
+    { ...policy, tiers: policy.tiers.map((tier, index) => (index === 1 ? { ...tier, minAmount: 200000 } : tier)) },
+    { ...policy, tiers: policy.tiers.map((tier, index) => (index === 1 ? { ...tier, minAmount: 150500 } : tier)) },
+    { ...policy, tiers: policy.tiers.map((tier, index) => (index === 2 ? { ...tier, minAmount: 2000000000 } : tier)) },
+    { ...policy, tiers: policy.tiers.map((tier, index) => (index === 0 ? { ...tier, label: "x".repeat(41) } : tier)) },
     { ...policy, minAmount: "10000" },
     { ...policy, minAmount: 10000, maxAmount: 5000 },
     { ...policy, policyVersion: 0 },

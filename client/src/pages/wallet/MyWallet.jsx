@@ -224,7 +224,7 @@ const TierCard = ({ tier, active, maxAmount, language, t }) => {
         {t("wallet.tpbank_name")}
       </h3>
       <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-zinc-500">
-        {t(`wallet.tiers.${tier.key}`)}
+        {tier.label || t(`wallet.tiers.${tier.key}`)}
       </p>
       <dl className="mt-4 space-y-2 text-sm">
         <div className="flex justify-between gap-3">

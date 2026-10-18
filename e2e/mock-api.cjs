@@ -144,6 +144,14 @@ const readJsonBody = (req) =>
 // Quà tặng bảng giá do admin chỉnh (giữ trong bộ nhớ của máy chủ giả).
 const pricingGiftsStore = {};
 const PRICING_GIFT_PATH = /^\/api\/site-settings\/pricing-gifts\/([a-z0-9-]+)$/;
+const pricingContentStore = {};
+const PRICING_CONTENT_PATH = /^\/api\/site-settings\/pricing-content\/([a-z0-9-]+)$/;
+const DEFAULT_LOGIN_PROMO = { enabled: true, percent: 15 };
+let loginPromoStore = { ...DEFAULT_LOGIN_PROMO };
+const siteSettingsBody = () => ({
+  success: true,
+  data: { pricingGifts: pricingGiftsStore, pricingContent: pricingContentStore, loginPromo: loginPromoStore },
+});
 
 const handleApi = (req, res, path) => {
   const role = req.headers["x-e2e-role"];
@@ -193,19 +201,44 @@ const handleApi = (req, res, path) => {
         });
   }
   if (path === "/api/site-settings") {
-    return sendJson(res, { success: true, data: { pricingGifts: pricingGiftsStore } });
+    return sendJson(res, siteSettingsBody());
   }
   if (PRICING_GIFT_PATH.test(path) && actor?.role === "admin") {
     const key = path.match(PRICING_GIFT_PATH)[1];
     if (req.method === "PUT") {
       return readJsonBody(req).then((body) => {
         pricingGiftsStore[key] = Array.isArray(body.gifts) ? body.gifts : [];
-        return sendJson(res, { success: true, data: { pricingGifts: pricingGiftsStore } });
+        return sendJson(res, siteSettingsBody());
       });
     }
     if (req.method === "DELETE") {
       delete pricingGiftsStore[key];
-      return sendJson(res, { success: true, data: { pricingGifts: pricingGiftsStore } });
+      return sendJson(res, siteSettingsBody());
+    }
+  }
+  if (PRICING_CONTENT_PATH.test(path) && actor?.role === "admin") {
+    const key = path.match(PRICING_CONTENT_PATH)[1];
+    if (req.method === "PUT") {
+      return readJsonBody(req).then((body) => {
+        pricingContentStore[key] = Array.isArray(body.items) ? body.items : [];
+        return sendJson(res, siteSettingsBody());
+      });
+    }
+    if (req.method === "DELETE") {
+      delete pricingContentStore[key];
+      return sendJson(res, siteSettingsBody());
+    }
+  }
+  if (path === "/api/site-settings/login-promo" && actor?.role === "admin") {
+    if (req.method === "PUT") {
+      return readJsonBody(req).then((body) => {
+        loginPromoStore = { enabled: Boolean(body.enabled), percent: Number(body.percent) };
+        return sendJson(res, siteSettingsBody());
+      });
+    }
+    if (req.method === "DELETE") {
+      loginPromoStore = { ...DEFAULT_LOGIN_PROMO };
+      return sendJson(res, siteSettingsBody());
     }
   }
   if (path === "/api/exercises" && req.method === "GET") {

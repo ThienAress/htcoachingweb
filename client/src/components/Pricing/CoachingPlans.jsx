@@ -35,7 +35,12 @@ const CoachingPlans = ({ plans, sharedFeatures, systemFeatures, onRegister }) =>
           {t("pricing.included_all")}
         </h3>
         <div className="grid gap-6 lg:grid-cols-2">
-          <CheckList items={sharedFeatures} />
+          <div>
+            <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">
+              {t("pricing.customer_benefits")}
+            </h4>
+            <CheckList items={sharedFeatures} />
+          </div>
           <div>
             <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">
               {t("pricing.system_benefits_plain")}

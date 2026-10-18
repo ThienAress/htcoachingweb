@@ -39,6 +39,12 @@ const depositRequestSchema = new mongoose.Schema(
       type: String,
       enum: ["starter", "growth", "premium"],
     },
+    // Mốc nạp của bậc thưởng lúc tạo hóa đơn; để đối soát khi admin đổi mốc sau đó. Hóa đơn cũ không có field này.
+    bonusTierMinAmount: {
+      type: Number,
+      min: 1,
+      validate: Number.isSafeInteger,
+    },
     policyVersion: {
       type: Number,
       min: 1,
