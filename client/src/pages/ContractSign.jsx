@@ -21,6 +21,7 @@ import {
   signContract,
 } from "../services/contract.service";
 import { shouldRefetchSigningOutcome } from "../utils/contractConsistency";
+import { getUserErrorMessage } from "../utils/errorMessages";
 
 const ContractSign = () => {
   const { id } = useParams();
@@ -128,7 +129,7 @@ const ContractSign = () => {
           .refetchQueries({ queryKey: ["contract", id], exact: true })
           .catch(() => undefined);
       }
-      toast.error(requestError.response?.data?.message || t("contract.toasts.error"));
+      toast.error(getUserErrorMessage(requestError, t("contract.toasts.error")));
     },
   });
 

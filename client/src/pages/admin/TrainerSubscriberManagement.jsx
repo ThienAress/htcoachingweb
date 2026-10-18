@@ -8,6 +8,7 @@ import { toast } from "react-toastify";
 import { useDebounce } from "../../hooks/useDebounce";
 import { getAllSubscribers, cancelSubscription } from "../../services/trainerSubscription.service";
 import TrainerGrantPanel from "./components/TrainerGrantPanel";
+import { getUserErrorMessage } from "../../utils/errorMessages";
 
 const planIconMap = {
   "Tiêu chuẩn": "🔥",
@@ -58,7 +59,7 @@ const TrainerSubscriberManagement = () => {
       setCancelTarget(null);
       setCancelReason("");
     },
-    onError: (err) => toast.error(err.response?.data?.message || "Lỗi hủy gói"),
+    onError: (err) => toast.error(getUserErrorMessage(err, "Không thể hủy gói. Vui lòng thử lại.")),
   });
 
   const handleCancel = () => {
@@ -77,7 +78,7 @@ const TrainerSubscriberManagement = () => {
   if (isError) {
     return (
       <div className="p-6 text-center text-red-500">
-        Lỗi tải dữ liệu: {error.message}
+        {getUserErrorMessage(error, "Không tải được dữ liệu. Vui lòng thử lại.")}
       </div>
     );
   }

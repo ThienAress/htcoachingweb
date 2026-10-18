@@ -38,6 +38,7 @@ import { useDebounce } from "../../hooks/useDebounce";
 import Trainers from "../../sections/Trainers";
 import SetupProfileModal from "./SetupProfileModal";
 import SelectField from "../../components/SelectField";
+import { getUserErrorMessage } from "../../utils/errorMessages";
 
 const API_URL = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? "http://localhost:5000/api" : "");
 const API_ORIGIN = API_URL.replace(/\/api\/?$/, "");
@@ -236,7 +237,7 @@ export default function TrainerManagement() {
       invalidateByKey(queryClient, adminQueryKeys.trainers.all());
       setIsModalOpen(false);
     },
-    onError: (err) => toast.error(err.response?.data?.message || "Lỗi khi thêm HLV"),
+    onError: (err) => toast.error(getUserErrorMessage(err, "Không thể thêm HLV. Vui lòng thử lại.")),
   });
 
   const updateMutation = useMutation({
@@ -247,7 +248,7 @@ export default function TrainerManagement() {
       invalidateByKey(queryClient, adminQueryKeys.trainers.detail(selectedId));
       setIsModalOpen(false);
     },
-    onError: (err) => toast.error(err.response?.data?.message || "Lỗi khi cập nhật HLV"),
+    onError: (err) => toast.error(getUserErrorMessage(err, "Không thể cập nhật HLV. Vui lòng thử lại.")),
   });
 
   const deleteMutation = useMutation({
@@ -257,7 +258,7 @@ export default function TrainerManagement() {
       invalidateByKey(queryClient, adminQueryKeys.trainers.all());
       setDeleteConfirm(null);
     },
-    onError: (err) => toast.error(err.response?.data?.message || "Lỗi khi xóa HLV"),
+    onError: (err) => toast.error(getUserErrorMessage(err, "Không thể xóa HLV. Vui lòng thử lại.")),
   });
 
   const statusMutation = useMutation({
@@ -266,7 +267,7 @@ export default function TrainerManagement() {
       toast.success("Cập nhật trạng thái thành công!");
       invalidateByKey(queryClient, adminQueryKeys.trainers.all());
     },
-    onError: (err) => toast.error(err.response?.data?.message || "Lỗi khi cập nhật trạng thái"),
+    onError: (err) => toast.error(getUserErrorMessage(err, "Không thể cập nhật trạng thái. Vui lòng thử lại.")),
   });
 
   const uploadMutation = useMutation({
@@ -284,7 +285,7 @@ export default function TrainerManagement() {
         return { ...prev, images: newImages };
       });
     },
-    onError: (err) => toast.error(err.response?.data?.message || "Lỗi khi tải ảnh lên"),
+    onError: (err) => toast.error(getUserErrorMessage(err, "Không thể tải ảnh lên. Vui lòng thử lại.")),
   });
 
   const handleSubmit = (e) => {

@@ -31,6 +31,7 @@ import {
   FOOD_ADMIN_TEXT,
 } from "./foodAdminPresentation";
 import SelectField from "../../components/SelectField";
+import { getUserErrorMessage } from "../../utils/errorMessages";
 
 const createFoodForm = () => ({
   label: "",
@@ -168,7 +169,7 @@ const FoodManagement = () => {
       invalidateByKey(queryClient, adminQueryKeys.foods.all());
       closeModal();
     },
-    onError: (err) => toast.error(err.response?.data?.message || "Lỗi thêm"),
+    onError: (err) => toast.error(getUserErrorMessage(err, "Không thể thêm. Vui lòng thử lại.")),
   });
 
   const updateMutation = useMutation({
@@ -183,7 +184,7 @@ const FoodManagement = () => {
       closeModal();
     },
     onError: (err) =>
-      toast.error(err.response?.data?.message || "Lỗi cập nhật"),
+      toast.error(getUserErrorMessage(err, "Không thể cập nhật. Vui lòng thử lại.")),
   });
 
   const deleteMutation = useMutation({
@@ -192,7 +193,7 @@ const FoodManagement = () => {
       toast.success("Xóa thực phẩm thành công");
       invalidateByKey(queryClient, adminQueryKeys.foods.all());
     },
-    onError: (err) => toast.error(err.response?.data?.message || "Lỗi xóa"),
+    onError: (err) => toast.error(getUserErrorMessage(err, "Không thể xóa. Vui lòng thử lại.")),
   });
 
   const batchMutation = useMutation({
@@ -203,7 +204,7 @@ const FoodManagement = () => {
       invalidateByKey(queryClient, adminQueryKeys.foods.all());
     },
     onError: (err) =>
-      toast.error(err.response?.data?.message || "Lỗi nhập dữ liệu"),
+      toast.error(getUserErrorMessage(err, "Không thể nhập dữ liệu. Vui lòng thử lại.")),
   });
 
   const openCreateModal = () => {
@@ -306,7 +307,7 @@ const FoodManagement = () => {
       });
       batchMutation.mutate(foods);
     } catch (err) {
-      toast.error("JSON không hợp lệ: " + err.message);
+      toast.error(getUserErrorMessage(err, "JSON không hợp lệ. Vui lòng kiểm tra cú pháp và thử lại."));
     }
   };
 
@@ -319,7 +320,7 @@ const FoodManagement = () => {
   if (isError) {
     return (
       <div className="p-6 text-center text-red-500">
-        Lỗi tải dữ liệu: {error?.message}
+        {getUserErrorMessage(error, "Không tải được dữ liệu. Vui lòng thử lại.")}
         <button
           onClick={() => refetch()}
           className="ml-4 px-3 py-1 bg-indigo-600 text-white rounded"

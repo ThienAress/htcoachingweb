@@ -32,6 +32,7 @@ import {
 import { createDeposit } from "../../services/wallet.service";
 import { calculateDepositPreview } from "../../utils/depositPolicy";
 import { resolveDepositHistoryAmounts } from "./walletDepositHistory.ui";
+import { getUserErrorMessage } from "../../utils/errorMessages";
 
 const EMPTY_DEPOSITS = [];
 const QUICK_AMOUNTS = [10_000, 50_000, 100_000, 200_000, 500_000, 1_000_000];
@@ -374,7 +375,7 @@ const MyWallet = () => {
       setDepositAmount("");
       toast.success(t("wallet.errors.create_success"));
     } catch (error) {
-      toast.error(error.response?.data?.message || t("wallet.errors.create_failed"));
+      toast.error(getUserErrorMessage(error, t("wallet.errors.create_failed")));
     }
   };
 

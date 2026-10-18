@@ -15,6 +15,7 @@ import StrengthAssessmentSection from "./assessment/StrengthAssessmentSection";
 import EnduranceAssessmentSection from "./assessment/EnduranceAssessmentSection";
 import CardioAssessmentSection from "./assessment/CardioAssessmentSection";
 import { computeOverallPhysicalLevel } from "../../utils/assessment.helpers";
+import { getUserErrorMessage } from "../../utils/errorMessages";
 
 const initialMetricItem = {
   score: "",
@@ -358,7 +359,7 @@ const F1AssessmentPanel = ({ customer, onBack, onSubmitted }) => {
       }
       onSubmitted?.(saved);
     } catch (error) {
-      toast.error(error?.response?.data?.message || "Lưu đánh giá thể chất thất bại");
+      toast.error(getUserErrorMessage(error, "Lưu đánh giá thể chất thất bại"));
     } finally {
       setSubmitting(false);
     }

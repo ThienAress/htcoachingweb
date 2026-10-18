@@ -11,6 +11,7 @@ import {
   markAllNotificationsRead,
   markNotificationRead,
 } from "../services/notification.service";
+import { getUserErrorMessage } from "../utils/errorMessages";
 
 const formatTime = (value) =>
   new Intl.DateTimeFormat("vi-VN", {
@@ -73,7 +74,7 @@ export const NotificationCenter = ({ userId, solid = false }) => {
     },
     onError: (error) =>
       toast.error(
-        error.response?.data?.message || "Không thể cập nhật thông báo",
+        getUserErrorMessage(error, "Không thể cập nhật thông báo"),
       ),
   });
   const openNotification = async (notification) => {

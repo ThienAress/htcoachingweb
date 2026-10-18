@@ -39,6 +39,7 @@ import {
   weeklyValuesToPatch,
 } from "./weeklyCheckinForm";
 import SelectField from "../../components/SelectField";
+import { getUserErrorMessage } from "../../utils/errorMessages";
 
 const requestId = () => window.crypto.randomUUID();
 const statusLabel = {
@@ -147,8 +148,7 @@ const WeeklyCheckinCardForMonth = ({
           fallbackMessage,
       );
       toast.error(
-        error.response?.data?.message ||
-          fallbackMessage,
+        getUserErrorMessage(error, fallbackMessage),
       );
       return null;
     }

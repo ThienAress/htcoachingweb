@@ -30,6 +30,7 @@ import {
   accountOrdersQueryOptions,
   accountTransactionsQueryOptions,
 } from "../../queries/walletAccount.queries";
+import { getUserErrorMessage } from "../../utils/errorMessages";
 
 const EMPTY_ORDERS = {
   trainerSubscriptions: [],
@@ -218,12 +219,12 @@ function AccountPage() {
       } else {
         // Rollback
         setEditValues((prev) => ({ ...prev, [field]: previousValue || "" }));
-        toast.error(response.data.message || t("profile.errors.update_failed"));
+        toast.error(t("profile.errors.update_failed"));
       }
     } catch (err) {
       // Rollback
       setEditValues((prev) => ({ ...prev, [field]: previousValue || "" }));
-      toast.error(err.response?.data?.message || t("profile.errors.update_failed"));
+      toast.error(getUserErrorMessage(err, t("profile.errors.update_failed")));
     } finally {
       setUpdating(false);
     }
@@ -255,10 +256,10 @@ function AccountPage() {
         await refetch();
         setEditingField(null);
       } else {
-        toast.error(response.data.message || t("profile.errors.upload_failed"));
+        toast.error(t("profile.errors.upload_failed"));
       }
     } catch (err) {
-      toast.error(err.response?.data?.message || t("profile.errors.upload_failed"));
+      toast.error(getUserErrorMessage(err, t("profile.errors.upload_failed")));
     } finally {
       setUploading(false);
       // Cleanup preview URL sau khi refetch xong (ảnh thật đã có)

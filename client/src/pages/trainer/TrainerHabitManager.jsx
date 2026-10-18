@@ -11,6 +11,7 @@ import {
 import { CreateHabitForm } from "../today-dashboard/CreateHabitForm";
 import { HabitDefinitionActions } from "../today-dashboard/HabitDefinitionActions";
 import { habitScheduleLabel } from "../today-dashboard/habitForm";
+import { getUserErrorMessage } from "../../utils/errorMessages";
 
 const requestId = () => window.crypto.randomUUID();
 
@@ -65,7 +66,7 @@ export const TrainerHabitManager = ({ clientId, dateKey }) => {
       setNotice("");
       setFailedCommand(variables);
       toast.error(
-        error.response?.data?.message || "Không thể cập nhật thói quen lúc này",
+        getUserErrorMessage(error, "Không thể cập nhật thói quen lúc này"),
       );
     },
   });

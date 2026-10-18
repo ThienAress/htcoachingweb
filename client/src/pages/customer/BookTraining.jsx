@@ -20,6 +20,7 @@ import {
   getVietnamDateKey,
 } from "../../utils/vietnamDate";
 import { resolveInitialCustomerDashboardTheme } from "../../utils/customerDashboardTheme";
+import { getUserErrorMessage } from "../../utils/errorMessages";
 
 const DAY_KEYS = ["days.mon", "days.tue", "days.wed", "days.thu", "days.fri", "days.sat", "days.sun"];
 
@@ -217,7 +218,7 @@ const BookTraining = () => {
       if (err.response?.status === 409) {
         queryClient.invalidateQueries({ queryKey: ["my-bookings"] });
       }
-      toast.error(err.response?.data?.message || t("page.error_create"));
+      toast.error(getUserErrorMessage(err, t("page.error_create")));
     },
   });
 
@@ -233,7 +234,7 @@ const BookTraining = () => {
       if (err.response?.status === 409) {
         queryClient.invalidateQueries({ queryKey: ["my-bookings"] });
       }
-      toast.error(err.response?.data?.message || t("page.error_update"));
+      toast.error(getUserErrorMessage(err, t("page.error_update")));
     },
   });
 
@@ -247,7 +248,7 @@ const BookTraining = () => {
       if (err.response?.status === 409) {
         queryClient.invalidateQueries({ queryKey: ["my-bookings"] });
       }
-      toast.error(err.response?.data?.message || "Không thể hủy lịch tập");
+      toast.error(getUserErrorMessage(err, "Không thể hủy lịch tập"));
     },
   });
 

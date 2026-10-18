@@ -5,6 +5,7 @@ import { toast } from "react-toastify";
 import SEO from "../../components/SEO";
 import { getAllGyms, createGym, updateGym, deleteGym, seedGyms } from "../../services/gym.service";
 import SelectField from "../../components/SelectField";
+import { getUserErrorMessage } from "../../utils/errorMessages";
 
 const GymManagement = () => {
   const queryClient = useQueryClient();
@@ -23,7 +24,7 @@ const GymManagement = () => {
       toast.success(res.data.message);
       queryClient.invalidateQueries({ queryKey: ["admin-gyms"] });
     },
-    onError: (err) => toast.error(err.response?.data?.message || "Lỗi seed data"),
+    onError: (err) => toast.error(getUserErrorMessage(err, "Không thể seed data. Vui lòng thử lại.")),
   });
 
   const deleteMut = useMutation({
@@ -32,7 +33,7 @@ const GymManagement = () => {
       toast.success("Xóa phòng tập thành công!");
       queryClient.invalidateQueries({ queryKey: ["admin-gyms"] });
     },
-    onError: (err) => toast.error(err.response?.data?.message || "Lỗi khi xóa"),
+    onError: (err) => toast.error(getUserErrorMessage(err, "Không thể xóa. Vui lòng thử lại.")),
   });
 
   const handleDelete = (id) => {
@@ -189,7 +190,7 @@ const GymModal = ({ gym, onClose }) => {
       queryClient.invalidateQueries({ queryKey: ["admin-gyms"] });
       onClose();
     },
-    onError: (err) => toast.error(err.response?.data?.message || "Lỗi xử lý"),
+    onError: (err) => toast.error(getUserErrorMessage(err, "Không thể xử lý. Vui lòng thử lại.")),
   });
 
   const handleSubmit = (e) => {

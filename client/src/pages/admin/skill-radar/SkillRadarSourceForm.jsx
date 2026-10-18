@@ -12,6 +12,7 @@ import {
   validateSkillRadarSourceForm,
 } from "./skillRadarSourceForm.utils";
 import SelectField from "../../../components/SelectField";
+import { getUserErrorMessage } from "../../../utils/errorMessages";
 
 const inputClassName =
   "mt-1 min-h-11 w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 transition-colors hover:border-zinc-400 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600/20 disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-500";
@@ -76,7 +77,7 @@ export default function SkillRadarSourceForm({ previewMutation, createMutation, 
       onError: (error) => {
         const nextError = getSkillRadarMutationError(error, "Không thể phân tích repository lúc này. Vui lòng thử lại.");
         setRequestError(nextError);
-        toast.error(nextError.message);
+        toast.error(getUserErrorMessage(nextError, "Không thể thực hiện lúc này. Vui lòng thử lại."));
       },
     });
   };
@@ -103,7 +104,7 @@ export default function SkillRadarSourceForm({ previewMutation, createMutation, 
       onError: (error) => {
         const nextError = getSkillRadarMutationError(error, "Không thể lưu nguồn lúc này. Vui lòng thử lại.");
         setRequestError(nextError);
-        toast.error(nextError.message);
+        toast.error(getUserErrorMessage(nextError, "Không thể thực hiện lúc này. Vui lòng thử lại."));
       },
     });
   };

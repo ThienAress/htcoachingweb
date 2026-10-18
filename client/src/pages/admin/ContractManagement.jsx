@@ -14,6 +14,7 @@ import {
 import ContractEditModal from "./ContractEditModal";
 import { CONTRACT_STATUS_META } from "../../constants/contractStatus";
 import { useAuth } from "../../context/AuthContext";
+import { getUserErrorMessage } from "../../utils/errorMessages";
 
 const STATUS_ICONS = {
   edit: Edit3,
@@ -78,19 +79,19 @@ const ContractManagement = () => {
       const c = res.data?.data;
       if (c) setEditingContract(c);
     },
-    onError: (err) => toast.error(err.response?.data?.message || "Lỗi tạo hợp đồng"),
+    onError: (err) => toast.error(getUserErrorMessage(err, "Không thể tạo hợp đồng. Vui lòng thử lại.")),
   });
 
   const cancelMutation = useMutation({
     mutationFn: (id) => cancelContract(id),
     onSuccess: () => { toast.success("Đã hủy hợp đồng"); queryClient.invalidateQueries({ queryKey: ["contracts"] }); },
-    onError: (err) => toast.error(err.response?.data?.message || "Lỗi"),
+    onError: (err) => toast.error(getUserErrorMessage(err, "Không thực hiện được. Vui lòng thử lại.")),
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id) => deleteContractApi(id),
     onSuccess: () => { toast.success("Đã xóa hợp đồng"); queryClient.invalidateQueries({ queryKey: ["contracts"] }); queryClient.invalidateQueries({ queryKey: ["approved-orders-for-contract"] }); },
-    onError: (err) => toast.error(err.response?.data?.message || "Lỗi"),
+    onError: (err) => toast.error(getUserErrorMessage(err, "Không thực hiện được. Vui lòng thử lại.")),
   });
 
   const handleDownload = async (id) => {

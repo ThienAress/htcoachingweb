@@ -21,6 +21,7 @@ import {
 } from "../../services/notification.service";
 import { notificationDestination } from "../../utils/notificationDestination";
 import { notificationMissingFieldsLabel } from "../../utils/notificationMissingFields";
+import { getUserErrorMessage } from "../../utils/errorMessages";
 
 const formatTime = (value) =>
   new Intl.DateTimeFormat("vi-VN", {
@@ -60,7 +61,7 @@ const NotificationsPage = () => {
     },
     onError: (error) =>
       toast.error(
-        error.response?.data?.message || "Không thể cập nhật thông báo",
+        getUserErrorMessage(error, "Không thể cập nhật thông báo"),
       ),
   });
   const openItem = async (item) => {

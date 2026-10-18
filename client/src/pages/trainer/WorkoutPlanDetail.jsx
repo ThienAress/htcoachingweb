@@ -17,6 +17,7 @@ import { WorkoutPlanClientTargetSummary } from "./WorkoutPlanClientTargetSummary
 import { getWorkoutPlanWorkspacePath } from "../../navigation/workspaceNavigation";
 import { TODAY_PLATFORM_ENABLED } from "../../config/featureFlags";
 import { resolveInitialCustomerDashboardTheme } from "../../utils/customerDashboardTheme";
+import { getUserErrorMessage } from "../../utils/errorMessages";
 
 const EMPTY_EXERCISE = {
   name: "", sets: "", reps: "", tempo: "", duration: "", coachingTips: "", maxWeight: "",
@@ -487,7 +488,7 @@ const WorkoutPlanDetail = ({ embedded = false }) => {
       setShowConfirmModal(false);
       setShowCompleteModal(false);
     },
-    onError: (err) => toast.error(err.response?.data?.message || t("plans.toasts.save_failed")),
+    onError: (err) => toast.error(getUserErrorMessage(err, t("plans.toasts.save_failed"))),
   });
 
   const handleSave = () => {

@@ -25,6 +25,7 @@ import {
 import RecipeEditModal from "./RecipeEditModal";
 import RecipeNutritionImportModal from "./RecipeNutritionImportModal";
 import SelectField from "../../components/SelectField";
+import { getUserErrorMessage } from "../../utils/errorMessages";
 
 const RecipeManagement = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -58,7 +59,7 @@ const RecipeManagement = () => {
     },
     onError: (err) => {
       toast.error(
-        err.response?.data?.message || "Lỗi khi cập nhật trạng thái"
+        getUserErrorMessage(err, "Không thể cập nhật trạng thái. Vui lòng thử lại.")
       );
     },
   });
@@ -70,7 +71,7 @@ const RecipeManagement = () => {
       queryClient.invalidateQueries({ queryKey: ["adminRecipes"] });
     },
     onError: (err) => {
-      toast.error(err.response?.data?.message || "Lỗi khi xóa công thức");
+      toast.error(getUserErrorMessage(err, "Không thể xóa công thức. Vui lòng thử lại."));
     },
   });
 
@@ -195,7 +196,7 @@ const RecipeManagement = () => {
               ) : isError ? (
                 <tr>
                   <td colSpan="5" className="py-10 text-center text-red-500">
-                    Lỗi: {error.message}
+                    {getUserErrorMessage(error, "Không tải được dữ liệu. Vui lòng thử lại.")}
                   </td>
                 </tr>
               ) : data?.data?.length === 0 ? (

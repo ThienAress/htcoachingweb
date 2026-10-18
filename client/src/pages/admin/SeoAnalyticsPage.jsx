@@ -20,6 +20,7 @@ import AnalyticsDetailDrawer from "./seo-analytics/AnalyticsDetailDrawer";
 import AnalyticsOverview from "./seo-analytics/AnalyticsOverview";
 import BlogPerformanceTable from "./seo-analytics/BlogPerformanceTable";
 import KeywordPerformanceTable from "./seo-analytics/KeywordPerformanceTable";
+import { getUserErrorMessage } from "../../utils/errorMessages";
 
 const presetRange = (days) => {
   const endDate = getVietnamDateKey();
@@ -38,9 +39,9 @@ const healthText = {
   ready: "Sẵn sàng",
   stale: "Dữ liệu cũ",
   partial: "Một phần",
-  error: "Lỗi đồng bộ",
+  error: "Chưa lấy được dữ liệu",
   not_configured: "Chưa cấu hình",
-  never_synced: "Chưa đồng bộ",
+  never_synced: "Chưa có dữ liệu",
 };
 
 export default function SeoAnalyticsPage() {
@@ -77,11 +78,11 @@ export default function SeoAnalyticsPage() {
     mutationFn: (provider) => syncAnalyticsProvider({ provider, ...range }),
     onSuccess: async () => {
       await invalidateByKey(queryClient, adminQueryKeys.seoAnalytics.all());
-      toast.success("Đã đồng bộ dữ liệu analytics");
+      toast.success("Đã cập nhật dữ liệu thống kê");
     },
     onError: (error) =>
       toast.error(
-        error.response?.data?.message || "Không thể đồng bộ provider",
+        getUserErrorMessage(error, "Không thể cập nhật dữ liệu lúc này. Vui lòng thử lại."),
       ),
   });
 
@@ -123,7 +124,7 @@ export default function SeoAnalyticsPage() {
               </div>
             ))}
           </div>
-          {syncMutation.isError && <p className="mt-3 text-sm font-medium text-rose-700" role="alert">{syncMutation.error?.response?.data?.message || "Không thể đồng bộ provider."}</p>}
+          {syncMutation.isError && <p className="mt-3 text-sm font-medium text-rose-700" role="alert">{getUserErrorMessage(syncMutation.error, "Không thể cập nhật dữ liệu lúc này. Vui lòng thử lại.")}</p>}
         </section>
 
         <nav className="flex gap-1 overflow-x-auto border-b border-zinc-200" aria-label="Khu vực analytics">

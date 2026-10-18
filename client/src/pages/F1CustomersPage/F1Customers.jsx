@@ -30,6 +30,7 @@ import {
 import { useConfirmDialog } from "../../hooks/useConfirmDialog";
 import { WorkspaceBrand } from "../../components/workspace/WorkspaceSidebarParts";
 import { workspaceItemClass } from "../../components/workspace/workspaceSidebarClasses";
+import { getUserErrorMessage } from "../../utils/errorMessages";
 
 const F1CustomerList = lazy(
   () => import("../../components/F1/F1CustomerList"),
@@ -169,9 +170,8 @@ const F1Customers = () => {
       toast.success("Đã tạo hồ sơ khách hàng F1");
     } catch (error) {
       toast.error(
-        error?.response?.data?.message ||
-          error?.response?.data?.errors?.[0]?.msg ||
-          "Tạo khách hàng thất bại",
+        getUserErrorMessage(error, error?.response?.data?.errors?.[0]?.msg ||
+          "Tạo khách hàng thất bại"),
       );
     }
   };
@@ -199,7 +199,7 @@ const F1Customers = () => {
       await invalidateCustomers();
       queryClient.invalidateQueries({ queryKey: ["f1-customers-deleted"] });
     } catch (error) {
-      toast.error(error?.response?.data?.message || "Xóa khách hàng thất bại");
+      toast.error(getUserErrorMessage(error, "Xóa khách hàng thất bại"));
     }
   };
 
@@ -216,7 +216,7 @@ const F1Customers = () => {
       await invalidateCustomers();
       await queryClient.invalidateQueries({ queryKey: ["f1-customers-deleted"] });
     } catch (error) {
-      toast.error(error?.response?.data?.message || "Khôi phục khách hàng thất bại");
+      toast.error(getUserErrorMessage(error, "Khôi phục khách hàng thất bại"));
     }
   };
 
@@ -311,7 +311,7 @@ const F1Customers = () => {
       await invalidateCustomers();
     } catch (error) {
       toast.error(
-        error?.response?.data?.message || "Xem xét quyền đánh giá thất bại",
+        getUserErrorMessage(error, "Xem xét quyền đánh giá thất bại"),
       );
     }
   };

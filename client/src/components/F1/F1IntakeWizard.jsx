@@ -14,6 +14,7 @@ import StepBodyMetrics from "./intake/StepBodyMetrics";
 import StepTrainingGoal from "./intake/StepTrainingGoal";
 import StepPostureMedia from "./intake/StepPostureMedia";
 import { SelectControlContext } from "./intake/selectControlContext";
+import { getUserErrorMessage } from "../../utils/errorMessages";
 
 const intakeSteps = [
   "Thông tin",
@@ -218,7 +219,7 @@ const F1IntakeWizard = ({ customer, onBack, onSubmitted }) => {
       {
         onSuccess: () => toast.success("Đã lưu nháp khảo sát"),
         onError: (err) =>
-          toast.error(err?.response?.data?.message || "Lưu nháp thất bại"),
+          toast.error(getUserErrorMessage(err, "Lưu nháp thất bại")),
       }
     );
   };
@@ -317,11 +318,8 @@ const F1IntakeWizard = ({ customer, onBack, onSubmitted }) => {
         error?.code === "ERR_CANCELED"
           ? "Đã hủy tải ảnh. Kết quả khảo sát vẫn được lưu và có thể tải ảnh lại."
           : intakeSubmitted
-            ? error?.response?.data?.message ||
-              "Kết quả khảo sát đã lưu nhưng tải ảnh thất bại. Bạn có thể thử lại."
-            : error?.response?.data?.message ||
-              error?.response?.data?.errors?.[0]?.msg ||
-              "Lưu kết quả khảo sát thất bại",
+            ? getUserErrorMessage(error, "Kết quả khảo sát đã lưu nhưng tải ảnh thất bại. Bạn có thể thử lại.")
+            : getUserErrorMessage(error, "Lưu kết quả khảo sát thất bại"),
       );
     } finally {
       uploadControllerRef.current = null;

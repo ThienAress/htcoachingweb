@@ -7,6 +7,7 @@ import "react-toastify/dist/ReactToastify.css";
 import { Plus, Edit, Trash2, X, BrainCircuit, FileWarning, Search, HelpCircle } from "lucide-react";
 import { getF1AiRules, createF1AiRule, updateF1AiRule, deleteF1AiRule } from "../../services/f1AiRule.service";
 import SelectField from "../../components/SelectField";
+import { getUserErrorMessage } from "../../utils/errorMessages";
 
 const F1AiRuleManagement = () => {
   const queryClient = useQueryClient();
@@ -42,7 +43,7 @@ const F1AiRuleManagement = () => {
       resetModal();
       invalidateByKey(queryClient, adminQueryKeys.f1AiRules.all());
     },
-    onError: (err) => toast.error(err.response?.data?.message || "Lỗi khi thêm rule"),
+    onError: (err) => toast.error(getUserErrorMessage(err, "Không thể thêm rule. Vui lòng thử lại.")),
   });
 
   const updateMutation = useMutation({
@@ -52,7 +53,7 @@ const F1AiRuleManagement = () => {
       resetModal();
       invalidateByKey(queryClient, adminQueryKeys.f1AiRules.all());
     },
-    onError: (err) => toast.error(err.response?.data?.message || "Lỗi cập nhật"),
+    onError: (err) => toast.error(getUserErrorMessage(err, "Không thể cập nhật. Vui lòng thử lại.")),
   });
 
   const deleteMutation = useMutation({
@@ -61,7 +62,7 @@ const F1AiRuleManagement = () => {
       toast.success("Xóa thành công");
       invalidateByKey(queryClient, adminQueryKeys.f1AiRules.all());
     },
-    onError: (err) => toast.error(err.response?.data?.message || "Lỗi xóa"),
+    onError: (err) => toast.error(getUserErrorMessage(err, "Không thể xóa. Vui lòng thử lại.")),
   });
 
   const resetModal = () => {
@@ -86,7 +87,7 @@ const F1AiRuleManagement = () => {
       conditions = JSON.parse(formData.conditionsJson);
       if (!Array.isArray(conditions)) throw new Error("Phải là một mảng (Array)");
     } catch (err) {
-      toast.error("JSON conditions không hợp lệ: " + err.message);
+      toast.error(getUserErrorMessage(err, "Điều kiện JSON không hợp lệ. Vui lòng kiểm tra cú pháp và thử lại."));
       return;
     }
 
