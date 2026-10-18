@@ -29,6 +29,32 @@ describe("errorHandler", () => {
     expect(JSON.stringify(res.body)).not.toMatch(/ECONNREFUSED|10\.0\.0\.5/);
   });
 
+  it("answers a malformed record id with 404 instead of a server error", async () => {
+    const error = Object.assign(new Error('Cast to ObjectId failed for value "abc" (type string) at path "_id" for model "Contract"'), {
+      name: "CastError",
+      path: "_id",
+      kind: "ObjectId",
+    });
+    const res = await request(appThatThrows(error)).get("/boom");
+
+    expect(res.status).toBe(404);
+    expect(res.body).toMatchObject({ code: "NOT_FOUND", message: "Không tìm thấy nội dung bạn cần." });
+    expect(JSON.stringify(res.body)).not.toMatch(/ObjectId|Contract|Cast/);
+  });
+
+  it("answers a value of the wrong type in another field with 400", async () => {
+    const error = Object.assign(new Error('Cast to Number failed for value "x" at path "page"'), {
+      name: "CastError",
+      path: "page",
+      kind: "Number",
+    });
+    const res = await request(appThatThrows(error)).get("/boom");
+
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe("VALIDATION_FAILED");
+    expect(res.body.message).not.toMatch(/Number|page|Cast/);
+  });
+
   it("does not leak the database field name on a duplicate key", async () => {
     const res = await request(appThatThrows(Object.assign(new Error("E11000"), { code: 11000, keyPattern: { email: 1 } }))).get("/boom");
 
