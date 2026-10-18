@@ -16,6 +16,8 @@ export const csrfProtection = (req, res, next) => {
   if (!csrfTokenFromCookie || !csrfTokenFromHeader) {
     return res.status(403).json({
       success: false,
+      code: "CSRF_TOKEN_MISSING",
+      // Giữ nguyên chữ cũ một thời gian: bản client chưa cập nhật còn nhận biết lỗi này qua `message`.
       message: "CSRF token missing",
     });
   }
@@ -30,6 +32,7 @@ export const csrfProtection = (req, res, next) => {
   ) {
     return res.status(403).json({
       success: false,
+      code: "CSRF_TOKEN_INVALID",
       message: "Invalid CSRF token",
     });
   }

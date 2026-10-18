@@ -117,7 +117,11 @@ const syncCsrfToken = (response) => {
 const isCsrfFailure = async (response) => {
   if (response.status !== 403) return false;
   const payload = await response.clone().json().catch(() => ({}));
-  return ["Invalid CSRF token", "CSRF token missing"].includes(payload.message);
+  // Máy chủ mới gửi `code`; chữ cũ vẫn nhận để chạy được khi hai bên triển khai lệch nhau.
+  return (
+    ["CSRF_TOKEN_INVALID", "CSRF_TOKEN_MISSING"].includes(payload.code) ||
+    ["Invalid CSRF token", "CSRF token missing"].includes(payload.message)
+  );
 };
 
 export const openAiChatStream = async (payload, { signal } = {}) => {
