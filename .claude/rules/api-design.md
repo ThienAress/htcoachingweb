@@ -49,3 +49,5 @@ quyết định và lý do nằm ở `docs/architecture/adr/0002-api-naming-and-
 3. **Không đổi**: webhook (`/api/webhooks/sepay`), OAuth (`/api/auth/google`, `/callback`), `/api/ops/*` (watchdog, smoke test, Render), đường dẫn mà script production
    gọi (`/api/blog`, `/api/recipes`, `/api/exercises`), và các tiền tố có rate limiter hoặc cổng tính năng (`server.js`, `server/src/config/todayPlatform.js`) khi chưa kiểm hết người dùng.
 4. Route chạm auth, ví, hợp đồng, thanh toán: chạy skill `impact-check` trước khi đổi.
+5. Đổi tên một tiền tố (`/api/<tên>`): sửa đồng thời bảng mount trong `server.js`, rate limiter và cổng auth gắn theo tiền tố, `TODAY_PLATFORM_API_PREFIXES`, URL do server tự dựng (ví dụ `/api/f1-customers/...`),
+   client services và `e2e/mock-api.cjs`. Cổng `server/src/routes/__tests__/prefixCoverage.contract.test.js` đỏ nếu quên một chỗ bám vào tiền tố cũ; không sửa test để qua cổng.

@@ -28,7 +28,8 @@ const UNCOUNTABLE_RESOURCES = new Set(["auth", "ops", "ai", "me", "progress", "p
 const KEBAB = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const isParam = (segment) => segment.startsWith(":");
 
-export const scanApiRoutes = () => {
+// Đọc server.js: bảng mount (tiền tố → file route), các lớp bảo vệ gắn theo tiền tố (limiter, cổng auth) và route khai báo thẳng bằng app.get/post.
+export const scanServerEntry = () => {
   const serverSource = fs.readFileSync(SERVER_FILE, "utf8");
   const importedRoutes = new Map();
   for (const match of serverSource.matchAll(/^import\s+(\w+)\s+from\s+"\.\/src\/routes\/([^"]+)";?/gm)) {
@@ -36,11 +37,24 @@ export const scanApiRoutes = () => {
   }
 
   const mounts = [];
+  const guards = [];
   for (const match of serverSource.matchAll(/app\.use\(\s*"(\/api[^"]*)"\s*,([^;]*?)\)\s*;/g)) {
+    const prefix = match[1].replace(/\/$/, "");
     const identifiers = [...match[2].matchAll(/\b(\w+)\b/g)].map((m) => m[1]);
     const routerName = [...identifiers].reverse().find((name) => importedRoutes.has(name));
-    if (routerName) mounts.push({ prefix: match[1].replace(/\/$/, ""), file: importedRoutes.get(routerName) });
+    if (routerName) mounts.push({ prefix, file: importedRoutes.get(routerName) });
+    else guards.push({ prefix, guard: identifiers[identifiers.length - 1] });
   }
+
+  const inlineRoutes = [...serverSource.matchAll(/app\.(get|post|put|patch|delete)\(\s*"(\/api[^"]*)"/g)].map((m) => ({
+    method: m[1].toUpperCase(),
+    path: m[2],
+  }));
+  return { mounts, guards, inlineRoutes };
+};
+
+export const scanApiRoutes = () => {
+  const { mounts } = scanServerEntry();
 
   const routes = [];
   for (const { prefix, file } of mounts) {
