@@ -12,4 +12,4 @@ export const createBooking = (data) => api.post("/training-bookings", data);
 export const updateBooking = (id, data) => api.put(`/training-bookings/${id}`, data);
 
 export const cancelBooking = (id, data) =>
-  api.delete(`/training-booking/book/${id}`, { data });
+  api.delete(`/training-bookings/${id}`, { data });

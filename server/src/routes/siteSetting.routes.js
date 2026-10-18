@@ -1,7 +1,6 @@
 import express from "express";
 import { protect, requireRoles } from "../middlewares/auth.middleware.js";
 import { csrfProtection } from "../middlewares/csrf.js";
-import { deprecatedRoute } from "../middlewares/deprecatedRoute.js";
 import {
   getSiteSettings,
   uploadSettingImage,
@@ -44,9 +43,8 @@ router.post("/upload/classes", uploadClassesImage.array("images", 5), (req, res,
 router.post("/upload/tools/:itemKey", uploadToolsImage.single("image"), (req, res, next) => { req.body.fieldName = 'tools'; req.body.itemKey = req.params.itemKey; next(); }, uploadSettingImage);
 router.post("/upload/tools", uploadToolsImage.single("image"), (req, res, next) => { req.body.fieldName = 'tools'; next(); }, uploadSettingImage);
 
-// DELETE xoá ảnh (đường cũ /remove giữ làm bí danh; gỡ khi api.deprecated_route_hits về 0)
+// DELETE xoá ảnh
 router.delete("/images", removeSettingImage);
-router.delete("/remove", deprecatedRoute("/api/site-settings/images"), removeSettingImage);
 
 // Quà tặng trên bảng giá (khóa tab-gói cố định)
 router.put("/pricing-gifts/:key", savePricingGifts);

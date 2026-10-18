@@ -4,6 +4,7 @@
 - **Date**: 2026-10-18
 - **Owners**: backend / platform
 - **Supersedes**: none
+- **Amended**: 2026-10-19 — trước khi có người dùng thật thì đổi tên thẳng, không giữ bí danh
 
 ## Context
 
@@ -19,11 +20,11 @@ nên đổi hàng loạt có rủi ro cao ở ví, hợp đồng và đăng nh�
 
 1. Đặt tên theo `.claude/rules/api-design.md`: danh từ số nhiều dạng kebab-case, HTTP method mang hành động, ID để truy cập bản ghi, URL lồng nhau thể hiện quan hệ
    (5 nguyên tắc RESTful của video chủ dự án chia sẻ), cộng phần bổ sung của dự án (hành động qua `POST /:id/<hành động>`, một kiểu `/me`, lồng tối đa 3 đoạn tên).
-2. Không đưa `/v1` vào URL. Cần phá vỡ tương thích thì thêm route mới, giữ route cũ làm bí danh có thời hạn và đếm lượt gọi để biết khi nào gỡ.
+2. Không đưa `/v1` vào URL. Khi production chưa có người dùng thật (hiện tại) thì đổi tên thẳng, không bí danh. Khi đã có người dùng thật, đổi tên bằng route mới + route cũ làm bí danh có thời hạn và đếm lượt gọi để biết khi nào gỡ.
 3. Endpoint mới phải đúng quy tắc. Endpoint cũ vi phạm ghi trong `server/src/routes/__tests__/apiNamingDebt.json`; test hợp đồng
    `apiNaming.contract.test.js` chặn vi phạm mới và chặn để danh sách nợ chứa dòng đã sửa. Danh sách chỉ được giảm.
 4. Sửa endpoint cũ theo từng nhóm nhỏ, ưu tiên lỗi rõ ràng không chạm tiền; nhóm tiền, hợp đồng, đăng nhập cần `impact-check` và review bảo mật.
-5. Không đổi webhook, OAuth, `/api/ops/*`, đường dẫn script production gọi, và tiền tố có rate limiter hoặc cổng tính năng.
+5. Không đổi webhook, OAuth, `/api/ops/*` và đường dẫn script production gọi. Tiền tố có rate limiter hoặc cổng tính năng chỉ đổi khi cập nhật đồng thời mọi chỗ bám vào nó; `prefixCoverage.contract.test.js` đỏ nếu quên một chỗ.
 
 ## Alternatives Considered
 

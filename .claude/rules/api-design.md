@@ -44,8 +44,9 @@ quyết định và lý do nằm ở `docs/architecture/adr/0002-api-naming-and-
 ## Quy trình
 
 1. Endpoint mới phải đúng quy tắc; cổng đặt tên đỏ nếu thêm vi phạm mới. **Không thêm dòng vào `apiNamingDebt.json` để qua cổng.**
-2. Sửa endpoint cũ (đổi tên): thêm đường mới cùng handler, giữ đường cũ làm bí danh, chuyển `client/src/services/*.service.js`, `e2e/mock-api.cjs`
-   và test sang đường mới, đếm lượt gọi đường cũ bằng `safeLog`/metric, rồi gỡ đường cũ ở PR riêng khi không còn lượt gọi. Xóa dòng tương ứng khỏi danh sách nợ.
+2. Sửa endpoint cũ (đổi tên): **khi production chưa có người dùng thật** thì đổi thẳng, không giữ bí danh. Đổi đồng thời route, `client/src/services/*.service.js`, `e2e/mock-api.cjs`,
+   test và xóa dòng tương ứng khỏi danh sách nợ. **Khi đã có người dùng thật**: thêm đường mới cùng handler, giữ đường cũ làm bí danh với header `Deprecation`/`Link` và đếm lượt gọi
+   (mẫu: middleware `deprecatedRoute` trong git history, commit "resource-style names for training bookings"), gỡ ở PR riêng khi không còn lượt gọi.
 3. **Không đổi**: webhook (`/api/webhooks/sepay`), OAuth (`/api/auth/google`, `/callback`), `/api/ops/*` (watchdog, smoke test, Render), đường dẫn mà script production
-   gọi (`/api/blog`, `/api/recipes`, `/api/exercises`), và các tiền tố có rate limiter hoặc cổng tính năng (`server.js`, `server/src/config/todayPlatform.js`) khi chưa kiểm hết người dùng.
+   gọi (`/api/blog`, `/api/recipes`, `/api/exercises`), (đổi tiền tố có rate limiter hoặc cổng tính năng thì theo bước 5, có cổng kiểm chéo bảo vệ).
 4. Route chạm auth, ví, hợp đồng, thanh toán: chạy skill `impact-check` trước khi đổi.

@@ -8,7 +8,7 @@ import {
 
 const router = express.Router();
 
-// Đường mới (mount /api/meal-plan-access). Đường cũ /api/mealplan-access/{check,record} ở mealplanAccessLegacy.routes.js.
+// Mount /api/meal-plan-access.
 router.get("/", protect, checkMealPlanAccess);
 router.post("/usages", protect, csrfProtection, recordMealPlanGeneration);
 
