@@ -5,12 +5,8 @@ import { describe, expect, it } from "vitest";
 
 // Cổng "chỉ giảm, không tăng": giao diện không dùng <select>, window.confirm, alert gốc của trình duyệt
 // (danh sách thả xuống không bo góc, hộp thoại không theo giao diện). Dùng SelectField / RoundedSelect
-// và useConfirmDialog. Các file dưới đây là nợ cũ; chuyển xong một file thì xóa nó khỏi danh sách.
-const LEGACY_NATIVE_USAGE = {
-  "components/body-assessment/TrainerBodyAssessment.jsx": 2,
-  "hooks/useExercisesLogic.js": 1,
-  "hooks/usePrompt.js": 1,
-};
+// và useConfirmDialog. Nợ cũ đã chuyển hết; danh sách này để trống và không được thêm file vào.
+const LEGACY_NATIVE_USAGE = {};
 
 // Chính các thành phần ô chọn dùng <select> gốc bên trong.
 const EXEMPT_FILES = new Set([
