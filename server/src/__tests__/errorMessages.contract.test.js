@@ -8,8 +8,10 @@ import debt from "./errorMessageDebt.json";
 // Cổng "chỉ giảm, không tăng" cho thông báo lỗi gửi ra ngoài: không trả `error.message` thô và không dùng
 // câu "Lỗi server"/"Lỗi hệ thống". Dùng `sendApiError` (utils/sendApiError.js) hoặc câu cụ thể bằng tiếng Việt.
 // Chuyển xong một file thì xóa nó khỏi errorMessageDebt.json.
-// Nợ còn lại (19 chỗ): lỗi nghiệp vụ có kiểu và `code` riêng mà message do service tự viết (contract, import, trainerTransfer,
-// workoutPlan, food, practiceCenter), và các endpoint dành cho máy (ops, webhook SePay) không hiển thị cho người dùng.
+// Nợ còn lại (17 chỗ): controller chỉ trả `error.message` sau khi đã kiểm lỗi nghiệp vụ có kiểu (`statusCode` + `code` hoặc `instanceof`) mà
+// message do service tự viết bằng tiếng Việt (contract, import, trainerTransfer, workoutPlan, food), và các endpoint dành cho máy (ops,
+// webhook SePay). Chỗ nào còn đường cho lỗi bất ngờ đi qua thì dùng `publicErrorMessage` (chỉ lộ message khi lỗi có `expose: true`):
+// foodReference và practiceCenter đã chuyển sang cách này.
 const SRC_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const SKIPPED_DIRS = new Set(["__tests__", "scripts", "migrations", "node_modules", "seeds"]);
 

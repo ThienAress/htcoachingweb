@@ -297,6 +297,7 @@ describe("Practice Center routes", () => {
       failedRemaining: 2,
       remaining: [1, 0],
     });
+    expect(failed.body.message).not.toContain("provider unavailable");
   });
 
   it("reports partial journey delivery and retries only the missing email", async () => {

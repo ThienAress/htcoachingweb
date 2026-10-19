@@ -39,6 +39,7 @@ const findRecipient = async (actor) => {
     throw Object.assign(new Error("Tài khoản chưa có email để nhận mô phỏng"), {
       code: "PRACTICE_RECIPIENT_UNAVAILABLE",
       statusCode: 422,
+      expose: true,
     });
   }
   return { name: user.name || "HLV", email: user.email };
@@ -72,7 +73,7 @@ export const getPracticeCenterState = async ({ actor }) => {
 const DELIVERY_CLAIM_TIMEOUT_MS = 10 * 60 * 1000;
 
 const practiceError = (statusCode, code, message, details = {}) =>
-  Object.assign(new Error(message), { statusCode, code, ...details });
+  Object.assign(new Error(message), { statusCode, code, expose: true, ...details });
 
 const loadOrCreateDelivery = async ({ actor, definition, requestId }) => {
   let delivery;
@@ -144,6 +145,7 @@ export const deliverPracticeCenterScenarioRequest = async ({
     throw Object.assign(new Error("Kịch bản mô phỏng không hợp lệ"), {
       code: "PRACTICE_SCENARIO_INVALID",
       statusCode: 400,
+      expose: true,
     });
   }
   const recipient = await findRecipient(actor);

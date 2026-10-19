@@ -4,6 +4,7 @@ import {
 } from "../services/practiceCenter.service.js";
 import { serializeRequestQuota } from "../services/serviceAccessPolicy.service.js";
 import { safeLog } from "../utils/safeLogger.js";
+import { isErrorCode, publicErrorMessage } from "../utils/errorMessages.js";
 
 const actorFrom = (req) => ({ id: req.user.id, role: req.user.role });
 
@@ -17,11 +18,8 @@ export const getPracticeCenter = async (req, res) => {
     if (status >= 500) safeLog.error("practice_center.read_failed", error);
     return res.status(status).json({
       success: false,
-      code: error.code || "PRACTICE_CENTER_READ_FAILED",
-      message:
-        status >= 500
-          ? "Không thể tải Trung tâm thực hành"
-          : error.message,
+      code: isErrorCode(error.code) ? error.code : "PRACTICE_CENTER_READ_FAILED",
+      message: publicErrorMessage(error, "Không thể tải Trung tâm thực hành"),
     });
   }
 };
@@ -59,8 +57,8 @@ export const sendPracticeCenterSimulation = async (req, res) => {
     );
     return res.status(error.statusCode || 502).json({
       success: false,
-      code: error.code || "PRACTICE_EMAIL_DELIVERY_FAILED",
-      message: error.message || "Chưa thể gửi email mô phỏng.",
+      code: isErrorCode(error.code) ? error.code : "PRACTICE_EMAIL_DELIVERY_FAILED",
+      message: publicErrorMessage(error, "Chưa thể gửi email mô phỏng."),
       ...(hasDeliveryState
         ? {
             data: {

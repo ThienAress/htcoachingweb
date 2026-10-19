@@ -19,7 +19,10 @@ import {
   withAuth,
 } from "../../__tests__/setup.js";
 import foodReferenceRoutes from "../foodReference.routes.js";
-import { lookupFoodReferenceByGtin } from "../../services/foodReferenceLookup.service.js";
+import {
+  createFoodReferenceLookupError,
+  lookupFoodReferenceByGtin,
+} from "../../services/foodReferenceLookup.service.js";
 
 vi.mock("../../services/foodReferenceLookup.service.js", async (importOriginal) => {
   const actual = await importOriginal();
@@ -99,6 +102,40 @@ describe("GET /api/food-references/barcode/:gtin", () => {
     expect(response.headers["cache-control"]).toBe("private, no-store");
     expect(response.body).toEqual({ success: true, data: REFERENCE });
     expect(lookupFoodReferenceByGtin).toHaveBeenCalledWith("036000291452");
+  });
+
+  test("keeps the authored message of a deliberate lookup error", async () => {
+    lookupFoodReferenceByGtin.mockRejectedValueOnce(
+      createFoodReferenceLookupError("FOOD_REFERENCE_NOT_CONFIGURED", "Nguồn tra cứu sản phẩm chưa được cấu hình"),
+    );
+    const response = await withAuth(
+      request(app).get("/api/food-references/barcode/036000291452"),
+      accessToken,
+    );
+
+    expect(response.status).toBe(503);
+    expect(response.body).toMatchObject({
+      success: false,
+      code: "FOOD_REFERENCE_NOT_CONFIGURED",
+      message: "Nguồn tra cứu sản phẩm chưa được cấu hình",
+    });
+  });
+
+  test("does not leak the message or code of an unexpected error", async () => {
+    lookupFoodReferenceByGtin.mockRejectedValueOnce(
+      Object.assign(new TypeError("Cannot read properties of undefined (reading 'nutrients')"), { code: 11000 }),
+    );
+    const response = await withAuth(
+      request(app).get("/api/food-references/barcode/036000291452"),
+      accessToken,
+    );
+
+    expect(response.status).toBe(503);
+    expect(response.body).toEqual({
+      success: false,
+      code: "FOOD_REFERENCE_PROVIDER_UNAVAILABLE",
+      message: "Không thể tra cứu dữ liệu sản phẩm lúc này",
+    });
   });
 
   test("returns a stable not-found contract", async () => {

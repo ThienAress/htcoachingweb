@@ -33,6 +33,13 @@ export const codeForStatus = (status) => STATUS_CODES[status] || "INTERNAL_ERROR
 // Chỉ nhận mã lỗi dạng ỔN_ĐỊNH (CHỮ_HOA_GẠCH_DƯỚI); bỏ mã số của driver (ví dụ 11000) hoặc chuỗi tự do.
 export const isErrorCode = (value) => typeof value === "string" && /^[A-Z][A-Z0-9_]{2,63}$/.test(value);
 
+// Chỉ lộ `error.message` khi nơi ném lỗi đã đánh dấu `expose: true` (câu tiếng Việt do mình viết);
+// lỗi bất ngờ (TypeError, lỗi thư viện, lỗi driver) luôn quay về câu thay thế.
+export const publicErrorMessage = (error, fallback) =>
+  error?.expose === true && typeof error.message === "string" && error.message.length > 0
+    ? error.message
+    : fallback;
+
 // Trạng thái hợp lệ cho phản hồi lỗi; giá trị lạ (3xx, NaN) quy về 500.
 export const normalizeErrorStatus = (status) =>
   Number.isInteger(status) && status >= 400 && status <= 599 ? status : 500;

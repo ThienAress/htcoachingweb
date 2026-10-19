@@ -1,5 +1,6 @@
 import { lookupFoodReferenceByGtin } from "../services/foodReferenceLookup.service.js";
 import { safeLog } from "../utils/safeLogger.js";
+import { isErrorCode, publicErrorMessage } from "../utils/errorMessages.js";
 
 export const getFoodReferenceByBarcode = async (req, res) => {
   res.setHeader("Cache-Control", "private, no-store");
@@ -21,13 +22,15 @@ export const getFoodReferenceByBarcode = async (req, res) => {
     });
     return res.json({ success: true, data: reference });
   } catch (error) {
-    const status = Number(error?.status) || 503;
-    const code = error?.code || "FOOD_REFERENCE_PROVIDER_UNAVAILABLE";
-    safeLog.warn("food_reference.lookup_failed", code, { status });
+    const known = error?.expose === true;
+    const status = known ? Number(error.status) || 503 : 503;
+    const code = known && isErrorCode(error.code) ? error.code : "FOOD_REFERENCE_PROVIDER_UNAVAILABLE";
+    if (known) safeLog.warn("food_reference.lookup_failed", code, { status });
+    else safeLog.error("food_reference.lookup_failed", error);
     return res.status(status).json({
       success: false,
       code,
-      message: error?.message || "Không thể tra cứu dữ liệu sản phẩm lúc này",
+      message: publicErrorMessage(error, "Không thể tra cứu dữ liệu sản phẩm lúc này"),
     });
   }
 };

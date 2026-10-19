@@ -27,7 +27,7 @@ export const isValidGtin = (value) => {
   return (10 - (sum % 10)) % 10 === expectedCheckDigit;
 };
 export const createFoodReferenceLookupError = (code, message, status = 503) =>
-  Object.assign(new Error(message), { code, status });
+  Object.assign(new Error(message), { code, status, expose: true });
 const completeNutrition = (nutrition) => REQUIRED_NUTRIENTS.every(
   (key) => finiteNonNegative(nutrition[key]) !== null,
 );

@@ -2,8 +2,6 @@
   "controllers/contract.controller.js": 2,
   "controllers/exerciseInstructionsImport.controller.js": 1,
   "controllers/food.controller.js": 2,
-  "controllers/foodReference.controller.js": 1,
-  "controllers/practiceCenter.controller.js": 1,
   "controllers/recipeNutritionImport.controller.js": 1,
   "controllers/sepayWebhook.controller.js": 1,
   "controllers/trainerTransfer.controller.js": 1,
