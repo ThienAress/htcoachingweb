@@ -86,7 +86,7 @@ beforeAll(async () => {
   app.use("/api/coaching-comments", coachingCommentRoutes);
   app.use("/api/daily-journals", dailyJournalRoutes);
   app.use("/api/ops", opsRoutes);
-  app.use("/api/user", userRoutes);
+  app.use("/api/users", userRoutes);
   app.use(errorHandler);
 });
 beforeEach(() => {
@@ -237,7 +237,7 @@ describe("Coaching Comment privacy lifecycle", () => {
     });
     await createComment(data);
     const deleted = await withAuth(
-      request(app).delete("/api/user/" + data.client.user._id),
+      request(app).delete("/api/users/" + data.client.user._id),
       admin.accessToken,
     );
 

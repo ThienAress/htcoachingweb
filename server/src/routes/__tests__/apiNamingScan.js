@@ -22,8 +22,17 @@ export const ALLOWED_ACTIONS = new Set([
 ]);
 
 // Tiền tố tài nguyên không đếm được hoặc là tên hệ thống; còn lại phải ở dạng số nhiều.
-// "practice-center" là một trang chức năng duy nhất (singleton), không phải tập hợp bản ghi.
-const UNCOUNTABLE_RESOURCES = new Set(["auth", "ops", "ai", "me", "progress", "practice-center"]);
+// Tên không đếm được hoặc chức năng duy nhất (singleton), không phải tập hợp bản ghi nên không cần số nhiều.
+const UNCOUNTABLE_RESOURCES = new Set([
+  "auth", "ops", "ai", "me", "progress", "coaching", "knowledge-base",
+  "practice-center", "trainer-coordination", "skill-radar", "today-dashboard",
+  "trainer-overview", "trainer-client-overview", "coaching-activity",
+  // Ngoại lệ có chủ đích: script production (smoke test, watchdog) gọi /api/blog, đổi tên cần triển khai đồng bộ với các script đó.
+  "blog",
+]);
+
+// Danh từ số nhiều có từ đầu trùng động từ nên không bị coi là động từ trong đường dẫn.
+const PLURAL_NOUN_SEGMENTS = new Set(["check-ins"]);
 
 const KEBAB = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const isParam = (segment) => segment.startsWith(":");
@@ -84,7 +93,7 @@ export const findNamingViolations = (routes) => {
     for (const segment of statics) {
       if (!KEBAB.test(segment.replace(/\.(?:pdf|csv|json)$/, ""))) add(route, "kebab-case");
     }
-    const verbSegments = statics.filter((segment) => VERBS.has(segment.split("-")[0]));
+    const verbSegments = statics.filter((segment) => VERBS.has(segment.split("-")[0]) && !PLURAL_NOUN_SEGMENTS.has(segment));
     if (verbSegments.length > 0 && !(verbSegments.length === 1 && verbSegments[0] === last && isAllowedAction)) {
       add(route, "verb-in-path");
     }

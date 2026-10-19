@@ -362,13 +362,13 @@ const testCheckin = async ({ firstOrder, tokens }) => {
     muscle: "Staging full body",
     note: `Synthetic acceptance check-in ${marker}`,
   };
-  const created = await request("/api/checkin", {
+  const created = await request("/api/check-ins", {
     method: "POST",
     token: tokens.trainer,
     body,
     label: "check-in create",
   });
-  const replayed = await request("/api/checkin", {
+  const replayed = await request("/api/check-ins", {
     method: "POST",
     token: tokens.trainer,
     body,
@@ -377,7 +377,7 @@ const testCheckin = async ({ firstOrder, tokens }) => {
   assert(replayed.data?.idempotentReplay === true, "Check-in replay was not idempotent");
   const afterCreate = await Order.findById(firstOrder._id).lean();
   assert(afterCreate.sessions === baselineSessions - 1, "Check-in did not debit one session");
-  const deleted = await request(`/api/checkin/${created.data?.data?._id}`, {
+  const deleted = await request(`/api/check-ins/${created.data?.data?._id}`, {
     method: "DELETE",
     token: tokens.admin,
     label: "check-in delete",

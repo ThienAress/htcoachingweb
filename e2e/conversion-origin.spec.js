@@ -69,7 +69,7 @@ test.describe("Explicit conversion origin controls", () => {
         }),
       });
     });
-    await page.route("**/api/user/trainer-assignment-candidates**", (route) =>
+    await page.route("**/api/users/trainer-assignment-candidates**", (route) =>
       route.fulfill({
         status: 200,
         contentType: "application/json",

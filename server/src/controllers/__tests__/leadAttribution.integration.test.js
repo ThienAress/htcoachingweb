@@ -69,7 +69,7 @@ const publicPost = (path, body) =>
 beforeAll(async () => {
   await setupTestDB();
   app = createTestApp();
-  app.use("/api/contact", contactRoutes);
+  app.use("/api/contact-messages", contactRoutes);
   app.use("/api/bookings", bookingRoutes);
   await Promise.all([Booking.init(), ContactMessage.init()]);
 });
@@ -84,14 +84,14 @@ afterAll(async () => {
 
 describe("public lead attribution", () => {
   it("giữ payload Contact cũ backward-compatible", async () => {
-    const response = await publicPost("/api/contact", contactBody);
+    const response = await publicPost("/api/contact-messages", contactBody);
 
     expect(response.status).toBe(201);
     expect((await ContactMessage.findOne()).attribution).toBeNull();
   });
 
   it("normalize và persist Contact attribution", async () => {
-    const response = await publicPost("/api/contact", {
+    const response = await publicPost("/api/contact-messages", {
       ...contactBody,
       attribution: { ...attribution, source: "Google" },
     });
@@ -101,7 +101,7 @@ describe("public lead attribution", () => {
   });
 
   it("reject unknown attribution fields trước controller", async () => {
-    const response = await publicPost("/api/contact", {
+    const response = await publicPost("/api/contact-messages", {
       ...contactBody,
       attribution: { ...attribution, rawIp: "127.0.0.1" },
     });
@@ -111,7 +111,7 @@ describe("public lead attribution", () => {
   });
 
   it("reject attribution vượt giới hạn trước controller", async () => {
-    const response = await publicPost("/api/contact", {
+    const response = await publicPost("/api/contact-messages", {
       ...contactBody,
       attribution: { ...attribution, campaign: "x".repeat(101) },
     });

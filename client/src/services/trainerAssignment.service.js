@@ -5,6 +5,6 @@ export const getTrainerAssignmentCandidates = ({
   limit = 100,
   search = "",
 } = {}) =>
-  api.get("/user/trainer-assignment-candidates", {
+  api.get("/users/trainer-assignment-candidates", {
     params: { page, limit, search },
   });

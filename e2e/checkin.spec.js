@@ -11,7 +11,7 @@ test.describe("trainer check-in journey", () => {
 
   test("selects an owned order and submits one check-in request", async ({ page }) => {
     let createCalls = 0;
-    await page.route("**/api/checkin", async (route) => {
+    await page.route("**/api/check-ins", async (route) => {
       if (route.request().method() === "POST") createCalls += 1;
       await route.fallback();
     });

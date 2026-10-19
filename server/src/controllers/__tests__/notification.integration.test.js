@@ -34,7 +34,7 @@ beforeAll(async () => {
   await setupTestDB();
   app = createTestApp();
   app.use("/api/notifications", notificationRoutes);
-  app.use("/api/user", userRoutes);
+  app.use("/api/users", userRoutes);
   app.use(errorHandler);
   await InAppNotification.init();
 });
@@ -498,7 +498,7 @@ describe("Thông báo trong ứng dụng", () => {
       dedupeKey: "notification:user-delete",
     });
     const deleted = await withAuth(
-      request(app).delete("/api/user/" + recipient.user._id),
+      request(app).delete("/api/users/" + recipient.user._id),
       admin.accessToken,
     );
 

@@ -59,9 +59,9 @@ beforeAll(async () => {
   await setupTestDB();
   app = createTestApp();
 
-  app.get("/api/checkin/me", protect, getMyCheckins);
+  app.get("/api/check-ins/me", protect, getMyCheckins);
   app.post(
-    "/api/checkin",
+    "/api/check-ins",
     protect,
     (req, _res, next) => {
       req.isAdmin = true;
@@ -70,7 +70,7 @@ beforeAll(async () => {
     createCheckin,
   );
   app.delete(
-    "/api/checkin/:id",
+    "/api/check-ins/:id",
     protect,
     (req, _res, next) => {
       req.isAdmin = true;
@@ -136,7 +136,7 @@ describe("Phase 0 security boundaries", () => {
     expect(explicitSecrets.refreshToken).toBeTruthy();
 
     const response = await withAuth(
-      request(app).get("/api/checkin/me"),
+      request(app).get("/api/check-ins/me"),
       accessToken,
     );
 
@@ -306,8 +306,8 @@ describe("Phase 0 security boundaries", () => {
     };
 
     const [first, second] = await Promise.all([
-      withAuth(request(app).post("/api/checkin").send(payload), accessToken),
-      withAuth(request(app).post("/api/checkin").send(payload), accessToken),
+      withAuth(request(app).post("/api/check-ins").send(payload), accessToken),
+      withAuth(request(app).post("/api/check-ins").send(payload), accessToken),
     ]);
 
     expect(first.status).toBe(200);
@@ -323,11 +323,11 @@ describe("Phase 0 security boundaries", () => {
 
     const savedCheckin = await Checkin.findOne({ orderId: order._id });
     const deleted = await withAuth(
-      request(app).delete(`/api/checkin/${savedCheckin._id}`),
+      request(app).delete(`/api/check-ins/${savedCheckin._id}`),
       accessToken,
     );
     const repeatedDelete = await withAuth(
-      request(app).delete(`/api/checkin/${savedCheckin._id}`),
+      request(app).delete(`/api/check-ins/${savedCheckin._id}`),
       accessToken,
     );
 
@@ -365,7 +365,7 @@ describe("Phase 0 security boundaries", () => {
     });
 
     const response = await withAuth(
-      request(app).post("/api/checkin").send({
+      request(app).post("/api/check-ins").send({
         orderId: order._id.toString(),
         clientRequestId: "b26e93e8-8d21-4be2-9c6e-2ebf3cc340b2",
         time: "2026-07-19T08:00:00.000Z",

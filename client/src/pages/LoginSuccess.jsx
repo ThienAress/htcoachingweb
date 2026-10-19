@@ -14,7 +14,7 @@ const LoginSuccess = () => {
   useEffect(() => {
     const updateUser = async () => {
       try {
-        const res = await api.get("/user/me");
+        const res = await api.get("/users/me");
 
         if (res.data?.email) {
           await refetch();
