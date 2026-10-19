@@ -190,7 +190,7 @@ router.get(
   requireRoles("admin"),
   getTrainerAssignmentCandidates,
 );
-router.get("/users", protect, requireRoles("admin"), getUsers);
+router.get("/", protect, requireRoles("admin"), getUsers);
 router.delete(
   "/:id",
   protect,

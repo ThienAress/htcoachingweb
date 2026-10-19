@@ -10,7 +10,7 @@ const asRole = (page, role) =>
 test("a signed-in user opening the account page directly stays on it", async ({ page }) => {
   await asRole(page, "user");
   // Session check slower than the page chunk (cold backend): the page must wait, not bounce to login.
-  await page.route("**/api/user/me", async (route) => {
+  await page.route("**/api/users/me", async (route) => {
     await new Promise((resolve) => setTimeout(resolve, 1500));
     await route.fallback();
   });

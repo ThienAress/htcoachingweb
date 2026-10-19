@@ -29,6 +29,8 @@ quyết định và lý do nằm ở `docs/architecture/adr/0002-api-naming-and-
 
 ## B. Phần dự án bổ sung
 
+- **Số nhiều trừ danh từ không đếm được hoặc chức năng duy nhất** (`auth`, `ops`, `ai`, `progress`, `coaching`, `knowledge-base`, `today-dashboard`, `practice-center`...): danh sách đầy đủ và lý do nằm trong
+  `UNCOUNTABLE_RESOURCES` của `apiNamingScan.js`. `/api/blog` giữ nguyên vì script production gọi.
 - **Hành động không thuộc CRUD** (duyệt, hủy, ký...): `POST /<tài nguyên>/:id/<hành động>` với hành động trong danh sách `ALLOWED_ACTIONS` của
   `apiNamingScan.js` (`approve`, `reject`, `cancel`, `confirm`, `submit`, `archive`, `restore`, `duplicate`, `sign`...). Không dùng PUT cho hành động.
   Tạo bản ghi thì `POST /<tài nguyên>`, không `/<tài nguyên>/create`, `/book`, `/purchase`, `/send`, `/analyze`, `/record`.

@@ -174,7 +174,7 @@ const handleApi = (req, res, path) => {
     req.resume();
   }
 
-  if (path === "/api/user/me") {
+  if (path === "/api/users/me") {
     return actor
       ? sendJson(res, actor)
       : sendJson(res, null);
@@ -334,7 +334,7 @@ const handleApi = (req, res, path) => {
           401,
         );
   }
-  if (path === "/api/checkin/me" && req.method === "GET") {
+  if (path === "/api/check-ins/me" && req.method === "GET") {
     return sendJson(res, {
       success: true,
       data: {
@@ -967,14 +967,14 @@ const handleApi = (req, res, path) => {
       ],
     });
   }
-  if (path === "/api/checkin" && req.method === "GET") {
+  if (path === "/api/check-ins" && req.method === "GET") {
     return sendJson(res, {
       success: true,
       data: [],
       pagination: { total: 0, page: 1, limit: 5, totalPages: 1 },
     });
   }
-  if (path === "/api/checkin" && req.method === "POST") {
+  if (path === "/api/check-ins" && req.method === "POST") {
     return sendJson(res, {
       success: true,
       data: { _id: "checkin-e2e", remainingSessions: 7 },

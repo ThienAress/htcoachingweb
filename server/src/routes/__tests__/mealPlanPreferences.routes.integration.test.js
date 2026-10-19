@@ -24,7 +24,7 @@ let app;
 beforeAll(async () => {
   await setupTestDB();
   app = createTestApp();
-  app.use("/api/user", userRoutes);
+  app.use("/api/users", userRoutes);
   await User.init();
 });
 
@@ -55,7 +55,7 @@ describe("Meal Plan preferences owner-only", () => {
     });
 
     const response = await withAuth(
-      request(app).delete("/api/user/me/meal-plan-preferences"),
+      request(app).delete("/api/users/me/meal-plan-preferences"),
       accessToken,
     );
     const [ownerAfterDelete, otherAfterDelete] = await Promise.all([
@@ -99,11 +99,11 @@ describe("Meal Plan preferences owner-only", () => {
     });
 
     const first = await withAuth(
-      request(app).delete("/api/user/me/meal-plan-preferences"),
+      request(app).delete("/api/users/me/meal-plan-preferences"),
       accessToken,
     );
     const second = await withAuth(
-      request(app).delete("/api/user/me/meal-plan-preferences"),
+      request(app).delete("/api/users/me/meal-plan-preferences"),
       accessToken,
     );
 
@@ -139,7 +139,7 @@ describe("Meal Plan preferences owner-only", () => {
     });
 
     const response = await withAuth(
-      request(app).get("/api/user/me/meal-plan-preferences"),
+      request(app).get("/api/users/me/meal-plan-preferences"),
       accessToken,
     );
 
@@ -158,7 +158,7 @@ describe("Meal Plan preferences owner-only", () => {
       email: "meal-pref-other@example.com",
     });
     const response = await withAuth(
-      request(app).put("/api/user/me/meal-plan-preferences").send({
+      request(app).put("/api/users/me/meal-plan-preferences").send({
         allergyStatus: "declared",
         allergens: [],
         otherAllergenText: "  Ốc biển   và thịt bò  ",
@@ -185,7 +185,7 @@ describe("Meal Plan preferences owner-only", () => {
       email: "meal-pref-tokenized@example.com",
     });
     const response = await withAuth(
-      request(app).put("/api/user/me/meal-plan-preferences").send({
+      request(app).put("/api/users/me/meal-plan-preferences").send({
         allergyStatus: "declared",
         allergens: [],
         otherAllergenText: "gà bò cá",
@@ -209,16 +209,16 @@ describe("Meal Plan preferences owner-only", () => {
     };
 
     const updated = await withAuth(
-      request(app).put("/api/user/me/meal-plan-preferences").send(payload),
+      request(app).put("/api/users/me/meal-plan-preferences").send(payload),
       accessToken,
     );
     const [readBack, genericMe, defaultSelection, explicitSelection] =
       await Promise.all([
         withAuth(
-          request(app).get("/api/user/me/meal-plan-preferences"),
+          request(app).get("/api/users/me/meal-plan-preferences"),
           accessToken,
         ),
-        withAuth(request(app).get("/api/user/me"), accessToken),
+        withAuth(request(app).get("/api/users/me"), accessToken),
         User.findById(user._id).lean(),
         User.findById(user._id).select("+mealPlanPreferences").lean(),
       ]);
@@ -239,7 +239,7 @@ describe("Meal Plan preferences owner-only", () => {
     const responses = await Promise.all([
       withAuth(
         request(app)
-          .put("/api/user/me/meal-plan-preferences")
+          .put("/api/users/me/meal-plan-preferences")
           .send({
             allergyStatus: "none_known",
             allergens: ["milk"],
@@ -249,7 +249,7 @@ describe("Meal Plan preferences owner-only", () => {
       ),
       withAuth(
         request(app)
-          .put("/api/user/me/meal-plan-preferences")
+          .put("/api/users/me/meal-plan-preferences")
           .send({
             allergyStatus: "declared",
             allergens: ["private_symptom_text"],
@@ -259,7 +259,7 @@ describe("Meal Plan preferences owner-only", () => {
       ),
       withAuth(
         request(app)
-          .put("/api/user/me/meal-plan-preferences")
+          .put("/api/users/me/meal-plan-preferences")
           .send({
             allergyStatus: "unsure",
             allergens: [],
@@ -278,7 +278,7 @@ describe("Meal Plan preferences owner-only", () => {
     });
     const responses = await Promise.all([
       withAuth(
-        request(app).put("/api/user/me/meal-plan-preferences").send({
+        request(app).put("/api/users/me/meal-plan-preferences").send({
           allergyStatus: "none_known",
           allergens: [],
           otherAllergenText: "Ốc biển",
@@ -287,7 +287,7 @@ describe("Meal Plan preferences owner-only", () => {
         accessToken,
       ),
       withAuth(
-        request(app).put("/api/user/me/meal-plan-preferences").send({
+        request(app).put("/api/users/me/meal-plan-preferences").send({
           allergyStatus: "declared",
           allergens: [],
           otherAllergenText: "https://example.com/private",
@@ -296,7 +296,7 @@ describe("Meal Plan preferences owner-only", () => {
         accessToken,
       ),
       withAuth(
-        request(app).put("/api/user/me/meal-plan-preferences").send({
+        request(app).put("/api/users/me/meal-plan-preferences").send({
           allergyStatus: "declared",
           allergens: [],
           otherAllergenText: "private@example.com",
@@ -316,7 +316,7 @@ describe("Meal Plan preferences owner-only", () => {
     const responses = await Promise.all(
       ["bò.gà.heo", "thịt"].map((otherAllergenText) =>
         withAuth(
-          request(app).put("/api/user/me/meal-plan-preferences").send({
+          request(app).put("/api/users/me/meal-plan-preferences").send({
             allergyStatus: "declared",
             allergens: [],
             otherAllergenText,
@@ -352,15 +352,15 @@ describe("Meal Plan preferences owner-only", () => {
       anonymousDelete,
       missingDeleteCsrf,
     ] = await Promise.all([
-      request(app).get("/api/user/me/meal-plan-preferences"),
-      request(app).put("/api/user/me/meal-plan-preferences").send(payload),
+      request(app).get("/api/users/me/meal-plan-preferences"),
+      request(app).put("/api/users/me/meal-plan-preferences").send(payload),
       request(app)
-        .put("/api/user/me/meal-plan-preferences")
+        .put("/api/users/me/meal-plan-preferences")
         .set("Cookie", [`accessToken=${accessToken}`, "csrfToken=expected"])
         .send(payload),
-      request(app).delete("/api/user/me/meal-plan-preferences"),
+      request(app).delete("/api/users/me/meal-plan-preferences"),
       request(app)
-        .delete("/api/user/me/meal-plan-preferences")
+        .delete("/api/users/me/meal-plan-preferences")
         .set("Cookie", [`accessToken=${accessToken}`, "csrfToken=expected"]),
     ]);
 

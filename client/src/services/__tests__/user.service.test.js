@@ -23,6 +23,6 @@ describe("user service Meal Plan preferences", () => {
     api.delete.mockResolvedValue({ data: { success: true, data } });
 
     await expect(deleteMyMealPlanPreferences()).resolves.toEqual(data);
-    expect(api.delete).toHaveBeenCalledWith("/user/me/meal-plan-preferences");
+    expect(api.delete).toHaveBeenCalledWith("/users/me/meal-plan-preferences");
   });
 });

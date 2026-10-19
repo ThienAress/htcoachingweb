@@ -222,7 +222,7 @@ export const responseForPrerenderRequest = (requestUrl, cache) => {
   }
   const { pathname, searchParams } = parsedUrl;
 
-  if (pathname.endsWith("/api/user/me")) {
+  if (pathname.endsWith("/api/users/me")) {
     return jsonResponse(401, { success: false, message: "Unauthenticated" });
   }
 

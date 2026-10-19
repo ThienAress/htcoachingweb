@@ -212,8 +212,8 @@ app.use(passport.initialize());
 if (isProd) {
   app.use("/api/auth", authLimiter);
   app.use("/api/orders", apiLimiter);
-  app.use("/api/checkin", apiLimiter);
-  app.use("/api/contact", contactLimiter);
+  app.use("/api/check-ins", apiLimiter);
+  app.use("/api/contact-messages", contactLimiter);
 }
 
 // ================= CSRF COOKIE HELPER =================
@@ -240,13 +240,13 @@ app.use((req, res, next) => {
 
 // ================= ROUTES =================
 app.use("/api/auth", authRoutes);
-app.use("/api/user", userRoutes);
+app.use("/api/users", userRoutes);
 app.use("/api/orders", orderRoutes);
-app.use("/api/checkin", checkinRoutes);
+app.use("/api/check-ins", checkinRoutes);
 app.use("/api/f1-customers", f1CustomerRoutes);
 import f1AiRuleRoutes from "./src/routes/f1AiRule.routes.js";
 app.use("/api/f1-ai-rules", f1AiRuleRoutes);
-app.use("/api/contact", contactRoutes);
+app.use("/api/contact-messages", contactRoutes);
 app.use("/api/foods", foodRoutes);
 app.use("/api/food-references", foodReferenceRoutes);
 app.use("/api/bookings", bookingRoutes);

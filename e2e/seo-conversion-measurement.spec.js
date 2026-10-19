@@ -23,7 +23,7 @@ test.describe("public SEO/conversion measurement", () => {
     page,
   }) => {
     let requestBody = null;
-    await page.route("**/api/contact", async (route) => {
+    await page.route("**/api/contact-messages", async (route) => {
       requestBody = route.request().postDataJSON();
       await route.fulfill({
         status: 201,

@@ -83,7 +83,7 @@ beforeAll(async () => {
   app = createTestApp();
   app.use("/api/daily-journals", dailyJournalRoutes);
   app.use("/api/ops", opsRoutes);
-  app.use("/api/user", userRoutes);
+  app.use("/api/users", userRoutes);
   app.use(errorHandler);
 });
 
@@ -401,7 +401,7 @@ describe("Daily Journal ownership and privacy", () => {
     await createViaApi(client);
 
     const response = await withAuth(
-      request(app).delete("/api/user/" + client.user._id),
+      request(app).delete("/api/users/" + client.user._id),
       admin.accessToken,
     );
 

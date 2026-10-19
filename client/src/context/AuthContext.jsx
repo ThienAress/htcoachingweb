@@ -28,7 +28,7 @@ export const AuthProvider = ({ children }) => {
 
   const fetchUser = useCallback(async () => {
     try {
-      const res = await api.get("/user/me");
+      const res = await api.get("/users/me");
       const fetchedUser = res.data;
 
       if (fetchedUser && fetchedUser.email) {

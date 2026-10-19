@@ -33,8 +33,8 @@ describe("prefixes that other code depends on", () => {
     expect(guardedBy("/api")).toEqual(["globalLimiter"]);
     expect(guardedBy("/api/auth")).toEqual(["authLimiter", "requireAuthCutoverOpen"]);
     expect(guardedBy("/api/orders")).toEqual(["apiLimiter"]);
-    expect(guardedBy("/api/checkin")).toEqual(["apiLimiter"]);
-    expect(guardedBy("/api/contact")).toEqual(["contactLimiter"]);
+    expect(guardedBy("/api/check-ins")).toEqual(["apiLimiter"]);
+    expect(guardedBy("/api/contact-messages")).toEqual(["contactLimiter"]);
   });
 
   it("has a mounted router behind every guarded prefix", () => {
@@ -69,21 +69,21 @@ describe("prefixes that other code depends on", () => {
 });
 
 describe("the cross-check detects a rename that forgot a dependant", () => {
-  const afterRename = mountPrefixes.map((prefix) => (prefix === "/api/checkin" ? "/api/check-ins" : prefix));
+  const afterRename = mountPrefixes.map((prefix) => (prefix === "/api/orders" ? "/api/order-list" : prefix));
 
   it("flags the rate limiter that still points at the old prefix", () => {
-    expect(unmountedPaths(["/api/checkin"], afterRename)).toEqual(["/api/checkin"]);
-    expect(unmountedPaths(["/api/orders"], afterRename)).toEqual([]);
+    expect(unmountedPaths(["/api/orders"], afterRename)).toEqual(["/api/orders"]);
+    expect(unmountedPaths(["/api/check-ins"], afterRename)).toEqual([]);
   });
 
   it("flags a client call and a server-built URL that still use the old prefix", () => {
-    expect(unmountedPaths(clientApiPaths('api.get("/checkin/me")'), afterRename)).toEqual(["/api/checkin/me"]);
-    expect(unmountedPaths(serverApiPaths('const link = `/api/checkin/${id}`;'), afterRename)).toEqual(["/api/checkin"]);
+    expect(unmountedPaths(clientApiPaths('api.get("/orders/me")'), afterRename)).toEqual(["/api/orders/me"]);
+    expect(unmountedPaths(serverApiPaths('const link = `/api/orders/${id}`;'), afterRename)).toEqual(["/api/orders"]);
   });
 
   it("accepts sub-paths and ignores comments", () => {
     expect(isMountedPath("/api/orders/123/approve", mountPrefixes)).toBe(true);
-    expect(serverApiPaths("// see /api/checkin/old\nconst x = 1;")).toEqual([]);
+    expect(serverApiPaths("// see /api/orders/old\nconst x = 1;")).toEqual([]);
     expect(clientApiPaths("// api.get('/gone')")).toEqual([]);
   });
 });

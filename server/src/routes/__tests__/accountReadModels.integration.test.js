@@ -35,7 +35,7 @@ let app;
 beforeAll(async () => {
   await setupTestDB();
   app = createTestApp();
-  app.use("/api/user", userRoutes);
+  app.use("/api/users", userRoutes);
   app.use("/api/contracts", contractRoutes);
   await Promise.all([
     Contract.init(),
@@ -140,8 +140,8 @@ describe("Account read models", () => {
       ]);
 
     const [ordersResponse, transactionsResponse] = await Promise.all([
-      withAuth(request(app).get("/api/user/me/orders"), accessToken),
-      withAuth(request(app).get("/api/user/me/transactions"), accessToken),
+      withAuth(request(app).get("/api/users/me/orders"), accessToken),
+      withAuth(request(app).get("/api/users/me/transactions"), accessToken),
     ]);
 
     expect({
@@ -235,8 +235,8 @@ describe("Account read models", () => {
 
   test("rejects unauthenticated account reads", async () => {
     const responses = await Promise.all([
-      request(app).get("/api/user/me/orders"),
-      request(app).get("/api/user/me/transactions"),
+      request(app).get("/api/users/me/orders"),
+      request(app).get("/api/users/me/transactions"),
       request(app).get("/api/contracts/my"),
     ]);
 
