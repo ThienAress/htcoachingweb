@@ -30,6 +30,7 @@ import {
   normalizeBlogSubCategory,
 } from "../../data/blogCategories";
 import SelectField from "../../components/SelectField";
+import { useConfirmDialog } from "../../hooks/useConfirmDialog";
 import { getUserErrorMessage } from "../../utils/errorMessages";
 
 const emptyForm = {
@@ -79,6 +80,7 @@ const hasMarkdown = (text) => {
 // ==================== MAIN COMPONENT ====================
 const BlogManagement = () => {
   const queryClient = useQueryClient();
+  const { confirm, dialog } = useConfirmDialog();
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
@@ -177,8 +179,8 @@ const BlogManagement = () => {
     }
   };
 
-  const handleDelete = (post) => {
-    if (!window.confirm(`Xóa bài viết "${post.title}"?`)) return;
+  const handleDelete = async (post) => {
+    if (!await confirm({ title: "Xóa bài viết", message: `Xóa bài viết "${post.title}"?`, confirmLabel: "Xóa", tone: "danger" })) return;
     deleteMut.mutate(post._id);
   };
 
@@ -612,6 +614,7 @@ const BlogManagement = () => {
           </button>
         </div>
       )}
+      {dialog}
     </div>
   );
 };

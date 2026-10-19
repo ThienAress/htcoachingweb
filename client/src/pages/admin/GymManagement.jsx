@@ -5,9 +5,11 @@ import { toast } from "react-toastify";
 import SEO from "../../components/SEO";
 import { getAllGyms, createGym, updateGym, deleteGym, seedGyms } from "../../services/gym.service";
 import SelectField from "../../components/SelectField";
+import { useConfirmDialog } from "../../hooks/useConfirmDialog";
 import { getUserErrorMessage } from "../../utils/errorMessages";
 
 const GymManagement = () => {
+  const { confirm, dialog } = useConfirmDialog();
   const queryClient = useQueryClient();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedGym, setSelectedGym] = useState(null);
@@ -36,8 +38,8 @@ const GymManagement = () => {
     onError: (err) => toast.error(getUserErrorMessage(err, "Không thể xóa. Vui lòng thử lại.")),
   });
 
-  const handleDelete = (id) => {
-    if (window.confirm("Bạn có chắc chắn muốn xóa phòng tập này?")) {
+  const handleDelete = async (id) => {
+    if (await confirm({ title: "Xóa phòng tập", message: "Bạn có chắc chắn muốn xóa phòng tập này?", confirmLabel: "Xóa", tone: "danger" })) {
       deleteMut.mutate(id);
     }
   };
@@ -65,7 +67,7 @@ const GymManagement = () => {
         <div className="flex gap-3">
           {gymsData?.length === 0 && (
             <button
-              onClick={() => { if (window.confirm("Chắc chắn seed 33 chi nhánh Waystation?")) seedMut.mutate() }}
+              onClick={async () => { if (await confirm({ title: "Nạp dữ liệu mẫu", message: "Chắc chắn nạp dữ liệu mẫu 33 chi nhánh Waystation?", confirmLabel: "Nạp dữ liệu", tone: "default" })) seedMut.mutate() }}
               disabled={seedMut.isPending}
               className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition disabled:opacity-50"
             >
@@ -164,6 +166,7 @@ const GymManagement = () => {
       {isModalOpen && (
         <GymModal gym={selectedGym} onClose={() => setIsModalOpen(false)} />
       )}
+      {dialog}
     </div>
   );
 };
