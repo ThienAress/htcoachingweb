@@ -16,7 +16,6 @@ const LEGACY_NATIVE_USAGE = {
   "pages/admin/ContactMessages.jsx": 2,
   "pages/admin/ContractManagement.jsx": 2,
   "pages/admin/CustomerStoryManagement.jsx": 1,
-  "pages/admin/DepositManagement.jsx": 2,
   "pages/admin/ExerciseManagement.jsx": 2,
   "pages/admin/ExerciseSuggestionsManagement.jsx": 2,
   "pages/admin/F1AiRuleManagement.jsx": 1,
@@ -26,8 +25,6 @@ const LEGACY_NATIVE_USAGE = {
   "pages/admin/Orders.jsx": 1,
   "pages/admin/RecipeManagement.jsx": 2,
   "pages/admin/UserManagement.jsx": 1,
-  "pages/trainer/TrainerCoaching.jsx": 1,
-  "pages/trainer/WorkoutPlan.jsx": 1,
 };
 
 // Chính các thành phần ô chọn dùng <select> gốc bên trong.

@@ -11,7 +11,6 @@ test.describe("deposit and wallet administration", () => {
 
   test("approves a pending deposit once", async ({ page }) => {
     let approveCalls = 0;
-    page.on("dialog", (dialog) => dialog.accept());
     await page.route("**/api/admin/deposits/deposit-e2e/approve", async (route) => {
       approveCalls += 1;
       await route.fallback();
@@ -20,6 +19,10 @@ test.describe("deposit and wallet administration", () => {
     await page.goto("/admin/deposits");
     await expect(page.getByText("HTC-E2E-0001")).toBeVisible();
     await page.getByRole("button", { name: "Duyệt", exact: true }).click();
+    const confirmDialog = page.getByRole("alertdialog");
+    await expect(confirmDialog).toContainText("Tiền thưởng");
+    expect(approveCalls).toBe(0);
+    await confirmDialog.getByRole("button", { name: "Duyệt nạp" }).click();
     await expect.poll(() => approveCalls).toBe(1);
   });
 
