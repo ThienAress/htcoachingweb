@@ -31,6 +31,7 @@ import {
   toDateInputValue,
 } from "./knowledgeBaseAdmin";
 import SelectField from "../../components/SelectField";
+import { useConfirmDialog } from "../../hooks/useConfirmDialog";
 import { getUserErrorMessage } from "../../utils/errorMessages";
 
 const emptyForm = (variants = []) => ({
@@ -97,6 +98,7 @@ const REVIEW_STATUS_LABELS = {
 };
 
 export default function KnowledgeBase() {
+  const { confirm, dialog } = useConfirmDialog();
   const queryClient = useQueryClient();
   const [tab, setTab] = useState("entries"); // entries | conversations | search
   const [entryPage, setEntryPage] = useState(1);
@@ -420,7 +422,7 @@ export default function KnowledgeBase() {
   };
 
   const handleDeleteVariant = async (variantId) => {
-    if (!confirm("Bạn có chắc chắn muốn xóa biến thể này?")) return;
+    if (!await confirm({ title: "Xóa biến thể", message: "Bạn có chắc chắn muốn xóa biến thể này?", confirmLabel: "Xóa", tone: "danger" })) return;
     try {
       await deleteKBVariant(viewingVariantsEntry._id, variantId);
       toast.success("Đã xóa biến thể");
@@ -471,7 +473,7 @@ export default function KnowledgeBase() {
   };
 
   const handleDelete = async (id) => {
-    if (!confirm("Xóa knowledge entry này?")) return;
+    if (!await confirm({ title: "Xóa mục kiến thức", message: "Xóa mục kiến thức này?", confirmLabel: "Xóa", tone: "danger" })) return;
     try {
       await deleteKBEntry(id);
       toast.success("Đã xóa");
@@ -1712,6 +1714,7 @@ export default function KnowledgeBase() {
           </div>
         </div>
       )}
+      {dialog}
     </div>
   );
 }

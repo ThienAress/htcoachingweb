@@ -14,6 +14,7 @@ import {
 import ContractEditModal from "./ContractEditModal";
 import { CONTRACT_STATUS_META } from "../../constants/contractStatus";
 import { useAuth } from "../../context/AuthContext";
+import { useConfirmDialog } from "../../hooks/useConfirmDialog";
 import { getUserErrorMessage } from "../../utils/errorMessages";
 
 const STATUS_ICONS = {
@@ -37,6 +38,7 @@ const StatusBadge = ({ status }) => {
 };
 
 const ContractManagement = () => {
+  const { confirm, dialog } = useConfirmDialog();
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
   const contractScope = isAdmin ? "admin" : user?._id;
@@ -188,10 +190,10 @@ const ContractManagement = () => {
                         <button onClick={() => handleDownload(c._id)} className="inline-flex size-11 items-center justify-center rounded-lg text-emerald-600 hover:bg-emerald-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400" title="Tải PDF" aria-label="Tải PDF hợp đồng"><Download className="w-4 h-4" /></button>
                       )}
                       {["draft", "sent", "viewed"].includes(c.status) && (
-                        <button onClick={() => { if (confirm("Hủy hợp đồng này?")) cancelMutation.mutate(c._id); }} disabled={cancelMutation.isPending} className="inline-flex size-11 items-center justify-center rounded-lg text-red-500 hover:bg-red-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400 disabled:opacity-50" title="Hủy" aria-label="Hủy hợp đồng"><XCircle className="w-4 h-4" /></button>
+                        <button onClick={async () => { if (await confirm({ title: "Hủy hợp đồng", message: "Hủy hợp đồng này?", confirmLabel: "Hủy hợp đồng", tone: "danger" })) cancelMutation.mutate(c._id); }} disabled={cancelMutation.isPending} className="inline-flex size-11 items-center justify-center rounded-lg text-red-500 hover:bg-red-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400 disabled:opacity-50" title="Hủy" aria-label="Hủy hợp đồng"><XCircle className="w-4 h-4" /></button>
                       )}
                       {isAdmin && ["draft", "cancelled", "expired", "signed"].includes(c.status) && (
-                        <button onClick={() => { if (confirm("Xóa vĩnh viễn hợp đồng này?")) deleteMutation.mutate(c._id); }} disabled={deleteMutation.isPending} className="inline-flex size-11 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-red-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400 disabled:opacity-50" title="Xóa" aria-label="Xóa hợp đồng"><Trash2 className="w-4 h-4" /></button>
+                        <button onClick={async () => { if (await confirm({ title: "Xóa hợp đồng", message: "Xóa vĩnh viễn hợp đồng này?", confirmLabel: "Xóa", tone: "danger" })) deleteMutation.mutate(c._id); }} disabled={deleteMutation.isPending} className="inline-flex size-11 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-red-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400 disabled:opacity-50" title="Xóa" aria-label="Xóa hợp đồng"><Trash2 className="w-4 h-4" /></button>
                       )}
                     </div>
                   </td>
@@ -246,6 +248,7 @@ const ContractManagement = () => {
           onClose={() => setEditingContract(null)}
         />
       )}
+      {dialog}
     </div>
   );
 };
