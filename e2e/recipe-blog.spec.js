@@ -11,7 +11,6 @@ test.describe("admin content lifecycle", () => {
 
   test("publishes a draft recipe through the admin mutation", async ({ page }) => {
     let publishCalls = 0;
-    page.on("dialog", (dialog) => dialog.accept());
     await page.route("**/api/recipes/recipe-e2e", async (route) => {
       if (route.request().method() === "PUT") publishCalls += 1;
       await route.fallback();
@@ -20,6 +19,8 @@ test.describe("admin content lifecycle", () => {
     await page.goto("/admin/recipes");
     await expect(page.getByText("E2E Protein Bowl")).toBeVisible();
     await page.getByRole("button", { name: "Draft" }).click();
+    expect(publishCalls).toBe(0);
+    await page.getByRole("alertdialog").getByRole("button", { name: "Đồng ý" }).click();
     await expect.poll(() => publishCalls).toBe(1);
   });
 

@@ -7,10 +7,12 @@ import "react-toastify/dist/ReactToastify.css";
 import { Plus, Edit, Trash2, X, BrainCircuit, FileWarning, Search, HelpCircle } from "lucide-react";
 import { getF1AiRules, createF1AiRule, updateF1AiRule, deleteF1AiRule } from "../../services/f1AiRule.service";
 import SelectField from "../../components/SelectField";
+import { useConfirmDialog } from "../../hooks/useConfirmDialog";
 import { getUserErrorMessage } from "../../utils/errorMessages";
 
 const F1AiRuleManagement = () => {
   const queryClient = useQueryClient();
+  const { confirm, dialog } = useConfirmDialog();
   const [search, setSearch] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -123,9 +125,9 @@ const F1AiRuleManagement = () => {
     setShowModal(true);
   };
 
-  const handleDelete = (id) => {
-    if (window.confirm("Bạn có chắc chắn muốn xóa rule này? Các report tương lai sẽ không có lời khuyên này nữa."))
-      deleteMutation.mutate(id);
+  const handleDelete = async (id) => {
+    const ok = await confirm({ title: "Xóa quy tắc", message: "Bạn có chắc chắn muốn xóa quy tắc này? Các báo cáo sau này sẽ không có lời khuyên này nữa.", confirmLabel: "Xóa", tone: "danger" });
+    if (ok) deleteMutation.mutate(id);
   };
 
   const categories = [
@@ -295,6 +297,7 @@ const F1AiRuleManagement = () => {
           </div>
         </div>
       )}
+      {dialog}
     </div>
     </phantom-ui>
   );

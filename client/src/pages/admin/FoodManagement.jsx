@@ -31,6 +31,7 @@ import {
   FOOD_ADMIN_TEXT,
 } from "./foodAdminPresentation";
 import SelectField from "../../components/SelectField";
+import { useConfirmDialog } from "../../hooks/useConfirmDialog";
 import { getUserErrorMessage } from "../../utils/errorMessages";
 
 const createFoodForm = () => ({
@@ -124,6 +125,7 @@ const pricePayload = (formData) => {
 
 const FoodManagement = () => {
   const queryClient = useQueryClient();
+  const { confirm, dialog } = useConfirmDialog();
   const [searchInput, setSearchInput] = useState("");
   const debouncedSearchTerm = useDebounce(searchInput, 500);
   const [currentPage, setCurrentPage] = useState(1);
@@ -280,8 +282,8 @@ const FoodManagement = () => {
     }
   };
 
-  const handleDelete = (id, label) => {
-    if (window.confirm(`Xóa thực phẩm "${label}"?`)) {
+  const handleDelete = async (id, label) => {
+    if (await confirm({ title: "Xóa thực phẩm", message: `Xóa thực phẩm "${label}"?`, confirmLabel: "Xóa", tone: "danger" })) {
       deleteMutation.mutate(id);
     }
   };
@@ -955,6 +957,7 @@ const FoodManagement = () => {
             </div>
           </div>
         )}
+        {dialog}
       </div>
     </phantom-ui>
   );

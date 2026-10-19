@@ -26,9 +26,11 @@ import {
   Clock,
 } from "lucide-react";
 import SelectField from "../../components/SelectField";
+import { useConfirmDialog } from "../../hooks/useConfirmDialog";
 import { getUserErrorMessage } from "../../utils/errorMessages";
 
 const BookingManagement = () => {
+  const { confirm, dialog } = useConfirmDialog();
   const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
   const [filterStatus, setFilterStatus] = useState("");
@@ -65,7 +67,7 @@ const BookingManagement = () => {
   });
 
   const handleStatusUpdate = async (booking, status) => {
-    if (!window.confirm(`Xác nhận chuyển trạng thái thành "${status}"?`))
+    if (!await confirm({ title: "Đổi trạng thái lịch hẹn", message: `Xác nhận chuyển trạng thái thành "${status}"?`, confirmLabel: "Xác nhận", tone: "default" }))
       return;
     try {
       await statusMutation.mutateAsync({ booking, status });
@@ -79,7 +81,7 @@ const BookingManagement = () => {
   };
 
   const handleArchive = async (booking) => {
-    if (!window.confirm("Lưu trữ booking này?")) return;
+    if (!await confirm({ title: "Lưu trữ lịch hẹn", message: "Lưu trữ booking này?", confirmLabel: "Lưu trữ", tone: "default" })) return;
     try {
       await archiveMutation.mutateAsync(booking);
       toast.success("Đã lưu trữ booking");
@@ -428,6 +430,7 @@ const BookingManagement = () => {
           </div>
         </div>
       )}
+      {dialog}
     </div>
     </phantom-ui>
   );
