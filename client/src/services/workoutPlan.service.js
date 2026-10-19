@@ -6,7 +6,7 @@ export const getWorkoutPlans = (params = {}) =>
 
 // Khách hàng: xem giáo án của mình
 export const getMyWorkoutPlans = () =>
-  api.get("/workout-plans/my");
+  api.get("/workout-plans/me");
 
 // Chi tiết 1 plan
 export const getWorkoutPlanById = (id) =>

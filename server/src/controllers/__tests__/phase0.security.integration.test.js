@@ -99,7 +99,7 @@ beforeAll(async () => {
   );
   app.post("/api/auth/refresh", refreshTokenController);
   app.put(
-    "/api/coaching/my-plans/:dateString/feedback",
+    "/api/coaching/me/plans/:dateString/feedback",
     protect,
     submitFeedback,
   );
@@ -238,7 +238,7 @@ describe("Phase 0 security boundaries", () => {
 
     const response = await withAuth(
       request(app)
-        .put("/api/coaching/my-plans/2026-07-19/feedback")
+        .put("/api/coaching/me/plans/2026-07-19/feedback")
         .send({
           clientFeedbackText: "Session feedback",
           exercises: [

@@ -30,7 +30,7 @@ import {
 const router = Router();
 
 // User: Danh sách HĐ của tôi (phải đặt TRƯỚC /:id)
-router.get("/my", protect, getMyContracts);
+router.get("/me", protect, getMyContracts);
 
 // Admin/trainer: controller scope danh sách theo actor.
 router.get("/approved-orders", protect, requireTrainerAccess, getApprovedOrders);

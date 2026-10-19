@@ -201,7 +201,7 @@ describe("trainer subscription lifecycle", () => {
     });
 
     const response = await withAuth(
-      request(app).get("/api/trainer-subscriptions/my"),
+      request(app).get("/api/trainer-subscriptions/me"),
       actor.accessToken,
     );
 
@@ -223,7 +223,7 @@ describe("trainer subscription lifecycle", () => {
     );
 
     const response = await withAuth(
-      request(app).get("/api/trainer-subscriptions/my"),
+      request(app).get("/api/trainer-subscriptions/me"),
       actor.accessToken,
     );
 
@@ -315,7 +315,7 @@ describe("trainer subscription lifecycle", () => {
     });
 
     const snapshot = await withAuth(
-      request(app).get("/api/trainer-subscriptions/my"),
+      request(app).get("/api/trainer-subscriptions/me"),
       actor.accessToken,
     );
     const purchase = await postAs(

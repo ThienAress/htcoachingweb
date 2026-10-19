@@ -285,7 +285,7 @@ describe("Coaching Habit contract", () => {
     );
 
     const listed = await withAuth(
-      request(app).get(`/api/coaching-habits/my?dateKey=${today}`),
+      request(app).get(`/api/coaching-habits/me?dateKey=${today}`),
       assigned.client.accessToken,
     );
 
@@ -310,7 +310,7 @@ describe("Coaching Habit contract", () => {
     });
 
     const response = await withAuth(
-      request(app).get(`/api/coaching-habits/my?dateKey=${today}`),
+      request(app).get(`/api/coaching-habits/me?dateKey=${today}`),
       trainer.accessToken,
     );
 
@@ -460,7 +460,7 @@ describe("Coaching Habit contract", () => {
       },
     );
     const clientView = await withAuth(
-      request(app).get(`/api/coaching-habits/my?dateKey=${today}`),
+      request(app).get(`/api/coaching-habits/me?dateKey=${today}`),
       assigned.client.accessToken,
     );
     const versions = await CoachingHabit.find({
@@ -564,7 +564,7 @@ describe("Coaching Habit contract", () => {
       expect(response.status).toBe(200);
     }
     const listed = await withAuth(
-      request(app).get(`/api/coaching-habits/my?dateKey=${today}`),
+      request(app).get(`/api/coaching-habits/me?dateKey=${today}`),
       client.accessToken,
     );
 

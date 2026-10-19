@@ -29,14 +29,14 @@ const router = express.Router();
 
 // ================= ROUTES CHO KHÁCH HÀNG (CLIENT) =================
 // 1. Lấy danh sách toàn bộ ngày tập của khách hàng hiện tại
-router.get("/my-plans", protect, getMyPlans);
+router.get("/me/plans", protect, getMyPlans);
 
 // 2. Lấy chi tiết giáo án ngày tập cụ thể
-router.get("/my-plans/:dateString", protect, getMyPlanDetails);
+router.get("/me/plans/:dateString", protect, getMyPlanDetails);
 
 // 3. Khách tích chọn hoàn thành bài và gửi text feedback.
 router.put(
-  "/my-plans/:dateString/feedback",
+  "/me/plans/:dateString/feedback",
   protect,
   csrfProtection,
   submitFeedback
@@ -44,7 +44,7 @@ router.put(
 
 // 3.b Route cũ trả response trước khi bất kỳ multipart parser nào chạy.
 router.post(
-  "/my-plans/upload-feedback-video",
+  "/me/plans/feedback-videos",
   protect,
   csrfProtection,
   retireLegacyClientFeedbackUpload,
@@ -52,7 +52,7 @@ router.post(
 
 // 3.c Ownership phải pass trước khi stream file trực tiếp đến private storage.
 router.post(
-  "/my-plans/:dateString/exercises/:exerciseId/feedback-video",
+  "/me/plans/:dateString/exercises/:exerciseId/feedback-video",
   protect,
   csrfProtection,
   authorizeClientFeedbackVideoUpload,
@@ -62,7 +62,7 @@ router.post(
 );
 
 router.delete(
-  "/my-plans/:dateString/exercises/:exerciseId/feedback-video",
+  "/me/plans/:dateString/exercises/:exerciseId/feedback-video",
   protect,
   csrfProtection,
   authorizeClientFeedbackVideoUpload,

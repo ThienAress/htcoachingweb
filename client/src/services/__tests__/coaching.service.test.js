@@ -31,7 +31,7 @@ describe("coaching private feedback service", () => {
     );
 
     expect(api.post).toHaveBeenCalledWith(
-      "/coaching/my-plans/2026-08-28/exercises/exercise-1/feedback-video",
+      "/coaching/me/plans/2026-08-28/exercises/exercise-1/feedback-video",
       formData,
       { headers: { "Content-Type": "multipart/form-data" } },
     );
@@ -43,7 +43,7 @@ describe("coaching private feedback service", () => {
     await removeClientFeedbackVideo("2026-08-28", "exercise-1");
 
     expect(api.delete).toHaveBeenCalledWith(
-      "/coaching/my-plans/2026-08-28/exercises/exercise-1/feedback-video",
+      "/coaching/me/plans/2026-08-28/exercises/exercise-1/feedback-video",
     );
   });
 });

@@ -1,7 +1,7 @@
 import api from "../utils/api";
 
 export const listMyCoachingHabits = (dateKey) =>
-  api.get("/coaching-habits/my", { params: { dateKey } });
+  api.get("/coaching-habits/me", { params: { dateKey } });
 
 export const createMyCoachingHabit = (data) =>
   api.post("/coaching-habits", data);

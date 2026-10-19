@@ -102,7 +102,7 @@ describe("HT Fitness+ subscription lifecycle", () => {
     ).toBe(1);
 
     const current = await withAuth(
-      request(app).get("/api/fitness-plus-subscriptions/my"),
+      request(app).get("/api/fitness-plus-subscriptions/me"),
       actor.accessToken,
     );
     expect(current.status).toBe(200);

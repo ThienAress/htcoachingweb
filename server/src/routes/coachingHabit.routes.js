@@ -33,7 +33,7 @@ router.delete(
   validateDeleteCoachingHabits,
   deleteMyHabits,
 );
-router.get("/my", validateCoachingHabitList, listMyHabits);
+router.get("/me", validateCoachingHabitList, listMyHabits);
 router.post(
   "/trainer/clients/:clientId",
   requireTrainerAccess,

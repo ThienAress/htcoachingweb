@@ -1,10 +1,9 @@
 [
-  "DELETE /api/coaching/my-plans/:dateString/exercises/:exerciseId/feedback-video [deep-nesting]",
+  "DELETE /api/coaching/me/plans/:dateString/exercises/:exerciseId/feedback-video [deep-nesting]",
   "GET /api/bookings/check-user [verb-in-path]",
   "POST /api/blog/admin/upload [verb-in-path]",
   "POST /api/body-assessments/trainer/clients/:clientId/:weekStartDateKey/publish [deep-nesting]",
-  "POST /api/coaching/my-plans/:dateString/exercises/:exerciseId/feedback-video [deep-nesting]",
-  "POST /api/coaching/my-plans/upload-feedback-video [verb-in-path]",
+  "POST /api/coaching/me/plans/:dateString/exercises/:exerciseId/feedback-video [deep-nesting]",
   "POST /api/coaching/trainer/upload-demo [verb-in-path]",
   "POST /api/customer-stories/admin/upload [verb-in-path]",
   "POST /api/exercises/instructions/import [verb-in-path]",
@@ -37,5 +36,5 @@
   "POST /api/trainers/admin/upload [verb-in-path]",
   "POST /api/trainers/admin/upload-video [verb-in-path]",
   "POST /api/weekly-checkins/trainer/clients/:clientId/:weekStartDateKey/review [deep-nesting]",
-  "PUT /api/coaching/my-plans/:dateString/feedback [action-should-be-post]"
+  "PUT /api/coaching/me/plans/:dateString/feedback [action-should-be-post]"
 ]

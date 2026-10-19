@@ -7,4 +7,4 @@ export const purchaseFitnessPlusPlan = (payload) =>
   api.post("/fitness-plus-subscriptions", payload);
 
 export const getMyFitnessPlusSubscription = ({ signal } = {}) =>
-  api.get("/fitness-plus-subscriptions/my", { signal });
+  api.get("/fitness-plus-subscriptions/me", { signal });

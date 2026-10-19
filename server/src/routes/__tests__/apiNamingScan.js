@@ -34,6 +34,9 @@ const UNCOUNTABLE_RESOURCES = new Set([
 // Danh từ số nhiều có từ đầu trùng động từ nên không bị coi là động từ trong đường dẫn.
 const PLURAL_NOUN_SEGMENTS = new Set(["check-ins"]);
 
+// "Của chính người dùng" chỉ dùng một kiểu `/me` (ví dụ GET /orders/me), không dùng `/my` hoặc `/my-<x>`.
+const MY_STYLE = /^my(?:-|$)/;
+
 const KEBAB = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const isParam = (segment) => segment.startsWith(":");
 
@@ -101,8 +104,10 @@ export const findNamingViolations = (routes) => {
     const resource = statics.find((segment) => segment !== "admin");
     if (resource && !resource.endsWith("s") && !UNCOUNTABLE_RESOURCES.has(resource)) add(route, "plural-resource");
 
-    if (statics.filter((segment) => segment !== "admin").length > 3) add(route, "deep-nesting");
+    // `admin` và `me` chỉ là phạm vi (quản trị, của chính người dùng) nên không tính vào độ sâu.
+    if (statics.filter((segment) => segment !== "admin" && segment !== "me").length > 3) add(route, "deep-nesting");
     if (route.method === "PUT" && isAllowedAction) add(route, "action-should-be-post");
+    if (statics.some((segment) => MY_STYLE.test(segment))) add(route, "my-style");
   }
   return [...violations].sort();
 };
