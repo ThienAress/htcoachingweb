@@ -29,6 +29,7 @@ import {
   deleteAdminDeposit,
 } from "../../services/adminDeposit.service";
 import DepositPolicyEditor from "./deposits/DepositPolicyEditor";
+import { useConfirmDialog } from "../../hooks/useConfirmDialog";
 import { getUserErrorMessage } from "../../utils/errorMessages";
 
 const formatDateTime = (d) =>
@@ -72,6 +73,7 @@ const WorkspaceSwitch = ({ value, onChange }) => (
 
 const DepositManagement = () => {
   const queryClient = useQueryClient();
+  const { confirm, dialog } = useConfirmDialog();
   const [statusFilter, setStatusFilter] = useState("all");
   const [workspace, setWorkspace] = useState("requests");
   const [search, setSearch] = useState("");
@@ -116,10 +118,15 @@ const DepositManagement = () => {
     onError: (err) => toast.error(getUserErrorMessage(err, "Không thể từ chối. Vui lòng thử lại.")),
   });
 
-  const handleApprove = (deposit) => {
-    if (window.confirm(buildDepositApprovalConfirmation(deposit))) {
-      approveMutation.mutate(deposit._id);
-    }
+  const handleApprove = async (deposit) => {
+    const [headline, ...details] = buildDepositApprovalConfirmation(deposit).split("\n");
+    const ok = await confirm({
+      title: "Duyệt yêu cầu nạp tiền",
+      message: headline,
+      details,
+      confirmLabel: "Duyệt nạp",
+    });
+    if (ok) approveMutation.mutate(deposit._id);
   };
 
   const handleRejectSubmit = () => {
@@ -156,12 +163,14 @@ const DepositManagement = () => {
     onError: (err) => toast.error(getUserErrorMessage(err, "Không thể xóa. Vui lòng thử lại.")),
   });
 
-  const handleDelete = (deposit) => {
-    if (
-      window.confirm(
-        `Xác nhận xóa yêu cầu nạp ${formatVND(deposit.amount)} của ${deposit.userId?.name || "user"}?`
-      )
-    ) {
+  const handleDelete = async (deposit) => {
+    const ok = await confirm({
+      title: "Xóa yêu cầu nạp tiền",
+      message: `Xác nhận xóa yêu cầu nạp ${formatVND(deposit.amount)} của ${deposit.userId?.name || "người dùng"}?`,
+      confirmLabel: "Xóa",
+      tone: "danger",
+    });
+    if (ok) {
       deleteMutation.mutate(deposit._id);
     }
   };
@@ -475,6 +484,7 @@ const DepositManagement = () => {
           </div>
         </div>
       )}
+      {dialog}
     </div>
     </phantom-ui>
   );

@@ -10,9 +10,6 @@ const LEGACY_NATIVE_USAGE = {
   "components/body-assessment/TrainerBodyAssessment.jsx": 2,
   "hooks/useExercisesLogic.js": 1,
   "hooks/usePrompt.js": 1,
-  "pages/admin/DepositManagement.jsx": 2,
-  "pages/trainer/TrainerCoaching.jsx": 1,
-  "pages/trainer/WorkoutPlan.jsx": 1,
 };
 
 // Chính các thành phần ô chọn dùng <select> gốc bên trong.
