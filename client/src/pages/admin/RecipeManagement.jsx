@@ -25,9 +25,11 @@ import {
 import RecipeEditModal from "./RecipeEditModal";
 import RecipeNutritionImportModal from "./RecipeNutritionImportModal";
 import SelectField from "../../components/SelectField";
+import { useConfirmDialog } from "../../hooks/useConfirmDialog";
 import { getUserErrorMessage } from "../../utils/errorMessages";
 
 const RecipeManagement = () => {
+  const { confirm, dialog } = useConfirmDialog();
   const [searchTerm, setSearchTerm] = useState("");
   const debouncedSearch = useDebounce(searchTerm, 500);
   const [page, setPage] = useState(1);
@@ -75,17 +77,17 @@ const RecipeManagement = () => {
     },
   });
 
-  const handleTogglePublish = (recipe) => {
+  const handleTogglePublish = async (recipe) => {
     const action = recipe.isPublished ? "ẩn" : "hiển thị công khai";
-    if (!window.confirm(`Bạn có chắc muốn ${action} công thức "${recipe.name}"?`)) return;
+    if (!await confirm({ title: "Đổi trạng thái công thức", message: `Bạn có chắc muốn ${action} công thức "${recipe.name}"?`, confirmLabel: "Đồng ý", tone: "default" })) return;
     togglePublishMutation.mutate({
       id: recipe._id,
       isPublished: recipe.isPublished,
     });
   };
 
-  const handleDelete = (id) => {
-    if (window.confirm("Bạn có chắc chắn muốn xóa công thức này? Hành động này không thể hoàn tác.")) {
+  const handleDelete = async (id) => {
+    if (await confirm({ title: "Xóa công thức", message: "Bạn có chắc chắn muốn xóa công thức này? Hành động này không thể hoàn tác.", confirmLabel: "Xóa", tone: "danger" })) {
       deleteMutation.mutate(id);
     }
   };
@@ -343,6 +345,7 @@ const RecipeManagement = () => {
           queryClient.invalidateQueries({ queryKey: ["recipe"] });
         }}
       />
+      {dialog}
     </div>
   );
 };

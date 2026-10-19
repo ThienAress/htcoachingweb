@@ -23,9 +23,11 @@ import {
   deleteSuggestion,
 } from "../../services/exerciseSuggestion.service";
 import SelectField from "../../components/SelectField";
+import { useConfirmDialog } from "../../hooks/useConfirmDialog";
 import { getUserErrorMessage } from "../../utils/errorMessages";
 
 const ExerciseSuggestionsManagement = () => {
+  const { confirm, dialog } = useConfirmDialog();
   const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
@@ -72,17 +74,15 @@ const ExerciseSuggestionsManagement = () => {
     onError: (err) => toast.error(getUserErrorMessage(err, "Không thể xóa. Vui lòng thử lại.")),
   });
 
-  const handleStatusChange = (id, status) => {
+  const handleStatusChange = async (id, status) => {
     if (
-      !window.confirm(
-        `Đánh dấu là "${status === "approved" ? "Đã duyệt" : "Từ chối"}"?`,
-      )
+      !await confirm({ title: "Đổi trạng thái góp ý", message: `Đánh dấu là "${status === "approved" ? "Đã duyệt" : "Từ chối"}"?`, confirmLabel: "Đồng ý", tone: "default" })
     )
       return;
     updateStatusMutation.mutate({ id, status, adminNote: "" });
   };
-  const handleDelete = (id) => {
-    if (!window.confirm("Bạn có chắc muốn xóa góp ý này?")) return;
+  const handleDelete = async (id) => {
+    if (!await confirm({ title: "Xóa góp ý", message: "Bạn có chắc muốn xóa góp ý này?", confirmLabel: "Xóa", tone: "danger" })) return;
     deleteMutation.mutate(id);
   };
 
@@ -268,6 +268,7 @@ const ExerciseSuggestionsManagement = () => {
             </div>
           )}
 
+      {dialog}
     </div>
     </phantom-ui>
   );

@@ -33,6 +33,7 @@ import { getAdminTrainers } from "../../services/trainer.service";
 import CustomerStoryDetail from "../CustomerStoryDetail";
 import { useDebounce } from "../../hooks/useDebounce";
 import SelectField from "../../components/SelectField";
+import { useConfirmDialog } from "../../hooks/useConfirmDialog";
 import { getUserErrorMessage } from "../../utils/errorMessages";
 
 const getPreviewData = (form, API_ORIGIN) => {
@@ -214,6 +215,7 @@ const getPreviewImageUrl = (url) => {
 
 const CustomerStoryManagement = () => {
   const queryClient = useQueryClient();
+  const { confirm, dialog } = useConfirmDialog();
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState("");
   const [search, setSearch] = useState("");
@@ -522,8 +524,8 @@ const CustomerStoryManagement = () => {
     });
   };
 
-  const handleDelete = (story) => {
-    if (!window.confirm(`Xóa câu chuyện của ${story.name}?`)) return;
+  const handleDelete = async (story) => {
+    if (!await confirm({ title: "Xóa câu chuyện", message: `Xóa câu chuyện của ${story.name}?`, confirmLabel: "Xóa", tone: "danger" })) return;
     deleteMutation.mutate(story._id);
   };
 
@@ -1488,6 +1490,7 @@ const CustomerStoryManagement = () => {
           </div>
         </div>
       )}
+      {dialog}
     </div>
   );
 };

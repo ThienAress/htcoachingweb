@@ -34,9 +34,11 @@ import ExerciseTechnicalDifficultyFields from "./ExerciseTechnicalDifficultyFiel
 import ExerciseVideoUploadField from "./ExerciseVideoUploadField";
 import ExerciseInstructionsImportModal from "./ExerciseInstructionsImportModal";
 import SelectField from "../../components/SelectField";
+import { useConfirmDialog } from "../../hooks/useConfirmDialog";
 import { getUserErrorMessage } from "../../utils/errorMessages";
 
 const ExerciseManagement = () => {
+  const { confirm, dialog } = useConfirmDialog();
   const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
@@ -197,8 +199,8 @@ const ExerciseManagement = () => {
     setEditingId(ex._id);
     setShowModal(true);
   };
-  const handleDelete = (id) => {
-    if (window.confirm("Bạn có chắc chắn muốn xóa bài tập này?"))
+  const handleDelete = async (id) => {
+    if (await confirm({ title: "Xóa bài tập", message: "Bạn có chắc chắn muốn xóa bài tập này?", confirmLabel: "Xóa", tone: "danger" }))
       deleteMutation.mutate(id);
   };
 
@@ -524,8 +526,8 @@ const ExerciseManagement = () => {
                 onUpload={(file) =>
                   videoUploadMutation.mutate({ id: editingId, file })
                 }
-                onDelete={() => {
-                  if (window.confirm("Bạn có chắc muốn xóa video bài tập này?")) {
+                onDelete={async () => {
+                  if (await confirm({ title: "Xóa video bài tập", message: "Bạn có chắc muốn xóa video bài tập này?", confirmLabel: "Xóa", tone: "danger" })) {
                     videoDeleteMutation.mutate(editingId);
                   }
                 }}
@@ -640,6 +642,7 @@ const ExerciseManagement = () => {
           invalidateByKey(queryClient, adminQueryKeys.exercises.all())
         }
       />
+      {dialog}
     </div>
     </phantom-ui>
   );

@@ -24,6 +24,7 @@ import { getWorkoutPlanWorkspacePath } from "../../navigation/workspaceNavigatio
 import { resolveInitialCustomerDashboardTheme } from "../../utils/customerDashboardTheme";
 import WorkspacePageHeader from "../../components/WorkspacePageHeader";
 import SelectField from "../../components/SelectField";
+import { useConfirmDialog } from "../../hooks/useConfirmDialog";
 import { getUserErrorMessage } from "../../utils/errorMessages";
 
 // ===== STATUS CONFIG =====
@@ -42,6 +43,7 @@ const formatDate = (d, locale = "vi-VN") => {
 const WorkoutPlan = ({ embedded = false }) => {
   const { t, i18n } = useTranslation("coaching");
   const navigate = useNavigate();
+  const { confirm, dialog } = useConfirmDialog();
   const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -112,8 +114,16 @@ const WorkoutPlan = ({ embedded = false }) => {
     onError: (err) => toast.error(getUserErrorMessage(err, t("plans.toasts.duplicate_failed"))),
   });
 
-  const handleDelete = (plan) => {
-    if (!window.confirm(i18n.language === "vi" ? `Xóa giáo án "${plan.title}" của ${plan.clientName}?` : `Delete workout plan "${plan.title}" of ${plan.clientName}?`)) return;
+  const handleDelete = async (plan) => {
+    const isVi = i18n.language === "vi";
+    const ok = await confirm({
+      title: isVi ? "Xóa giáo án" : "Delete workout plan",
+      message: isVi ? `Xóa giáo án "${plan.title}" của ${plan.clientName}?` : `Delete workout plan "${plan.title}" of ${plan.clientName}?`,
+      confirmLabel: isVi ? "Xóa" : "Delete",
+      cancelLabel: isVi ? "Huỷ" : "Cancel",
+      tone: "danger",
+    });
+    if (!ok) return;
     deleteMut.mutate(plan._id);
   };
 
@@ -370,6 +380,7 @@ const WorkoutPlan = ({ embedded = false }) => {
           }}
         />
       )}
+      {dialog}
     </>
   );
 };

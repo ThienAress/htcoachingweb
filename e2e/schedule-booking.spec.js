@@ -96,11 +96,11 @@ test("admin lead transition sends the current revision", async ({ page }) => {
     transitionBody = route.request().postDataJSON();
     await route.fallback();
   });
-  page.on("dialog", (dialog) => dialog.accept());
 
   await page.goto("/admin/bookings");
   await expect(page.getByText("E2E Lead Client")).toBeVisible();
   await page.getByTitle("Đã liên hệ").click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "Xác nhận" }).click();
 
   await expect.poll(() => transitionBody).toEqual({
     status: "contacted",

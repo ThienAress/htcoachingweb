@@ -39,6 +39,7 @@ import {
   getVietnamDateKey,
 } from "../../utils/vietnamDate";
 import WorkspacePageHeader from "../../components/WorkspacePageHeader";
+import { useConfirmDialog } from "../../hooks/useConfirmDialog";
 import { getUserErrorMessage } from "../../utils/errorMessages";
 
 
@@ -67,6 +68,7 @@ const serializeExercise = (exercise) => {
 };
 
 const TrainerCoaching = ({ embedded = false }) => {
+  const { confirm, dialog } = useConfirmDialog();
   // States
   const [clients, setClients] = useState([]);
   const [selectedClient, setSelectedClient] = useState(null);
@@ -369,7 +371,13 @@ const TrainerCoaching = ({ embedded = false }) => {
 
   // 6. Xoá giáo án ngày đang chọn
   const handleDeletePlan = async () => {
-    if (!window.confirm("Bạn có chắc chắn muốn xoá giáo án ngày này không?")) return;
+    const ok = await confirm({
+      title: "Xoá giáo án ngày",
+      message: "Bạn có chắc chắn muốn xoá giáo án ngày này không?",
+      confirmLabel: "Xoá",
+      tone: "danger",
+    });
+    if (!ok) return;
     if (!selectedClient) return;
 
     try {
@@ -1082,6 +1090,7 @@ const TrainerCoaching = ({ embedded = false }) => {
         ))}
       </datalist>
 
+      {dialog}
     </>
   );
 };

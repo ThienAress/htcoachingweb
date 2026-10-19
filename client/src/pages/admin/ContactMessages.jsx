@@ -31,10 +31,12 @@ import {
   deleteContactMessage,
 } from "../../services/contact.service";
 import SelectField from "../../components/SelectField";
+import { useConfirmDialog } from "../../hooks/useConfirmDialog";
 import { getUserErrorMessage } from "../../utils/errorMessages";
 
 // ================= COMPONENT =================
 const ContactMessages = () => {
+  const { confirm, dialog } = useConfirmDialog();
   const queryClient = useQueryClient();
 
   // ================= STATE =================
@@ -107,18 +109,16 @@ const ContactMessages = () => {
   });
 
   // ================= HANDLER =================
-  const handleStatusChange = (id, newStatus) => {
+  const handleStatusChange = async (id, newStatus) => {
     if (
-      !window.confirm(
-        `Đánh dấu là "${newStatus === "processed" ? "đã xử lý" : "chờ xử lý"}"?`,
-      )
+      !await confirm({ title: "Đổi trạng thái liên hệ", message: `Đánh dấu là "${newStatus === "processed" ? "đã xử lý" : "chờ xử lý"}"?`, confirmLabel: "Đồng ý", tone: "default" })
     )
       return;
     updateStatusMutation.mutate({ id, status: newStatus });
   };
 
-  const handleDelete = (id) => {
-    if (!window.confirm("Xóa liên hệ này?")) return;
+  const handleDelete = async (id) => {
+    if (!await confirm({ title: "Xóa liên hệ", message: "Xóa liên hệ này?", confirmLabel: "Xóa", tone: "danger" })) return;
     deleteMutation.mutate(id);
   };
 
@@ -412,6 +412,7 @@ const ContactMessages = () => {
           </div>
         </div>
       )}
+      {dialog}
     </div>
     </phantom-ui>
   );

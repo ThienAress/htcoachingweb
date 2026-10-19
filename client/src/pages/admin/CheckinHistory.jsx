@@ -27,10 +27,12 @@ import {
 import { utcToLocalDateTime, localDateTimeToUTC } from "../../utils/date";
 import { useDebounce } from "../../hooks/useDebounce";
 import SelectField from "../../components/SelectField";
+import { useConfirmDialog } from "../../hooks/useConfirmDialog";
 import { getUserErrorMessage } from "../../utils/errorMessages";
 
 const CheckinHistory = () => {
   const queryClient = useQueryClient();
+  const { confirm, dialog } = useConfirmDialog();
 
   // eslint-disable-next-line no-unused-vars
   const currentDateTimeLocal = (() => {
@@ -114,8 +116,8 @@ const CheckinHistory = () => {
     onError: (err) => toast.error(getUserErrorMessage(err, "Không thực hiện được. Vui lòng thử lại.")),
   });
 
-  const handleDelete = (id) => {
-    if (!window.confirm("Xóa checkin này?")) return;
+  const handleDelete = async (id) => {
+    if (!await confirm({ title: "Xóa check-in", message: "Xóa check-in này?", confirmLabel: "Xóa", tone: "danger" })) return;
     deleteMutation.mutate(id);
   };
 
@@ -447,6 +449,7 @@ const CheckinHistory = () => {
           </div>
         </div>
       )}
+      {dialog}
     </div>
     </phantom-ui>
   );
