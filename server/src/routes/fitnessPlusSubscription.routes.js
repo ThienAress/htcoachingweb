@@ -22,6 +22,6 @@ router.post(
   validateFitnessPlusPlanPurchase,
   purchaseFitnessPlusPlan,
 );
-router.get("/my", protect, getMyFitnessPlusSubscription);
+router.get("/me", protect, getMyFitnessPlusSubscription);
 
 export default router;

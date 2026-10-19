@@ -125,11 +125,11 @@ describe("Phase 7 training occurrence integrity", () => {
 
     const [leadClients, otherAdminClients] = await Promise.all([
       withAuth(
-        request(app).get("/api/training-schedules/my-clients"),
+        request(app).get("/api/training-schedules/me/clients"),
         lead.accessToken,
       ),
       withAuth(
-        request(app).get("/api/training-schedules/my-clients"),
+        request(app).get("/api/training-schedules/me/clients"),
         otherAdmin.accessToken,
       ),
     ]);

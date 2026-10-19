@@ -3,20 +3,20 @@ import api from "../utils/api";
 // ================= KHÁCH HÀNG (CLIENT) =================
 
 // 1. Lấy danh sách toàn bộ ngày tập của tôi
-export const getMyPlans = () => api.get("/coaching/my-plans");
+export const getMyPlans = () => api.get("/coaching/me/plans");
 
 // 2. Lấy chi tiết bài tập ngày cụ thể
 export const getMyPlanDetails = (dateString) =>
-  api.get(`/coaching/my-plans/${dateString}`);
+  api.get(`/coaching/me/plans/${dateString}`);
 
 // 3. Khách hàng tích chọn hoàn thành bài, gửi phản hồi kèm file video phản hồi
 export const submitFeedback = (dateString, feedback, signal) =>
-  api.put(`/coaching/my-plans/${dateString}/feedback`, feedback, { signal });
+  api.put(`/coaching/me/plans/${dateString}/feedback`, feedback, { signal });
 
 // 3.b Khách hàng tải lên video phản hồi cho một bài tập cụ thể
 export const uploadClientFeedbackVideo = (dateString, exerciseId, formData) =>
   api.post(
-    `/coaching/my-plans/${dateString}/exercises/${exerciseId}/feedback-video`,
+    `/coaching/me/plans/${dateString}/exercises/${exerciseId}/feedback-video`,
     formData,
     {
       headers: {
@@ -27,7 +27,7 @@ export const uploadClientFeedbackVideo = (dateString, exerciseId, formData) =>
 
 export const removeClientFeedbackVideo = (dateString, exerciseId) =>
   api.delete(
-    `/coaching/my-plans/${dateString}/exercises/${exerciseId}/feedback-video`,
+    `/coaching/me/plans/${dateString}/exercises/${exerciseId}/feedback-video`,
   );
 
 // ================= HUẤN LUYỆN VIÊN (TRAINER) =================

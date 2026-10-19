@@ -435,7 +435,7 @@ const testCoaching = async ({ client, tokens }) => {
     expected: [409],
     label: "coaching stale revision",
   });
-  const feedback = await request(`/api/coaching/my-plans/${dateString}/feedback`, {
+  const feedback = await request(`/api/coaching/me/plans/${dateString}/feedback`, {
     method: "PUT",
     token: tokens.client,
     body: {

@@ -3,7 +3,7 @@ import api from "../utils/api";
 // Lấy tất cả lịch tập của trainer hiện tại
 export const getMySchedules = () => api.get("/training-schedules");
 
-export const getMyClients = () => api.get("/training-schedules/my-clients");
+export const getMyClients = () => api.get("/training-schedules/me/clients");
 
 // Lấy danh sách loại bài tập cố định
 export const getExerciseTypes = () => api.get("/training-schedules/exercise-types");

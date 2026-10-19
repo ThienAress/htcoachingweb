@@ -218,7 +218,7 @@ describe("Account read models", () => {
     ]);
 
     const response = await withAuth(
-      request(app).get("/api/contracts/my"),
+      request(app).get("/api/contracts/me"),
       accessToken,
     );
 
@@ -237,7 +237,7 @@ describe("Account read models", () => {
     const responses = await Promise.all([
       request(app).get("/api/users/me/orders"),
       request(app).get("/api/users/me/transactions"),
-      request(app).get("/api/contracts/my"),
+      request(app).get("/api/contracts/me"),
     ]);
 
     expect(responses.map((response) => response.status)).toEqual([

@@ -34,7 +34,7 @@ quyết định và lý do nằm ở `docs/architecture/adr/0002-api-naming-and-
 - **Hành động không thuộc CRUD** (duyệt, hủy, ký...): `POST /<tài nguyên>/:id/<hành động>` với hành động trong danh sách `ALLOWED_ACTIONS` của
   `apiNamingScan.js` (`approve`, `reject`, `cancel`, `confirm`, `submit`, `archive`, `restore`, `duplicate`, `sign`...). Không dùng PUT cho hành động.
   Tạo bản ghi thì `POST /<tài nguyên>`, không `/<tài nguyên>/create`, `/book`, `/purchase`, `/send`, `/analyze`, `/record`.
-- **Lồng tối đa 3 đoạn tên** (không tính `admin`): `/f1-customers/:id/assessments`. Sâu hơn thì tách tài nguyên và nhận id cha qua query hoặc body.
+- **Lồng tối đa 3 đoạn tên** (không tính `admin` và `me`): `/f1-customers/:id/assessments`. Sâu hơn thì tách tài nguyên và nhận id cha qua query hoặc body.
 - **Tài nguyên của chính người dùng**: một kiểu duy nhất là `/<tài nguyên>/me` (ví dụ `GET /orders/me`); không thêm kiểu `/my`, `/my-<x>`.
 - **Khu quản trị và HLV**: tiền tố `/admin/...` cho thao tác quản trị; không thêm hậu tố `/admin` vào cuối (`/blog/admin`).
 - **Tham số**: `:id` cho bản ghi chính, `:<tên>Id` cho bản ghi cha; một khái niệm một tên (`clientId`, không lẫn `userId`).

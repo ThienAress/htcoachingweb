@@ -63,7 +63,7 @@ describe("Coaching private media lifecycle", () => {
     await plan.save();
 
     const response = await withAuth(
-      request(app).get(`/api/coaching/my-plans/${plan.dateString}`),
+      request(app).get(`/api/coaching/me/plans/${plan.dateString}`),
       clientAccount.accessToken,
     );
 
@@ -143,7 +143,7 @@ describe("Coaching private media lifecycle", () => {
 
     const response = await withAuth(
       request(app)
-        .put(`/api/coaching/my-plans/${plan.dateString}/feedback`)
+        .put(`/api/coaching/me/plans/${plan.dateString}/feedback`)
         .send({
           exercises: [{
             exerciseId: plan.exercises[0]._id,
@@ -184,7 +184,7 @@ describe("Coaching private media lifecycle", () => {
 
     const response = await withAuth(
       request(app).delete(
-        `/api/coaching/my-plans/${plan.dateString}/exercises/${exerciseId}/feedback-video`,
+        `/api/coaching/me/plans/${plan.dateString}/exercises/${exerciseId}/feedback-video`,
       ),
       clientAccount.accessToken,
     );
@@ -235,7 +235,7 @@ describe("Coaching private media lifecycle", () => {
     const response = await withAuth(
       request(app)
         .post(
-          `/api/coaching/my-plans/${plan.dateString}/exercises/${exerciseId}/feedback-video`,
+          `/api/coaching/me/plans/${plan.dateString}/exercises/${exerciseId}/feedback-video`,
         )
         .attach("video", Buffer.from("replacement-video"), {
           filename: "replacement.mp4",
@@ -282,7 +282,7 @@ describe("Coaching private media lifecycle", () => {
 
     const response = await withAuth(
       request(app).delete(
-        `/api/coaching/my-plans/${plan.dateString}/exercises/${exerciseId}/feedback-video`,
+        `/api/coaching/me/plans/${plan.dateString}/exercises/${exerciseId}/feedback-video`,
       ),
       clientAccount.accessToken,
     );
@@ -316,7 +316,7 @@ describe("Coaching private media lifecycle", () => {
 
     const response = await withAuth(
       request(app).delete(
-        `/api/coaching/my-plans/${plan.dateString}/exercises/${exerciseId}/feedback-video`,
+        `/api/coaching/me/plans/${plan.dateString}/exercises/${exerciseId}/feedback-video`,
       ),
       clientAccount.accessToken,
     );
@@ -361,12 +361,12 @@ describe("Coaching private media lifecycle", () => {
     await plan.save();
 
     const detail = await withAuth(
-      request(app).get(`/api/coaching/my-plans/${plan.dateString}`),
+      request(app).get(`/api/coaching/me/plans/${plan.dateString}`),
       clientAccount.accessToken,
     );
     const response = await withAuth(
       request(app).delete(
-        `/api/coaching/my-plans/${plan.dateString}/exercises/${exerciseId}/feedback-video`,
+        `/api/coaching/me/plans/${plan.dateString}/exercises/${exerciseId}/feedback-video`,
       ),
       clientAccount.accessToken,
     );

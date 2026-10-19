@@ -45,5 +45,8 @@ describe("API naming", () => {
       "GET /api/a-things/:id/b-things/:id/c-things/:id/d-things [deep-nesting]",
     );
     expect(check("PUT", "/api/orders/:id/approve")).toEqual(["PUT /api/orders/:id/approve [action-should-be-post]"]);
+    expect(check("GET", "/api/orders/my")).toEqual(["GET /api/orders/my [my-style]"]);
+    expect(check("GET", "/api/coaching/my-plans")).toEqual(["GET /api/coaching/my-plans [my-style]"]);
+    expect(check("GET", "/api/orders/me")).toEqual([]);
   });
 });

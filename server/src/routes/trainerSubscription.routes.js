@@ -26,7 +26,7 @@ router.get("/catalog", getTrainerPlanCatalog);
 // Mua gói là tạo một đăng ký: POST vào tập hợp.
 // Mua gói trừ tiền trong ví nên dùng cùng chốt chặn tốc độ với mua gói HT Fitness+ (financialCommandLimiter, một instance dùng chung).
 router.post("/", protect, financialCommandLimiter, csrfProtection, validateTrainerPlanPurchase, purchaseTrainerPlan);
-router.get("/my", protect, getMySubscription);
+router.get("/me", protect, getMySubscription);
 
 router.get("/all", protect, requireRoles("admin"), getAllSubscribers);
 router.get(

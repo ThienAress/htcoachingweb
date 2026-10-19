@@ -179,7 +179,7 @@ const handleApi = (req, res, path) => {
       ? sendJson(res, actor)
       : sendJson(res, null);
   }
-  if (path === "/api/trainer-subscriptions/my") {
+  if (path === "/api/trainer-subscriptions/me") {
     return req.headers["x-e2e-trainer-access"] === "true"
       ? sendJson(res, {
           success: true,
@@ -460,7 +460,7 @@ const handleApi = (req, res, path) => {
     };
     return sendJson(res, { success: true, data: todayJournal });
   }
-  if (path === "/api/coaching-habits/my" && req.method === "GET") {
+  if (path === "/api/coaching-habits/me" && req.method === "GET") {
     return sendJson(res, {
       success: true,
       data: { items: [], pagination: { page: 1, limit: 50, total: 0 } },
@@ -857,7 +857,7 @@ const handleApi = (req, res, path) => {
       data: { _id: "schedule-client-e2e", revision: 1 },
     });
   }
-  if (path === "/api/training-schedules/my-clients") {
+  if (path === "/api/training-schedules/me/clients") {
     return sendJson(res, {
       success: true,
       data: [
@@ -980,7 +980,7 @@ const handleApi = (req, res, path) => {
       data: { _id: "checkin-e2e", remainingSessions: 7 },
     });
   }
-  if (path === "/api/coaching/my-plans") {
+  if (path === "/api/coaching/me/plans") {
     return sendJson(res, {
       success: true,
       data: [
@@ -995,7 +995,7 @@ const handleApi = (req, res, path) => {
       ],
     });
   }
-  if (path === "/api/coaching/my-plans/2026-07-19") {
+  if (path === "/api/coaching/me/plans/2026-07-19") {
     return sendJson(res, {
       success: true,
       data: {
