@@ -12,7 +12,6 @@ test.describe("contract administration", () => {
 
   test("loads the active contract and sends its cancel transition", async ({ page }) => {
     let cancelCalls = 0;
-    page.on("dialog", (dialog) => dialog.accept());
     await page.route("**/api/contracts/contract-e2e/cancel", async (route) => {
       cancelCalls += 1;
       await route.fallback();
@@ -21,6 +20,10 @@ test.describe("contract administration", () => {
     await page.goto("/admin/contracts");
     await expect(page.getByText("E2E Client").first()).toBeVisible();
     await page.getByTitle("Hủy").click();
+    expect(cancelCalls).toBe(0);
+    const confirmDialog = page.getByRole("alertdialog");
+    await expect(confirmDialog).toContainText("Hủy hợp đồng này?");
+    await confirmDialog.getByRole("button", { name: "Hủy hợp đồng" }).click();
     await expect.poll(() => cancelCalls).toBe(1);
   });
 

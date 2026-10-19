@@ -43,6 +43,7 @@ import { getOrderStatusMeta } from "../../constants/orderStatus";
 import { useAuth } from "../../context/AuthContext";
 import { useConversionOriginOptions } from "../../hooks/useConversionOriginOptions";
 import ConversionOriginFields from "../../components/admin/ConversionOriginFields";
+import { useConfirmDialog } from "../../hooks/useConfirmDialog";
 import { getUserErrorMessage } from "../../utils/errorMessages";
 
 const orderSchema = z
@@ -83,6 +84,7 @@ const OrderStatusBadge = ({ status, className = "" }) => {
 
 
 const Orders = ({ embedded = false }) => {
+  const { confirm, dialog } = useConfirmDialog();
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
   const orderScope = isAdmin ? "admin" : user?._id;
@@ -273,10 +275,10 @@ const Orders = ({ embedded = false }) => {
     [approveOrderMutation],
   );
   const handleDelete = useCallback(
-    (id) => {
-      if (window.confirm("Xóa đơn này?")) deleteOrderMutation.mutate(id);
+    async (id) => {
+      if (await confirm({ title: "Xóa đơn hàng", message: "Xóa đơn này?", confirmLabel: "Xóa", tone: "danger" })) deleteOrderMutation.mutate(id);
     },
-    [deleteOrderMutation],
+    [confirm, deleteOrderMutation],
   );
 
   const handleEdit = useCallback(
@@ -977,6 +979,7 @@ const Orders = ({ embedded = false }) => {
             </div>
           </div>
         )}
+        {dialog}
       </div>
     </phantom-ui>
   );
