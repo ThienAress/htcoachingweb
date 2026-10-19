@@ -7,9 +7,6 @@ import { describe, expect, it } from "vitest";
 // (danh sách thả xuống không bo góc, hộp thoại không theo giao diện). Dùng SelectField / RoundedSelect
 // và useConfirmDialog. Các file dưới đây là nợ cũ; chuyển xong một file thì xóa nó khỏi danh sách.
 const LEGACY_NATIVE_USAGE = {
-  "components/body-assessment/TrainerBodyAssessment.jsx": 2,
-  "hooks/useExercisesLogic.js": 1,
-  "hooks/usePrompt.js": 1,
   "pages/admin/BlogManagement.jsx": 1,
   "pages/admin/BookingManagement.jsx": 2,
   "pages/admin/CheckinHistory.jsx": 1,
