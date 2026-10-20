@@ -11,4 +11,7 @@ Máy phát triển là Windows (Git Bash, PowerShell 5.1, `fnm`). Các lỗi dư
 - Chạy Node theo `.node-version`: `fnm exec --using=22.23.1 cmd /c "npm run ..."` (PowerShell). Không chạy hai lượt e2e chồng nhau.
 - Trong worktree mỗi lệnh git một lần gọi, dùng `git -C <worktree>`, không pipe hay `&&`; hook chặn lệnh git ghép. Không xóa thư mục worktree bằng
   `Remove-Item`, dùng `git worktree remove`.
+- Ổ C trên máy này rất ít chỗ trống: file tạm, backup và dữ liệu test đặt ở ổ D. `TEMP`/`TMP` của tài khoản trỏ tới `D:\Temp`. Test server
+  (`mongodb-memory-server`) ghi `mongo-mem-*` vào thư mục tạm, mỗi lần chạy bị ngắt để lại khoảng 0,24 GB; thấy `mongo-mem-*` cũ trong `D:\Temp` mà
+  không có tiến trình `mongod` thì xóa. File tạm của phiên làm việc ghi vào thư mục scratchpad, không ghi vào `C:\`.
 - `security:secrets` báo lỗi mà không in chi tiết: kiểm file vừa tạo có byte NUL hoặc chuỗi giống secret trước khi nghi ngờ công cụ.
