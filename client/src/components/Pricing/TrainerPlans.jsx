@@ -64,7 +64,7 @@ const TrainerPlans = ({ plans, shared, perPlan, billingCycle, renderAction, show
         </section>
       )}
 
-      <div className="mx-auto grid grid-cols-1 items-start gap-6 sm:grid-cols-2 xl:grid-cols-3 2xl:gap-8">
+      <div className="mx-auto grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3 2xl:gap-8">
         {paidPlans.map((plan) => {
           const price = billingCycle === "year" ? plan.priceYear : plan.priceMonth;
           const extras = perPlan[plan.code] || [];
