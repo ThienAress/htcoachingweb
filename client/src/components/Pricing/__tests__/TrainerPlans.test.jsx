@@ -29,7 +29,6 @@ const render = (billingCycle = "month", overrides = {}) =>
       perPlan={perPlan}
       billingCycle={billingCycle}
       renderAction={(plan) => <button type="button">Chọn {plan.code}</button>}
-      renderBadge={(plan) => (plan.isFree ? <span>Đã dùng thử</span> : null)}
       {...overrides}
     />,
   );
@@ -43,16 +42,39 @@ describe("TrainerPlans", () => {
     expect(html.match(/pricing\.trainer_plans\.extra_label/g)).toHaveLength(1);
   });
 
-  it("shows the student capacity as the headline number of every plan", () => {
+  it("shows the student capacity as the headline number of every paid plan", () => {
     const html = render();
 
-    for (const count of [3, 5, 20]) expect(html).toContain(`>${count}</p>`);
-    expect(html.match(/pricing\.trainer_plans\.students_label/g)).toHaveLength(3);
+    for (const count of [5, 20]) expect(html).toContain(`>${count}</p>`);
+    expect(html.match(/pricing\.trainer_plans\.students_label/g)).toHaveLength(2);
   });
 
-  it("shows the trial in days, paid plans per month or per year with the monthly average", () => {
+  it("puts the trial in its own strip above the paid plans, not in the plan grid", () => {
+    const html = render();
+
+    expect(html).toContain('aria-label="Dùng thử"');
+    expect(html).toContain("pricing.trainer_plans.trial_strip_meta:3");
+    expect(html.indexOf("Dùng thử")).toBeLessThan(html.indexOf("Tiêu chuẩn"));
+    expect(html.match(/<article/g)).toHaveLength(2);
+  });
+
+  it("hides the trial strip when the parent says the account can no longer use it", () => {
+    const html = render("month", { showTrial: false });
+
+    expect(html).not.toContain("Dùng thử");
+    expect(html).not.toContain("Chọn free");
+    expect(html.match(/<article/g)).toHaveLength(2);
+  });
+
+  it("lets a long yearly price wrap instead of overflowing the card", () => {
+    const html = render("year");
+
+    expect(html).toContain("flex-wrap");
+    expect(html).toContain("items-start");
+  });
+
+  it("shows paid plans per month or per year with the monthly average", () => {
     const month = render("month");
-    expect(month).toContain("pricing.trainer_plans.days:30");
     expect(month).toContain("200.000");
     expect(month).not.toContain("pricing.avg_per_month");
 
@@ -61,13 +83,12 @@ describe("TrainerPlans", () => {
     expect(year.match(/pricing\.avg_per_month/g)).toHaveLength(2);
   });
 
-  it("marks only the featured plan as popular and lets the parent supply actions and badges", () => {
+  it("marks only the featured plan as popular and lets the parent supply actions", () => {
     const html = render();
 
     expect(html.match(/pricing\.popular/g)).toHaveLength(1);
     expect(html).toContain("Chọn free");
     expect(html).toContain("Chọn professional");
-    expect(html).toContain("Đã dùng thử");
   });
 
   it("skips the shared block and the extras area when there is nothing to show", () => {

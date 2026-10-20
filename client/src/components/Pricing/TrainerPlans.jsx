@@ -26,9 +26,12 @@ const CategoryList = ({ categories, checkClass, className = "space-y-4" }) => (
 );
 
 // Gói dành cho HLV: tính năng chung nêu một lần; mỗi thẻ có giá, số học viên tối đa và phần chỉ gói đó có.
-// Nút mua, nhãn trạng thái dùng thử do trang cha quyết định (renderAction, renderBadge).
-const TrainerPlans = ({ plans, shared, perPlan, billingCycle, renderAction, renderBadge }) => {
+// Gói dùng thử là một dải gọn phía trên các thẻ trả phí; trang cha quyết định có hiện dải này không (showTrial)
+// và nút bấm (renderAction).
+const TrainerPlans = ({ plans, shared, perPlan, billingCycle, renderAction, showTrial = true }) => {
   const { t } = useTranslation("home");
+  const trialPlan = plans.find((plan) => plan.isFree);
+  const paidPlans = plans.filter((plan) => !plan.isFree);
   const hasExtras = Object.values(perPlan).some((categories) => categories.length > 0);
 
   return (
@@ -45,9 +48,25 @@ const TrainerPlans = ({ plans, shared, perPlan, billingCycle, renderAction, rend
         </section>
       )}
 
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4 2xl:gap-8">
-        {plans.map((plan) => {
-          const price = plan.isFree ? 0 : billingCycle === "year" ? plan.priceYear : plan.priceMonth;
+      {trialPlan && showTrial && (
+        <section
+          aria-label={trialPlan.title}
+          className="mb-6 flex flex-col gap-4 rounded-xl border border-primary/30 bg-primary/10 p-5 md:flex-row md:items-center md:justify-between md:p-6"
+        >
+          <div>
+            <h3 className="text-lg font-bold uppercase text-white">{trialPlan.title}</h3>
+            <p className="mt-1 text-sm text-gray-300">{trialPlan.subtitle}</p>
+            <p className="mt-1 text-sm font-semibold text-primary">
+              {t("pricing.trainer_plans.trial_strip_meta", { count: trialPlan.maxClients })}
+            </p>
+          </div>
+          <div className="w-full md:w-60 md:shrink-0">{renderAction(trialPlan)}</div>
+        </section>
+      )}
+
+      <div className="mx-auto grid grid-cols-1 items-start gap-6 sm:grid-cols-2 xl:grid-cols-3 2xl:gap-8">
+        {paidPlans.map((plan) => {
+          const price = billingCycle === "year" ? plan.priceYear : plan.priceMonth;
           const extras = perPlan[plan.code] || [];
           return (
             <article
@@ -61,24 +80,18 @@ const TrainerPlans = ({ plans, shared, perPlan, billingCycle, renderAction, rend
                   {t("pricing.popular")}
                 </div>
               )}
-              {renderBadge?.(plan)}
 
               <div className="text-center">
                 <h3 className="text-fluid-xl font-bold uppercase text-white">{plan.title}</h3>
                 <p className="mt-1 min-h-10 text-sm text-gray-400">{plan.subtitle}</p>
-                <p className="mt-3 text-3xl font-bold leading-tight text-white xl:text-4xl">
-                  {formatVnd(price)}
-                  <span className="ml-1 text-sm font-normal text-gray-400">
-                    /
-                    {plan.isFree
-                      ? t("pricing.trainer_plans.days", { count: plan.durationDays })
-                      : billingCycle === "year"
-                        ? t("pricing.year")
-                        : t("pricing.month")}
+                <p className="mt-3 flex flex-wrap items-baseline justify-center gap-x-1 text-3xl font-bold leading-tight text-white 2xl:text-4xl">
+                  <span>{formatVnd(price)}</span>
+                  <span className="text-sm font-normal text-gray-400">
+                    /{billingCycle === "year" ? t("pricing.year") : t("pricing.month")}
                   </span>
                 </p>
                 <p className="mt-1 min-h-5 text-sm text-gray-500">
-                  {!plan.isFree && billingCycle === "year"
+                  {billingCycle === "year"
                     ? `${t("pricing.avg_per_month")} ${formatVnd(Math.round(plan.priceYear / 12))}/${t("pricing.month")}`
                     : ""}
                 </p>

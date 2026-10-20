@@ -232,6 +232,7 @@
       "students_label": "students max",
       "extra_label": "Extra in this plan",
       "days": "{{count}} days",
+      "trial_strip_meta": "Free · up to {{count}} students",
       "trial_used_badge": "Trial used",
       "order_exists_badge": "Existing order",
       "ineligible_cta": "NOT ELIGIBLE",

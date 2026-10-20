@@ -64,21 +64,30 @@ test.describe("trainer plans", () => {
     await expect(pricing.getByText("Tạo hồ sơ tập luyện cho học viên")).toHaveCount(1);
 
     const cards = pricing.locator("article");
-    await expect(cards).toHaveCount(4);
+    // Dùng thử là một dải riêng phía trên, không còn là thẻ thứ 4; 3 thẻ còn lại là gói trả phí.
+    await expect(cards).toHaveCount(3);
     const capacities = await cards.evaluateAll((nodes) =>
       nodes.map((node) => node.querySelector("p.font-display")?.textContent?.trim()),
     );
-    expect(capacities).toEqual(["3", "5", "20", "50"]);
+    expect(capacities).toEqual(["5", "20", "50"]);
 
     await expect(cards.nth(0)).not.toContainText("F1 CRM");
-    await expect(cards.nth(1)).not.toContainText("F1 CRM");
+    await expect(cards.nth(1)).toContainText("F1 CRM");
     await expect(cards.nth(2)).toContainText("F1 CRM");
-    await expect(cards.nth(3)).toContainText("F1 CRM");
 
+    const trialStrip = pricing.locator("section[aria-label='Dùng thử']");
+    await expect(trialStrip).toContainText("tối đa 3 học viên");
+    await expect(trialStrip.getByRole("button", { name: "Bắt đầu miễn phí" })).toBeVisible();
     await expect(pricing.getByRole("button", { name: "Bắt đầu miễn phí" })).toHaveCount(1);
     await expect(pricing.getByRole("button", { name: "Mua" })).toHaveCount(3);
 
     await pricing.getByRole("button", { name: "Năm", exact: true }).click();
-    await expect(cards.nth(1)).toContainText("2.000.000");
+    await expect(cards.nth(0)).toContainText("2.000.000");
+
+    // Thẻ năm không tràn ra ngoài khung thẻ.
+    const overflowing = await cards.evaluateAll((nodes) =>
+      nodes.filter((node) => node.scrollWidth > node.clientWidth + 1).length,
+    );
+    expect(overflowing).toBe(0);
   });
 });
