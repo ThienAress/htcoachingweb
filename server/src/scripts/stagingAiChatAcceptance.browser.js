@@ -205,8 +205,19 @@ export const runBrowserAcceptance = async ({
 
     await send(page, fixture.question);
     const citation = page.locator(`a[href="${sourceUrl}"]`).last();
-    await waitForBrowserCheckpoint(citation, { state: "visible", timeout: 90_000 },
-      "STAGING_AI_INITIAL_CITATION_NOT_VISIBLE");
+    try {
+      await citation.waitFor({ state: "visible", timeout: 90_000 });
+    } catch (error) {
+      // Say which layer lost the citation (no assistant, KB entry unused, URL missing from the
+      // answer, or not rendered) instead of one generic code; fall back to the generic code.
+      const diagnosed = await classifyMissingCitation({
+        error, db, ownerObjectId, fixtureId: fixture.id, sourceUrl,
+      });
+      if (diagnosed !== error) throw diagnosed;
+      const generic = new Error("Staging browser checkpoint did not become visible");
+      generic.code = "STAGING_AI_INITIAL_CITATION_NOT_VISIBLE";
+      throw generic;
+    }
     const captureUiEvidence = async (expectedQuestion, cursor = 0, {
       requireSource = true,
       timeoutMs = 10_000,
