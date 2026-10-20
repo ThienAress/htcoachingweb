@@ -39,7 +39,7 @@ test.describe("HT FITNESS+ plans", () => {
 
     await expect(pricing.getByText("Tất cả gói đều gồm")).toBeVisible();
     await expect(pricing.getByText("Gợi ý Meal Plan theo mục tiêu")).toHaveCount(1);
-    await expect(pricing.getByText("Credit AI dùng chung cho HT Assistant và Meal Scan.")).toBeVisible();
+    await expect(pricing.getByText("Credit AI dùng chung cho HT Assistant và Meal Scan.")).toHaveCount(0);
 
     const cards = pricing.locator("article");
     await expect(cards).toHaveCount(3);

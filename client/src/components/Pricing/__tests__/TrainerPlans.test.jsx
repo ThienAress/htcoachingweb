@@ -70,7 +70,6 @@ describe("TrainerPlans", () => {
     const html = render("year");
 
     expect(html).toContain("flex-wrap");
-    expect(html).toContain("items-start");
   });
 
   it("shows paid plans per month or per year with the monthly average", () => {

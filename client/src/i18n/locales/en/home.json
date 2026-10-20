@@ -161,7 +161,6 @@
       "checkout_failed": "This plan could not be activated right now.",
       "credits_unit": "AI credits per 30 days",
       "credits_burst": "Up to {{count}} credits per hour",
-      "credits_scope": "AI credits are shared by HT Assistant and Meal Scan.",
       "checkout_success": "HT Fitness+ activated successfully.",
       "success_title": "Activated successfully!",
       "failure_title": "Payment failed",

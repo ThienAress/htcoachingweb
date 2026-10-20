@@ -187,7 +187,6 @@ export default function FitnessPlusPlans({ billingCycle, onBillingCycleChange })
               </li>
             ))}
           </ul>
-          <p className="mt-4 text-xs text-gray-400">{t("pricing.fitness_plus.credits_scope")}</p>
         </section>
       )}
 
