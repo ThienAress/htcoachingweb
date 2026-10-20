@@ -105,7 +105,7 @@ export const waitForFailedRecoveryReceipt = async ({
 };
 
 const send = async (page, text) => {
-  const composer = page.getByPlaceholder("Hỏi về tập luyện, dinh dưỡng...");
+  const composer = page.getByPlaceholder("Nhắn tin cho HT Assistant");
   await composer.fill(text);
   await page.getByRole("button", { name: "Gửi tin nhắn" }).click();
 };
@@ -277,7 +277,7 @@ export const runBrowserAcceptance = async ({
     await waitForStableAssistantText(assistantBodies, prefix);
     const stoppedBody = assistantBodies.filter({ hasText: prefix }).last();
     await page.getByRole("button", { name: "Dừng phản hồi" }).click();
-    const composer = page.getByPlaceholder("Hỏi về tập luyện, dinh dưỡng...");
+    const composer = page.getByPlaceholder("Nhắn tin cho HT Assistant");
     await composer.waitFor({ state: "visible" });
     assert(await composer.isEnabled(), "Composer did not recover after Stop");
     await new Promise((resolve) => setTimeout(resolve, 1_000));
