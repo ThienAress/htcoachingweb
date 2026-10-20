@@ -581,17 +581,7 @@ const Pricing = ({ isHeroAnimDone = false }) => {
               shared={trainerBenefits.shared}
               perPlan={trainerBenefits.perPlan}
               billingCycle={billingCycle}
-              renderBadge={(plan) =>
-                plan.isFree && ["used", "ineligible"].includes(freeTrialStatus) ? (
-                  <div className="absolute -top-3 right-4 rounded-full bg-slate-600 px-3 py-1 text-xs font-bold text-white shadow-md">
-                    {t(
-                      freeTrialStatus === "ineligible"
-                        ? "pricing.trainer_plans.order_exists_badge"
-                        : "pricing.trainer_plans.trial_used_badge",
-                    )}
-                  </div>
-                ) : null
-              }
+              showTrial={!user || !["used", "ineligible", "unknown"].includes(freeTrialStatus)}
               renderAction={(plan) => (
                     <button
                       disabled={plan.isFree && Boolean(user) && freeTrialStatus === "unknown"}

@@ -232,6 +232,7 @@
       "students_label": "học viên tối đa",
       "extra_label": "Thêm trong gói này",
       "days": "{{count}} ngày",
+      "trial_strip_meta": "Miễn phí · tối đa {{count}} học viên",
       "trial_used_badge": "Đã dùng thử",
       "order_exists_badge": "Đã có đơn",
       "ineligible_cta": "KHÔNG ĐỦ ĐIỀU KIỆN",

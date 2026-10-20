@@ -176,7 +176,10 @@ export default function FitnessPlusPlans({ billingCycle, onBillingCycleChange })
           <h3 className="mb-4 text-sm font-bold uppercase tracking-wide text-primary">
             {t("pricing.included_all")}
           </h3>
-          <ul className="grid gap-x-6 gap-y-2 sm:grid-cols-2 lg:grid-cols-3">
+          <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">
+            {t("pricing.system_benefits_plain")}
+          </h4>
+          <ul className="grid gap-x-6 gap-y-2 sm:grid-cols-2 lg:grid-cols-1">
             {sharedFeatures.map((feature) => (
               <li key={feature} className="flex items-start gap-2 text-sm text-gray-200">
                 <Check aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
