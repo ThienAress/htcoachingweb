@@ -5,8 +5,11 @@ export const getF1DashboardSummary = async (req, res, next) => {
   try {
     const baseMatch =
       !req.isAdmin
-        ? { assignedTrainerId: new mongoose.Types.ObjectId(req.user.id) }
-        : {};
+        ? {
+            assignedTrainerId: new mongoose.Types.ObjectId(req.user.id),
+            softDeletedAt: null,
+          }
+        : { softDeletedAt: null };
 
     const [summary] = await F1Customer.aggregate([
       { $match: baseMatch },

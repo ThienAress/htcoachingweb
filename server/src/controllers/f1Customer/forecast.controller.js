@@ -22,7 +22,7 @@ export const generateOutcomeForecast = async (req, res, next) => {
     if (!intake || intake.isDraft) {
       return res.status(400).json({
         success: false,
-        message: "Khách hàng chưa hoàn tất intake",
+        message: "Khách hàng chưa hoàn tất khảo sát",
       });
     }
 
@@ -36,7 +36,7 @@ export const generateOutcomeForecast = async (req, res, next) => {
     if (!aiReport) {
       return res.status(400).json({
         success: false,
-        message: "Khách hàng chưa có AI report để dự đoán kết quả",
+        message: "Khách hàng chưa có phân tích tự động để dự đoán kết quả",
       });
     }
     if (!intake.consent?.allowAiAnalysis || !intake.consent?.version) {

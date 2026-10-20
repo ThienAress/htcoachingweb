@@ -1,3 +1,4 @@
+import SelectField from "../../components/SelectField";
 const CRITERIA = [
   {
     key: "coordination",
@@ -54,7 +55,7 @@ const ExerciseTechnicalDifficultyFields = ({ value = {}, onChange }) => {
             <span className="mb-1 block text-sm font-medium text-gray-700">
               {criterion.label}
             </span>
-            <select
+            <SelectField
               value={rubric[criterion.key] ?? ""}
               onChange={(event) =>
                 updateField(
@@ -69,7 +70,7 @@ const ExerciseTechnicalDifficultyFields = ({ value = {}, onChange }) => {
               <option value="0">0 — Thấp</option>
               <option value="1">1 — Vừa</option>
               <option value="2">2 — Cao</option>
-            </select>
+            </SelectField>
             <span
               id={`technical-difficulty-${criterion.key}-help`}
               className="mt-1 block text-xs leading-5 text-gray-500"

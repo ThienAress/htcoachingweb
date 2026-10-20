@@ -24,13 +24,30 @@ export const uploadSettingItemImage = (section, itemKey, formData) => {
 };
 
 export const removeSettingImage = (fieldName, imageUrl) => {
-  return api.delete(`${API_URL}/remove`, {
+  return api.delete(`${API_URL}/images`, {
     data: { fieldName, imageUrl },
   });
 };
 
 export const removeSettingItemImage = (fieldName, itemKey, imageUrl) => {
-  return api.delete(`${API_URL}/remove`, {
+  return api.delete(`${API_URL}/images`, {
     data: { fieldName, itemKey, imageUrl },
   });
 };
+
+export const savePricingGifts = (key, gifts) =>
+  api.put(`${API_URL}/pricing-gifts/${encodeURIComponent(key)}`, { gifts });
+
+export const resetPricingGifts = (key) =>
+  api.delete(`${API_URL}/pricing-gifts/${encodeURIComponent(key)}`);
+
+export const savePricingContent = (key, items) =>
+  api.put(`${API_URL}/pricing-content/${encodeURIComponent(key)}`, { items });
+
+export const resetPricingContent = (key) =>
+  api.delete(`${API_URL}/pricing-content/${encodeURIComponent(key)}`);
+
+export const saveLoginPromo = ({ enabled, percent }) =>
+  api.put(`${API_URL}/login-promo`, { enabled, percent });
+
+export const resetLoginPromo = () => api.delete(`${API_URL}/login-promo`);

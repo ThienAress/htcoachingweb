@@ -1,0 +1,247 @@
+{
+  "success": true,
+  "data": [
+    {
+      "code": "free",
+      "title": "Free",
+      "prices": {
+        "trial": 0
+      },
+      "billingCycles": [
+        "trial"
+      ],
+      "durationDays": 30,
+      "maxClients": 3,
+      "entitlements": {
+        "f1CrmAi": false
+      }
+    },
+    {
+      "code": "standard",
+      "title": "Tiêu chuẩn",
+      "prices": {
+        "month": 200000,
+        "year": 2000000
+      },
+      "billingCycles": [
+        "month",
+        "year"
+      ],
+      "durationDays": null,
+      "maxClients": 5,
+      "entitlements": {
+        "f1CrmAi": false
+      }
+    },
+    {
+      "code": "professional",
+      "title": "Chuyên nghiệp",
+      "prices": {
+        "month": 250000,
+        "year": 2500000
+      },
+      "billingCycles": [
+        "month",
+        "year"
+      ],
+      "durationDays": null,
+      "maxClients": 20,
+      "entitlements": {
+        "f1CrmAi": true
+      }
+    },
+    {
+      "code": "premium",
+      "title": "Cao cấp",
+      "prices": {
+        "month": 300000,
+        "year": 3000000
+      },
+      "billingCycles": [
+        "month",
+        "year"
+      ],
+      "durationDays": null,
+      "maxClients": 50,
+      "entitlements": {
+        "f1CrmAi": true
+      }
+    }
+  ],
+  "benefits": [
+    {
+      "key": "max_students",
+      "label": "Số học viên quản lý tối đa",
+      "category": {
+        "key": "student_management",
+        "label": "Quản lý học viên"
+      },
+      "valueType": "capacity",
+      "includedPlanCodes": [
+        "free",
+        "standard",
+        "professional",
+        "premium"
+      ]
+    },
+    {
+      "key": "create_profile",
+      "label": "Tạo hồ sơ tập luyện cho học viên",
+      "category": {
+        "key": "student_management",
+        "label": "Quản lý học viên"
+      },
+      "valueType": "included",
+      "includedPlanCodes": [
+        "free",
+        "standard",
+        "professional",
+        "premium"
+      ]
+    },
+    {
+      "key": "checkin_checkout",
+      "label": "Checkin/Checkout học viên qua hệ thống",
+      "category": {
+        "key": "student_management",
+        "label": "Quản lý học viên"
+      },
+      "valueType": "included",
+      "includedPlanCodes": [
+        "free",
+        "standard",
+        "professional",
+        "premium"
+      ]
+    },
+    {
+      "key": "checkin_history",
+      "label": "Xem lịch sử checkin tất cả học viên",
+      "category": {
+        "key": "student_management",
+        "label": "Quản lý học viên"
+      },
+      "valueType": "included",
+      "includedPlanCodes": [
+        "free",
+        "standard",
+        "professional",
+        "premium"
+      ]
+    },
+    {
+      "key": "dashboard",
+      "label": "Trainer Dashboard — Thống kê tổng quan",
+      "category": {
+        "key": "student_management",
+        "label": "Quản lý học viên"
+      },
+      "valueType": "included",
+      "includedPlanCodes": [
+        "free",
+        "standard",
+        "professional",
+        "premium"
+      ]
+    },
+    {
+      "key": "coaching_feedback",
+      "label": "Online Coaching — Gửi bài tập & feedback cho học viên",
+      "category": {
+        "key": "coaching_schedule",
+        "label": "Coaching & Lịch tập"
+      },
+      "valueType": "included",
+      "includedPlanCodes": [
+        "free",
+        "standard",
+        "professional",
+        "premium"
+      ]
+    },
+    {
+      "key": "manage_schedule",
+      "label": "Tạo và quản lý lịch tập cho học viên",
+      "category": {
+        "key": "coaching_schedule",
+        "label": "Coaching & Lịch tập"
+      },
+      "valueType": "included",
+      "includedPlanCodes": [
+        "free",
+        "standard",
+        "professional",
+        "premium"
+      ]
+    },
+    {
+      "key": "crm_leads",
+      "label": "Hệ thống CRM quản lý khách hàng tiềm năng (F1)",
+      "category": {
+        "key": "crm_ai",
+        "label": "F1 CRM & AI"
+      },
+      "valueType": "included",
+      "includedPlanCodes": [
+        "professional",
+        "premium"
+      ]
+    },
+    {
+      "key": "crm_ai_analysis",
+      "label": "AI phân tích & đánh giá khách hàng F1",
+      "category": {
+        "key": "crm_ai",
+        "label": "F1 CRM & AI"
+      },
+      "valueType": "included",
+      "includedPlanCodes": [
+        "professional",
+        "premium"
+      ]
+    },
+    {
+      "key": "crm_ai_prediction",
+      "label": "Dự đoán kết quả tập luyện bằng AI",
+      "category": {
+        "key": "crm_ai",
+        "label": "F1 CRM & AI"
+      },
+      "valueType": "included",
+      "includedPlanCodes": [
+        "professional",
+        "premium"
+      ]
+    },
+    {
+      "key": "crm_ai_report",
+      "label": "Báo cáo AI chi tiết cho từng khách hàng",
+      "category": {
+        "key": "crm_ai",
+        "label": "F1 CRM & AI"
+      },
+      "valueType": "included",
+      "includedPlanCodes": [
+        "professional",
+        "premium"
+      ]
+    },
+    {
+      "key": "free_updates",
+      "label": "Cập nhật tính năng mới miễn phí",
+      "category": {
+        "key": "privilege",
+        "label": "Đặc quyền"
+      },
+      "valueType": "included",
+      "includedPlanCodes": [
+        "premium"
+      ]
+    }
+  ],
+  "meta": {
+    "currency": "VND",
+    "catalogFingerprint": "3b23059b83e228c3e88879ea123da0a602bb40bd9b74c01cc20a105e96205c78",
+    "protocolVersion": 1
+  }
+}

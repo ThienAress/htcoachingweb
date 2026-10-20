@@ -13,6 +13,7 @@ import {
   AlertTriangle,
   Droplet,
 } from "lucide-react";
+import SelectField from "../../components/SelectField";
 
 const TdeeForm = ({
   form,
@@ -40,7 +41,7 @@ const TdeeForm = ({
           <label htmlFor="tdee-gender" className={labelClasses}>
             <Users className="w-4 h-4" /> {t("form.gender")}
           </label>
-          <select
+          <SelectField tone="dark"
             id="tdee-gender"
             name="gender"
             value={form.gender}
@@ -50,7 +51,7 @@ const TdeeForm = ({
             <option value="">{t("form.select_gender")}</option>
             <option value="Nam">{t("form.male")}</option>
             <option value="Nữ">{t("form.female")}</option>
-          </select>
+          </SelectField>
           {errors.gender && (
             <p className="text-red-400 text-sm mt-1 flex items-center gap-1">
               <AlertTriangle className="w-3 h-3" /> {errors.gender}
@@ -133,37 +134,37 @@ const TdeeForm = ({
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div>
               <label htmlFor="tdee-daily-movement" className={labelClasses}>{t("form.daily_movement")}</label>
-              <select id="tdee-daily-movement" name="dailyMovement" value={form.dailyMovement} onChange={handleChange} className={inputClasses}>
+              <SelectField tone="dark" id="tdee-daily-movement" name="dailyMovement" value={form.dailyMovement} onChange={handleChange} className={inputClasses}>
                 <option value="">{t("form.select_evidence")}</option>
                 <option value="mostly_seated">{t("form.movement_seated")}</option>
                 <option value="mixed">{t("form.movement_mixed")}</option>
                 <option value="mostly_moving">{t("form.movement_active")}</option>
                 <option value="physical_work">{t("form.movement_physical")}</option>
-              </select>
+              </SelectField>
             </div>
             <div>
               <label htmlFor="tdee-steps" className={labelClasses}>{t("form.steps")}</label>
-              <select id="tdee-steps" name="steps" value={form.steps} onChange={handleChange} className={inputClasses}>
+              <SelectField tone="dark" id="tdee-steps" name="steps" value={form.steps} onChange={handleChange} className={inputClasses}>
                 <option value="">{t("form.select_evidence")}</option>
                 <option value="under_5000">{t("form.steps_under_5000")}</option>
                 <option value="between_5000_7999">{t("form.steps_5000_7999")}</option>
                 <option value="between_8000_11999">{t("form.steps_8000_11999")}</option>
                 <option value="at_least_12000">{t("form.steps_12000")}</option>
-              </select>
+              </SelectField>
             </div>
             <div>
               <label htmlFor="tdee-training-frequency" className={labelClasses}>{t("form.training_frequency")}</label>
-              <select id="tdee-training-frequency" name="trainingFrequency" value={form.trainingFrequency} onChange={handleChange} className={inputClasses}>
+              <SelectField tone="dark" id="tdee-training-frequency" name="trainingFrequency" value={form.trainingFrequency} onChange={handleChange} className={inputClasses}>
                 <option value="">{t("form.select_evidence")}</option>
                 <option value="none">{t("form.frequency_none")}</option>
                 <option value="one_two">{t("form.frequency_1_2")}</option>
                 <option value="three_four">{t("form.frequency_3_4")}</option>
                 <option value="five_plus">{t("form.frequency_5_plus")}</option>
-              </select>
+              </SelectField>
             </div>
             <div>
               <label htmlFor="tdee-training-duration" className={labelClasses}>{t("form.training_duration")}</label>
-              <select
+              <SelectField tone="dark"
                 id="tdee-training-duration"
                 name="trainingDuration"
                 value={form.trainingDuration}
@@ -177,11 +178,11 @@ const TdeeForm = ({
                 <option value="between_30_45">{t("form.duration_30_45")}</option>
                 <option value="between_45_60">{t("form.duration_45_60")}</option>
                 <option value="over_60">{t("form.duration_over_60")}</option>
-              </select>
+              </SelectField>
             </div>
             <div className="md:col-span-2">
               <label htmlFor="tdee-training-intensity" className={labelClasses}>{t("form.training_intensity")}</label>
-              <select
+              <SelectField tone="dark"
                 id="tdee-training-intensity"
                 name="trainingIntensity"
                 value={form.trainingIntensity}
@@ -194,7 +195,7 @@ const TdeeForm = ({
                 <option value="easy">{t("form.intensity_easy")}</option>
                 <option value="moderate">{t("form.intensity_moderate")}</option>
                 <option value="vigorous">{t("form.intensity_vigorous")}</option>
-              </select>
+              </SelectField>
             </div>
           </div>
           <input type="hidden" name="activity" value={form.activity} readOnly />
@@ -209,7 +210,7 @@ const TdeeForm = ({
           <label htmlFor="tdee-formula" className={labelClasses}>
             <Calculator className="w-4 h-4" /> {t("form.formula")}
           </label>
-          <select
+          <SelectField tone="dark"
             id="tdee-formula"
             name="formula"
             value={form.formula}
@@ -219,7 +220,7 @@ const TdeeForm = ({
             <option value="">{t("form.select_formula")}</option>
             <option value="Mifflin-St Jeor">Mifflin-St Jeor</option>
             <option value="Katch-McArdle">Katch-McArdle</option>
-          </select>
+          </SelectField>
           {form.formula === "Mifflin-St Jeor" && !errors.formula && (
             <p className="mt-1.5 text-xs leading-5 text-gray-400">
               {t("form.formula_recommended")}
@@ -260,7 +261,7 @@ const TdeeForm = ({
           <label htmlFor="tdee-goal" className={labelClasses}>
             <Target className="w-4 h-4" /> {t("form.goal")}
           </label>
-          <select
+          <SelectField tone="dark"
             id="tdee-goal"
             name="goal"
             value={form.goal}
@@ -275,7 +276,7 @@ const TdeeForm = ({
             <option value="lose_fat">{t("form.goal_lose_fat")}</option>
             <option value="lose_weight">{t("form.goal_lose_weight")}</option>
             <option value="maintain">{t("form.goal_maintain")}</option>
-          </select>
+          </SelectField>
           {goalNotice && (
             <p className="text-yellow-400 text-sm mt-1 flex items-center gap-1">
               <AlertTriangle className="w-3 h-3" />

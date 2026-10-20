@@ -69,7 +69,7 @@ test.describe("Explicit conversion origin controls", () => {
         }),
       });
     });
-    await page.route("**/api/user/trainer-assignment-candidates**", (route) =>
+    await page.route("**/api/users/trainer-assignment-candidates**", (route) =>
       route.fulfill({
         status: 200,
         contentType: "application/json",
@@ -82,14 +82,18 @@ test.describe("Explicit conversion origin controls", () => {
 
     await page.goto("/admin/orders");
     await page.getByRole("button", { name: "Tạo đơn mới" }).click();
-    await page.getByLabel("Loại nguồn", { exact: true }).selectOption("booking");
-    await page.getByLabel("Bản ghi nguồn", { exact: true }).selectOption(booking._id);
+    await page.getByRole("combobox", { name: "Loại nguồn" }).click();
+    await page.getByRole("option", { name: "Booking" }).click();
+    await page.getByRole("combobox", { name: "Bản ghi nguồn" }).click();
+    await page.getByRole("listbox").getByRole("option").first().click();
     await page.getByLabel(/Họ tên/).fill("Order Customer");
     await page.getByLabel(/Email/).fill("order@example.com");
     await page.getByLabel(/Số điện thoại/).fill("0912345678");
-    await page.getByLabel(/Gói tập/).selectOption("Cơ Bản(Online)");
+    await page.getByRole("combobox", { name: /Gói tập/ }).click();
+    await page.getByRole("listbox").getByRole("option", { name: "Cơ Bản(Online)", exact: true }).click();
     await page.getByLabel(/Số buổi/).fill("12");
-    await page.getByLabel(/Phòng tập/).selectOption("Home gym");
+    await page.getByRole("combobox", { name: /Phòng tập/ }).click();
+    await page.getByRole("listbox").getByRole("option", { name: "Home gym", exact: true }).click();
     await page.getByLabel(/Thời gian/).fill("Thứ 2, 8 giờ");
     await page.getByRole("button", { name: "Lưu" }).click();
 
@@ -126,12 +130,15 @@ test.describe("Explicit conversion origin controls", () => {
     });
 
     await page.goto("/f1-customers");
-    await page.getByRole("button", { name: "Thêm khách hàng F1" }).click();
-    await page.getByLabel("Loại nguồn", { exact: true }).selectOption("contact");
-    await page.getByLabel("Bản ghi nguồn", { exact: true }).selectOption(contact._id);
+    await page.getByTestId("f1-open-create").click();
+    await page.getByRole("combobox", { name: "Loại nguồn" }).click();
+    await page.getByRole("option", { name: "Contact" }).click();
+    await page.getByRole("combobox", { name: "Bản ghi nguồn" }).click();
+    await page.getByRole("listbox").getByRole("option").first().click();
     await page.getByLabel("Họ và tên").fill("Khach Hang F1");
     await page.getByLabel("Tuổi").fill("30");
-    await page.getByLabel("Giới tính").selectOption("female");
+    await page.getByRole("combobox", { name: "Giới tính" }).click();
+    await page.getByRole("option", { name: "Nữ" }).click();
     await page.getByLabel("Nghề nghiệp").fill("Van phong");
     await page.getByLabel("Số điện thoại").fill("0912345678");
     await page.getByLabel("Gmail").fill("customer@gmail.com");

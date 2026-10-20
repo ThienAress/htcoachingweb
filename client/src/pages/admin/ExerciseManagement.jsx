@@ -33,8 +33,12 @@ import ExerciseInstructionsEditor from "./ExerciseInstructionsEditor";
 import ExerciseTechnicalDifficultyFields from "./ExerciseTechnicalDifficultyFields";
 import ExerciseVideoUploadField from "./ExerciseVideoUploadField";
 import ExerciseInstructionsImportModal from "./ExerciseInstructionsImportModal";
+import SelectField from "../../components/SelectField";
+import { useConfirmDialog } from "../../hooks/useConfirmDialog";
+import { getUserErrorMessage } from "../../utils/errorMessages";
 
 const ExerciseManagement = () => {
+  const { confirm, dialog } = useConfirmDialog();
   const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
@@ -79,7 +83,7 @@ const ExerciseManagement = () => {
       invalidateByKey(queryClient, adminQueryKeys.exercises.all());
     },
     onError: (err) =>
-      toast.error(err.response?.data?.message || "Lỗi khi thêm"),
+      toast.error(getUserErrorMessage(err, "Không thể thêm. Vui lòng thử lại.")),
   });
   const updateMutation = useMutation({
     mutationFn: ({ id, data }) => updateExercise(id, data),
@@ -89,7 +93,7 @@ const ExerciseManagement = () => {
       invalidateByKey(queryClient, adminQueryKeys.exercises.all());
     },
     onError: (err) =>
-      toast.error(err.response?.data?.message || "Lỗi cập nhật"),
+      toast.error(getUserErrorMessage(err, "Không thể cập nhật. Vui lòng thử lại.")),
   });
   const deleteMutation = useMutation({
     mutationFn: deleteExercise,
@@ -97,7 +101,7 @@ const ExerciseManagement = () => {
       toast.success(" Xóa thành công");
       invalidateByKey(queryClient, adminQueryKeys.exercises.all());
     },
-    onError: (err) => toast.error(err.response?.data?.message || "Lỗi xóa"),
+    onError: (err) => toast.error(getUserErrorMessage(err, "Không thể xóa. Vui lòng thử lại.")),
   });
   const batchMutation = useMutation({
     mutationFn: createManyExercises,
@@ -108,7 +112,7 @@ const ExerciseManagement = () => {
       invalidateByKey(queryClient, adminQueryKeys.exercises.all());
     },
     onError: (err) =>
-      toast.error(err.response?.data?.message || "Lỗi thêm hàng loạt"),
+      toast.error(getUserErrorMessage(err, "Không thể thêm hàng loạt. Vui lòng thử lại.")),
   });
   const videoUploadMutation = useMutation({
     mutationFn: ({ id, file }) => uploadExerciseVideo(id, file),
@@ -121,7 +125,7 @@ const ExerciseManagement = () => {
       invalidateByKey(queryClient, adminQueryKeys.exercises.all());
     },
     onError: (error) =>
-      toast.error(error.response?.data?.message || "Lỗi upload video"),
+      toast.error(getUserErrorMessage(error, "Không thể tải lên video. Vui lòng thử lại.")),
   });
   const videoDeleteMutation = useMutation({
     mutationFn: deleteExerciseVideo,
@@ -131,7 +135,7 @@ const ExerciseManagement = () => {
       invalidateByKey(queryClient, adminQueryKeys.exercises.all());
     },
     onError: (error) =>
-      toast.error(error.response?.data?.message || "Lỗi xóa video"),
+      toast.error(getUserErrorMessage(error, "Không thể xóa video. Vui lòng thử lại.")),
   });
 
   const resetModal = () => {
@@ -195,8 +199,8 @@ const ExerciseManagement = () => {
     setEditingId(ex._id);
     setShowModal(true);
   };
-  const handleDelete = (id) => {
-    if (window.confirm("Bạn có chắc chắn muốn xóa bài tập này?"))
+  const handleDelete = async (id) => {
+    if (await confirm({ title: "Xóa bài tập", message: "Bạn có chắc chắn muốn xóa bài tập này?", confirmLabel: "Xóa", tone: "danger" }))
       deleteMutation.mutate(id);
   };
 
@@ -478,7 +482,7 @@ const ExerciseManagement = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Nhóm cơ *
                 </label>
-                <select
+                <SelectField
                   className="w-full p-2.5 border border-gray-300 rounded-xl bg-white focus:ring-2 focus:ring-indigo-500"
                   value={formData.muscleGroup}
                   onChange={(e) =>
@@ -492,7 +496,7 @@ const ExerciseManagement = () => {
                       {g}
                     </option>
                   ))}
-                </select>
+                </SelectField>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -522,8 +526,8 @@ const ExerciseManagement = () => {
                 onUpload={(file) =>
                   videoUploadMutation.mutate({ id: editingId, file })
                 }
-                onDelete={() => {
-                  if (window.confirm("Bạn có chắc muốn xóa video bài tập này?")) {
+                onDelete={async () => {
+                  if (await confirm({ title: "Xóa video bài tập", message: "Bạn có chắc muốn xóa video bài tập này?", confirmLabel: "Xóa", tone: "danger" })) {
                     videoDeleteMutation.mutate(editingId);
                   }
                 }}
@@ -638,6 +642,7 @@ const ExerciseManagement = () => {
           invalidateByKey(queryClient, adminQueryKeys.exercises.all())
         }
       />
+      {dialog}
     </div>
     </phantom-ui>
   );

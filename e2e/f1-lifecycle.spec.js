@@ -21,13 +21,13 @@ test("F1 desktop sidebar can be collapsed and reopened", async ({ page }) => {
   await page.goto("/f1-customers");
 
   const sidebar = page.locator("#f1-navigation");
-  await expect(sidebar).toHaveCSS("width", "288px");
+  await expect(sidebar).toHaveCSS("width", "256px");
 
   await page.getByRole("button", { name: "Thu menu F1" }).click();
   await expect(sidebar).toHaveCSS("width", "0px");
 
   await page.getByRole("button", { name: "Mở menu F1" }).click();
-  await expect(sidebar).toHaveCSS("width", "288px");
+  await expect(sidebar).toHaveCSS("width", "256px");
 });
 
 test("F1 create, intake, private media, assessment command and AI report", async ({
@@ -54,7 +54,8 @@ test("F1 create, intake, private media, assessment command and AI report", async
 
   await page.locator('[name="fullName"]').fill("Nguyen Minh Khang");
   await page.locator('[name="age"]').fill("30");
-  await page.locator('[name="gender"]').selectOption("male");
+  await page.getByRole("combobox", { name: "Giới tính" }).click();
+  await page.getByRole("option", { name: "Nam" }).click();
   await page.locator('[name="occupation"]').fill("Engineer");
   await page.locator('[name="phone"]').fill("0912345678");
   await page.locator('[name="email"]').fill("phase9.f1@gmail.com");
@@ -62,15 +63,27 @@ test("F1 create, intake, private media, assessment command and AI report", async
 
   const intakeForm = page.getByTestId("f1-intake-form");
   await expect(intakeForm).toBeVisible();
-  for (let step = 0; step < 4; step += 1) {
+  await page.getByTestId("f1-intake-next").click();
+  const injuriesSwitch = page.getByRole("switch", {
+    name: "Có chấn thương cần lưu ý không?",
+  });
+  await injuriesSwitch.click();
+  await expect(injuriesSwitch).toHaveAttribute("aria-checked", "true");
+  await page.locator('[name="healthScreening.injuries"]').fill("Trật vai cũ");
+  await page.getByRole("switch", { name: "Có bệnh lý hiện tại không?" }).click();
+  await expect(
+    page.locator('[name="healthScreening.currentConditions"]'),
+  ).toBeVisible();
+  for (let step = 0; step < 2; step += 1) {
     await page.getByTestId("f1-intake-next").click();
   }
-  await page
-    .locator('[name="trainingProfileGoal.trainingExperience"]')
-    .selectOption("none");
-  await page
-    .locator('[name="trainingProfileGoal.primaryGoal"]')
-    .selectOption("fat_loss");
+  await page.locator('[name="bodyMetrics.heightCm"]').fill("175");
+  await page.locator('[name="bodyMetrics.weightKg"]').fill("78");
+  await page.getByTestId("f1-intake-next").click();
+  await page.getByRole("combobox", { name: "Trước đây đã từng tập chưa?" }).click();
+  await page.getByRole("option", { name: "Chưa từng tập" }).click();
+  await page.getByRole("combobox", { name: "Mục tiêu chính" }).click();
+  await page.getByRole("option", { name: "Giảm mỡ" }).click();
   await page
     .locator('[name="trainingProfileGoal.targetWeightKg"]')
     .fill("70");
@@ -88,6 +101,49 @@ test("F1 create, intake, private media, assessment command and AI report", async
   await expect(intakeForm).toBeHidden();
   await expect(page.getByTestId("f1-open-assessment")).toBeEnabled();
   await expect.poll(() => mediaUploads).toBe(2);
+
+  // Sau khi lưu khảo sát, báo cáo tổng quát tự mở ở giữa màn hình.
+  const summary = page.getByTestId("f1-summary-report");
+  await expect(summary).toBeVisible();
+  await expect(
+    summary.getByRole("heading", { name: "Báo cáo tổng quát khách hàng" }),
+  ).toBeVisible();
+  await summary.getByRole("button", { name: "Đóng báo cáo" }).click();
+  await expect(summary).toBeHidden();
+
+  await page.getByTestId("f1-open-assessment").click();
+  await page
+    .getByRole("checkbox", { name: "Không có biểu hiện tư thế sai" })
+    .first()
+    .check();
+  await expect(
+    page
+      .getByRole("checkbox", { name: "Không có biểu hiện tư thế sai" })
+      .first(),
+  ).toBeChecked();
+
+  const pushCard = page
+    .getByTestId("f1-exercise-card")
+    .filter({ hasText: "Upper Push" });
+  // Khối lượng đề xuất và bài tập chỉ hiện sau khi chọn cấp độ rồi chọn bài.
+  await expect(pushCard.getByText("Khối lượng tập đề xuất")).toHaveCount(0);
+  const pick = async (card, label, option) => {
+    await card.getByRole("combobox", { name: label }).click();
+    await page.getByRole("listbox").getByRole("option", { name: option, exact: true }).click();
+  };
+  await pick(pushCard, "Chọn cấp độ cho bài test", "Mức dễ");
+  await expect(pushCard.getByText("Khối lượng tập đề xuất")).toHaveCount(0);
+  await pick(pushCard, "Chọn bài tập", "Wall Push-Up");
+  await expect(pushCard.getByText("Khối lượng tập đề xuất")).toBeVisible();
+  await pick(pushCard, "Cách ghi kết quả", "Theo số lần (reps)");
+  await pushCard.getByLabel("Số hiệp (set)").fill("3");
+  await pushCard.getByLabel("Số lần mỗi hiệp (reps)").fill("10");
+  await expect(pushCard.getByText("Tổng hợp:")).toContainText("Trung bình");
+  await pushCard
+    .getByLabel("Tên bài test riêng của HLV")
+    .fill("Squat nhảy 30 giây");
+  await pushCard.getByRole("button", { name: "Thêm" }).click();
+  await expect(pushCard.getByText("Bài riêng của HLV").first()).toBeVisible();
 
   const assessmentStatus = await page.evaluate(async (customerId) => {
     const response = await fetch(

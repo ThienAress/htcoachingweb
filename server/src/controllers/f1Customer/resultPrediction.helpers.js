@@ -1,4 +1,4 @@
-const PHASE_META = {
+export const PHASE_META = {
   phase_1: {
     order: 1,
     levelTitle: "Stabilization",
@@ -26,13 +26,13 @@ const PHASE_META = {
   },
 };
 
-const PHASE_ORDER = ["phase_1", "phase_2", "phase_3", "phase_4", "phase_5"];
+export const PHASE_ORDER = ["phase_1", "phase_2", "phase_3", "phase_4", "phase_5"];
 
 const clamp = (num, min, max) => Math.min(Math.max(num, min), max);
 
 const round1 = (num) => Number(Number(num || 0).toFixed(1));
 
-const nextPhysicalLevel = (current = "average") => {
+export const nextPhysicalLevel = (current = "average") => {
   const order = ["low", "below_average", "average", "good"];
   const idx = order.indexOf(current);
   if (idx === -1) return "average";
@@ -101,6 +101,14 @@ export const determinePhaseCeiling = ({ intake, assessment, aiReport }) => {
   const recommendedStartPhase =
     aiReport?.recommendations?.recommendedStartPhase || "phase_1";
 
+  // Thể chất Thấp cộng bệnh lý hoặc đau nặng: chỉ lập lộ trình giai đoạn 1; giai đoạn sau để HLV quyết định sau khi đánh giá lại.
+  if (
+    overall === "low" &&
+    (systemFlags.medicalReviewFlag || systemFlags.painFlag === "severe")
+  ) {
+    return "phase_1";
+  }
+
   if (systemFlags.testPermission === "modified_test") {
     return "phase_2";
   }
@@ -153,6 +161,12 @@ export const estimatePhaseDuration = ({
 
   const bodyFat = Number(bodyMetrics.bodyFatPercent || 0);
   const restingHr = Number(bodyMetrics.restingHeartRate || 0);
+  // Tập ít buổi thì mỗi giai đoạn cần dài hơn; tập đều từ 4 buổi/tuần thì rút gọn.
+  const trainingDays = Number(
+    intake?.trainingProfileGoal?.trainingDaysPerWeek || 0,
+  );
+  const scheduleWeeks =
+    trainingDays > 0 && trainingDays <= 2 ? 2 : trainingDays >= 4 ? -1 : 0;
   const compensationCount = Array.isArray(findings.compensationFlags)
     ? findings.compensationFlags.length
     : 0;
@@ -167,6 +181,7 @@ export const estimatePhaseDuration = ({
     if (bodyFat >= 28) weeks += 1;
     if (compensationCount >= 4) weeks += 1;
     if (restingHr >= 85 || cardioFlagsCount >= 2) weeks += 1;
+    weeks += scheduleWeeks;
 
     return clamp(weeks, 6, 10);
   }
@@ -177,6 +192,7 @@ export const estimatePhaseDuration = ({
     if (primaryGoal === "fat_loss") weeks += 2;
     if (systemFlags.testPermission === "modified_test") weeks += 1;
     if (restingHr >= 85) weeks += 1;
+    weeks += scheduleWeeks;
 
     return clamp(weeks, 8, 12);
   }
@@ -187,6 +203,7 @@ export const estimatePhaseDuration = ({
     if (primaryGoal === "muscle_gain" || primaryGoal === "weight_gain") {
       weeks += 2;
     }
+    weeks += scheduleWeeks;
 
     return clamp(weeks, 10, 14);
   }
@@ -194,19 +211,27 @@ export const estimatePhaseDuration = ({
   return 8;
 };
 
-const buildObjectiveByPhase = (phaseKey, primaryGoal) => {
+export const buildObjectiveByPhase = (phaseKey, primaryGoal) => {
   if (phaseKey === "phase_1") {
     return "Xây lại nền vận động an toàn, giúp cơ thể ổn định hơn và cải thiện khả năng kiểm soát chuyển động ngay từ đầu.";
   }
 
   if (phaseKey === "phase_2") {
     return primaryGoal === "fat_loss"
-      ? "Tăng dần sức mạnh bền, giữ kỹ thuật ổn định và đẩy body composition theo hướng giảm mỡ thực tế hơn."
+      ? "Tăng dần sức mạnh bền, giữ kỹ thuật ổn định và cải thiện thành phần cơ thể theo hướng giảm mỡ thực tế hơn."
       : "Tăng dần sức mạnh bền, nâng khả năng chịu bài và vẫn giữ chất lượng chuyển động khi có tải.";
   }
 
   if (phaseKey === "phase_3") {
     return "Tập trung hơn vào phát triển cơ bắp, tăng tải có kiểm soát và cải thiện vóc dáng theo hướng săn chắc, rõ nét hơn.";
+  }
+
+  if (phaseKey === "phase_4") {
+    return "Tăng sức mạnh tối đa ở các bài compound với tải nặng và số lần ít, vẫn giữ form chuẩn và hồi phục đủ giữa các buổi nặng.";
+  }
+
+  if (phaseKey === "phase_5") {
+    return "Rèn sức mạnh bùng nổ và tốc độ phối hợp, giữ kỹ thuật chuẩn ở cường độ cao và hồi phục ổn định.";
   }
 
   return "Tiếp tục cải thiện thể chất theo đúng giai đoạn phù hợp.";
@@ -230,7 +255,7 @@ const buildEntryReasonByPhase = ({
     }
 
     if (overall === "low" || overall === "below_average") {
-      return "Nền thể chất hiện tại vẫn chưa đủ chắc để đi nhanh vào các block nặng hơn, nên cần ưu tiên xây nền vận động và khả năng chịu vận động trước.";
+      return "Nền thể chất hiện tại vẫn chưa đủ chắc để đi nhanh vào các giai đoạn nặng hơn, nên cần ưu tiên xây nền vận động và khả năng chịu vận động trước.";
     }
 
     return "Đây là giai đoạn phù hợp để khách làm quen lại với vận động, chỉnh chất lượng chuyển động và xây nền thể lực ban đầu.";
@@ -238,22 +263,30 @@ const buildEntryReasonByPhase = ({
 
   if (phaseKey === "phase_2") {
     return goal === "fat_loss"
-      ? "Sau giai đoạn đầu, khách phù hợp hơn với strength endurance vì vừa có thể tăng sức mạnh bền, vừa hỗ trợ cải thiện hình thể theo hướng giảm mỡ."
-      : "Sau khi đã có nền ổn định hơn, khách có thể chuyển sang strength endurance để tăng sức mạnh bền và khả năng chịu khối lượng tập tốt hơn.";
+      ? "Sau giai đoạn đầu, khách phù hợp hơn với giai đoạn sức mạnh bền (strength endurance) vì vừa có thể tăng sức mạnh bền, vừa hỗ trợ cải thiện hình thể theo hướng giảm mỡ."
+      : "Sau khi đã có nền ổn định hơn, khách có thể chuyển sang giai đoạn sức mạnh bền (strength endurance) để tăng sức mạnh bền và khả năng chịu khối lượng tập tốt hơn.";
   }
 
   if (phaseKey === "phase_3") {
     if (bodyFat <= 18) {
-      return "Khách đã có nền tương đối tốt về thể trạng và body composition, nên có thể bắt đầu đi rõ hơn theo hướng phát triển cơ bắp.";
+      return "Khách đã có nền tương đối tốt về thể trạng và thành phần cơ thể, nên có thể bắt đầu đi rõ hơn theo hướng phát triển cơ bắp.";
     }
 
     return "Ở thời điểm này, khách đã đủ nền để bước vào giai đoạn tập trung hơn cho phát triển cơ bắp thay vì chỉ dừng ở phần nền tảng.";
   }
 
+  if (phaseKey === "phase_4") {
+    return "Khách đã có nền phát triển cơ bắp tốt, đủ điều kiện tập trung vào sức mạnh tối đa với tải nặng và số lần ít.";
+  }
+
+  if (phaseKey === "phase_5") {
+    return "Khách đã có nền sức mạnh vững, đủ điều kiện rèn sức mạnh bùng nổ (power) với kỹ thuật chuẩn.";
+  }
+
   return "Khách phù hợp với giai đoạn này theo hồ sơ hiện tại.";
 };
 
-const buildExpectedChangesByPhase = ({ phaseKey, primaryGoal }) => {
+export const buildExpectedChangesByPhase = ({ phaseKey, primaryGoal }) => {
   if (phaseKey === "phase_1") {
     return [
       "Chất lượng chuyển động ổn hơn",
@@ -265,7 +298,7 @@ const buildExpectedChangesByPhase = ({ phaseKey, primaryGoal }) => {
   if (phaseKey === "phase_2") {
     return primaryGoal === "fat_loss"
       ? [
-          "Body composition cải thiện rõ hơn",
+          "Thành phần cơ thể cải thiện rõ hơn",
           "Sức mạnh bền và thể lực nền tốt hơn",
           "Khả năng giữ form dưới tải ổn định hơn",
         ]
@@ -284,10 +317,26 @@ const buildExpectedChangesByPhase = ({ phaseKey, primaryGoal }) => {
     ];
   }
 
+  if (phaseKey === "phase_4") {
+    return [
+      "Sức mạnh các bài compound tăng rõ hơn",
+      "Giữ form chuẩn khi dùng tạ nặng",
+      "Hồi phục ổn định giữa các buổi tập nặng",
+    ];
+  }
+
+  if (phaseKey === "phase_5") {
+    return [
+      "Tốc độ và sự bùng nổ khi vận động tốt hơn",
+      "Phối hợp sức mạnh và tốc độ ổn định hơn",
+      "Giữ kỹ thuật chuẩn khi tập nhanh",
+    ];
+  }
+
   return ["Tiếp tục cải thiện theo đúng mục tiêu đã chọn"];
 };
 
-const buildExitCriteriaByPhase = (phaseKey) => {
+export const buildExitCriteriaByPhase = (phaseKey) => {
   if (phaseKey === "phase_1") {
     return [
       "Chuyển động ổn hơn và ít bù trừ hơn",
@@ -309,6 +358,22 @@ const buildExitCriteriaByPhase = (phaseKey) => {
       "Phản ứng tốt với tăng tải",
       "Giữ hồi phục ổn định",
       "Hình thể đi đúng hướng mục tiêu",
+    ];
+  }
+
+  if (phaseKey === "phase_4") {
+    return [
+      "Đạt mức tạ mục tiêu với form chuẩn",
+      "Không đau hoặc khó chịu mới khi tập nặng",
+      "Hồi phục đủ giữa các buổi tập nặng",
+    ];
+  }
+
+  if (phaseKey === "phase_5") {
+    return [
+      "Giữ kỹ thuật chuẩn ở tốc độ cao",
+      "Không đau hoặc khó chịu mới",
+      "Hồi phục ổn định sau buổi tập cường độ cao",
     ];
   }
 
@@ -367,41 +432,68 @@ const buildBaselineMetrics = ({ intake, assessment }) => ({
   overallPhysicalLevel: assessment?.overallPhysicalLevel || "average",
 });
 
-const projectFatLossPhase = ({ phaseKey, weeks, current }) => {
-  const weeklyWeightLoss =
-    phaseKey === "phase_1" ? 0.28 : phaseKey === "phase_2" ? 0.35 : 0.2;
+// Hệ số điều kiện sống: ngủ ít, căng thẳng cao, tập ít buổi làm chậm tiến độ;
+// tập đều từ 4 buổi/tuần giúp nhanh hơn. Giới hạn 0,6–1,15.
+export const buildRecoveryFactor = (intake) => {
+  const lifestyle = intake?.lifestyleNutrition || {};
+  const days = Number(intake?.trainingProfileGoal?.trainingDaysPerWeek || 0);
+  const sleep = Number(lifestyle.sleepHours || 0);
+  let factor = 1;
+
+  if (sleep > 0 && sleep < 6) factor -= 0.15;
+  if (lifestyle.stressLevel === "high") factor -= 0.1;
+  if (days > 0 && days <= 2) factor -= 0.1;
+  if (days >= 4) factor += 0.1;
+
+  return clamp(factor, 0.6, 1.15);
+};
+
+const FAT_LOSS_WEEKLY_PERCENT = {
+  phase_1: 0.004,
+  phase_2: 0.005,
+  phase_3: 0.0035,
+};
+const MAX_WEEKLY_LOSS_KG = 1;
+
+export const projectFatLossPhase = ({ phaseKey, weeks, current, factor = 1 }) => {
+  const weeklyPercent = FAT_LOSS_WEEKLY_PERCENT[phaseKey] || 0.0035;
+  // Tốc độ giảm theo % cân nặng hiện tại (an toàn ≤ 1 kg/tuần), không dùng số cố định.
+  const weeklyWeightLoss = current.weightKg
+    ? clamp(current.weightKg * weeklyPercent * factor, 0.15, MAX_WEEKLY_LOSS_KG)
+    : 0.3 * factor;
 
   const totalWeightDelta = round1(weeklyWeightLoss * weeks);
-  const totalBodyFatDelta =
-    phaseKey === "phase_1"
-      ? round1(Math.min(2.5, 0.25 * weeks))
-      : phaseKey === "phase_2"
-        ? round1(Math.min(3.5, 0.28 * weeks))
-        : round1(Math.min(2.0, 0.18 * weeks));
 
-  const hrDelta = phaseKey === "phase_1" ? 3 : phaseKey === "phase_2" ? 4 : 2;
-
-  const waistDelta =
+  // Mỡ cơ thể: giả định ~80% lượng cân giảm là khối mỡ, tính lại theo khối lượng mỡ.
+  const fatDeltaFallback =
     phaseKey === "phase_1"
-      ? round1(0.35 * weeks)
+      ? Math.min(2.5, 0.25 * weeks)
       : phaseKey === "phase_2"
-        ? round1(0.45 * weeks)
-        : round1(0.22 * weeks);
+        ? Math.min(3.5, 0.28 * weeks)
+        : Math.min(2.0, 0.18 * weeks);
+  let nextBodyFat = null;
+  if (current.bodyFatPercent && current.weightKg) {
+    const newWeight = current.weightKg - totalWeightDelta;
+    const newFatMass =
+      (current.bodyFatPercent / 100) * current.weightKg -
+      0.8 * totalWeightDelta;
+    nextBodyFat = round1(Math.max(5, (newFatMass / newWeight) * 100));
+  } else if (current.bodyFatPercent) {
+    nextBodyFat = round1(current.bodyFatPercent - fatDeltaFallback * factor);
+  }
 
-  const hipDelta =
-    phaseKey === "phase_1"
-      ? round1(0.18 * weeks)
-      : phaseKey === "phase_2"
-        ? round1(0.25 * weeks)
-        : round1(0.12 * weeks);
+  const baseHrDelta = phaseKey === "phase_1" ? 3 : phaseKey === "phase_2" ? 4 : 2;
+  const hrDelta = round1(baseHrDelta * factor);
+
+  // Vòng eo/hông giảm theo lượng cân giảm (khoảng 0,8 cm eo và 0,4 cm hông mỗi kg).
+  const waistDelta = round1(0.8 * totalWeightDelta);
+  const hipDelta = round1(0.4 * totalWeightDelta);
 
   return {
     weightKg: current.weightKg
       ? round1(current.weightKg - totalWeightDelta)
       : null,
-    bodyFatPercent: current.bodyFatPercent
-      ? round1(current.bodyFatPercent - totalBodyFatDelta)
-      : null,
+    bodyFatPercent: nextBodyFat,
     bmi: current.bmi ? round1(current.bmi - totalWeightDelta * 0.3) : null,
     waistCm: current.waistCm
       ? Math.max(45, round1(current.waistCm - waistDelta))
@@ -416,7 +508,7 @@ const projectFatLossPhase = ({ phaseKey, weeks, current }) => {
   };
 };
 
-const projectMuscleGainPhase = ({ phaseKey, weeks, current }) => {
+export const projectMuscleGainPhase = ({ phaseKey, weeks, current }) => {
   const weightGain =
     phaseKey === "phase_2" ? round1(0.12 * weeks) : round1(0.18 * weeks);
 
@@ -443,6 +535,26 @@ const projectMuscleGainPhase = ({ phaseKey, weeks, current }) => {
   };
 };
 
+// Mục tiêu duy trì: cân nặng gần như giữ nguyên, cải thiện nhẹ thành phần cơ thể và tim mạch.
+export const projectMaintenancePhase = ({ weeks, current }) => {
+  const bodyFatDelta = round1(Math.min(1.2, 0.08 * weeks));
+  const waistDelta = round1(0.1 * weeks);
+
+  return {
+    weightKg: current.weightKg,
+    bodyFatPercent: current.bodyFatPercent
+      ? round1(current.bodyFatPercent - bodyFatDelta)
+      : null,
+    bmi: current.bmi,
+    waistCm: current.waistCm ? round1(current.waistCm - waistDelta) : null,
+    hipCm: current.hipCm,
+    restingHeartRate: current.restingHeartRate
+      ? Math.max(55, round1(current.restingHeartRate - 1.5))
+      : null,
+    overallPhysicalLevel: nextPhysicalLevel(current.overallPhysicalLevel),
+  };
+};
+
 const buildCheckpointSummary = ({ phaseKey, primaryGoal }) => {
   if (primaryGoal === "fat_loss") {
     if (phaseKey === "phase_1") {
@@ -461,6 +573,120 @@ const buildCheckpointSummary = ({ phaseKey, primaryGoal }) => {
   return "Khách tiếp tục cải thiện đều theo mục tiêu và đúng với lộ trình đã chọn.";
 };
 
+// Đổi "3 tháng", "12 tuần", "1 năm" thành số tuần; không đọc được thì trả về null.
+export const parseTimeframeWeeks = (text) => {
+  const normalized = String(text || "")
+    .toLowerCase()
+    .replace(",", ".")
+    .trim();
+  const match = normalized.match(
+    /(\d+(?:\.\d+)?)\s*(tuần|tuan|week|w|tháng|thang|month|m|năm|nam|year|y)(?![\p{L}])/u,
+  );
+  if (!match) return null;
+  const amount = Number(match[1]);
+  if (!Number.isFinite(amount) || amount <= 0) return null;
+  const unit = match[2];
+  if (["tuần", "tuan", "week", "w"].includes(unit)) return round1(amount);
+  if (["tháng", "thang", "month", "m"].includes(unit)) {
+    return round1(amount * 4.345);
+  }
+  return round1(amount * 52);
+};
+
+const RANGE_KEYS = ["weightKg", "bodyFatPercent", "waistCm", "hipCm"];
+
+// Khoảng ước tính quanh giá trị giữa; càng về sau độ bất định càng rộng.
+export const buildProjectedRange = ({ baseline, projected, stageIndex }) => {
+  const spread = 0.25 + 0.05 * stageIndex;
+  const range = {};
+  for (const key of RANGE_KEYS) {
+    if (baseline[key] === null || projected[key] === null) continue;
+    const delta = projected[key] - baseline[key];
+    const low = round1(baseline[key] + delta * (1 - spread));
+    const high = round1(baseline[key] + delta * (1 + spread));
+    range[key] = { min: Math.min(low, high), max: Math.max(low, high) };
+  }
+  return range;
+};
+
+export const buildGoalProgress = ({ intake, baseline, phaseCheckpoints }) => {
+  const training = intake?.trainingProfileGoal || {};
+  const targetWeightKg = Number(training.targetWeightKg || 0) || null;
+  const timeframeText = String(training.targetTimeframe || "").trim();
+  const timeframeWeeks = parseTimeframeWeeks(timeframeText);
+  const totalWeeks = phaseCheckpoints.reduce(
+    (sum, item) => sum + Number(item.durationWeeks || 0),
+    0,
+  );
+  const last = phaseCheckpoints[phaseCheckpoints.length - 1];
+  const projectedWeightKg = last?.projected?.weightKg ?? null;
+  const currentWeightKg = baseline.weightKg;
+
+  const result = {
+    targetWeightKg,
+    currentWeightKg,
+    projectedWeightKg,
+    totalPlannedWeeks: totalWeeks,
+    timeframeText,
+    timeframeWeeks,
+    achievedPercent: null,
+    estimatedWeeksToTarget: null,
+    fitsTimeframe: null,
+    summary: "",
+  };
+
+  if (targetWeightKg && currentWeightKg && projectedWeightKg !== null) {
+    const needed = targetWeightKg - currentWeightKg;
+    const achieved = projectedWeightKg - currentWeightKg;
+    if (Math.abs(needed) < 0.1) {
+      result.achievedPercent = 100;
+      result.estimatedWeeksToTarget = 0;
+    } else if (needed * achieved <= 0) {
+      result.achievedPercent = 0;
+    } else {
+      result.achievedPercent = clamp(
+        Math.round((achieved / needed) * 100),
+        0,
+        100,
+      );
+      const weeklyRate = Math.abs(achieved) / Math.max(totalWeeks, 1);
+      result.estimatedWeeksToTarget = Math.ceil(
+        Math.abs(needed) / Math.max(weeklyRate, 0.01),
+      );
+    }
+  }
+
+  const weeksNeeded = result.estimatedWeeksToTarget ?? totalWeeks;
+  if (timeframeWeeks && weeksNeeded) {
+    result.fitsTimeframe = weeksNeeded <= timeframeWeeks;
+  }
+
+  const parts = [];
+  if (result.achievedPercent !== null) {
+    parts.push(
+      `Hết lộ trình dự kiến (${totalWeeks} tuần), khách đạt khoảng ${result.achievedPercent}% so với cân nặng mong muốn ${targetWeightKg} kg.`,
+    );
+    if (result.achievedPercent < 100 && result.estimatedWeeksToTarget) {
+      parts.push(
+        `Với tốc độ này cần khoảng ${result.estimatedWeeksToTarget} tuần để chạm mục tiêu.`,
+      );
+    }
+  }
+  if (timeframeText) {
+    if (result.fitsTimeframe === true) {
+      parts.push(`Phù hợp với thời gian mong muốn (${timeframeText}).`);
+    } else if (result.fitsTimeframe === false) {
+      parts.push(
+        `Có thể chưa kịp thời gian mong muốn (${timeframeText}); nên trao đổi lại kỳ vọng với khách.`,
+      );
+    } else {
+      parts.push(`Thời gian mong muốn khách ghi: ${timeframeText}.`);
+    }
+  }
+  result.summary = parts.join(" ");
+  return result;
+};
+
 export const buildOutcomeTable = ({
   intake,
   assessment,
@@ -469,6 +695,7 @@ export const buildOutcomeTable = ({
 }) => {
   const primaryGoal = intake?.trainingProfileGoal?.primaryGoal || "";
   const baseline = buildBaselineMetrics({ intake, assessment });
+  const recoveryFactor = buildRecoveryFactor(intake);
 
   const phaseCheckpoints = [];
   let current = {
@@ -476,18 +703,18 @@ export const buildOutcomeTable = ({
   };
 
   for (const stage of phaseRoadmap) {
-    const projected =
+    const projectPhase =
       primaryGoal === "fat_loss"
-        ? projectFatLossPhase({
-            phaseKey: stage.phaseKey,
-            weeks: stage.durationWeeks,
-            current,
-          })
-        : projectMuscleGainPhase({
-            phaseKey: stage.phaseKey,
-            weeks: stage.durationWeeks,
-            current,
-          });
+        ? projectFatLossPhase
+        : primaryGoal === "maintenance"
+          ? projectMaintenancePhase
+          : projectMuscleGainPhase;
+    const projected = projectPhase({
+      phaseKey: stage.phaseKey,
+      weeks: stage.durationWeeks,
+      current,
+      factor: recoveryFactor,
+    });
 
     const deltaFromBaseline = {
       weightKg:
@@ -522,6 +749,11 @@ export const buildOutcomeTable = ({
       label: `Kết thúc ${PHASE_META[stage.phaseKey].phaseTitle}`,
       durationWeeks: stage.durationWeeks,
       projected,
+      projectedRange: buildProjectedRange({
+        baseline,
+        projected,
+        stageIndex: phaseCheckpoints.length,
+      }),
       deltaFromBaseline,
       summary: buildCheckpointSummary({
         phaseKey: stage.phaseKey,
@@ -547,6 +779,8 @@ export const buildOutcomeTable = ({
     ],
     baseline,
     phaseCheckpoints,
+    goalProgress: buildGoalProgress({ intake, baseline, phaseCheckpoints }),
+    recoveryFactor: round1(recoveryFactor),
   };
 };
 

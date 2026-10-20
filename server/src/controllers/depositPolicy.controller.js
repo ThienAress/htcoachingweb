@@ -17,7 +17,7 @@ const sendPolicyError = (res, error, event) => {
   return res.status(status).json({
     success: false,
     code: error.code || "DEPOSIT_POLICY_OPERATION_FAILED",
-    message: status >= 500 ? "Lỗi hệ thống khi xử lý chính sách nạp tiền" : error.message,
+    message: status >= 500 ? "Không thể xử lý chính sách nạp tiền lúc này. Vui lòng thử lại." : error.message,
   });
 };
 
@@ -34,14 +34,16 @@ export const updateDepositPolicy = async (req, res) => {
   try {
     const result = await updateDepositBonusRates({
       rates: req.body?.rates,
+      thresholds: req.body?.thresholds,
+      labels: req.body?.labels,
       actor: actorFromRequest(req),
     });
     return res.status(200).json({
       success: true,
       changed: result.changed,
       message: result.changed
-        ? "Đã cập nhật tỷ lệ thưởng cho hóa đơn mới"
-        : "Tỷ lệ thưởng không thay đổi",
+        ? "Đã cập nhật chính sách thưởng cho hóa đơn mới"
+        : "Chính sách thưởng không thay đổi",
       data: result.policy,
     });
   } catch (error) {

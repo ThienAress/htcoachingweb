@@ -14,8 +14,6 @@ import {
   Trash2,
   RotateCcw,
   Landmark,
-  Save,
-  Settings2,
 } from "lucide-react";
 import IncomingBankTransactionPanel from "./IncomingBankTransactionPanel";
 import {
@@ -29,14 +27,10 @@ import {
   rejectDeposit,
   reverseDeposit,
   deleteAdminDeposit,
-  getAdminDepositPolicy,
-  updateAdminDepositPolicy,
 } from "../../services/adminDeposit.service";
-import {
-  normalizeDepositPolicyResponse,
-  parseDepositBonusRateDraft,
-} from "../../utils/depositPolicy";
-import { invalidateDepositPolicy } from "../../queries/walletAccount.queries";
+import DepositPolicyEditor from "./deposits/DepositPolicyEditor";
+import { useConfirmDialog } from "../../hooks/useConfirmDialog";
+import { getUserErrorMessage } from "../../utils/errorMessages";
 
 const formatDateTime = (d) =>
   d ? new Date(d).toLocaleString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: false }) : "—";
@@ -77,164 +71,9 @@ const WorkspaceSwitch = ({ value, onChange }) => (
   </div>
 );
 
-const DepositPolicyEditor = () => {
-  const queryClient = useQueryClient();
-  const [rates, setRates] = useState(null);
-  const policyQuery = useQuery({
-    queryKey: ["admin-deposit-policy"],
-    queryFn: ({ signal }) =>
-      getAdminDepositPolicy({ signal }).then(normalizeDepositPolicyResponse),
-  });
-
-  const draftRates =
-    rates ||
-    (policyQuery.data
-      ? Object.fromEntries(
-          policyQuery.data.tiers.map((tier) => [tier.key, String(tier.bonusRate)]),
-        )
-      : { starter: "", growth: "", premium: "" });
-  const parsedRates = Object.fromEntries(
-    Object.entries(draftRates).map(([key, value]) => [
-      key,
-      parseDepositBonusRateDraft(value),
-    ]),
-  );
-  const values = [parsedRates.starter, parsedRates.growth, parsedRates.premium];
-  const ratesValid =
-    values.every(
-      (value) => value !== null,
-    ) &&
-    parsedRates.starter <= parsedRates.growth &&
-    parsedRates.growth <= parsedRates.premium;
-  const originalRates = policyQuery.data
-    ? Object.fromEntries(
-        policyQuery.data.tiers.map((tier) => [tier.key, tier.bonusRate]),
-      )
-    : null;
-  const changed = Boolean(
-    originalRates &&
-      Object.keys(parsedRates).some(
-        (key) => parsedRates[key] !== originalRates[key],
-      ),
-  );
-
-  const updateMutation = useMutation({
-    mutationFn: () => updateAdminDepositPolicy(parsedRates),
-    onSuccess: async (response) => {
-      queryClient.setQueryData(
-        ["admin-deposit-policy"],
-        normalizeDepositPolicyResponse(response),
-      );
-      setRates(null);
-      await invalidateDepositPolicy(queryClient);
-      toast.success(response.data.message);
-    },
-    onError: (error) =>
-      toast.error(
-        error.response?.data?.message || "Không thể cập nhật tỷ lệ thưởng",
-      ),
-  });
-
-  if (policyQuery.isPending) {
-    return (
-      <section className="mb-6 rounded-2xl border border-gray-200 bg-white p-6" role="status">
-        <p className="text-sm text-gray-500">Đang tải chính sách thưởng...</p>
-      </section>
-    );
-  }
-  if (policyQuery.isError || !policyQuery.data) {
-    return (
-      <section className="mb-6 rounded-2xl border border-red-200 bg-red-50 p-6" role="alert">
-        <p className="text-sm text-red-700">Không thể tải chính sách thưởng nạp tiền.</p>
-        <button
-          type="button"
-          onClick={() => policyQuery.refetch()}
-          className="mt-3 min-h-11 rounded-lg border border-red-300 px-4 text-sm font-bold text-red-700 transition-colors duration-200 hover:bg-red-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
-        >
-          Thử lại
-        </button>
-      </section>
-    );
-  }
-
-  const labels = Object.fromEntries(
-    policyQuery.data.tiers.map((tier) => [
-      tier.key,
-      `Bậc ${formatVND(tier.minAmount)}`,
-    ]),
-  );
-  return (
-    <section aria-labelledby="deposit-policy-heading" className="mb-6 rounded-2xl border border-emerald-200 bg-white p-5 shadow-sm md:p-6">
-      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-        <div>
-          <h2 id="deposit-policy-heading" className="flex items-center gap-2 text-lg font-black text-gray-900">
-            <Settings2 className="h-5 w-5 text-emerald-600" aria-hidden="true" />
-            Tỷ lệ thưởng nạp ví
-          </h2>
-          <p className="mt-1 max-w-2xl text-sm leading-6 text-gray-600">
-            Cập nhật đồng thời cả ba tỷ lệ. Thay đổi chỉ áp dụng cho hóa đơn tạo sau khi lưu; hóa đơn hiện có giữ nguyên quyền lợi.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={() => updateMutation.mutate()}
-          disabled={!ratesValid || !changed || updateMutation.isPending}
-          className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 text-sm font-bold text-white transition-[background-color,box-shadow] duration-200 hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:bg-gray-300 disabled:shadow-none"
-        >
-          <Save className="h-4 w-4" aria-hidden="true" />
-          {updateMutation.isPending ? "Đang lưu..." : "Lưu tỷ lệ"}
-        </button>
-      </div>
-
-      <div className="mt-5 grid gap-4 md:grid-cols-3">
-        {policyQuery.data.tiers.map((tier) => (
-          <label
-            key={tier.key}
-            className={`rounded-xl border p-4 ${
-              tier.key === "premium"
-                ? "border-emerald-300 bg-emerald-50"
-                : "border-gray-200 bg-gray-50"
-            }`}
-          >
-            <span className="block text-sm font-bold text-gray-800">
-              {labels[tier.key]}
-            </span>
-            <span className="mt-1 block text-xs text-gray-500">
-              Tối đa {formatVND(policyQuery.data.maxAmount)}
-            </span>
-            <span className="mt-4 flex items-center rounded-lg border border-gray-300 bg-white focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-100">
-              <input
-                type="number"
-                name={`depositBonusRate-${tier.key}`}
-                min="0"
-                max="100"
-                step="1"
-                value={draftRates[tier.key]}
-                onChange={(event) =>
-                  setRates((current) => ({
-                    ...(current || draftRates),
-                    [tier.key]: event.target.value,
-                  }))
-                }
-                aria-label={`Tỷ lệ thưởng ${labels[tier.key]}`}
-                className="min-h-11 w-full rounded-l-lg px-3 text-lg font-black text-gray-900 outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-500"
-              />
-              <span className="px-3 font-bold text-emerald-700">%</span>
-            </span>
-          </label>
-        ))}
-      </div>
-      {!ratesValid && (
-        <p className="mt-3 text-sm font-medium text-red-600" role="alert">
-          Nhập số nguyên từ 0–100 và bảo đảm tỷ lệ không giảm ở bậc tiền cao hơn.
-        </p>
-      )}
-    </section>
-  );
-};
-
 const DepositManagement = () => {
   const queryClient = useQueryClient();
+  const { confirm, dialog } = useConfirmDialog();
   const [statusFilter, setStatusFilter] = useState("all");
   const [workspace, setWorkspace] = useState("requests");
   const [search, setSearch] = useState("");
@@ -265,7 +104,7 @@ const DepositManagement = () => {
       queryClient.invalidateQueries({ queryKey: ["admin-deposits"] });
       toast.success(res.data.message);
     },
-    onError: (err) => toast.error(err.response?.data?.message || "Lỗi duyệt"),
+    onError: (err) => toast.error(getUserErrorMessage(err, "Không thể duyệt. Vui lòng thử lại.")),
   });
 
   const rejectMutation = useMutation({
@@ -276,13 +115,18 @@ const DepositManagement = () => {
       setRejectModal(null);
       setRejectReason("");
     },
-    onError: (err) => toast.error(err.response?.data?.message || "Lỗi từ chối"),
+    onError: (err) => toast.error(getUserErrorMessage(err, "Không thể từ chối. Vui lòng thử lại.")),
   });
 
-  const handleApprove = (deposit) => {
-    if (window.confirm(buildDepositApprovalConfirmation(deposit))) {
-      approveMutation.mutate(deposit._id);
-    }
+  const handleApprove = async (deposit) => {
+    const [headline, ...details] = buildDepositApprovalConfirmation(deposit).split("\n");
+    const ok = await confirm({
+      title: "Duyệt yêu cầu nạp tiền",
+      message: headline,
+      details,
+      confirmLabel: "Duyệt nạp",
+    });
+    if (ok) approveMutation.mutate(deposit._id);
   };
 
   const handleRejectSubmit = () => {
@@ -299,7 +143,7 @@ const DepositManagement = () => {
       setReverseReason("");
     },
     onError: (err) =>
-      toast.error(err.response?.data?.message || "Lỗi hoàn tác giao dịch"),
+      toast.error(getUserErrorMessage(err, "Không thể hoàn tác giao dịch. Vui lòng thử lại.")),
   });
 
   const handleReverseSubmit = () => {
@@ -316,15 +160,17 @@ const DepositManagement = () => {
       queryClient.invalidateQueries({ queryKey: ["admin-deposits"] });
       toast.success("Đã xóa");
     },
-    onError: (err) => toast.error(err.response?.data?.message || "Lỗi xóa"),
+    onError: (err) => toast.error(getUserErrorMessage(err, "Không thể xóa. Vui lòng thử lại.")),
   });
 
-  const handleDelete = (deposit) => {
-    if (
-      window.confirm(
-        `Xác nhận xóa yêu cầu nạp ${formatVND(deposit.amount)} của ${deposit.userId?.name || "user"}?`
-      )
-    ) {
+  const handleDelete = async (deposit) => {
+    const ok = await confirm({
+      title: "Xóa yêu cầu nạp tiền",
+      message: `Xác nhận xóa yêu cầu nạp ${formatVND(deposit.amount)} của ${deposit.userId?.name || "người dùng"}?`,
+      confirmLabel: "Xóa",
+      tone: "danger",
+    });
+    if (ok) {
       deleteMutation.mutate(deposit._id);
     }
   };
@@ -638,6 +484,7 @@ const DepositManagement = () => {
           </div>
         </div>
       )}
+      {dialog}
     </div>
     </phantom-ui>
   );

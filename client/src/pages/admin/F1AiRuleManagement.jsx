@@ -6,9 +6,13 @@ import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { Plus, Edit, Trash2, X, BrainCircuit, FileWarning, Search, HelpCircle } from "lucide-react";
 import { getF1AiRules, createF1AiRule, updateF1AiRule, deleteF1AiRule } from "../../services/f1AiRule.service";
+import SelectField from "../../components/SelectField";
+import { useConfirmDialog } from "../../hooks/useConfirmDialog";
+import { getUserErrorMessage } from "../../utils/errorMessages";
 
 const F1AiRuleManagement = () => {
   const queryClient = useQueryClient();
+  const { confirm, dialog } = useConfirmDialog();
   const [search, setSearch] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -41,7 +45,7 @@ const F1AiRuleManagement = () => {
       resetModal();
       invalidateByKey(queryClient, adminQueryKeys.f1AiRules.all());
     },
-    onError: (err) => toast.error(err.response?.data?.message || "Lỗi khi thêm rule"),
+    onError: (err) => toast.error(getUserErrorMessage(err, "Không thể thêm rule. Vui lòng thử lại.")),
   });
 
   const updateMutation = useMutation({
@@ -51,7 +55,7 @@ const F1AiRuleManagement = () => {
       resetModal();
       invalidateByKey(queryClient, adminQueryKeys.f1AiRules.all());
     },
-    onError: (err) => toast.error(err.response?.data?.message || "Lỗi cập nhật"),
+    onError: (err) => toast.error(getUserErrorMessage(err, "Không thể cập nhật. Vui lòng thử lại.")),
   });
 
   const deleteMutation = useMutation({
@@ -60,7 +64,7 @@ const F1AiRuleManagement = () => {
       toast.success("Xóa thành công");
       invalidateByKey(queryClient, adminQueryKeys.f1AiRules.all());
     },
-    onError: (err) => toast.error(err.response?.data?.message || "Lỗi xóa"),
+    onError: (err) => toast.error(getUserErrorMessage(err, "Không thể xóa. Vui lòng thử lại.")),
   });
 
   const resetModal = () => {
@@ -85,7 +89,7 @@ const F1AiRuleManagement = () => {
       conditions = JSON.parse(formData.conditionsJson);
       if (!Array.isArray(conditions)) throw new Error("Phải là một mảng (Array)");
     } catch (err) {
-      toast.error("JSON conditions không hợp lệ: " + err.message);
+      toast.error(getUserErrorMessage(err, "Điều kiện JSON không hợp lệ. Vui lòng kiểm tra cú pháp và thử lại."));
       return;
     }
 
@@ -121,9 +125,9 @@ const F1AiRuleManagement = () => {
     setShowModal(true);
   };
 
-  const handleDelete = (id) => {
-    if (window.confirm("Bạn có chắc chắn muốn xóa rule này? Các report tương lai sẽ không có lời khuyên này nữa."))
-      deleteMutation.mutate(id);
+  const handleDelete = async (id) => {
+    const ok = await confirm({ title: "Xóa quy tắc", message: "Bạn có chắc chắn muốn xóa quy tắc này? Các báo cáo sau này sẽ không có lời khuyên này nữa.", confirmLabel: "Xóa", tone: "danger" });
+    if (ok) deleteMutation.mutate(id);
   };
 
   const categories = [
@@ -138,7 +142,7 @@ const F1AiRuleManagement = () => {
         <div>
           <h1 className="text-fluid-2xl font-bold text-gray-800 flex items-center gap-2 uppercase">
             <BrainCircuit className="w-7 h-7 text-indigo-600" />
-            AI Rule Engine (F1)
+            Bộ quy tắc phân tích tự động (F1)
           </h1>
           <p className="text-gray-500 text-sm mt-1">
             Quản lý các bộ quy tắc (rules) tự động sinh giáo án cho khách hàng NASM
@@ -148,7 +152,7 @@ const F1AiRuleManagement = () => {
           onClick={() => setShowModal(true)}
           className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-sm transition-all active:scale-95"
         >
-          <Plus size={18} /> Thêm Rule mới
+          <Plus size={18} /> Thêm quy tắc mới
         </button>
       </div>
 
@@ -169,7 +173,7 @@ const F1AiRuleManagement = () => {
             <thead className="bg-gray-50 border-b border-gray-100">
               <tr>
                 <th className="px-5 py-4 text-left text-sm font-semibold text-gray-700">Mã (Code)</th>
-                <th className="px-5 py-4 text-left text-sm font-semibold text-gray-700">Tên Rule</th>
+                <th className="px-5 py-4 text-left text-sm font-semibold text-gray-700">Tên quy tắc</th>
                 <th className="px-5 py-4 text-left text-sm font-semibold text-gray-700">Category</th>
                 <th className="px-5 py-4 text-left text-sm font-semibold text-gray-700">Priority</th>
                 <th className="px-5 py-4 text-left text-sm font-semibold text-gray-700">Trạng thái</th>
@@ -225,7 +229,7 @@ const F1AiRuleManagement = () => {
           <div className="bg-white rounded-2xl max-w-3xl w-full max-h-[90vh] flex flex-col shadow-2xl animate-in fade-in zoom-in duration-200" onClick={e => e.stopPropagation()}>
             <div className="flex justify-between items-center p-6 border-b border-gray-100">
               <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2 uppercase">
-                {editingId ? <><Edit size={20} className="text-indigo-600"/> Sửa Rule</> : <><Plus size={20} className="text-indigo-600"/> Thêm Rule Mới</>}
+                {editingId ? <><Edit size={20} className="text-indigo-600"/> Sửa quy tắc</> : <><Plus size={20} className="text-indigo-600"/> Thêm Rule Mới</>}
               </h2>
               <button aria-label="Đóng" onClick={resetModal} className="p-1 rounded-full hover:bg-gray-100 transition"><X size={20} className="text-gray-500" /></button>
             </div>
@@ -233,7 +237,7 @@ const F1AiRuleManagement = () => {
             <form onSubmit={handleSubmit} className="p-6 overflow-y-auto space-y-5">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Mã Rule (Code) *</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Mã quy tắc (Code) *</label>
                   <input type="text" required placeholder="Ví dụ: RULE_SLEEP_LOW" className="w-full p-2.5 border border-gray-300 rounded-xl" value={formData.code} onChange={e => setFormData({...formData, code: e.target.value})} disabled={!!editingId} />
                 </div>
                 <div>
@@ -245,9 +249,9 @@ const F1AiRuleManagement = () => {
               <div className="grid grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Category *</label>
-                  <select className="w-full p-2.5 border border-gray-300 rounded-xl" value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})}>
+                  <SelectField className="w-full p-2.5 border border-gray-300 rounded-xl" value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})}>
                     {categories.map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
+                  </SelectField>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Độ ưu tiên (Priority)</label>
@@ -286,13 +290,14 @@ const F1AiRuleManagement = () => {
               <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
                 <button type="button" onClick={resetModal} className="px-4 py-2 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50 transition">Hủy</button>
                 <button type="submit" disabled={createMutation.isPending || updateMutation.isPending} className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-sm transition flex items-center gap-2">
-                  {editingId ? "Cập nhật" : "Lưu Rule"}
+                  {editingId ? "Cập nhật" : "Lưu quy tắc"}
                 </button>
               </div>
             </form>
           </div>
         </div>
       )}
+      {dialog}
     </div>
     </phantom-ui>
   );

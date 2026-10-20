@@ -23,7 +23,7 @@ router.get("/exercise-types", protect, requireTrainerAccess, getExerciseTypes);
 router.get("/", protect, requireTrainerAccess, getMySchedules);
 
 // 👥 Lấy danh sách khách hàng của trainer hiện tại
-router.get("/my-clients", protect, requireTrainerAccess, getMyClients);
+router.get("/me/clients", protect, requireTrainerAccess, getMyClients);
 
 // ➕ Tạo 1 slot lịch tập
 router.post("/", protect, scheduleMutationLimiter, requireTrainerAccess, csrfProtection, createSchedule);

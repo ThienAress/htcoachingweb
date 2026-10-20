@@ -1,8 +1,9 @@
 import { useState, useMemo, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { useForm, useWatch } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import SelectField from "../../components/SelectField";
 
 import { keepPreviousData, useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { invalidateByKey } from "../../queries/invalidation";
@@ -42,6 +43,8 @@ import { getOrderStatusMeta } from "../../constants/orderStatus";
 import { useAuth } from "../../context/AuthContext";
 import { useConversionOriginOptions } from "../../hooks/useConversionOriginOptions";
 import ConversionOriginFields from "../../components/admin/ConversionOriginFields";
+import { useConfirmDialog } from "../../hooks/useConfirmDialog";
+import { getUserErrorMessage } from "../../utils/errorMessages";
 
 const orderSchema = z
   .object({
@@ -81,6 +84,7 @@ const OrderStatusBadge = ({ status, className = "" }) => {
 
 
 const Orders = ({ embedded = false }) => {
+  const { confirm, dialog } = useConfirmDialog();
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
   const orderScope = isAdmin ? "admin" : user?._id;
@@ -197,9 +201,7 @@ const Orders = ({ embedded = false }) => {
     },
     onError: (err) =>
       toast.error(
-        err.response?.data?.message ||
-          err.response?.data?.errors?.[0]?.msg ||
-          "Lỗi hệ thống",
+        getUserErrorMessage(err, "Không thể thực hiện thao tác. Vui lòng thử lại."),
       ),
   });
 
@@ -211,7 +213,7 @@ const Orders = ({ embedded = false }) => {
       resetForm();
     },
     onError: (err) =>
-      toast.error(err.response?.data?.message || "Lỗi hệ thống"),
+      toast.error(getUserErrorMessage(err, "Không thể thực hiện thao tác. Vui lòng thử lại.")),
   });
 
   const approveOrderMutation = useMutation({
@@ -221,7 +223,7 @@ const Orders = ({ embedded = false }) => {
       toast.success("Đã xác nhận đơn hàng");
     },
     onError: (err) =>
-      toast.error(err.response?.data?.message || "Lỗi xác nhận"),
+      toast.error(getUserErrorMessage(err, "Không thể xác nhận. Vui lòng thử lại.")),
   });
 
   const deleteOrderMutation = useMutation({
@@ -230,7 +232,7 @@ const Orders = ({ embedded = false }) => {
       invalidateByKey(queryClient, adminQueryKeys.orders.all());
       toast.success("Đã xóa đơn hàng");
     },
-    onError: (err) => toast.error(err.response?.data?.message || "Lỗi xóa"),
+    onError: (err) => toast.error(getUserErrorMessage(err, "Không thể xóa. Vui lòng thử lại.")),
   });
 
   const createContractMutation = useMutation({
@@ -240,7 +242,7 @@ const Orders = ({ embedded = false }) => {
       toast.success("Tạo hợp đồng thành công!");
       navigate(isAdmin ? "/admin/contracts" : "/trainer/contracts");
     },
-    onError: (err) => toast.error(err.response?.data?.message || "Lỗi tạo hợp đồng"),
+    onError: (err) => toast.error(getUserErrorMessage(err, "Không thể tạo hợp đồng. Vui lòng thử lại.")),
   });
 
   const onSubmit = useCallback(
@@ -273,10 +275,10 @@ const Orders = ({ embedded = false }) => {
     [approveOrderMutation],
   );
   const handleDelete = useCallback(
-    (id) => {
-      if (window.confirm("Xóa đơn này?")) deleteOrderMutation.mutate(id);
+    async (id) => {
+      if (await confirm({ title: "Xóa đơn hàng", message: "Xóa đơn này?", confirmLabel: "Xóa", tone: "danger" })) deleteOrderMutation.mutate(id);
     },
-    [deleteOrderMutation],
+    [confirm, deleteOrderMutation],
   );
 
   const handleEdit = useCallback(
@@ -318,7 +320,7 @@ const Orders = ({ embedded = false }) => {
         }
       >
         <div className="text-center py-12 bg-white rounded-lg shadow">
-          <p className="text-red-500">Lỗi tải dữ liệu: {error?.message}</p>
+          <p className="text-red-500">{getUserErrorMessage(error, "Không tải được dữ liệu. Vui lòng thử lại.")}</p>
           <button
             onClick={() => refetch()}
             className="mt-4 min-h-11 rounded-lg bg-red-500 px-4 py-2 text-white hover:bg-red-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400"
@@ -719,22 +721,29 @@ const Orders = ({ embedded = false }) => {
                         </p>
                       </>
                     ) : (
-                      <select
-                        id="order-package"
-                        {...register("package")}
-                        className="min-h-11 w-full border border-gray-300 rounded-lg px-3 py-2"
-                      >
-                        <option value="">Chọn gói</option>
-                        <option value="Trail(Trải nghiệm)">
-                          Trail(Trải nghiệm)
-                        </option>
-                        <option value="Cơ Bản(1-1)">Cơ Bản(1-1)</option>
-                        <option value="Nâng Cao(1-1)">Nâng Cao(1-1)</option>
-                        <option value="Vip(1-1)">Vip(1-1)</option>
-                        <option value="Cơ Bản(Online)">Cơ Bản(Online)</option>
-                        <option value="Nâng Cao(Online)">Nâng Cao(Online)</option>
-                        <option value="Vip(Online)">Vip(Online)</option>
-                      </select>
+                      <Controller
+                        control={control}
+                        name="package"
+                        render={({ field }) => (
+                          <SelectField
+                            id="order-package"
+                            value={field.value ?? ""}
+                            onChange={(event) => field.onChange(event.target.value)}
+                            className="min-h-11 w-full border border-gray-300 rounded-lg px-3 py-2"
+                          >
+                            <option value="">Chọn gói</option>
+                            <option value="Trail(Trải nghiệm)">
+                              Trail(Trải nghiệm)
+                            </option>
+                            <option value="Cơ Bản(1-1)">Cơ Bản(1-1)</option>
+                            <option value="Nâng Cao(1-1)">Nâng Cao(1-1)</option>
+                            <option value="Vip(1-1)">Vip(1-1)</option>
+                            <option value="Cơ Bản(Online)">Cơ Bản(Online)</option>
+                            <option value="Nâng Cao(Online)">Nâng Cao(Online)</option>
+                            <option value="Vip(Online)">Vip(Online)</option>
+                          </SelectField>
+                        )}
+                      />
                     )}
                     {errors.package && (
                       <p className="text-red-500 text-xs">
@@ -768,40 +777,47 @@ const Orders = ({ embedded = false }) => {
                       <MapPin className="w-4 h-4 inline mr-1" /> Phòng tập{" "}
                       <span className="text-red-500">*</span>
                     </label>
-                    <select
-                      id="order-gym"
-                      {...register("gym")}
-                      className="min-h-11 w-full border border-gray-300 rounded-lg px-3 py-2"
-                    >
-                      <option value="">Chọn phòng</option>
-                      <option value="Waystation Trương Văn Hải">
-                        Waystation Trương Văn Hải
-                      </option>
-                      <option value="Waystation Dân chủ">
-                        Waystation Dân chủ
-                      </option>
-                      <option value="Waystation Hiệp Bình">
-                        Waystation Hiệp Bình
-                      </option>
-                      <option value="Waystation Nguyễn Xí">
-                        Waystation Nguyễn Xí
-                      </option>
-                      <option value="Waystation Ung Văn Khiêm">
-                        Waystation Ung Văn Khiêm
-                      </option>
-                      <option value="Waystation Trần Thị Điệu">
-                        Waystation Trần Thị Điệu
-                      </option>
-                      <option value="Chung cư Flora Novia">
-                        Chung cư Flora Novia
-                      </option>
-                      <option value="Chung cư Flora Novia">
-                        Chung cư Phú Đông Sky Garden
-                      </option>
-                      <option value="Home gym">
-                        Home gym
-                      </option>
-                    </select>
+                    <Controller
+                      control={control}
+                      name="gym"
+                      render={({ field }) => (
+                        <SelectField
+                          id="order-gym"
+                          value={field.value ?? ""}
+                          onChange={(event) => field.onChange(event.target.value)}
+                          className="min-h-11 w-full border border-gray-300 rounded-lg px-3 py-2"
+                        >
+                          <option value="">Chọn phòng</option>
+                          <option value="Waystation Trương Văn Hải">
+                            Waystation Trương Văn Hải
+                          </option>
+                          <option value="Waystation Dân chủ">
+                            Waystation Dân chủ
+                          </option>
+                          <option value="Waystation Hiệp Bình">
+                            Waystation Hiệp Bình
+                          </option>
+                          <option value="Waystation Nguyễn Xí">
+                            Waystation Nguyễn Xí
+                          </option>
+                          <option value="Waystation Ung Văn Khiêm">
+                            Waystation Ung Văn Khiêm
+                          </option>
+                          <option value="Waystation Trần Thị Điệu">
+                            Waystation Trần Thị Điệu
+                          </option>
+                          <option value="Chung cư Flora Novia">
+                            Chung cư Flora Novia
+                          </option>
+                          <option value="Chung cư Flora Novia">
+                            Chung cư Phú Đông Sky Garden
+                          </option>
+                          <option value="Home gym">
+                            Home gym
+                          </option>
+                        </SelectField>
+                      )}
+                    />
                     {errors.gym && (
                       <p className="text-red-500 text-xs">{errors.gym.message}</p>
                     )}
@@ -858,19 +874,26 @@ const Orders = ({ embedded = false }) => {
                     <label htmlFor="order-trainer" className="text-sm font-medium text-gray-700">
                       Trainer phụ trách
                     </label>
-                    <select
-                      id="order-trainer"
-                      {...register("trainerId")}
-                      className="mt-1 min-h-11 w-full rounded-lg border border-gray-300 px-3 py-2"
-                      disabled={Boolean(editingId && editingTrainerId) || trainersLoading || trainersError}
-                    >
-                      <option value="">-- Không có trainer --</option>
-                      {trainers.map((t) => (
-                        <option key={t._id} value={t._id}>
-                          {t.name} ({t.email})
-                        </option>
-                      ))}
-                    </select>
+                    <Controller
+                      control={control}
+                      name="trainerId"
+                      render={({ field }) => (
+                        <SelectField
+                          id="order-trainer"
+                          value={field.value ?? ""}
+                          onChange={(event) => field.onChange(event.target.value)}
+                          className="mt-1 min-h-11 w-full rounded-lg border border-gray-300 px-3 py-2"
+                          disabled={Boolean(editingId && editingTrainerId) || trainersLoading || trainersError}
+                        >
+                          <option value="">-- Không có trainer --</option>
+                          {trainers.map((t) => (
+                            <option key={t._id} value={t._id}>
+                              {t.name} ({t.email})
+                            </option>
+                          ))}
+                        </SelectField>
+                      )}
+                    />
                     {editingId && editingTrainerId && (
                       <p className="mt-2 text-xs text-amber-700">
                         Đổi HLV được thực hiện tại mục Điều phối HLV để có bước
@@ -956,6 +979,7 @@ const Orders = ({ embedded = false }) => {
             </div>
           </div>
         )}
+        {dialog}
       </div>
     </phantom-ui>
   );

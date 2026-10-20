@@ -95,7 +95,53 @@ export const computeCardioLevel = (assessment = {}) => {
   );
 };
 
+// Điểm số 0–10 của mỗi mức; khớp ngưỡng của scoreToLevel.
+const LEVEL_SCORE = { low: 2, below_average: 4.5, average: 6.5, good: 9 };
+
+const METRIC_PATHS = [
+  ["strengthAssessment", "upperBodyPush"],
+  ["strengthAssessment", "upperBodyPull"],
+  ["strengthAssessment", "lowerBody"],
+  ["strengthAssessment", "coreStrength"],
+  ["enduranceAssessment", "muscularEndurance"],
+  ["enduranceAssessment", "coreEndurance"],
+  ["cardioAssessment", "cardioCapacity"],
+  ["cardioAssessment", "recoveryHeartRate"],
+];
+
+// Mức tổng thể = trung bình điểm của mọi hạng mục đã được hệ thống chấm
+// (điểm mỗi thẻ là trung bình các bài đã test) + tư thế + nhịp tim nghỉ.
+// Trả về "" khi chưa có hạng mục nào có điểm để hàm cũ xử lý tiếp.
+const computeOverallFromScores = (assessment = {}) => {
+  const scores = [];
+  for (const [group, metric] of METRIC_PATHS) {
+    const raw = assessment?.[group]?.[metric]?.score;
+    if (raw === "" || raw === null || raw === undefined) continue;
+    const value = Number(raw);
+    if (Number.isFinite(value)) scores.push(value);
+  }
+  if (!scores.length) return "";
+
+  const posture = assessment?.postureAssessment || {};
+  const ohsa = assessment?.movementAssessment?.overheadSquat || {};
+  const hasPostureData =
+    Object.values(posture).some(Boolean) ||
+    ["anterior", "lateral", "posterior"].some(
+      (view) => (ohsa[view] || []).length || ohsa[`${view}Normal`],
+    );
+  if (hasPostureData) scores.push(LEVEL_SCORE[computePostureLevel(assessment)]);
+
+  const restingHr = Number(assessment?.cardioAssessment?.restingHeartRate || 0);
+  if (restingHr > 0) scores.push(LEVEL_SCORE[restingHrToLevel(restingHr)]);
+
+  const average = scores.reduce((sum, item) => sum + item, 0) / scores.length;
+  return scoreToLevel(average);
+};
+
 export const computeOverallPhysicalLevel = (assessment = {}) => {
+  const fromScores = computeOverallFromScores(assessment);
+  if (fromScores) return fromScores;
+
   const domainLevels = [
     computePostureLevel(assessment),
     computeStrengthLevel(assessment),
@@ -222,3 +268,20 @@ export const scoreAgainstProtocol = ({
   const valueAxisScore = 0.7 * baselineValueRatio + 0.3 * valueBonusRatio;
   return String(round1(10 * (0.4 * setAxisScore + 0.6 * valueAxisScore)));
 };
+
+// Bài tim mạch chấm theo một kết quả duy nhất (phút hoặc nhịp tim giảm sau 1 phút).
+const scoreByTarget = (value, minTarget, maxTarget) => {
+  const number = Number(value || 0);
+  if (!number) return "";
+  const baselineRatio = clamp(number / minTarget, 0, 1);
+  const bonusRatio =
+    number <= minTarget
+      ? 0
+      : clamp((number - minTarget) / (maxTarget - minTarget), 0, 1);
+  return String(round1(10 * (0.7 * baselineRatio + 0.3 * bonusRatio)));
+};
+
+export const computeCardioCapacityScore = (resultMinutes) =>
+  scoreByTarget(resultMinutes, 20, 30);
+
+export const computeRecoveryScore = (hrDrop) => scoreByTarget(hrDrop, 12, 25);

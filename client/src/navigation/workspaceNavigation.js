@@ -70,11 +70,6 @@ const TRAINER_NAVIGATION_GROUPS = [
         label: "Hệ thống bài tập",
         path: "/exercises",
       },
-      {
-        key: "practiceCenter",
-        label: "Trung tâm thực hành",
-        path: "/trainer/practice-center",
-      },
     ],
   },
   {
@@ -154,4 +149,21 @@ export const getWorkoutPlanWorkspacePath = (
   return planId
     ? `${basePath}/${encodeURIComponent(String(planId))}`
     : basePath;
+};
+
+export const findNavigationTitle = (groups, pathname, fallback) => {
+  if (!Array.isArray(groups) || typeof pathname !== "string") return fallback;
+
+  const items = groups.flatMap((group) => group.items || []);
+  const matches = items.filter(
+    (item) =>
+      pathname === item.path ||
+      (!item.exact && pathname.startsWith(`${item.path}/`)) ||
+      item.activePrefixes?.some((prefix) => pathname.startsWith(prefix)),
+  );
+  if (matches.length === 0) return fallback;
+
+  return matches.reduce((best, item) =>
+    item.path.length > best.path.length ? item : best,
+  ).label;
 };

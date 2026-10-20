@@ -13,6 +13,36 @@ const protocolSchema = new mongoose.Schema(
   { _id: false },
 );
 
+// Mỗi thẻ đánh giá cho phép tối đa 3 bài test (bài hệ thống hoặc bài riêng của HLV).
+// Các field cấp thẻ bên dưới giữ vai trò giá trị tổng hợp để consumer cũ không đổi.
+export const MAX_EXERCISES_PER_METRIC = 3;
+
+const testedExerciseSchema = new mongoose.Schema(
+  {
+    name: { type: String, default: "", trim: true, maxlength: 80 },
+    source: { type: String, enum: ["system", "custom"], default: "system" },
+    tier: {
+      type: String,
+      enum: ["easy", "standard", "advanced", ""],
+      default: "",
+    },
+    inputMode: { type: String, enum: ["reps", "time", ""], default: "" },
+    sets: { type: Number, default: null },
+    reps: { type: Number, default: null },
+    durationSec: { type: Number, default: null },
+    result: { type: Number, default: null },
+    score: { type: Number, default: null },
+    level: {
+      type: String,
+      enum: ["low", "below_average", "average", "good", ""],
+      default: "",
+    },
+    notes: { type: String, default: "", trim: true, maxlength: 500 },
+    selectedProtocol: { type: protocolSchema, default: null },
+  },
+  { _id: false },
+);
+
 const metricItemSchema = new mongoose.Schema(
   {
     score: { type: Number, default: null },
@@ -24,6 +54,14 @@ const metricItemSchema = new mongoose.Schema(
     result: { type: Number, default: null },
     inputMode: { type: String, enum: ["reps", "time", ""], default: "" },
     selectedProtocol: { type: protocolSchema, default: null },
+    exercises: {
+      type: [testedExerciseSchema],
+      default: [],
+      validate: {
+        validator: (items) => items.length <= MAX_EXERCISES_PER_METRIC,
+        message: "Mỗi mục chỉ được chọn tối đa 3 bài test",
+      },
+    },
   },
   { _id: false },
 );
@@ -52,6 +90,11 @@ const f1AssessmentSchema = new mongoose.Schema(
         anterior: { type: [String], default: [] },
         lateral: { type: [String], default: [] },
         posterior: { type: [String], default: [] },
+        // HLV đã quan sát góc nhìn và xác nhận không có biểu hiện sai
+        // (khác với "chưa đánh giá" khi mảng lỗi rỗng).
+        anteriorNormal: { type: Boolean, default: false },
+        lateralNormal: { type: Boolean, default: false },
+        posteriorNormal: { type: Boolean, default: false },
       },
     },
     strengthAssessment: {

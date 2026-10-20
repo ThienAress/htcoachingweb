@@ -5,6 +5,12 @@ import {
   getSiteSettings,
   uploadSettingImage,
   removeSettingImage,
+  savePricingGifts,
+  resetPricingGifts,
+  savePricingContent,
+  resetPricingContent,
+  saveLoginPromo,
+  resetLoginPromo,
 } from "../controllers/siteSetting.controller.js";
 import {
   uploadHeroImage,
@@ -38,6 +44,14 @@ router.post("/upload/tools/:itemKey", uploadToolsImage.single("image"), (req, re
 router.post("/upload/tools", uploadToolsImage.single("image"), (req, res, next) => { req.body.fieldName = 'tools'; next(); }, uploadSettingImage);
 
 // DELETE xoá ảnh
-router.delete("/remove", removeSettingImage);
+router.delete("/images", removeSettingImage);
+
+// Quà tặng trên bảng giá (khóa tab-gói cố định)
+router.put("/pricing-gifts/:key", savePricingGifts);
+router.delete("/pricing-gifts/:key", resetPricingGifts);
+router.put("/pricing-content/:key", savePricingContent);
+router.delete("/pricing-content/:key", resetPricingContent);
+router.put("/login-promo", saveLoginPromo);
+router.delete("/login-promo", resetLoginPromo);
 
 export default router;

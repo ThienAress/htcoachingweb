@@ -29,6 +29,9 @@ import {
   getBlogSubCategoryLabel as getSubCategoryLabel,
   normalizeBlogSubCategory,
 } from "../../data/blogCategories";
+import SelectField from "../../components/SelectField";
+import { useConfirmDialog } from "../../hooks/useConfirmDialog";
+import { getUserErrorMessage } from "../../utils/errorMessages";
 
 const emptyForm = {
   title: "", slug: "", content: "", excerpt: "",
@@ -77,6 +80,7 @@ const hasMarkdown = (text) => {
 // ==================== MAIN COMPONENT ====================
 const BlogManagement = () => {
   const queryClient = useQueryClient();
+  const { confirm, dialog } = useConfirmDialog();
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
@@ -148,19 +152,19 @@ const BlogManagement = () => {
   const createMut = useMutation({
     mutationFn: createBlogPost,
     onSuccess: () => { toast.success("Tạo bài viết thành công"); invalidate(); goList(); },
-    onError: (err) => toast.error(err.response?.data?.message || "Lỗi tạo bài viết"),
+    onError: (err) => toast.error(getUserErrorMessage(err, "Không thể tạo bài viết. Vui lòng thử lại.")),
   });
 
   const updateMut = useMutation({
     mutationFn: ({ id, payload }) => updateBlogPost(id, payload),
     onSuccess: () => { toast.success("Cập nhật thành công"); invalidate(); goList(); },
-    onError: (err) => toast.error(err.response?.data?.message || "Lỗi cập nhật"),
+    onError: (err) => toast.error(getUserErrorMessage(err, "Không thể cập nhật. Vui lòng thử lại.")),
   });
 
   const deleteMut = useMutation({
     mutationFn: deleteBlogPost,
     onSuccess: () => { toast.success("Xóa thành công"); invalidate(); },
-    onError: (err) => toast.error(err.response?.data?.message || "Lỗi xóa"),
+    onError: (err) => toast.error(getUserErrorMessage(err, "Không thể xóa. Vui lòng thử lại.")),
   });
 
   const handleSubmit = (e) => {
@@ -175,8 +179,8 @@ const BlogManagement = () => {
     }
   };
 
-  const handleDelete = (post) => {
-    if (!window.confirm(`Xóa bài viết "${post.title}"?`)) return;
+  const handleDelete = async (post) => {
+    if (!await confirm({ title: "Xóa bài viết", message: `Xóa bài viết "${post.title}"?`, confirmLabel: "Xóa", tone: "danger" })) return;
     deleteMut.mutate(post._id);
   };
 
@@ -188,7 +192,7 @@ const BlogManagement = () => {
       updateForm("coverImage", res.data?.url);
       toast.success("Upload ảnh bìa thành công");
     } catch (err) {
-      toast.error(err.response?.data?.message || "Lỗi upload ảnh");
+      toast.error(getUserErrorMessage(err, "Không thể tải lên ảnh. Vui lòng thử lại."));
     } finally {
       setUploadingCover(false);
     }
@@ -390,10 +394,10 @@ const BlogManagement = () => {
             {/* Card: Trạng thái + Xuất bản */}
             <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-3 shadow-sm">
               <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Trạng thái</p>
-              <select className={inputClass} value={form.status} onChange={(e) => updateForm("status", e.target.value)}>
+              <SelectField className={inputClass} value={form.status} onChange={(e) => updateForm("status", e.target.value)}>
                 <option value="draft">Bản nháp</option>
                 <option value="published">Xuất bản</option>
-              </select>
+              </SelectField>
               <label className="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" checked={form.featured} onChange={(e) => updateForm("featured", e.target.checked)} className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary" />
                 <span className="text-sm font-semibold text-slate-700">Bài nổi bật</span>
@@ -404,7 +408,7 @@ const BlogManagement = () => {
             <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-3 shadow-sm">
               <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Phân loại</p>
               <Field label="Chủ đề">
-                <select
+                <SelectField
                   className={inputClass}
                   value={form.category}
                   onChange={(e) => {
@@ -415,10 +419,10 @@ const BlogManagement = () => {
                   }}
                 >
                   {CATEGORIES.map((c) => (<option key={c.value} value={c.value}>{c.label}</option>))}
-                </select>
+                </SelectField>
               </Field>
               <Field label="Danh mục con">
-                <select
+                <SelectField
                   className={inputClass}
                   value={form.subCategory}
                   onChange={(e) => updateForm("subCategory", e.target.value)}
@@ -427,13 +431,13 @@ const BlogManagement = () => {
                   {(SUB_CATEGORIES[form.category] || []).map((sub) => (
                     <option key={sub.value} value={sub.value}>{sub.label}</option>
                   ))}
-                </select>
+                </SelectField>
               </Field>
               <Field label="Tác giả">
-                <select className={inputClass} value={form.author} onChange={(e) => updateForm("author", e.target.value)}>
+                <SelectField className={inputClass} value={form.author} onChange={(e) => updateForm("author", e.target.value)}>
                   <option value="">— Không chọn —</option>
                   {allTrainers.map((t) => (<option key={t._id} value={t._id}>{t.name}</option>))}
-                </select>
+                </SelectField>
               </Field>
             </div>
 
@@ -515,15 +519,15 @@ const BlogManagement = () => {
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <input value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} placeholder="Tìm theo tiêu đề..." className={`${inputClass} pl-9`} />
         </div>
-        <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }} className={inputClass}>
+        <SelectField value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }} className={inputClass}>
           <option value="">Tất cả trạng thái</option>
           <option value="draft">Bản nháp</option>
           <option value="published">Đã xuất bản</option>
-        </select>
-        <select value={categoryFilter} onChange={(e) => { setCategoryFilter(e.target.value); setPage(1); }} className={inputClass}>
+        </SelectField>
+        <SelectField value={categoryFilter} onChange={(e) => { setCategoryFilter(e.target.value); setPage(1); }} className={inputClass}>
           <option value="">Tất cả chủ đề</option>
           {CATEGORIES.map((c) => (<option key={c.value} value={c.value}>{c.label}</option>))}
-        </select>
+        </SelectField>
       </div>
 
       {/* Table */}
@@ -610,6 +614,7 @@ const BlogManagement = () => {
           </button>
         </div>
       )}
+      {dialog}
     </div>
   );
 };

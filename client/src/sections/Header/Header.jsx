@@ -207,8 +207,8 @@ function Header() {
   return (
     <header
       ref={headerRef}
-      className={`fixed top-0 w-full z-50 h-[73px] 2xl:h-20 transition-all duration-300 ${isSolidHeader
-        ? "bg-gradient-to-r from-[#f39c12] to-[#1a1a1a] shadow-md border-transparent"
+      className={`fixed top-0 w-full z-50 h-[73px] 2xl:h-20 transition-[background-color,box-shadow,border-color] duration-300 ${isSolidHeader
+        ? "bg-[#1a1a1a] shadow-md border-b border-white/10"
         : "bg-transparent border-b border-black/10"
         }`}
     >
@@ -538,11 +538,11 @@ function Header() {
               <p className="mb-3 inline-flex rounded-full bg-slate-950/80 px-2.5 py-1 text-xs font-bold uppercase tracking-widest text-white">{t("nav.tools")}</p>
               <div className="grid grid-cols-3 gap-2">
                   {[
-                    { label: t("nav_user.exercise_system"), icon: Activity, path: "/exercises" },
-                    { label: t("nav_dropdown.tdee"), icon: Calculator, path: "/tdee-calculator" },
-                    { label: t("nav_dropdown.meal_scan"), icon: ScanLine, path: "/quet-mon-an" },
-                    { label: t("nav_dropdown.recipes"), icon: Utensils, path: "/cong-thuc-nau-an" },
-                    { label: t("nav_dropdown.mealplan"), icon: CalendarDays, path: "/mealplan" },
+                    { label: t("nav_user.exercise_system"), icon: Activity, path: "/exercises/" },
+                    { label: t("nav_dropdown.tdee"), icon: Calculator, path: "/tdee-calculator/" },
+                    { label: t("nav_dropdown.meal_scan"), icon: ScanLine, path: "/quet-mon-an/" },
+                    { label: t("nav_dropdown.recipes"), icon: Utensils, path: "/cong-thuc-nau-an/" },
+                    { label: t("nav_dropdown.mealplan"), icon: CalendarDays, path: "/mealplan/" },
                   ].map((sub) => {
                     const SubIcon = sub.icon;
                     return (

@@ -26,6 +26,7 @@ Nền tảng coaching thể hình: website public (SEO), workspace HLV/admin, c�
 - `e2e/` Playwright · `workers/` Cloudflare watchdog · `scripts/` release/ops/security gates · `docs/` tài liệu.
 - Luồng backend: route → controller → service → model. Frontend gọi API qua `client/src/services/*.service.js`
   và axios instance `client/src/utils/api.js`.
+- Đặt tên endpoint: `.claude/rules/api-design.md` (ADR 0002); cổng `server/src/routes/__tests__/apiNaming.contract.test.js`.
 - HT Assistant nằm ở `server/src/services/ai/` (provider deepseek/gemini/mock) và `client/src/components/ChatWidget/`.
 - Deploy: frontend Netlify, backend Render (Docker, `server/Dockerfile`). Node version lấy từ `.node-version`.
 - Từ vựng nghiệp vụ canonical: `CONTEXT.md` (User vs Coaching Customer, Trainer, Effective Coach,
@@ -48,6 +49,27 @@ Luôn đúng ở mọi thay đổi; chi tiết nằm trong `.claude/rules/securi
 - Thay đổi Auth, CSRF, JWT, payment, wallet, schema hoặc AI tool có side effect: chạy skill `impact-check`
   trước khi sửa.
 
+## Ngôn ngữ giao diện
+
+Sản phẩm phục vụ HLV và khách hàng Việt Nam: **tiếng Việt là ưu tiên số 1** ở mọi chuỗi người dùng nhìn thấy
+(nhãn, tiêu đề, nút, toast, lỗi từ API, báo cáo, gợi ý). Chi tiết: `.claude/rules/frontend.md`.
+
+- Không hiển thị enum/mã thô (`female`, `hold_test`, `ai_report_generated`...); map sang nhãn Việt.
+- Thuật ngữ chuyên ngành viết **"Tiếng Việt (English)"** — Việt trước, Anh trong ngoặc.
+  Ví dụ: "Sức bền cơ bắp (Muscular Endurance)". Chỉ giữ nguyên Anh với `sets`, `reps`, `RPE`, `RIR`, `BMI`.
+- **Tên bài tập luôn để tiếng Anh** ("Wall Push-Up", "Goblet Squat"): không dịch, không thêm chú thích Việt.
+- Gọi tên theo cách HLV hiểu: "kết quả khảo sát" thay "intake", "phân tích tự động" thay "AI Report" (bộ luật NASM, không phải AI),
+  "hoãn đánh giá" thay "HOLD TEST". Không đổi identifier, API field, enum, route.
+- Ô chọn (select, dropdown): **không dùng `<select>` gốc** của trình duyệt vì danh sách thả xuống không bo góc, lệch
+  giao diện. Luôn dùng `client/src/components/F1/assessment/RoundedSelect.jsx` (trong form React Hook Form thì bọc bằng
+  `Controller`); trước khi bàn giao form có ô chọn, rà `grep -rn "<select" client/src` cho file vừa sửa.
+- Tên có chú thích Anh chỉ dùng một cặp ngoặc: "Sức mạnh bền (Strength Endurance)"; không lồng ngoặc trong ngoặc.
+- Thông báo lỗi cho người dùng: tiếng Việt thân thiện (chuyện gì đã xảy ra, nên làm gì), không có server/API/token/mã HTTP. Client dùng `getUserErrorMessage`,
+  server dùng `sendApiError`; chi tiết chỉ ghi log (`.claude/rules/frontend.md`, `.claude/rules/backend.md`).
+- Không lặp lại cùng một thông tin ở tiêu đề, phụ đề và thân hộp thoại; tên giai đoạn viết một lần dạng
+  "Giai đoạn 2: Hypertrophy".
+- Thêm tính năng/UI mới: rà toàn bộ chuỗi hiển thị trước khi bàn giao, cả message trả về từ server.
+
 ## Cách làm việc
 
 - Chỉ sửa phần cần thiết, giữ style hiện có; không tiện tay refactor, format hay đổi quote style.
@@ -57,6 +79,9 @@ Luôn đúng ở mọi thay đổi; chi tiết nằm trong `.claude/rules/securi
 - Việc nhiều bước hoặc rủi ro cao: nêu plan kèm tiêu chí kiểm chứng trước khi sửa. Plan cần lưu lại
   thì dùng skill `plan-template`; feature mới chưa rõ hành vi thì dùng `feature-spec`.
 - Báo cáo cuối gồm: kết quả, file chính, lệnh kiểm tra đã chạy và kết quả, phần chưa chạy, side effect.
+- Thêm hoặc xóa file test/script/skill/rule: chạy `npm run agents:inventory` trước khi push (CI `secrets` đỏ nếu lệch).
+- Windows: script nhiều dòng ghi ra file rồi chạy, commit bằng `-F <file>`, Node qua `fnm`, worktree mỗi lệnh git một lần gọi (`.claude/rules/windows-environment.md`).
+- Sau khi user báo đã merge PR: dùng skill `staging-verify`, đợi deploy đúng bản rồi mới kiểm.
 
 ## Kiểm chứng
 

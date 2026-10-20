@@ -11,7 +11,7 @@ test.describe("trainer check-in journey", () => {
 
   test("selects an owned order and submits one check-in request", async ({ page }) => {
     let createCalls = 0;
-    await page.route("**/api/checkin", async (route) => {
+    await page.route("**/api/check-ins", async (route) => {
       if (route.request().method() === "POST") createCalls += 1;
       await route.fallback();
     });
@@ -19,7 +19,8 @@ test.describe("trainer check-in journey", () => {
     await page.goto("/checkin");
     await page.getByText("Chọn khách hàng", { exact: true }).click();
     await page.getByText("E2E Client", { exact: true }).click();
-    await page.locator("select").first().selectOption("order-e2e");
+    await page.getByRole("combobox").first().click();
+    await page.getByRole("listbox").getByRole("option", { name: /PT 10/ }).click();
     await page.locator('input[type="datetime-local"]').fill("2026-07-19T09:00");
     await page.getByText("Chọn nhóm cơ", { exact: true }).click();
     await page.getByText("Ngực", { exact: true }).click();

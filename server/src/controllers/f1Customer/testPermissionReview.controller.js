@@ -7,21 +7,21 @@ const REVIEW_DECISIONS = {
     testPermission: "hold_test",
     recommendedStartPhase: "pending_review",
     medicalReviewFlag: true,
-    message: "Đã giữ trạng thái HOLD TEST cho khách hàng",
+    message: "Đã giữ trạng thái hoãn đánh giá cho khách hàng",
   },
   approve_modified_test: {
     readinessStatus: "caution",
     testPermission: "modified_test",
     recommendedStartPhase: "phase_1",
     medicalReviewFlag: true,
-    message: "Đã duyệt Modified Test cho khách hàng",
+    message: "Đã duyệt test điều chỉnh cho khách hàng",
   },
   approve_full_test: {
     readinessStatus: "ready",
     testPermission: "full_test",
     recommendedStartPhase: "phase_1",
     medicalReviewFlag: false,
-    message: "Đã duyệt Full Test cho khách hàng",
+    message: "Đã duyệt test đầy đủ cho khách hàng",
   },
 };
 
@@ -38,7 +38,7 @@ export const reviewTestPermission = async (req, res, next) => {
     if (!intake || intake.isDraft) {
       return res.status(400).json({
         success: false,
-        message: "Khách hàng chưa có intake hoàn chỉnh để PT review",
+        message: "Khách hàng chưa có khảo sát hoàn chỉnh để HLV xem xét",
       });
     }
 

@@ -30,6 +30,9 @@ import {
   createAdminVerifiedFoodSource,
   FOOD_ADMIN_TEXT,
 } from "./foodAdminPresentation";
+import SelectField from "../../components/SelectField";
+import { useConfirmDialog } from "../../hooks/useConfirmDialog";
+import { getUserErrorMessage } from "../../utils/errorMessages";
 
 const createFoodForm = () => ({
   label: "",
@@ -122,6 +125,7 @@ const pricePayload = (formData) => {
 
 const FoodManagement = () => {
   const queryClient = useQueryClient();
+  const { confirm, dialog } = useConfirmDialog();
   const [searchInput, setSearchInput] = useState("");
   const debouncedSearchTerm = useDebounce(searchInput, 500);
   const [currentPage, setCurrentPage] = useState(1);
@@ -167,7 +171,7 @@ const FoodManagement = () => {
       invalidateByKey(queryClient, adminQueryKeys.foods.all());
       closeModal();
     },
-    onError: (err) => toast.error(err.response?.data?.message || "Lỗi thêm"),
+    onError: (err) => toast.error(getUserErrorMessage(err, "Không thể thêm. Vui lòng thử lại.")),
   });
 
   const updateMutation = useMutation({
@@ -182,7 +186,7 @@ const FoodManagement = () => {
       closeModal();
     },
     onError: (err) =>
-      toast.error(err.response?.data?.message || "Lỗi cập nhật"),
+      toast.error(getUserErrorMessage(err, "Không thể cập nhật. Vui lòng thử lại.")),
   });
 
   const deleteMutation = useMutation({
@@ -191,7 +195,7 @@ const FoodManagement = () => {
       toast.success("Xóa thực phẩm thành công");
       invalidateByKey(queryClient, adminQueryKeys.foods.all());
     },
-    onError: (err) => toast.error(err.response?.data?.message || "Lỗi xóa"),
+    onError: (err) => toast.error(getUserErrorMessage(err, "Không thể xóa. Vui lòng thử lại.")),
   });
 
   const batchMutation = useMutation({
@@ -202,7 +206,7 @@ const FoodManagement = () => {
       invalidateByKey(queryClient, adminQueryKeys.foods.all());
     },
     onError: (err) =>
-      toast.error(err.response?.data?.message || "Lỗi nhập dữ liệu"),
+      toast.error(getUserErrorMessage(err, "Không thể nhập dữ liệu. Vui lòng thử lại.")),
   });
 
   const openCreateModal = () => {
@@ -278,8 +282,8 @@ const FoodManagement = () => {
     }
   };
 
-  const handleDelete = (id, label) => {
-    if (window.confirm(`Xóa thực phẩm "${label}"?`)) {
+  const handleDelete = async (id, label) => {
+    if (await confirm({ title: "Xóa thực phẩm", message: `Xóa thực phẩm "${label}"?`, confirmLabel: "Xóa", tone: "danger" })) {
       deleteMutation.mutate(id);
     }
   };
@@ -305,7 +309,7 @@ const FoodManagement = () => {
       });
       batchMutation.mutate(foods);
     } catch (err) {
-      toast.error("JSON không hợp lệ: " + err.message);
+      toast.error(getUserErrorMessage(err, "JSON không hợp lệ. Vui lòng kiểm tra cú pháp và thử lại."));
     }
   };
 
@@ -318,7 +322,7 @@ const FoodManagement = () => {
   if (isError) {
     return (
       <div className="p-6 text-center text-red-500">
-        Lỗi tải dữ liệu: {error?.message}
+        {getUserErrorMessage(error, "Không tải được dữ liệu. Vui lòng thử lại.")}
         <button
           onClick={() => refetch()}
           className="ml-4 px-3 py-1 bg-indigo-600 text-white rounded"
@@ -623,7 +627,7 @@ const FoodManagement = () => {
                   </legend>
                   <label className="block text-sm text-slate-700">
                     Trạng thái
-                    <select
+                    <SelectField
                       name="allergenReviewStatus"
                       value={formData.allergenReviewStatus}
                       onChange={(e) => setFormData({
@@ -634,7 +638,7 @@ const FoodManagement = () => {
                     >
                       <option value="unreviewed">Chưa kiểm duyệt</option>
                       <option value="reviewed">Đã kiểm duyệt theo nhãn/nguồn</option>
-                    </select>
+                    </SelectField>
                   </label>
                   {formData.allergenReviewStatus === "reviewed" && (
                     <div className="grid gap-3 sm:grid-cols-2">
@@ -709,7 +713,7 @@ const FoodManagement = () => {
                       </div>
                       <label className="text-sm text-slate-700">
                         Loại nguồn
-                        <select
+                        <SelectField
                           name="allergenSourceType"
                           value={formData.allergenSourceType}
                           onChange={(e) => setFormData({
@@ -721,7 +725,7 @@ const FoodManagement = () => {
                           <option value="package_label">Nhãn bao bì</option>
                           <option value="manufacturer">Nhà sản xuất</option>
                           <option value="official_database">CSDL chính thức</option>
-                        </select>
+                        </SelectField>
                       </label>
                       <label className="text-sm text-slate-700">
                         Ngày kiểm duyệt
@@ -764,7 +768,7 @@ const FoodManagement = () => {
                   <div className="grid gap-3 sm:grid-cols-2">
                     <label className="text-sm text-slate-700">
                       Nguồn giá
-                      <select
+                      <SelectField
                         name="priceSourceKey"
                         value={formData.priceSourceKey}
                         disabled={!editingFood}
@@ -778,7 +782,7 @@ const FoodManagement = () => {
                         <option value="bach_hoa_xanh">Bách Hóa Xanh</option>
                         <option value="winmart">WinMart</option>
                         <option value="coop_online">Co.op Online</option>
-                      </select>
+                      </SelectField>
                       {!editingFood && (
                         <span className="mt-1 block text-xs text-slate-500">
                           {FOOD_ADMIN_TEXT.priceSavedFirst}
@@ -953,6 +957,7 @@ const FoodManagement = () => {
             </div>
           </div>
         )}
+        {dialog}
       </div>
     </phantom-ui>
   );

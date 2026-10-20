@@ -79,7 +79,11 @@ const ExercisesPage = () => {
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, [hasExported, hasWorkoutData, t]);
 
-  usePrompt(hasWorkoutData && !hasExported, t("alert_leave"));
+  const leaveDialog = usePrompt(hasWorkoutData && !hasExported, t("alert_leave"), {
+    title: t("alert_leave_title"),
+    confirmLabel: t("alert_leave_confirm"),
+    cancelLabel: t("alert_leave_cancel"),
+  });
 
   const handleExportPDF = async () => {
     try {
@@ -212,6 +216,8 @@ const ExercisesPage = () => {
       </div>
       <ScrollToTop />
       <ChatIcons />
+      {leaveDialog}
+      {logic.confirmDialog}
     </>
   );
 };

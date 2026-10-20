@@ -7,6 +7,8 @@ import {
   createF1Customer,
   createF1Media,
   deleteF1Customer,
+  getDeletedF1Customers,
+  restoreF1Customer,
   deleteF1Media,
   generateAiReport,
   generateOutcomeForecast,
@@ -29,6 +31,15 @@ import {
   generateResultPrediction,
   getLatestResultPrediction,
   generateResultPredictionStageImages,
+  getPhaseReviews,
+  savePhaseReview,
+  saveStageProfile,
+  previewNextStageDesign,
+  saveNextStageDesign,
+  deleteLatestStage,
+  previewStageDesign,
+  generateStageVisual,
+  uploadStagePhoto,
 } from "../controllers/f1Customer/index.js";
 import {
   validateApproveAiReport,
@@ -47,8 +58,17 @@ import {
   validateReviewTestPermission,
   validateGenerateResultPrediction,
   validateGenerateResultPredictionStageImages,
+  validateSavePhaseReview,
+  validateStageProfile,
+  validatePreviewStageDesign,
+  validateNextStageDesign,
+  validateDeleteStage,
+  validateStagePhotoUpload,
+  validateGenerateStageVisual,
 } from "../middlewares/validation.js";
 
+import { switchPlanMode } from "../controllers/f1Customer/index.js";
+import { validateSwitchPlanMode } from "../middlewares/validation.js";
 import { uploadF1Media } from "../middlewares/f1MediaUpload.js";
 import { f1GenerationLimiter } from "../middlewares/rateLimit.js";
 
@@ -74,6 +94,17 @@ router.post(
 );
 
 router.get("/", protect, requireTrainerAccess, getF1Customers);
+
+router.get("/deleted", protect, requireTrainerAccess, getDeletedF1Customers);
+
+router.post(
+  "/:id/restore",
+  protect,
+  csrfProtection,
+  requireTrainerAccess,
+  validateF1CustomerId,
+  restoreF1Customer,
+);
 
 router.get(
   "/:id",
@@ -287,6 +318,25 @@ router.post(
   generateResultPrediction,
 );
 
+router.post(
+  "/:id/result-predictions/preview",
+  protect,
+  f1GenerationLimiter,
+  csrfProtection,
+  requireTrainerAccess,
+  validatePreviewStageDesign,
+  previewStageDesign,
+);
+
+router.post(
+  "/:id/result-predictions/switch-mode",
+  protect,
+  csrfProtection,
+  requireTrainerAccess,
+  validateSwitchPlanMode,
+  switchPlanMode,
+);
+
 router.get(
   "/:id/result-predictions/latest",
   protect,
@@ -303,6 +353,86 @@ router.post(
   requireTrainerAccess,
   validateGenerateResultPredictionStageImages,
   generateResultPredictionStageImages,
+);
+
+// =========================
+// PHASE REVIEW (đánh giá cuối giai đoạn)
+// =========================
+router.get(
+  "/:id/phase-reviews",
+  protect,
+  requireTrainerAccess,
+  validateF1CustomerId,
+  getPhaseReviews,
+);
+
+router.put(
+  "/:id/phase-reviews/:stageOrder",
+  protect,
+  f1GenerationLimiter,
+  csrfProtection,
+  requireTrainerAccess,
+  validateSavePhaseReview,
+  savePhaseReview,
+);
+
+router.put(
+  "/:id/phase-reviews/:stageOrder/profile",
+  protect,
+  f1GenerationLimiter,
+  csrfProtection,
+  requireTrainerAccess,
+  validateStageProfile,
+  saveStageProfile,
+);
+
+router.post(
+  "/:id/phase-reviews/:stageOrder/design-preview",
+  protect,
+  f1GenerationLimiter,
+  csrfProtection,
+  requireTrainerAccess,
+  validateNextStageDesign,
+  previewNextStageDesign,
+);
+
+router.put(
+  "/:id/phase-reviews/:stageOrder/design",
+  protect,
+  f1GenerationLimiter,
+  csrfProtection,
+  requireTrainerAccess,
+  validateNextStageDesign,
+  saveNextStageDesign,
+);
+
+router.delete(
+  "/:id/phase-reviews/:stageOrder",
+  protect,
+  csrfProtection,
+  requireTrainerAccess,
+  validateDeleteStage,
+  deleteLatestStage,
+);
+
+router.post(
+  "/:id/phase-reviews/:stageOrder/photos",
+  protect,
+  csrfProtection,
+  requireTrainerAccess,
+  uploadF1Media.single("file"),
+  validateStagePhotoUpload,
+  uploadStagePhoto,
+);
+
+router.post(
+  "/:id/phase-reviews/:stageOrder/generate-images",
+  protect,
+  f1GenerationLimiter,
+  csrfProtection,
+  requireTrainerAccess,
+  validateGenerateStageVisual,
+  generateStageVisual,
 );
 
 export default router;

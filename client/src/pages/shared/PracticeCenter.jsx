@@ -18,6 +18,7 @@ import {
 } from "../../services/practiceCenter.service";
 import PracticeCenterContent from "./components/PracticeCenterContent";
 import { PracticeCenterLoadingState } from "./components/PracticeCenterStates";
+import { getUserErrorMessage } from "../../utils/errorMessages";
 
 const QUERY_KEY = ["practice-center"];
 const formSchema = z.object({
@@ -101,8 +102,7 @@ export default function PracticeCenter() {
         setPendingRequest(null);
       }
       toast.error(
-        error.response?.data?.message ||
-          "Không thể gửi email mô phỏng. Vui lòng thử lại.",
+        getUserErrorMessage(error, "Không thể gửi email mô phỏng. Vui lòng thử lại."),
       );
     },
   });

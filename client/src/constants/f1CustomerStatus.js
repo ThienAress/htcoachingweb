@@ -3,7 +3,7 @@ export const F1_CUSTOMER_STATUS_LABELS = Object.freeze({
   intake_in_progress: "Đang khảo sát",
   intake_completed: "Đã khảo sát",
   assessment_completed: "Đã đánh giá thể chất",
-  ai_report_generated: "Đã có AI report",
+  ai_report_generated: "Đã có phân tích tự động",
   program_started: "Đã bắt đầu lộ trình",
   archived: "Đã lưu trữ",
 });
@@ -24,4 +24,22 @@ export const getF1Progress = (status) => {
     assessmentDone: rank >= 2,
     reportDone: rank >= 3,
   };
+};
+
+export const F1_SOFT_DELETE_DAYS = 7;
+
+// Cột "Trạng thái" của danh sách: "Đã hoàn thành" khi xong cả dự đoán, còn lại ghi bước đang chờ.
+export const getF1CustomerStageLabel = (customer) => {
+  if (customer?.status === "archived") return F1_CUSTOMER_STATUS_LABELS.archived;
+  const { intakeDone, assessmentDone, reportDone } = getF1Progress(customer?.status);
+  if (!intakeDone) return "Khảo sát";
+  if (!assessmentDone) return "Đánh giá thể chất";
+  if (!reportDone) return "Phân tích tự động";
+  if (!customer?.lastResultPredictionId) return "Dự đoán";
+  return "Đã hoàn thành";
+};
+
+export const getRemainingDeleteDays = (purgeAt, now = Date.now()) => {
+  const diff = new Date(purgeAt).getTime() - now;
+  return Number.isFinite(diff) ? Math.max(Math.ceil(diff / 86_400_000), 0) : 0;
 };

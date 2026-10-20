@@ -127,7 +127,7 @@ describe("Order explicit conversion origin", () => {
     ).send(orderPayload());
 
     const approved = await withAuth(
-      request(app).put(`/api/orders/${created.body.data._id}/approve`),
+      request(app).post(`/api/orders/${created.body.data._id}/approve`),
       admin.accessToken,
     );
     const stored = await Order.findById(created.body.data._id)
@@ -164,7 +164,7 @@ describe("Order explicit conversion origin", () => {
     });
 
     const approved = await withAuth(
-      request(app).put(`/api/orders/${pending._id}/approve`),
+      request(app).post(`/api/orders/${pending._id}/approve`),
       lead.accessToken,
     );
     expect(approved.status).toBe(200);
@@ -210,7 +210,7 @@ describe("Order explicit conversion origin", () => {
     });
 
     const response = await withAuth(
-      request(app).put(`/api/orders/${pending._id}/approve`),
+      request(app).post(`/api/orders/${pending._id}/approve`),
       admin.accessToken,
     );
 

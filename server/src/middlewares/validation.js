@@ -25,13 +25,20 @@ import {
   AI_MEMORY_VALUES,
 } from "../constants/aiMemory.js";
 import { MAX_ADDITIONAL_RECIPE_NUTRIENTS } from "../constants/recipeNutrition.js";
-import { validateDepositBonusRates } from "../constants/depositPolicy.js";
+import {
+  validateDepositBonusRates,
+  validateDepositTierLabels,
+  validateDepositTierMinimums,
+} from "../constants/depositPolicy.js";
 import {
   assertBodyAssessmentDelete,
   assertBodyAssessmentTarget,
   bodyAssessmentPagination,
   normalizeBodyAssessmentCommand,
 } from "../services/bodyAssessmentValidation.service.js";
+import { normalizePhaseReviewInput } from "../controllers/f1Customer/phaseReview.input.js";
+import { normalizeProfile } from "../controllers/f1Customer/phaseReview.profile.js";
+import { normalizeCustomStage } from "../controllers/f1Customer/stageDesign.helpers.js";
 
 // ============================================================================
 // MIDDLEWARE & CUSTOM VALIDATORS
@@ -428,6 +435,7 @@ export const validateSubmitIntake = [
     .withMessage("warningSigns phải là mảng"),
 
   body("lifestyleNutrition.mealsPerDay")
+    .optional({ checkFalsy: true })
     .isInt({ min: 1, max: 10 })
     .withMessage("Số bữa ăn không hợp lệ"),
 
@@ -440,14 +448,23 @@ export const validateSubmitIntake = [
     .withMessage("drinkEnoughWater phải là boolean"),
 
   body("lifestyleNutrition.sleepHours")
-    .isFloat({ min: 0, max: 24 })
-    .withMessage("Số giờ ngủ không hợp lệ"),
+    .optional({ nullable: true })
+    .custom((value) => {
+      if (value === "") return true;
+      const parsed = Number(value);
+      if (!Number.isFinite(parsed) || parsed < 0 || parsed > 24) {
+        throw new Error("Số giờ ngủ không hợp lệ");
+      }
+      return true;
+    }),
 
   body("lifestyleNutrition.stressLevel")
+    .optional({ checkFalsy: true })
     .isIn(["low", "medium", "high"])
     .withMessage("stressLevel không hợp lệ"),
 
   body("lifestyleNutrition.workActivityLevel")
+    .optional({ checkFalsy: true })
     .isIn(["sedentary", "standing", "active", "heavy_labor"])
     .withMessage("workActivityLevel không hợp lệ"),
 
@@ -511,7 +528,9 @@ export const validateSubmitIntake = [
     const isTraining = Boolean(
       req.body?.trainingProfileGoal?.currentlyTraining,
     );
-    const parsed = Number(value);
+    const isEmpty = value === undefined || value === null || value === "";
+    if (isEmpty && !isTraining) return true;
+    const parsed = isEmpty ? Number.NaN : Number(value);
 
     if (!Number.isInteger(parsed) || parsed < 0 || parsed > 14) {
       throw new Error("Số ngày tập/tuần không hợp lệ");
@@ -529,7 +548,9 @@ export const validateSubmitIntake = [
       const isTraining = Boolean(
         req.body?.trainingProfileGoal?.currentlyTraining,
       );
-      const parsed = Number(value);
+      const isEmpty = value === undefined || value === null || value === "";
+      if (isEmpty && !isTraining) return true;
+      const parsed = isEmpty ? Number.NaN : Number(value);
 
       if (!Number.isInteger(parsed) || parsed < 0 || parsed > 600) {
         throw new Error("Thời lượng buổi tập không hợp lệ");
@@ -578,6 +599,14 @@ export const validateSubmitIntake = [
     .optional({ nullable: true, checkFalsy: true })
     .custom(isValidDate)
     .withMessage("targetDeadline không hợp lệ"),
+
+  body("trainingProfileGoal.targetTimeframe")
+    .optional({ nullable: true })
+    .isString()
+    .bail()
+    .trim()
+    .isLength({ max: 60 })
+    .withMessage("Thời gian mong muốn tối đa 60 ký tự"),
 
   body("consent.allowDataStorage")
     .isBoolean()
@@ -629,6 +658,30 @@ export const validateDeleteF1Media = [
 // ASSESSMENT & AI REPORT VALIDATIONS
 // ============================================================================
 
+// Mỗi thẻ đánh giá chỉ được có tối đa 3 bài test; tên bài tối đa 80 ký tự.
+const MAX_ASSESSMENT_EXERCISES = 3;
+const MAX_EXERCISE_NAME_LENGTH = 80;
+const validateMetricExercises = (assessment) => {
+  if (!assessment || typeof assessment !== "object") return true;
+  for (const metric of Object.values(assessment)) {
+    const exercises = metric?.exercises;
+    if (exercises === undefined) continue;
+    if (!Array.isArray(exercises)) {
+      throw new Error("exercises phải là mảng");
+    }
+    if (exercises.length > MAX_ASSESSMENT_EXERCISES) {
+      throw new Error("Mỗi mục chỉ được chọn tối đa 3 bài test");
+    }
+    const tooLong = exercises.some(
+      (item) => String(item?.name || "").trim().length > MAX_EXERCISE_NAME_LENGTH,
+    );
+    if (tooLong) {
+      throw new Error("Tên bài test tối đa 80 ký tự");
+    }
+  }
+  return true;
+};
+
 export const validateCreateAssessment = [
   param("id").isMongoId().withMessage("ID khách hàng F1 không hợp lệ"),
 
@@ -645,17 +698,23 @@ export const validateCreateAssessment = [
   body("strengthAssessment")
     .optional()
     .isObject()
-    .withMessage("strengthAssessment phải là object"),
+    .withMessage("strengthAssessment phải là object")
+    .bail()
+    .custom(validateMetricExercises),
 
   body("enduranceAssessment")
     .optional()
     .isObject()
-    .withMessage("enduranceAssessment phải là object"),
+    .withMessage("enduranceAssessment phải là object")
+    .bail()
+    .custom(validateMetricExercises),
 
   body("cardioAssessment")
     .optional()
     .isObject()
-    .withMessage("cardioAssessment phải là object"),
+    .withMessage("cardioAssessment phải là object")
+    .bail()
+    .custom(validateMetricExercises),
 
   body("overallPhysicalLevel")
     .optional()
@@ -698,17 +757,23 @@ export const validateUpdateAssessment = [
   body("strengthAssessment")
     .optional()
     .isObject()
-    .withMessage("strengthAssessment phải là object"),
+    .withMessage("strengthAssessment phải là object")
+    .bail()
+    .custom(validateMetricExercises),
 
   body("enduranceAssessment")
     .optional()
     .isObject()
-    .withMessage("enduranceAssessment phải là object"),
+    .withMessage("enduranceAssessment phải là object")
+    .bail()
+    .custom(validateMetricExercises),
 
   body("cardioAssessment")
     .optional()
     .isObject()
-    .withMessage("cardioAssessment phải là object"),
+    .withMessage("cardioAssessment phải là object")
+    .bail()
+    .custom(validateMetricExercises),
 
   body("overallPhysicalLevel")
     .optional()
@@ -2043,6 +2108,12 @@ export const validateReviewTestPermission = [
 
 export const validateGenerateResultPrediction = [
   param("id").isMongoId().withMessage("ID khách hàng F1 không hợp lệ"),
+  body("customStage")
+    .optional({ nullable: true })
+    .custom((value) => {
+      normalizeCustomStage(value);
+      return true;
+    }),
   body("requestId")
     .isUUID(4)
     .withMessage("requestId phải là UUID v4"),
@@ -2696,14 +2767,17 @@ export const validateDepositPolicyUpdate = [
       !value ||
       typeof value !== "object" ||
       Array.isArray(value) ||
-      Object.keys(value).length !== 1 ||
-      !Object.hasOwn(value, "rates")
+      !Object.hasOwn(value, "rates") ||
+      Object.keys(value).some((key) => !["rates", "thresholds", "labels"].includes(key))
     ) {
       throw new Error("Payload chính sách nạp tiền không hợp lệ");
     }
 
-    const validation = validateDepositBonusRates(value.rates);
-    if (!validation.valid) throw new Error(validation.message);
+    const checks = [validateDepositBonusRates(value.rates)];
+    if (Object.hasOwn(value, "thresholds")) checks.push(validateDepositTierMinimums(value.thresholds));
+    if (Object.hasOwn(value, "labels")) checks.push(validateDepositTierLabels(value.labels));
+    const failed = checks.find((check) => !check.valid);
+    if (failed) throw new Error(failed.message);
     return true;
   }),
   handleValidationErrors,
@@ -2738,4 +2812,74 @@ export const validateBodyAssessmentPublish = [
 ];
 export const validateBodyAssessmentDelete = [
   body().custom(assertBodyAssessmentDelete), assessmentValidationErrors,
+];
+
+// ============================================================================
+// F1 PHASE REVIEW (đánh giá cuối giai đoạn)
+// ============================================================================
+export const validateSavePhaseReview = [
+  param("id").isMongoId().withMessage("ID khách hàng F1 không hợp lệ"),
+  param("stageOrder")
+    .isInt({ min: 1, max: 20 })
+    .withMessage("Giai đoạn không hợp lệ"),
+  body().custom((value) => {
+    normalizePhaseReviewInput(value);
+    return true;
+  }),
+  handleValidationErrors,
+];
+
+export const validateStagePhotoUpload = [
+  param("id").isMongoId().withMessage("ID khách hàng F1 không hợp lệ"),
+  param("stageOrder").isInt({ min: 2, max: 20 }).withMessage("Giai đoạn không hợp lệ"),
+  body("side").isIn(["front", "side"]).withMessage("Mặt ảnh không hợp lệ"),
+  handleValidationErrors,
+];
+
+export const validateGenerateStageVisual = [
+  param("id").isMongoId().withMessage("ID khách hàng F1 không hợp lệ"),
+  param("stageOrder").isInt({ min: 2, max: 20 }).withMessage("Giai đoạn không hợp lệ"),
+  body("requestId").isUUID(4).withMessage("requestId phải là UUID v4"),
+  body("forceRegenerate").optional().isBoolean().withMessage("forceRegenerate phải là boolean"),
+  handleValidationErrors,
+];
+
+export const validateStageProfile = [
+  param("id").isMongoId().withMessage("ID khách hàng F1 không hợp lệ"),
+  param("stageOrder").isInt({ min: 1, max: 20 }).withMessage("Giai đoạn không hợp lệ"),
+  body().custom((value) => {
+    normalizeProfile(value);
+    return true;
+  }),
+  handleValidationErrors,
+];
+
+const customStageBody = body("customStage").custom((value) => {
+  normalizeCustomStage(value);
+  return true;
+});
+
+export const validatePreviewStageDesign = [
+  param("id").isMongoId().withMessage("ID khách hàng F1 không hợp lệ"),
+  customStageBody,
+  handleValidationErrors,
+];
+
+export const validateNextStageDesign = [
+  param("id").isMongoId().withMessage("ID khách hàng F1 không hợp lệ"),
+  param("stageOrder").isInt({ min: 1, max: 20 }).withMessage("Giai đoạn không hợp lệ"),
+  customStageBody,
+  handleValidationErrors,
+];
+
+export const validateDeleteStage = [
+  param("id").isMongoId().withMessage("ID khách hàng F1 không hợp lệ"),
+  param("stageOrder").isInt({ min: 1, max: 20 }).withMessage("Giai đoạn không hợp lệ"),
+  handleValidationErrors,
+];
+
+export const validateSwitchPlanMode = [
+  param("id").isMongoId().withMessage("ID khách hàng F1 không hợp lệ"),
+  body("mode").isIn(["system", "trainer"]).withMessage("Cách dựng giai đoạn không hợp lệ"),
+  handleValidationErrors,
 ];

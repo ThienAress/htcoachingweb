@@ -32,6 +32,9 @@ import { getAllOrders } from "../../services/orderCollection.service";
 import { getAdminTrainers } from "../../services/trainer.service";
 import CustomerStoryDetail from "../CustomerStoryDetail";
 import { useDebounce } from "../../hooks/useDebounce";
+import SelectField from "../../components/SelectField";
+import { useConfirmDialog } from "../../hooks/useConfirmDialog";
+import { getUserErrorMessage } from "../../utils/errorMessages";
 
 const getPreviewData = (form, API_ORIGIN) => {
   const getUrl = (url) => (url && url.startsWith("/uploads/") ? `${API_ORIGIN}${url}` : url);
@@ -212,6 +215,7 @@ const getPreviewImageUrl = (url) => {
 
 const CustomerStoryManagement = () => {
   const queryClient = useQueryClient();
+  const { confirm, dialog } = useConfirmDialog();
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState("");
   const [search, setSearch] = useState("");
@@ -295,7 +299,7 @@ const CustomerStoryManagement = () => {
       if (err.response?.status === 409 && err.response?.data?.existingStoryId) {
         setConfirmModal({ isOpen: true, existingStoryId: err.response.data.existingStoryId });
       } else {
-        toast.error(err.response?.data?.message || "Lỗi tạo câu chuyện");
+        toast.error(getUserErrorMessage(err, "Không thể tạo câu chuyện. Vui lòng thử lại."));
       }
     },
   });
@@ -321,7 +325,7 @@ const CustomerStoryManagement = () => {
       closeModal();
     },
     onError: (err) =>
-      toast.error(err.response?.data?.message || "Lỗi cập nhật câu chuyện"),
+      toast.error(getUserErrorMessage(err, "Không thể cập nhật câu chuyện. Vui lòng thử lại.")),
   });
 
   const statusMutation = useMutation({
@@ -332,7 +336,7 @@ const CustomerStoryManagement = () => {
       queryClient.invalidateQueries({ queryKey: ["public-customer-stories"] });
     },
     onError: (err) =>
-      toast.error(err.response?.data?.message || "Lỗi cập nhật trạng thái"),
+      toast.error(getUserErrorMessage(err, "Không thể cập nhật trạng thái. Vui lòng thử lại.")),
   });
 
   const deleteMutation = useMutation({
@@ -343,7 +347,7 @@ const CustomerStoryManagement = () => {
       queryClient.invalidateQueries({ queryKey: ["public-customer-stories"] });
     },
     onError: (err) =>
-      toast.error(err.response?.data?.message || "Lỗi xóa câu chuyện"),
+      toast.error(getUserErrorMessage(err, "Không thể xóa câu chuyện. Vui lòng thử lại.")),
   });
 
   const updateForm = (field, value) => {
@@ -368,7 +372,7 @@ const CustomerStoryManagement = () => {
       updateForm(field, imageUrl);
       toast.success("Upload ảnh thành công");
     } catch (err) {
-      toast.error(err.response?.data?.message || "Lỗi upload ảnh");
+      toast.error(getUserErrorMessage(err, "Không thể tải lên ảnh. Vui lòng thử lại."));
     } finally {
       setUploadingField("");
     }
@@ -469,7 +473,7 @@ const CustomerStoryManagement = () => {
       updateMilestone(index, field, imageUrl);
       toast.success("Upload ảnh thành công");
     } catch (err) {
-      toast.error(err.response?.data?.message || "Lỗi upload ảnh");
+      toast.error(getUserErrorMessage(err, "Không thể tải lên ảnh. Vui lòng thử lại."));
     } finally {
       setUploadingField("");
     }
@@ -495,7 +499,7 @@ const CustomerStoryManagement = () => {
       }
       createMutation.mutate(payload);
     } catch (err) {
-      toast.error(err.message);
+      toast.error(getUserErrorMessage(err, "Dữ liệu chưa hợp lệ. Vui lòng kiểm tra lại."));
     }
   };
 
@@ -520,8 +524,8 @@ const CustomerStoryManagement = () => {
     });
   };
 
-  const handleDelete = (story) => {
-    if (!window.confirm(`Xóa câu chuyện của ${story.name}?`)) return;
+  const handleDelete = async (story) => {
+    if (!await confirm({ title: "Xóa câu chuyện", message: `Xóa câu chuyện của ${story.name}?`, confirmLabel: "Xóa", tone: "danger" })) return;
     deleteMutation.mutate(story._id);
   };
 
@@ -615,7 +619,7 @@ const CustomerStoryManagement = () => {
                       const imageUrl = res.data?.data?.url;
                       if (imageUrl) uploaded.push(imageUrl);
                     } catch (err) {
-                      toast.error(`Lỗi upload ${file.name}: ${err.response?.data?.message || "Lỗi không xác định"}`);
+                      toast.error(`Không tải lên được ${file.name}. ${getUserErrorMessage(err, "Vui lòng thử lại.")}`);
                     }
                   }
                   if (uploaded.length) {
@@ -701,7 +705,7 @@ const CustomerStoryManagement = () => {
                       const imageUrl = res.data?.data?.url;
                       if (imageUrl) uploaded.push(imageUrl);
                     } catch (err) {
-                      toast.error(`Lỗi upload ${file.name}: ${err.response?.data?.message || "Lỗi không xác định"}`);
+                      toast.error(`Không tải lên được ${file.name}. ${getUserErrorMessage(err, "Vui lòng thử lại.")}`);
                     }
                   }
                   if (uploaded.length) {
@@ -766,7 +770,7 @@ const CustomerStoryManagement = () => {
             className={`${inputClass} pl-9`}
           />
         </div>
-        <select
+        <SelectField
           value={status}
           onChange={(event) => {
             setStatus(event.target.value);
@@ -777,7 +781,7 @@ const CustomerStoryManagement = () => {
           <option value="">Tất cả trạng thái</option>
           <option value="draft">Draft</option>
           <option value="published">Published</option>
-        </select>
+        </SelectField>
       </div>
 
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
@@ -982,7 +986,7 @@ const CustomerStoryManagement = () => {
                 />
                 <div className="grid grid-cols-2 gap-3">
                   <Field label="Chọn khách hàng">
-                    <select
+                    <SelectField
                       className={inputClass}
                       value={form.orderId || ""}
                       onChange={async (e) => {
@@ -1024,10 +1028,10 @@ const CustomerStoryManagement = () => {
                           {order.name} - {order.package}
                         </option>
                       ))}
-                    </select>
+                    </SelectField>
                   </Field>
                   <Field label="Chọn Huấn luyện viên">
-                    <select
+                    <SelectField
                       className={inputClass}
                       value={form.trainerId || ""}
                       onChange={(e) => updateForm("trainerId", e.target.value)}
@@ -1038,7 +1042,7 @@ const CustomerStoryManagement = () => {
                           {trainer.name}
                         </option>
                       ))}
-                    </select>
+                    </SelectField>
                   </Field>
                 </div>
                 <Field label="Tên khách hàng">
@@ -1380,7 +1384,7 @@ const CustomerStoryManagement = () => {
                 />
                 <div className="grid gap-3 sm:grid-cols-3">
                   <Field label="Trạng thái">
-                    <select
+                    <SelectField
                       className={inputClass}
                       value={form.status}
                       onChange={(event) =>
@@ -1389,7 +1393,7 @@ const CustomerStoryManagement = () => {
                     >
                       <option value="draft">Draft</option>
                       <option value="published">Published</option>
-                    </select>
+                    </SelectField>
                   </Field>
                   <Field label="Thứ tự">
                     <input
@@ -1486,6 +1490,7 @@ const CustomerStoryManagement = () => {
           </div>
         </div>
       )}
+      {dialog}
     </div>
   );
 };

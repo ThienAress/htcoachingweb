@@ -1,5 +1,7 @@
 // OverheadSquatSection.jsx
-import { Eye, Move, Target } from "lucide-react";
+import { Eye, Move } from "lucide-react";
+
+export const NO_COMPENSATION_LABEL = "Không có biểu hiện tư thế sai";
 
 const ohsaOptionGroups = {
   anterior: {
@@ -40,7 +42,9 @@ const CheckboxGroup = ({
   helper,
   values = [],
   options = [],
+  normal = false,
   onToggle,
+  onToggleNormal,
 }) => {
   return (
     <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md">
@@ -67,20 +71,31 @@ const CheckboxGroup = ({
               <span className="text-sm text-slate-700">{item.label}</span>
             </label>
           ))}
+          <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-slate-100 bg-white px-4 py-3 transition hover:bg-slate-50">
+            <input
+              type="checkbox"
+              checked={normal}
+              onChange={onToggleNormal}
+              className="h-4 w-4 rounded border-slate-300 text-orange-600 focus:ring-orange-500"
+            />
+            <span className="text-sm text-slate-700">
+              {NO_COMPENSATION_LABEL}
+            </span>
+          </label>
         </div>
       </div>
     </div>
   );
 };
 
-const OverheadSquatSection = ({ value, onToggle }) => {
+const OverheadSquatSection = ({ value, onToggle, onToggleNormal }) => {
   return (
     <div className="space-y-5">
       <div className="flex items-center gap-2 border-b border-orange-200 pb-3">
         <Move size={20} className="text-orange-600" />
         <div>
           <h3 className="text-xl font-bold text-slate-800">
-            Đánh giá squat tay qua đầu
+            Đánh giá squat tay qua đầu (Overhead Squat)
           </h3>
           <p className="text-sm text-slate-500">
             Chọn các biểu hiện quan sát được theo từng góc nhìn.
@@ -89,27 +104,18 @@ const OverheadSquatSection = ({ value, onToggle }) => {
       </div>
 
       <div className="grid gap-5 xl:grid-cols-3">
-        <CheckboxGroup
-          title={ohsaOptionGroups.anterior.title}
-          helper={ohsaOptionGroups.anterior.helper}
-          values={value.anterior}
-          options={ohsaOptionGroups.anterior.options}
-          onToggle={(item) => onToggle("anterior", item)}
-        />
-        <CheckboxGroup
-          title={ohsaOptionGroups.lateral.title}
-          helper={ohsaOptionGroups.lateral.helper}
-          values={value.lateral}
-          options={ohsaOptionGroups.lateral.options}
-          onToggle={(item) => onToggle("lateral", item)}
-        />
-        <CheckboxGroup
-          title={ohsaOptionGroups.posterior.title}
-          helper={ohsaOptionGroups.posterior.helper}
-          values={value.posterior}
-          options={ohsaOptionGroups.posterior.options}
-          onToggle={(item) => onToggle("posterior", item)}
-        />
+        {["anterior", "lateral", "posterior"].map((view) => (
+          <CheckboxGroup
+            key={view}
+            title={ohsaOptionGroups[view].title}
+            helper={ohsaOptionGroups[view].helper}
+            values={value[view]}
+            options={ohsaOptionGroups[view].options}
+            normal={Boolean(value[`${view}Normal`])}
+            onToggle={(item) => onToggle(view, item)}
+            onToggleNormal={() => onToggleNormal(view)}
+          />
+        ))}
       </div>
     </div>
   );

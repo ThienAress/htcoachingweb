@@ -89,7 +89,7 @@ api.interceptors.response.use(
       (apiBasePath && requestPath === `${apiBasePath}${route}`);
     const isRefreshRequest = isRoute("/auth/refresh");
     const isLogoutRequest = isRoute("/auth/logout");
-    const isSessionCheck = isRoute("/user/me");
+    const isSessionCheck = isRoute("/users/me");
 
     // Không refresh cho logout / refresh itself
     if (status === 401 && !originalRequest._retry) {

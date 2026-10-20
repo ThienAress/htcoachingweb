@@ -83,7 +83,7 @@ describe("Coaching upload security boundaries", () => {
     const response = await withAuth(
       request(app)
         .post(
-          "/api/coaching/my-plans/2026-08-28/exercises/507f1f77bcf86cd799439011/feedback-video",
+          "/api/coaching/me/plans/2026-08-28/exercises/507f1f77bcf86cd799439011/feedback-video",
         )
         .attach("video", Buffer.from("private-video"), {
           filename: "feedback.mp4",
@@ -117,7 +117,7 @@ describe("Coaching upload security boundaries", () => {
     const response = await withAuth(
       request(app)
         .post(
-          `/api/coaching/my-plans/${plan.dateString}/exercises/${exerciseId}/feedback-video`,
+          `/api/coaching/me/plans/${plan.dateString}/exercises/${exerciseId}/feedback-video`,
         )
         .attach("video", Buffer.from("private-video"), {
           filename: "feedback.mp4",
@@ -157,7 +157,7 @@ describe("Coaching upload security boundaries", () => {
     });
     const response = await withAuth(
       request(app)
-        .post("/api/coaching/my-plans/upload-feedback-video")
+        .post("/api/coaching/me/plans/feedback-videos")
         .attach("video", Buffer.from("must-not-be-ingested"), {
           filename: "feedback.mp4",
           contentType: "video/mp4",

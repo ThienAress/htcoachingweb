@@ -13,14 +13,16 @@ import StepLifestyleNutrition from "./intake/StepLifestyleNutrition";
 import StepBodyMetrics from "./intake/StepBodyMetrics";
 import StepTrainingGoal from "./intake/StepTrainingGoal";
 import StepPostureMedia from "./intake/StepPostureMedia";
+import { SelectControlContext } from "./intake/selectControlContext";
+import { getUserErrorMessage } from "../../utils/errorMessages";
 
 const intakeSteps = [
   "Thông tin",
   "Sức khỏe",
-  "Lifestyle",
+  "Lối sống",
   "Chỉ số cơ thể",
   "Tập luyện & mục tiêu",
-  "Ảnh posture",
+  "Ảnh tư thế",
 ];
 
 const isBrowserFile = (value) => typeof File !== "undefined" && value instanceof File;
@@ -96,7 +98,7 @@ const F1IntakeWizard = ({ customer, onBack, onSubmitted }) => {
         breakDuration: "",
         primaryGoal: "",
         targetWeightKg: "",
-        targetDeadline: "",
+        targetTimeframe: "",
       },
       postureMedia: {
         frontImage: null,
@@ -143,7 +145,7 @@ const F1IntakeWizard = ({ customer, onBack, onSubmitted }) => {
           breakDuration: latestIntake.trainingProfileGoal?.breakDuration || "",
           primaryGoal: latestIntake.trainingProfileGoal?.primaryGoal || "",
           targetWeightKg: latestIntake.trainingProfileGoal?.targetWeightKg ?? "",
-          targetDeadline: latestIntake.trainingProfileGoal?.targetDeadline ? String(latestIntake.trainingProfileGoal.targetDeadline).slice(0, 10) : "",
+          targetTimeframe: latestIntake.trainingProfileGoal?.targetTimeframe || "",
         },
         consent: latestIntake.consent || { allowDataStorage: true, allowMediaStorage: true, allowAiAnalysis: true },
         postureMedia: { frontImage: null, backImage: null, sideImage: null } // We do not have files from backend
@@ -217,7 +219,7 @@ const F1IntakeWizard = ({ customer, onBack, onSubmitted }) => {
       {
         onSuccess: () => toast.success("Đã lưu nháp khảo sát"),
         onError: (err) =>
-          toast.error(err?.response?.data?.message || "Lưu nháp thất bại"),
+          toast.error(getUserErrorMessage(err, "Lưu nháp thất bại")),
       }
     );
   };
@@ -314,11 +316,10 @@ const F1IntakeWizard = ({ customer, onBack, onSubmitted }) => {
     } catch (error) {
       toast.error(
         error?.code === "ERR_CANCELED"
-          ? "Đã hủy tải ảnh. Intake vẫn được lưu và có thể tải ảnh lại."
+          ? "Đã hủy tải ảnh. Kết quả khảo sát vẫn được lưu và có thể tải ảnh lại."
           : intakeSubmitted
-            ? error?.response?.data?.message ||
-              "Intake đã lưu nhưng tải ảnh thất bại. Bạn có thể thử lại."
-            : error?.response?.data?.message || "Submit intake thất bại",
+            ? getUserErrorMessage(error, "Kết quả khảo sát đã lưu nhưng tải ảnh thất bại. Bạn có thể thử lại.")
+            : getUserErrorMessage(error, "Lưu kết quả khảo sát thất bại"),
       );
     } finally {
       uploadControllerRef.current = null;
@@ -415,7 +416,9 @@ const F1IntakeWizard = ({ customer, onBack, onSubmitted }) => {
               data-testid="f1-intake-form"
               onSubmit={handleSubmit(onSubmit)}
             >
-              {renderStep()}
+              <SelectControlContext.Provider value={control}>
+                {renderStep()}
+              </SelectControlContext.Provider>
 
               <div className="mt-8 flex flex-wrap justify-between gap-3">
                 <button

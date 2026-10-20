@@ -30,6 +30,7 @@ import {
   accountOrdersQueryOptions,
   accountTransactionsQueryOptions,
 } from "../../queries/walletAccount.queries";
+import { getUserErrorMessage } from "../../utils/errorMessages";
 
 const EMPTY_ORDERS = {
   trainerSubscriptions: [],
@@ -113,7 +114,7 @@ const AccountQueryState = ({
 function AccountPage() {
   const { t } = useTranslation("account");
   const navigate = useNavigate();
-  const { user, refetch } = useAuth();
+  const { user, loading, refetch } = useAuth();
 
   const getAvatarUrl = useCallback((avatar) => {
     if (!avatar) return "https://i.pravatar.cc/100";
@@ -177,6 +178,7 @@ function AccountPage() {
 
   // Authenticate and sync local profile form state.
   useEffect(() => {
+    if (loading) return;
     if (!user) {
       navigate("/login");
       return;
@@ -187,7 +189,7 @@ function AccountPage() {
       phone: user.phone || "",
       address: user.address || "",
     });
-  }, [user, navigate]);
+  }, [user, loading, navigate]);
 
   // Handle single field save — Optimistic UI
   const handleSaveField = async (field) => {
@@ -217,12 +219,12 @@ function AccountPage() {
       } else {
         // Rollback
         setEditValues((prev) => ({ ...prev, [field]: previousValue || "" }));
-        toast.error(response.data.message || t("profile.errors.update_failed"));
+        toast.error(t("profile.errors.update_failed"));
       }
     } catch (err) {
       // Rollback
       setEditValues((prev) => ({ ...prev, [field]: previousValue || "" }));
-      toast.error(err.response?.data?.message || t("profile.errors.update_failed"));
+      toast.error(getUserErrorMessage(err, t("profile.errors.update_failed")));
     } finally {
       setUpdating(false);
     }
@@ -254,10 +256,10 @@ function AccountPage() {
         await refetch();
         setEditingField(null);
       } else {
-        toast.error(response.data.message || t("profile.errors.upload_failed"));
+        toast.error(t("profile.errors.upload_failed"));
       }
     } catch (err) {
-      toast.error(err.response?.data?.message || t("profile.errors.upload_failed"));
+      toast.error(getUserErrorMessage(err, t("profile.errors.upload_failed")));
     } finally {
       setUploading(false);
       // Cleanup preview URL sau khi refetch xong (ảnh thật đã có)

@@ -105,7 +105,7 @@ export const waitForFailedRecoveryReceipt = async ({
 };
 
 const send = async (page, text) => {
-  const composer = page.getByPlaceholder("Hỏi về tập luyện, dinh dưỡng...");
+  const composer = page.getByPlaceholder("Nhắn tin cho HT Assistant");
   await composer.fill(text);
   await page.getByRole("button", { name: "Gửi tin nhắn" }).click();
 };
@@ -205,8 +205,19 @@ export const runBrowserAcceptance = async ({
 
     await send(page, fixture.question);
     const citation = page.locator(`a[href="${sourceUrl}"]`).last();
-    await waitForBrowserCheckpoint(citation, { state: "visible", timeout: 90_000 },
-      "STAGING_AI_INITIAL_CITATION_NOT_VISIBLE");
+    try {
+      await citation.waitFor({ state: "visible", timeout: 90_000 });
+    } catch (error) {
+      // Say which layer lost the citation (no assistant, KB entry unused, URL missing from the
+      // answer, or not rendered) instead of one generic code; fall back to the generic code.
+      const diagnosed = await classifyMissingCitation({
+        error, db, ownerObjectId, fixtureId: fixture.id, sourceUrl,
+      });
+      if (diagnosed !== error) throw diagnosed;
+      const generic = new Error("Staging browser checkpoint did not become visible");
+      generic.code = "STAGING_AI_INITIAL_CITATION_NOT_VISIBLE";
+      throw generic;
+    }
     const captureUiEvidence = async (expectedQuestion, cursor = 0, {
       requireSource = true,
       timeoutMs = 10_000,
@@ -277,7 +288,7 @@ export const runBrowserAcceptance = async ({
     await waitForStableAssistantText(assistantBodies, prefix);
     const stoppedBody = assistantBodies.filter({ hasText: prefix }).last();
     await page.getByRole("button", { name: "Dừng phản hồi" }).click();
-    const composer = page.getByPlaceholder("Hỏi về tập luyện, dinh dưỡng...");
+    const composer = page.getByPlaceholder("Nhắn tin cho HT Assistant");
     await composer.waitFor({ state: "visible" });
     assert(await composer.isEnabled(), "Composer did not recover after Stop");
     await new Promise((resolve) => setTimeout(resolve, 1_000));

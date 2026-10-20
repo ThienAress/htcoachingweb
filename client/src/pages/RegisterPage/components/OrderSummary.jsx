@@ -7,6 +7,7 @@ function OrderSummary({
   isLoggedIn,
   hasExistingBooking,
   discountCode,
+  promoPercent,
   gifts,
   onCopyCode,
 }) {
@@ -61,7 +62,7 @@ function OrderSummary({
             </p>
           </div>
 
-          {isLoggedIn && !hasExistingBooking && (
+          {isLoggedIn && promoPercent > 0 && !hasExistingBooking && (
             <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-4 border border-green-200">
               <div className="flex items-center gap-3 mb-3">
                 <div className="bg-green-500 rounded-full p-1.5">
@@ -69,7 +70,7 @@ function OrderSummary({
                 </div>
                 <div>
                   <p className="font-bold text-green-700">
-                    {t("order.first_time_discount")}
+                    {t("order.first_time_discount", { percent: promoPercent })}
                   </p>
                   <p className="text-xs text-green-600">
                     {t("order.logged_in_apply")}
@@ -96,13 +97,13 @@ function OrderSummary({
             </div>
           )}
 
-          {isLoggedIn && hasExistingBooking && (
+          {isLoggedIn && promoPercent > 0 && hasExistingBooking && (
             <div className="bg-gray-100 rounded-xl p-4 border border-gray-300 text-center">
               <p className="text-gray-600 text-sm">
-                {t("order.existing_discount")}
+                {t("order.existing_discount", { percent: promoPercent })}
               </p>
               <p className="text-gray-500 text-xs mt-1">
-                {t("order.existing_discount_desc")}
+                {t("order.existing_discount_desc", { percent: promoPercent })}
               </p>
             </div>
           )}

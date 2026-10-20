@@ -36,7 +36,8 @@ router.get(
   requireTrainerAccess,
   getCheckinOrderOptions,
 );
-router.put(
+// Duyệt đơn là hành động nên dùng POST.
+router.post(
   "/:id/approve",
   protect,
   csrfProtection,

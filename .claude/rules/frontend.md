@@ -22,6 +22,12 @@ paths:
   URL public kebab-case tiếng Việt không dấu (`/ket-qua-khach-hang`).
 - Page public: theo `.claude/rules/seo.md`. Sửa UI: dùng skill `ui-quality`.
 
+## Ô chọn và hộp thoại
+
+- Không dùng `<select>`, `window.confirm` hoặc `alert` gốc của trình duyệt: danh sách thả xuống không bo góc, hộp thoại không theo giao diện.
+  Dùng `SelectField`/`RoundedSelect` và `useConfirmDialog` (`client/src/hooks/useConfirmDialog.jsx`).
+- Cổng `client/src/__tests__/nativeDialogs.contract.test.js` chặn file mới và chặn số lần tăng; file cũ nằm trong danh sách nợ, chuyển xong thì xóa khỏi danh sách.
+
 ## Overflow và scrollbar
 
 - Vùng `overflow-auto|scroll|x-auto|y-auto` dùng shared scrollbar tokens trong `client/src/index.css`;
@@ -51,6 +57,14 @@ paths:
 - Không toast cho autosave, polling, background refresh, read-on-navigation hoặc optimistic toggle đã phản ánh
   trên UI. Chuỗi request chỉ toast một lần cho kết quả cuối.
 - Chỉ có một `ToastContainer` global (trong `App.jsx`); không mount container thứ hai.
+
+## Thông báo lỗi cho người dùng
+
+- Lỗi hiển thị cho khách hàng và HLV đi qua `getUserErrorMessage(error, "câu thay thế cụ thể")` (`client/src/utils/errorMessages.js`); không đưa
+  `error.message` hay `response.data.message` thô vào toast, banner, trang lỗi hoặc `setError`.
+- Câu lỗi nói điều gì đã xảy ra và bước tiếp theo ("Không lưu được bài viết. Vui lòng thử lại."), không có từ server, API, token, timeout, mã HTTP,
+  "đồng bộ", "cơ sở dữ liệu". Chi tiết kỹ thuật chỉ ở console hoặc log máy chủ.
+- Cổng `client/src/__tests__/errorMessages.contract.test.js` chặn thêm mới; file cũ nằm trong `errorMessageDebt.json`, chuyển xong thì xóa khỏi danh sách.
 
 ## Hiển thị số thập phân
 

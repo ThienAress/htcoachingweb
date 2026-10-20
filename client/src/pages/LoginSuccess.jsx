@@ -5,6 +5,7 @@ import { useAuth } from "../context/AuthContext";
 import api from "../utils/api";
 import SEO from "../components/SEO";
 import { consumeLoginRedirect } from "../utils/loginRedirect";
+import { getUserErrorMessage } from "../utils/errorMessages";
 
 const LoginSuccess = () => {
   const navigate = useNavigate();
@@ -13,7 +14,7 @@ const LoginSuccess = () => {
   useEffect(() => {
     const updateUser = async () => {
       try {
-        const res = await api.get("/user/me");
+        const res = await api.get("/users/me");
 
         if (res.data?.email) {
           await refetch();
@@ -34,9 +35,8 @@ const LoginSuccess = () => {
         }
       } catch (err) {
         toast.error(
-          err?.response?.data?.message ||
-            err.message ||
-            "Đăng nhập Google thất bại",
+          getUserErrorMessage(err, err.message ||
+            "Đăng nhập Google thất bại"),
         );
         navigate("/login", { replace: true });
       }

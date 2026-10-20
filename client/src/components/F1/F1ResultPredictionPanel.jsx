@@ -1,5 +1,6 @@
 // F1ResultPredictionPanel.jsx
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
   RefreshCcw,
@@ -8,24 +9,52 @@ import {
   Image as ImageIcon,
   Sparkles,
   Layers,
+  Lock,
+  Pencil,
+  PencilRuler,
+  Plus,
+  Trash2,
 } from "lucide-react";
+import { useConfirmDialog } from "../../hooks/useConfirmDialog";
 import {
   generateResultPrediction,
   getLatestResultPrediction,
   generateResultPredictionStageImages,
+  getPhaseReviews,
+  previewStageDesign,
+  previewNextStageDesign,
+  saveNextStageDesign,
+  deleteLatestStage,
+  switchPlanMode,
 } from "../../services/f1Customer.service";
+import { phaseReviewsQueryKey } from "../../utils/f1PhaseReview";
 import { toast } from "react-toastify";
 import { resolveMediaUrl } from "../../utils/mediaUrl";
 
 import F1NasmPyramid from "./F1NasmPyramid";
+import F1WeeklyScheduleView from "./stageDesign/F1WeeklyScheduleView";
+import {
+  PHASE_EXPLANATIONS,
+  PHASE_NAMES,
+  buildStageTabs,
+  getRoadmapIntro,
+  translateLevelTitle,
+  translateTrainingFocus,
+} from "../../constants/f1Phases";
+import { getUserErrorMessage } from "../../utils/errorMessages";
 
-const PHASE_LABELS = {
-  phase_1: "Phase 1 - Stabilization Endurance",
-  phase_2: "Phase 2 - Strength Endurance",
-  phase_3: "Phase 3 - Hypertrophy",
-  phase_4: "Phase 4 - Maximal Strength",
-  phase_5: "Phase 5 - Power",
-};
+const F1PhaseReviewDialog = lazy(
+  () => import("./phaseReview/F1PhaseReviewDialog"),
+);
+const F1PredictionModeDialog = lazy(
+  () => import("./stageDesign/F1PredictionModeDialog"),
+);
+const F1StageDesignDialog = lazy(
+  () => import("./stageDesign/F1StageDesignDialog"),
+);
+const F1StagePhotoSection = lazy(
+  () => import("./phaseReview/F1StagePhotoSection"),
+);
 
 const GOAL_LABELS = {
   fat_loss: "Giảm mỡ",
@@ -41,25 +70,8 @@ const PHYSICAL_LEVEL_LABELS = {
   good: "Tốt",
 };
 
-const TRAINING_FOCUS_LABELS = {
-  energy_expenditure: "Tăng tiêu hao năng lượng",
-  cardio_base_building: "Xây nền tim mạch",
-  strength_progression: "Tăng sức mạnh theo từng giai đoạn",
-  movement_quality_under_load: "Tập nặng hơn nhưng vẫn giữ form chuẩn",
-  lower_body_strength: "Tăng sức mạnh thân dưới",
-  core_strength: "Tăng sức mạnh core",
-  muscular_endurance: "Cải thiện sức bền cơ",
-  pattern_retraining: "Chỉnh lại pattern vận động",
-  general_foundation: "Xây nền thể lực tổng quát",
-  movement_foundation: "Xây nền chuyển động",
-  stability_training: "Tăng khả năng ổn định cơ thể",
-  core_control: "Cải thiện kiểm soát core",
-};
-
 const MAX_ATTEMPTS_FALLBACK = 3;
 
-const translateTrainingFocus = (items = []) =>
-  items.map((item) => TRAINING_FOCUS_LABELS[item] || item);
 const translateValue = (value, map) => (value ? map[value] || value : "--");
 
 const SectionHeading = ({ title, subtitle, actions = null }) => (
@@ -98,31 +110,108 @@ const BulletList = ({ items = [], emptyText = "Chưa có dữ liệu" }) => {
   );
 };
 
-const StageTabs = ({ stages = [], selectedKey, onSelect }) => (
+// Cuối hàng tab luôn có "Thêm giai đoạn" và nút bút để bật chỉnh sửa. Khi chỉnh sửa, chỉ giai đoạn mới nhất
+// (từ giai đoạn 2) sửa hoặc xoá được; các giai đoạn trước bị khoá để lộ trình đã đi qua không bị đổi.
+const StageTabs = ({
+  tabs = [],
+  selectedKey,
+  onSelect,
+  canEdit = false,
+  editMode = false,
+  editableOrder = 0,
+  onToggleEdit,
+  onEdit,
+  onDelete,
+  onAdd,
+  addDisabled = false,
+}) => (
   <div className="rounded-xl border border-slate-200 bg-white p-2">
-    <div className="flex flex-wrap gap-2">
-      {stages.map((stage) => {
-        const active = stage.phaseKey === selectedKey;
+    <div className="flex flex-wrap items-center gap-2" role="tablist">
+      {tabs.map((tab) => {
+        const active = tab.key === selectedKey;
+        const showEdit = editMode && tab.stageOrder >= 2;
+        const editable = tab.stageOrder === editableOrder;
         return (
-          <button
-            key={stage.phaseKey}
-            type="button"
-            onClick={() => onSelect(stage.phaseKey)}
-            className={`rounded-lg px-4 py-2.5 text-sm font-semibold transition-all ${
-              active
-                ? "bg-gradient-to-r from-orange-600 to-orange-500 text-white shadow-md"
-                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-            }`}
-          >
-            Giai đoạn {stage.stageOrder}: {stage.phaseTitle}
-          </button>
+          <div key={tab.key} className="inline-flex items-center gap-1">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={active}
+              onClick={() => onSelect(tab.key)}
+              className={`inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors ${
+                active
+                  ? "bg-gradient-to-r from-orange-600 to-orange-500 text-white shadow-md"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+              }`}
+            >
+              {tab.label}
+            </button>
+            {showEdit &&
+              (editable ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => onEdit(tab.stageOrder)}
+                    aria-label={`Sửa giai đoạn ${tab.stageOrder}`}
+                    title="Sửa kết quả, mục tiêu hoặc nội dung giai đoạn"
+                    className="rounded-lg border border-orange-200 bg-orange-50 p-2 text-orange-700 transition-colors hover:bg-orange-100"
+                  >
+                    <Pencil size={14} aria-hidden="true" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onDelete(tab.stageOrder)}
+                    aria-label={`Xoá giai đoạn ${tab.stageOrder}`}
+                    title="Xoá giai đoạn"
+                    className="rounded-lg border border-red-200 bg-red-50 p-2 text-red-600 transition-colors hover:bg-red-100"
+                  >
+                    <Trash2 size={14} aria-hidden="true" />
+                  </button>
+                </>
+              ) : (
+                <span
+                  title="Đã khoá vì giai đoạn sau đã mở"
+                  className="rounded-lg border border-slate-200 bg-slate-50 p-2 text-slate-400"
+                >
+                  <Lock size={14} aria-hidden="true" />
+                  <span className="sr-only">Đã khoá</span>
+                </span>
+              ))}
+          </div>
         );
       })}
+      <div className="ml-auto flex items-center gap-2">
+        <button
+          type="button"
+          onClick={onAdd}
+          disabled={addDisabled}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-orange-200 bg-orange-50 px-3 py-2 text-xs font-semibold text-orange-800 transition-colors hover:bg-orange-100 disabled:opacity-60"
+        >
+          <Plus size={14} aria-hidden="true" />
+          Thêm giai đoạn
+        </button>
+        {canEdit && (
+          <button
+            type="button"
+            onClick={onToggleEdit}
+            aria-pressed={editMode}
+            aria-label={editMode ? "Xong chỉnh sửa" : "Chỉnh sửa giai đoạn"}
+            title={editMode ? "Xong" : "Chỉnh sửa giai đoạn"}
+            className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-2 text-xs font-medium transition-colors ${
+              editMode
+                ? "border-orange-300 bg-orange-50 text-orange-800"
+                : "border-slate-200 text-slate-600 hover:bg-slate-50"
+            }`}
+          >
+            {editMode ? "Xong" : <Pencil size={14} aria-hidden="true" />}
+          </button>
+        )}
+      </div>
     </div>
   </div>
 );
 
-const StageDetailCard = ({ stage }) => {
+const StageDetailCard = ({ stage, onShowFramework }) => {
   if (!stage) return null;
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -135,19 +224,41 @@ const StageDetailCard = ({ stage }) => {
             <h3 className="text-xl font-bold text-slate-800">
               Giai đoạn {stage.stageOrder}: {stage.phaseTitle}
             </h3>
-            <p className="text-sm text-slate-500">{stage.levelTitle}</p>
+            <p className="text-sm text-slate-500">{translateLevelTitle(stage.levelTitle)}</p>
           </div>
         </div>
-        <div className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700">
-          <CalendarDays size={16} />
-          {stage.durationWeeks} tuần
+        <div className="flex flex-wrap items-center gap-2">
+          {stage.designedByTrainer && (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-violet-50 px-3 py-1.5 text-xs font-semibold text-violet-700">
+              <PencilRuler size={14} aria-hidden="true" />
+              HLV thiết kế
+            </span>
+          )}
+          <div className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700">
+            <CalendarDays size={16} />
+            {stage.durationWeeks} tuần
+          </div>
         </div>
       </div>
 
       <div className="mt-5 rounded-lg bg-orange-50 p-4">
         <p className="text-sm font-bold text-orange-800">
-          {PHASE_LABELS[stage.phaseKey] || stage.phaseTitle}
+          {PHASE_NAMES[stage.phaseKey] || stage.phaseTitle}
         </p>
+        {PHASE_EXPLANATIONS[stage.phaseKey] && (
+          <p className="mt-2 text-sm text-slate-700">
+            {PHASE_EXPLANATIONS[stage.phaseKey]}{" "}
+            {onShowFramework && (
+              <button
+                type="button"
+                onClick={onShowFramework}
+                className="font-semibold text-orange-700 underline underline-offset-2 hover:text-orange-800"
+              >
+                Xem vị trí giai đoạn này trong khung NASM ở trên.
+              </button>
+            )}
+          </p>
+        )}
         <p className="mt-2 text-sm text-slate-700">{stage.objective}</p>
       </div>
 
@@ -187,6 +298,12 @@ const StageDetailCard = ({ stage }) => {
         </div>
       </div>
 
+      {stage.weeklySchedule && (
+        <div className="mt-5">
+          <F1WeeklyScheduleView schedule={stage.weeklySchedule} />
+        </div>
+      )}
+
       <div className="mt-5 rounded-lg bg-slate-50 p-4">
         <p className="text-sm font-semibold text-slate-800">
           Vì sao lộ trình được xếp như vậy
@@ -197,15 +314,16 @@ const StageDetailCard = ({ stage }) => {
   );
 };
 
-const OutcomeComparisonTable = ({ outcomeTable }) => {
+const OutcomeComparisonTable = ({ outcomeTable, baselineTitle = "Ban đầu" }) => {
   const baseline = outcomeTable?.baseline || {};
   const checkpoints = outcomeTable?.phaseCheckpoints || [];
   const columns = [
-    { key: "baseline", title: "Ban đầu", data: baseline, isCurrent: true },
+    { key: "baseline", title: baselineTitle, data: baseline, isCurrent: true },
     ...checkpoints.map((item) => ({
       key: item.phaseKey,
       title: item.label,
       data: item.projected || {},
+      range: item.projectedRange || {},
       delta: item.deltaFromBaseline || {},
       summary: item.summary || "",
     })),
@@ -312,6 +430,12 @@ const OutcomeComparisonTable = ({ outcomeTable }) => {
                     <p className="font-bold text-slate-800">
                       {formatValue(rawValue, row.suffix, row.key)}
                     </p>
+                    {!col.isCurrent && col.range?.[row.key] && (
+                      <p className="mt-0.5 text-xs text-slate-500">
+                        khoảng {col.range[row.key].min} – {col.range[row.key].max}
+                        {row.suffix ? ` ${row.suffix}` : ""}
+                      </p>
+                    )}
                     {!col.isCurrent &&
                       rawDelta !== null &&
                       rawDelta !== undefined && (
@@ -334,6 +458,39 @@ const OutcomeComparisonTable = ({ outcomeTable }) => {
           ))}
         </tbody>
       </table>
+    </div>
+  );
+};
+
+const GoalProgressCard = ({ goalProgress }) => {
+  if (!goalProgress || !goalProgress.summary) return null;
+  const percent = goalProgress.achievedPercent;
+  const tone =
+    goalProgress.fitsTimeframe === false
+      ? "border-amber-200 bg-amber-50"
+      : "border-emerald-200 bg-emerald-50";
+  return (
+    <div className={`rounded-xl border p-5 ${tone}`}>
+      <p className="text-sm font-bold text-slate-800">
+        So với mục tiêu của khách
+      </p>
+      <div className="mt-3 grid gap-4 sm:grid-cols-3">
+        <InfoCard
+          label="Cân nặng mong muốn"
+          value={
+            goalProgress.targetWeightKg ? `${goalProgress.targetWeightKg} kg` : "—"
+          }
+        />
+        <InfoCard
+          label="Thời gian mong muốn"
+          value={goalProgress.timeframeText || "—"}
+        />
+        <InfoCard
+          label="Mức đạt cuối lộ trình"
+          value={percent === null || percent === undefined ? "—" : `${percent}%`}
+        />
+      </div>
+      <p className="mt-3 text-sm text-slate-700">{goalProgress.summary}</p>
     </div>
   );
 };
@@ -386,19 +543,19 @@ const VisualComparisonSection = ({
     <div className="space-y-5">
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <InfoCard
-          label="Ảnh before front"
+          label="Ảnh trước tập (mặt trước)"
           value={hasBeforeFront ? "Đã có" : "Chưa có"}
         />
         <InfoCard
-          label="Ảnh before side"
+          label="Ảnh trước tập (mặt bên)"
           value={hasBeforeSide ? "Đã có" : "Chưa có"}
         />
         <InfoCard
-          label="Ảnh after front"
+          label="Ảnh sau tập (mặt trước)"
           value={hasAfterFront ? "Đã có" : "Chưa có"}
         />
         <InfoCard
-          label="Ảnh after side"
+          label="Ảnh sau tập (mặt bên)"
           value={hasAfterSide ? "Đã có" : "Chưa có"}
         />
       </div>
@@ -410,7 +567,7 @@ const VisualComparisonSection = ({
             Mỗi lần tạo hoặc tạo lại ảnh AI đều có thể phát sinh chi phí.
           </p>
           <p className="mt-1 text-xs text-orange-600">
-            Đã dùng {attemptCount}/{MAX_ATTEMPTS_FALLBACK} lượt cho phase này.
+            Đã dùng {attemptCount}/{MAX_ATTEMPTS_FALLBACK} lượt cho giai đoạn này.
           </p>
         </div>
         <button
@@ -430,17 +587,17 @@ const VisualComparisonSection = ({
 
       <div className="grid gap-6 xl:grid-cols-2">
         <div className="space-y-4">
-          <h4 className="text-lg font-bold text-slate-800">Ảnh before</h4>
+          <h4 className="text-lg font-bold text-slate-800">Ảnh trước tập</h4>
           <div className="grid gap-4 md:grid-cols-2">
             <ImagePreviewCard
-              title="Before • Front"
+              title="Trước tập • Mặt trước"
               imageUrl={beforeImages?.frontUrl || ""}
-              emptyText="Chưa có ảnh before front từ intake"
+              emptyText="Chưa có ảnh trước tập (mặt trước) từ khảo sát"
             />
             <ImagePreviewCard
-              title="Before • Side"
+              title="Trước tập • Mặt bên"
               imageUrl={beforeImages?.sideUrl || ""}
-              emptyText="Chưa có ảnh before side từ intake"
+              emptyText="Chưa có ảnh trước tập (mặt bên) từ khảo sát"
             />
           </div>
         </div>
@@ -448,14 +605,14 @@ const VisualComparisonSection = ({
           <h4 className="text-lg font-bold text-slate-800">{afterLabel}</h4>
           <div className="grid gap-4 md:grid-cols-2">
             <ImagePreviewCard
-              title="After • Front"
+              title="Sau tập • Mặt trước"
               imageUrl={selectedVisualStage?.images?.frontUrl || ""}
-              emptyText="Chưa có ảnh after front"
+              emptyText="Chưa có ảnh sau tập (mặt trước)"
             />
             <ImagePreviewCard
-              title="After • Side"
+              title="Sau tập • Mặt bên"
               imageUrl={selectedVisualStage?.images?.sideUrl || ""}
-              emptyText="Chưa có ảnh after side"
+              emptyText="Chưa có ảnh sau tập (mặt bên)"
             />
           </div>
         </div>
@@ -465,6 +622,7 @@ const VisualComparisonSection = ({
 };
 
 const F1ResultPredictionPanel = ({ customer, onBack, onGenerated }) => {
+  const { confirm, dialog: confirmDialog } = useConfirmDialog();
   const [prediction, setPrediction] = useState(null);
   const [loadingLatest, setLoadingLatest] = useState(false);
   const [generating, setGenerating] = useState(false);
@@ -472,6 +630,16 @@ const F1ResultPredictionPanel = ({ customer, onBack, onGenerated }) => {
   const [generatingStageKey, setGeneratingStageKey] = useState("");
   const predictionRequestIdRef = useRef(crypto.randomUUID());
   const stageRequestIdsRef = useRef(new Map());
+  const frameworkRef = useRef(null);
+  const [openStage, setOpenStage] = useState(null);
+  const [editMode, setEditMode] = useState(false);
+  // Hộp chọn cách dựng giai đoạn, bảng HLV thiết kế và giai đoạn chờ thiết kế sau bước cập nhật mục tiêu.
+  const [modeDialog, setModeDialog] = useState(null);
+  const [designDialog, setDesignDialog] = useState(null);
+  const [designAfter, setDesignAfter] = useState(null);
+  const [savingDesign, setSavingDesign] = useState(false);
+  const [switchingMode, setSwitchingMode] = useState(false);
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     const loadLatest = async () => {
@@ -507,6 +675,69 @@ const F1ResultPredictionPanel = ({ customer, onBack, onGenerated }) => {
       null
     );
   }, [prediction, selectedStageKey]);
+  const phaseReviewsQuery = useQuery({
+    queryKey: phaseReviewsQueryKey(customer?._id),
+    queryFn: () => getPhaseReviews(customer._id),
+    enabled: Boolean(customer?._id && prediction?._id),
+  });
+  const phaseReviews = phaseReviewsQuery.data?.data || null;
+  const stageTabs = useMemo(
+    () =>
+      buildStageTabs(prediction?.phaseRoadmap || [], phaseReviews?.reviews || []),
+    [prediction, phaseReviews],
+  );
+  // Giai đoạn 1 xem ngay trong trang; giai đoạn sau mở hộp thoại đánh giá cuối giai đoạn.
+  const reviews = (phaseReviews?.reviews || []).filter((item) => item.profileConfirmed);
+  const allReviewCount = (phaseReviews?.reviews || []).length;
+  // Giai đoạn mở khoá thì xem ngay trong trang; giai đoạn đang khoá mở hộp thoại nhập kết quả.
+  const handleSelectStage = (key) => {
+    const tab = stageTabs.find((item) => item.key === key);
+    if (tab?.locked) setOpenStage(tab.stageOrder);
+    else setSelectedStageKey(key);
+  };
+  const visibleTabs = stageTabs.filter((tab) => !tab.locked);
+  const pendingReview = allReviewCount > reviews.length;
+  const nextStageOrder = pendingReview ? allReviewCount + 1 : reviews.length + 2;
+  // Cách dựng giai đoạn kế tiếp: chọn lúc tạo dự đoán, đổi được đúng một lần (khoá vĩnh viễn sau đó).
+  const initialMode = prediction?.planSource === "trainer" ? "trainer" : "system";
+  const planMode = prediction?.planModeState || { initial: initialMode, current: initialMode, locked: false };
+  const selectedTab = stageTabs.find((tab) => tab.key === selectedStageKey);
+  const followUpStage = selectedTab && !selectedTab.locked && selectedTab.stageOrder >= 2 ? selectedTab.stageOrder : 0;
+  const followUpReview = followUpStage
+    ? reviews.find((item) => item.stageOrder === followUpStage - 1)
+    : null;
+  const followUp = useMemo(() => {
+    const plan = followUpReview?.nextPhasePlan;
+    if (!plan) return null;
+    return {
+      stage: {
+        stageOrder: followUpStage,
+        phaseKey: plan.phaseKey,
+        levelTitle: plan.levelTitle,
+        phaseTitle: plan.phaseTitle,
+        durationWeeks: plan.durationWeeks,
+        objective: plan.objective,
+        entryReason: plan.entryReason,
+        keyFocus: plan.keyFocus,
+        expectedChanges: plan.expectedChanges,
+        exitCriteria: plan.exitCriteria,
+        weeklySchedule: plan.weeklySchedule,
+        designedByTrainer: followUpReview.nextPlanSource === "trainer",
+      },
+      outcomeTable: {
+        baseline: { ...followUpReview.nextOutcome?.baseline, label: "Đầu giai đoạn" },
+        phaseCheckpoints: [
+          {
+            ...followUpReview.nextOutcome?.checkpoint,
+            label: `Kết thúc giai đoạn ${followUpStage}`,
+          },
+        ],
+        goalProgress: followUpReview.nextOutcome?.goalProgress,
+      },
+    };
+  }, [followUpReview, followUpStage]);
+  const showFramework = () =>
+    frameworkRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   const selectedVisualStage = useMemo(() => {
     const stages = prediction?.visualStages || [];
     return (
@@ -515,6 +746,128 @@ const F1ResultPredictionPanel = ({ customer, onBack, onGenerated }) => {
       null
     );
   }, [prediction, selectedStageKey]);
+
+  // Cách dựng đã chọn từ trước nên không hỏi lại: nhập kết quả giai đoạn trước, cập nhật mục tiêu rồi hệ thống đề xuất
+  // hoặc mở bảng thiết kế. Đã lưu kết quả mà chưa cập nhật mục tiêu thì tiếp tục đúng chỗ đang dở.
+  const handleAddStage = () => {
+    if (planMode.current === "trainer") setDesignAfter(nextStageOrder);
+    setOpenStage(nextStageOrder);
+  };
+
+  const handleChangeMode = async (mode) => {
+    const canRegenerate = !planMode.locked && allReviewCount === 0;
+    if (mode === planMode.current) {
+      // Cách đang dùng: giai đoạn 1 chưa có đánh giá thì cho tạo lại hoặc chỉnh, còn lại chỉ đóng hộp thoại.
+      if (!canRegenerate) setModeDialog(null);
+      else if (mode === "system") handleGenerate();
+      else {
+        setModeDialog(null);
+        openDesign(1);
+      }
+      return;
+    }
+    const label = mode === "trainer" ? "Thiết kế lộ trình tập cá nhân" : "Dự đoán lộ trình tập";
+    const confirmed = await confirm({
+      title: "Thay đổi dự đoán?",
+      message: `Chuyển sang "${label}" từ giai đoạn ${modeDialog?.stageOrder || nextStageOrder}. Thay đổi này sẽ được lưu ở khách hàng này vĩnh viễn, bạn sẽ không được thay đổi dự đoán nữa.`,
+      details: [
+        "Các giai đoạn đã tạo giữ nguyên cách dựng cũ.",
+        "Từ giai đoạn kế tiếp, nút Thêm giai đoạn chỉ dùng cách bạn vừa chọn.",
+      ],
+      confirmLabel: "Đồng ý",
+      cancelLabel: "Hủy",
+      tone: "danger",
+    });
+    if (!confirmed) return;
+    try {
+      setSwitchingMode(true);
+      const res = await switchPlanMode(customer._id, mode);
+      setPrediction((previous) => (previous ? { ...previous, planModeState: res?.data } : previous));
+      setModeDialog(null);
+      toast.success(res?.message || "Đã thay đổi cách dự đoán");
+    } catch (error) {
+      toast.error(getUserErrorMessage(error, "Thay đổi dự đoán thất bại"));
+    } finally {
+      setSwitchingMode(false);
+    }
+  };
+
+  const handleDeleteStage = async (stageOrder) => {
+    const confirmed = await confirm({
+      title: `Xoá giai đoạn ${stageOrder}?`,
+      message: `Mọi thông tin đã điền cho giai đoạn ${stageOrder} sẽ bị xoá vĩnh viễn.`,
+      details: [
+        `Kết quả cuối giai đoạn ${stageOrder - 1} và mục tiêu đã cập nhật.`,
+        "Nội dung giai đoạn, lịch tập và bảng dự đoán.",
+        "Ảnh hiện tại đã tải và ảnh dự đoán của giai đoạn.",
+      ],
+      confirmLabel: "Xoá giai đoạn",
+      tone: "danger",
+    });
+    if (!confirmed) return;
+    try {
+      const res = await deleteLatestStage(customer._id, stageOrder - 1);
+      queryClient.setQueryData(phaseReviewsQueryKey(customer._id), res);
+      setSelectedStageKey(prediction?.phaseRoadmap?.[0]?.phaseKey || "");
+      setEditMode(false);
+      toast.success(res?.message || "Đã xoá giai đoạn");
+    } catch (error) {
+      toast.error(getUserErrorMessage(error, "Xoá giai đoạn thất bại"));
+    }
+  };
+
+  // freshData: dữ liệu đánh giá vừa lưu từ server; luôn ưu tiên để bảng thiết kế thấy mục tiêu, số buổi và kế hoạch mới nhất.
+  const openDesign = (stageOrder, freshData = null) => {
+    if (stageOrder === 1) {
+      const trainerPlan = prediction?.planSource === "trainer" ? prediction.phaseRoadmap?.[0] : null;
+      setDesignDialog({
+        stageOrder,
+        plan: trainerPlan,
+        overrides: trainerPlan ? prediction.outcomeTable?.phaseCheckpoints?.[0]?.overrides : null,
+      });
+      return;
+    }
+    const review = ((freshData || phaseReviews)?.reviews || []).find((item) => item.stageOrder === stageOrder - 1);
+    setDesignDialog({
+      stageOrder,
+      plan: review?.nextPhasePlan || null,
+      overrides: review?.nextOutcome?.checkpoint?.overrides || null,
+      training: review?.profile?.trainingProfileGoal || null,
+    });
+  };
+
+  const handleSaveDesign = async (customStage) => {
+    const { stageOrder } = designDialog;
+    try {
+      setSavingDesign(true);
+      if (stageOrder === 1) {
+        const res = await generateResultPrediction(customer._id, {
+          requestId: predictionRequestIdRef.current,
+          regenerate: Boolean(prediction),
+          customStage,
+        });
+        predictionRequestIdRef.current = crypto.randomUUID();
+        setPrediction(res?.data || null);
+        queryClient.invalidateQueries({ queryKey: phaseReviewsQueryKey(customer._id) });
+        onGenerated?.(res?.data);
+        toast.success("Đã lưu lộ trình giai đoạn 1");
+      } else {
+        const res = await saveNextStageDesign(customer._id, stageOrder - 1, customStage);
+        queryClient.setQueryData(phaseReviewsQueryKey(customer._id), res);
+        setSelectedStageKey(`stage_${stageOrder}`);
+        toast.success(res?.message || `Đã lưu lộ trình giai đoạn ${stageOrder}`);
+      }
+      setDesignDialog(null);
+      setEditMode(false);
+    } catch (error) {
+      toast.error(
+        getUserErrorMessage(error, error?.response?.data?.errors?.[0]?.msg ||
+          "Lưu lộ trình thất bại"),
+      );
+    } finally {
+      setSavingDesign(false);
+    }
+  };
 
   const handleGenerate = async () => {
     if (!customer?._id) return;
@@ -526,11 +879,15 @@ const F1ResultPredictionPanel = ({ customer, onBack, onGenerated }) => {
       });
       predictionRequestIdRef.current = crypto.randomUUID();
       setPrediction(res?.data || null);
+      queryClient.invalidateQueries({
+        queryKey: phaseReviewsQueryKey(customer._id),
+      });
       toast.success("Đã tạo dự đoán kết quả thành công");
+      setModeDialog(null);
       onGenerated?.(res?.data);
     } catch (error) {
       toast.error(
-        error?.response?.data?.message || "Tạo dự đoán kết quả thất bại",
+        getUserErrorMessage(error, "Tạo dự đoán kết quả thất bại"),
       );
     } finally {
       setGenerating(false);
@@ -544,17 +901,25 @@ const F1ResultPredictionPanel = ({ customer, onBack, onGenerated }) => {
     const attemptCount = Number(
       selectedVisualStage?.generation?.attemptCount || 0,
     );
-    if (forceRegenerate) {
-      const confirmed = window.confirm(
-        `Bạn sắp tạo lại ảnh AI cho ${selectedVisualStage?.label || phaseKey}.\n\nMỗi lần tạo lại sẽ phát sinh chi phí.\nHiện đã dùng ${attemptCount}/${MAX_ATTEMPTS_FALLBACK} lượt.\n\nBạn có chắc muốn tiếp tục không?`,
-      );
-      if (!confirmed) return;
-    } else {
-      const confirmed = window.confirm(
-        `Tạo ảnh AI cho ${selectedVisualStage?.label || phaseKey}?\n\nMỗi lần tạo ảnh sẽ phát sinh chi phí.`,
-      );
-      if (!confirmed) return;
-    }
+    const confirmed = await confirm(
+      forceRegenerate
+        ? {
+            title: "Tạo lại ảnh dự đoán?",
+            message: `Bạn sắp tạo lại ảnh cho ${selectedVisualStage?.label || phaseKey}.`,
+            details: [
+              "Mỗi lần tạo lại sẽ phát sinh chi phí.",
+              `Hiện đã dùng ${attemptCount}/${MAX_ATTEMPTS_FALLBACK} lượt.`,
+            ],
+            confirmLabel: "Tạo lại ảnh",
+          }
+        : {
+            title: "Tạo ảnh dự đoán?",
+            message: `Hệ thống sẽ tạo ảnh sau tập cho ${selectedVisualStage?.label || phaseKey}.`,
+            details: ["Mỗi lần tạo ảnh sẽ phát sinh chi phí."],
+            confirmLabel: "Tạo ảnh",
+          },
+    );
+    if (!confirmed) return;
     try {
       setGeneratingStageKey(phaseKey);
       const requestId =
@@ -594,7 +959,7 @@ const F1ResultPredictionPanel = ({ customer, onBack, onGenerated }) => {
       );
     } catch (error) {
       toast.error(
-        error?.response?.data?.message || "Tạo ảnh AI cho phase thất bại",
+        getUserErrorMessage(error, "Tạo ảnh AI cho phase thất bại"),
       );
     } finally {
       setGeneratingStageKey("");
@@ -603,6 +968,93 @@ const F1ResultPredictionPanel = ({ customer, onBack, onGenerated }) => {
 
   return (
     <section className="mx-auto max-w-6xl space-y-6 px-4 py-6 md:px-6">
+      {confirmDialog}
+      {modeDialog && (
+        <Suspense fallback={null}>
+          <F1PredictionModeDialog
+            customer={customer}
+            stageOrder={modeDialog.stageOrder}
+            busy={generating || switchingMode}
+            currentMode={prediction ? planMode.current : null}
+            locked={Boolean(prediction) && planMode.locked}
+            switchedAtStage={planMode.switchedAtStage ?? null}
+            canRegenerate={!planMode.locked && allReviewCount === 0}
+            onClose={() => setModeDialog(null)}
+            onSystem={() => {
+              if (prediction) {
+                handleChangeMode("system");
+                return;
+              }
+              if (modeDialog.stageOrder === 1) {
+                handleGenerate();
+                return;
+              }
+              setModeDialog(null);
+              setOpenStage(modeDialog.stageOrder);
+            }}
+            onTrainer={() => {
+              if (prediction) {
+                handleChangeMode("trainer");
+                return;
+              }
+              const order = modeDialog.stageOrder;
+              setModeDialog(null);
+              if (order === 1) {
+                openDesign(1);
+                return;
+              }
+              setDesignAfter(order);
+              setOpenStage(order);
+            }}
+          />
+        </Suspense>
+      )}
+      {designDialog && (
+        <Suspense fallback={null}>
+          <F1StageDesignDialog
+            customer={customer}
+            stageOrder={designDialog.stageOrder}
+            plan={designDialog.plan}
+            overrides={designDialog.overrides}
+            training={designDialog.training}
+            previewKey={["f1-stage-preview", customer?._id, designDialog.stageOrder]}
+            fetchPreview={(stage) =>
+              designDialog.stageOrder === 1
+                ? previewStageDesign(customer._id, stage)
+                : previewNextStageDesign(customer._id, designDialog.stageOrder - 1, stage)
+            }
+            saving={savingDesign}
+            onSave={handleSaveDesign}
+            onClose={() => setDesignDialog(null)}
+          />
+        </Suspense>
+      )}
+      {openStage && (
+        <Suspense fallback={null}>
+          <F1PhaseReviewDialog
+            customer={customer}
+            stageOrder={openStage}
+            data={phaseReviews}
+            loading={phaseReviewsQuery.isLoading}
+            error={phaseReviewsQuery.isError}
+            onClose={() => setOpenStage(null)}
+            onProfileSaved={(order, fresh) => {
+              setOpenStage(null);
+              setEditMode(false);
+              setSelectedStageKey(`stage_${order}`);
+              // HLV chọn tự thiết kế: sau khi cập nhật mục tiêu thì mở bảng thiết kế giai đoạn.
+              if (designAfter === order) {
+                setDesignAfter(null);
+                openDesign(order, fresh);
+              }
+            }}
+            onDesign={(order) => {
+              setOpenStage(null);
+              openDesign(order);
+            }}
+          />
+        </Suspense>
+      )}
       <button
         onClick={onBack}
         className="group inline-flex items-center gap-2 text-slate-500 transition hover:text-orange-600"
@@ -626,19 +1078,19 @@ const F1ResultPredictionPanel = ({ customer, onBack, onGenerated }) => {
               </h2>
               <p className="mt-1 text-slate-500">
                 Toàn bộ lộ trình tập, kết quả kỳ vọng theo từng giai đoạn và
-                phần so sánh before/after
+                phần so sánh trước/sau tập
               </p>
             </div>
             <button
-              onClick={handleGenerate}
-              disabled={generating || loadingLatest}
+              onClick={() => setModeDialog({ stageOrder: prediction ? nextStageOrder : 1 })}
+              disabled={generating || loadingLatest || switchingMode}
               className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-orange-600 to-orange-500 px-5 py-3 font-bold text-white shadow-md transition hover:shadow-lg disabled:opacity-60"
             >
               {prediction ? <RefreshCcw size={18} /> : <TrendingUp size={18} />}
               {generating
                 ? "Đang phân tích..."
                 : prediction
-                  ? "Cập nhật lại dự đoán"
+                  ? "Thay đổi dự đoán"
                   : "Tạo dự đoán"}
             </button>
           </div>
@@ -692,9 +1144,9 @@ const F1ResultPredictionPanel = ({ customer, onBack, onGenerated }) => {
                 />
               </div>
 
-              <div className="space-y-3">
+              <div ref={frameworkRef} className="scroll-mt-6 space-y-3">
                 <SectionHeading
-                  title="Khung NASM 3 cấp độ / 5 phase"
+                  title="Khung NASM 3 cấp độ / 5 giai đoạn"
                   subtitle="Cấu trúc chuẩn của NASM"
                 />
                 <F1NasmPyramid />
@@ -703,37 +1155,97 @@ const F1ResultPredictionPanel = ({ customer, onBack, onGenerated }) => {
               <div className="space-y-4">
                 <SectionHeading
                   title="Lộ trình giai đoạn"
-                  subtitle="Chọn từng tab để xem chi tiết"
+                  subtitle={getRoadmapIntro(prediction?.planSource)}
                 />
                 <StageTabs
-                  stages={prediction.phaseRoadmap || []}
+                  tabs={visibleTabs}
                   selectedKey={selectedStageKey}
-                  onSelect={setSelectedStageKey}
+                  onSelect={handleSelectStage}
+                  canEdit={reviews.length > 0}
+                  editMode={editMode}
+                  editableOrder={pendingReview ? 0 : reviews.length + 1}
+                  onToggleEdit={() => setEditMode((value) => !value)}
+                  onEdit={setOpenStage}
+                  onDelete={handleDeleteStage}
+                  onAdd={handleAddStage}
                 />
-                <StageDetailCard stage={selectedStage} />
+                <StageDetailCard
+                  stage={
+                    followUp
+                      ? followUp.stage
+                      : selectedStage && {
+                          ...selectedStage,
+                          designedByTrainer: prediction?.planSource === "trainer",
+                        }
+                  }
+                  onShowFramework={showFramework}
+                />
               </div>
 
               <div className="space-y-4">
                 <SectionHeading
-                  title="Bảng kết quả theo từng giai đoạn"
-                  subtitle="Mốc ban đầu và thay đổi kỳ vọng"
+                  title={followUp ? `Bảng kết quả giai đoạn ${followUpStage}` : "Bảng kết quả theo từng giai đoạn"}
+                  subtitle={
+                    followUp
+                      ? "Dự đoán bắt đầu từ số đo thực tế cuối giai đoạn trước"
+                      : "Mốc ban đầu và thay đổi kỳ vọng"
+                  }
+                />
+                <GoalProgressCard
+                  goalProgress={(followUp || prediction).outcomeTable?.goalProgress}
                 />
                 <OutcomeComparisonTable
-                  outcomeTable={prediction.outcomeTable}
+                  outcomeTable={(followUp || prediction).outcomeTable}
+                  baselineTitle={followUp ? "Đầu giai đoạn" : "Ban đầu"}
                 />
+                <p className="text-xs text-slate-500">
+                  Đây là ước tính tham khảo dựa trên hồ sơ hiện tại. Kết quả
+                  thực tế phụ thuộc vào mức tuân thủ tập luyện, dinh dưỡng, giấc
+                  ngủ và cơ địa từng người.
+                </p>
               </div>
 
               <div className="space-y-4">
                 <SectionHeading
-                  title="So sánh hình ảnh before / after"
-                  subtitle="Ảnh after theo phase đang chọn"
+                  title="So sánh hình ảnh trước / sau tập"
+                  subtitle="Ảnh sau tập theo giai đoạn đang chọn"
                 />
-                <VisualComparisonSection
-                  prediction={prediction}
-                  selectedVisualStage={selectedVisualStage}
-                  onGenerateImages={handleGenerateStageImages}
-                  generatingStageKey={generatingStageKey}
-                />
+                {followUp ? (
+                  <Suspense fallback={null}>
+                    <F1StagePhotoSection
+                      customerId={customer._id}
+                      stageOrder={followUpStage}
+                      visual={followUpReview?.visual || {}}
+                      onConfirmGenerate={(force, attempts, maxAttempts) =>
+                        confirm(
+                          force
+                            ? {
+                                title: "Tạo lại ảnh dự đoán?",
+                                message: `Bạn sắp tạo lại ảnh cho giai đoạn ${followUpStage}.`,
+                                details: [
+                                  "Mỗi lần tạo lại sẽ phát sinh chi phí.",
+                                  `Hiện đã dùng ${attempts}/${maxAttempts} lượt.`,
+                                ],
+                                confirmLabel: "Tạo lại ảnh",
+                              }
+                            : {
+                                title: "Tạo ảnh dự đoán?",
+                                message: `Hệ thống sẽ tạo ảnh sau tập cho giai đoạn ${followUpStage} từ ảnh hiện tại.`,
+                                details: ["Mỗi lần tạo ảnh sẽ phát sinh chi phí."],
+                                confirmLabel: "Tạo ảnh",
+                              },
+                        )
+                      }
+                    />
+                  </Suspense>
+                ) : (
+                  <VisualComparisonSection
+                    prediction={prediction}
+                    selectedVisualStage={selectedVisualStage}
+                    onGenerateImages={handleGenerateStageImages}
+                    generatingStageKey={generatingStageKey}
+                  />
+                )}
               </div>
             </div>
           )}

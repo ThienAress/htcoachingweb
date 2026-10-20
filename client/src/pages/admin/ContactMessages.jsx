@@ -30,9 +30,13 @@ import {
   updateContactStatus,
   deleteContactMessage,
 } from "../../services/contact.service";
+import SelectField from "../../components/SelectField";
+import { useConfirmDialog } from "../../hooks/useConfirmDialog";
+import { getUserErrorMessage } from "../../utils/errorMessages";
 
 // ================= COMPONENT =================
 const ContactMessages = () => {
+  const { confirm, dialog } = useConfirmDialog();
   const queryClient = useQueryClient();
 
   // ================= STATE =================
@@ -91,7 +95,7 @@ const ContactMessages = () => {
       invalidateByKey(queryClient, adminQueryKeys.contactMessages.all());
     },
     onError: (err) =>
-      toast.error(err.response?.data?.message || "Cập nhật thất bại"),
+      toast.error(getUserErrorMessage(err, "Cập nhật thất bại")),
   });
 
   const deleteMutation = useMutation({
@@ -101,22 +105,20 @@ const ContactMessages = () => {
       invalidateByKey(queryClient, adminQueryKeys.contactMessages.all());
     },
     onError: (err) =>
-      toast.error(err.response?.data?.message || "Xóa thất bại"),
+      toast.error(getUserErrorMessage(err, "Xóa thất bại")),
   });
 
   // ================= HANDLER =================
-  const handleStatusChange = (id, newStatus) => {
+  const handleStatusChange = async (id, newStatus) => {
     if (
-      !window.confirm(
-        `Đánh dấu là "${newStatus === "processed" ? "đã xử lý" : "chờ xử lý"}"?`,
-      )
+      !await confirm({ title: "Đổi trạng thái liên hệ", message: `Đánh dấu là "${newStatus === "processed" ? "đã xử lý" : "chờ xử lý"}"?`, confirmLabel: "Đồng ý", tone: "default" })
     )
       return;
     updateStatusMutation.mutate({ id, status: newStatus });
   };
 
-  const handleDelete = (id) => {
-    if (!window.confirm("Xóa liên hệ này?")) return;
+  const handleDelete = async (id) => {
+    if (!await confirm({ title: "Xóa liên hệ", message: "Xóa liên hệ này?", confirmLabel: "Xóa", tone: "danger" })) return;
     deleteMutation.mutate(id);
   };
 
@@ -135,7 +137,7 @@ const ContactMessages = () => {
     return (
       <div className="min-h-screen bg-gray-50 p-4 md:p-6">
         <div className="text-center py-12 bg-white rounded-lg shadow">
-          <p className="text-red-500">Lỗi tải dữ liệu: {error?.message}</p>
+          <p className="text-red-500">{getUserErrorMessage(error, "Không tải được dữ liệu. Vui lòng thử lại.")}</p>
           <button
             onClick={() => window.location.reload()}
             className="mt-4 px-4 py-2 bg-red-500 text-white rounded-lg"
@@ -175,7 +177,7 @@ const ContactMessages = () => {
           />
         </div>
         <div className="flex gap-2">
-          <select
+          <SelectField
             className="px-4 py-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-red-400"
             value={statusFilter}
             onChange={(e) => {
@@ -186,7 +188,7 @@ const ContactMessages = () => {
             <option value="">Tất cả trạng thái</option>
             <option value="pending">Chờ xử lý</option>
             <option value="processed">Đã xử lý</option>
-          </select>
+          </SelectField>
           <div className="px-4 py-2 bg-gray-100 rounded-lg text-gray-600">
             Tổng: {pagination.total}
           </div>
@@ -410,6 +412,7 @@ const ContactMessages = () => {
           </div>
         </div>
       )}
+      {dialog}
     </div>
     </phantom-ui>
   );

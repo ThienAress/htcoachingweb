@@ -15,7 +15,7 @@ import {
 const router = express.Router();
 
 // Khách hàng xem giáo án của mình (phải đặt TRƯỚC /:id)
-router.get("/my", protect, getMyWorkoutPlans);
+router.get("/me", protect, getMyWorkoutPlans);
 
 // Trainer/Admin: danh sách plans
 router.get("/", protect, requireTrainerAccess, getWorkoutPlans);

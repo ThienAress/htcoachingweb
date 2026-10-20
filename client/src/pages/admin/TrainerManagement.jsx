@@ -37,6 +37,8 @@ import {
 import { useDebounce } from "../../hooks/useDebounce";
 import Trainers from "../../sections/Trainers";
 import SetupProfileModal from "./SetupProfileModal";
+import SelectField from "../../components/SelectField";
+import { getUserErrorMessage } from "../../utils/errorMessages";
 
 const API_URL = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? "http://localhost:5000/api" : "");
 const API_ORIGIN = API_URL.replace(/\/api\/?$/, "");
@@ -235,7 +237,7 @@ export default function TrainerManagement() {
       invalidateByKey(queryClient, adminQueryKeys.trainers.all());
       setIsModalOpen(false);
     },
-    onError: (err) => toast.error(err.response?.data?.message || "Lỗi khi thêm HLV"),
+    onError: (err) => toast.error(getUserErrorMessage(err, "Không thể thêm HLV. Vui lòng thử lại.")),
   });
 
   const updateMutation = useMutation({
@@ -246,7 +248,7 @@ export default function TrainerManagement() {
       invalidateByKey(queryClient, adminQueryKeys.trainers.detail(selectedId));
       setIsModalOpen(false);
     },
-    onError: (err) => toast.error(err.response?.data?.message || "Lỗi khi cập nhật HLV"),
+    onError: (err) => toast.error(getUserErrorMessage(err, "Không thể cập nhật HLV. Vui lòng thử lại.")),
   });
 
   const deleteMutation = useMutation({
@@ -256,7 +258,7 @@ export default function TrainerManagement() {
       invalidateByKey(queryClient, adminQueryKeys.trainers.all());
       setDeleteConfirm(null);
     },
-    onError: (err) => toast.error(err.response?.data?.message || "Lỗi khi xóa HLV"),
+    onError: (err) => toast.error(getUserErrorMessage(err, "Không thể xóa HLV. Vui lòng thử lại.")),
   });
 
   const statusMutation = useMutation({
@@ -265,7 +267,7 @@ export default function TrainerManagement() {
       toast.success("Cập nhật trạng thái thành công!");
       invalidateByKey(queryClient, adminQueryKeys.trainers.all());
     },
-    onError: (err) => toast.error(err.response?.data?.message || "Lỗi khi cập nhật trạng thái"),
+    onError: (err) => toast.error(getUserErrorMessage(err, "Không thể cập nhật trạng thái. Vui lòng thử lại.")),
   });
 
   const uploadMutation = useMutation({
@@ -283,7 +285,7 @@ export default function TrainerManagement() {
         return { ...prev, images: newImages };
       });
     },
-    onError: (err) => toast.error(err.response?.data?.message || "Lỗi khi tải ảnh lên"),
+    onError: (err) => toast.error(getUserErrorMessage(err, "Không thể tải ảnh lên. Vui lòng thử lại.")),
   });
 
   const handleSubmit = (e) => {
@@ -375,7 +377,7 @@ export default function TrainerManagement() {
             className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-4 text-sm font-medium text-slate-800 placeholder:text-slate-400 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
           />
         </div>
-        <select
+        <SelectField
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
           className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary md:w-48"
@@ -383,13 +385,13 @@ export default function TrainerManagement() {
           <option value="">Tất cả trạng thái</option>
           <option value="published">Đã xuất bản</option>
           <option value="draft">Bản nháp</option>
-        </select>
+        </SelectField>
       </div>
 
       {/* TABLE */}
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
+          <table className="w-full min-w-[720px] text-left text-sm">
             <thead className="bg-slate-50 text-xs font-bold uppercase text-slate-500">
               <tr>
                 <th className="px-6 py-4">Huấn luyện viên</th>
@@ -420,11 +422,11 @@ export default function TrainerManagement() {
                   <tr key={trainer._id} className="group transition-colors hover:bg-slate-50">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-4">
-                        <div className="relative">
+                        <div className="relative shrink-0">
                           <img
                             src={getImageUrl(trainer.images?.[0] || trainer.image)}
                             alt={trainer.name}
-                            className="h-16 w-16 rounded-xl object-cover shadow-sm"
+                            className="h-16 w-16 shrink-0 rounded-xl object-cover shadow-sm"
                           />
                           {trainer.featured && (
                             <div className="absolute -right-2 -top-2 rounded-full bg-yellow-400 p-1 text-white shadow">
@@ -443,7 +445,7 @@ export default function TrainerManagement() {
                       <div className="text-xs text-slate-500 mt-1">{trainer.experience || "Chưa có"}</div>
                     </td>
                     <td className="px-6 py-4">
-                      <select
+                      <SelectField
                         value={trainer.status}
                         onChange={(e) =>
                           statusMutation.mutate({ id: trainer._id, status: e.target.value })
@@ -456,7 +458,7 @@ export default function TrainerManagement() {
                       >
                         <option value="published">Đã xuất bản</option>
                         <option value="draft">Bản nháp</option>
-                      </select>
+                      </SelectField>
                     </td>
                     <td className="px-6 py-4">
                       <span className="inline-flex h-8 min-w-[2rem] items-center justify-center rounded-lg bg-slate-100 px-2 font-bold text-slate-600">
@@ -686,7 +688,7 @@ export default function TrainerManagement() {
                       <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-5">
                         {form.specialties.map((spec, index) => (
                           <div key={spec._id} className="flex items-center gap-2 bg-slate-50 rounded-lg p-2 border border-slate-100">
-                            <select
+                            <SelectField
                               value={spec.icon}
                               onChange={(e) => {
                                 const newArr = [...form.specialties];
@@ -699,7 +701,7 @@ export default function TrainerManagement() {
                               <option value="utensils">🥗</option>
                               <option value="chart-line">📈</option>
                               <option value="heart-pulse">❤️</option>
-                            </select>
+                            </SelectField>
                             <input
                               type="text"
                               value={spec.label}
@@ -734,14 +736,14 @@ export default function TrainerManagement() {
                       <FormSectionTitle number="04" title="Trạng thái & Hiển thị" />
                       <div className="grid gap-4 sm:grid-cols-2 rounded-xl border border-slate-200 bg-white p-5">
                         <Field label="Trạng thái">
-                          <select
+                          <SelectField
                             value={form.status}
                             onChange={(e) => setForm({ ...form, status: e.target.value })}
                             className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-700 focus:border-primary focus:bg-white focus:outline-none focus:ring-1 focus:ring-primary"
                           >
                             <option value="draft">Bản nháp</option>
                             <option value="published">Đã xuất bản</option>
-                          </select>
+                          </SelectField>
                         </Field>
                         <Field label="Thứ tự hiển thị">
                           <input

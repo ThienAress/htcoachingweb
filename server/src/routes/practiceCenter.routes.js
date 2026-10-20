@@ -19,12 +19,13 @@ router.use((_req, res, next) => {
 router.use(protect, requirePracticeCenterAccess);
 
 router.get("/", getPracticeCenter);
-router.post(
-  "/send",
+const sendSimulationChain = [
   csrfProtection,
   practiceCenterLimiter,
   validatePracticeCenterRequest,
   sendPracticeCenterSimulation,
-);
+];
+
+router.post("/messages", ...sendSimulationChain);
 
 export default router;

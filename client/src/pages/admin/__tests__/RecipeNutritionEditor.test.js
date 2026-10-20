@@ -69,9 +69,11 @@ describe("RecipeNutritionEditor helpers", () => {
       }),
     );
 
+    // Ô chọn bo góc chỉ hiện đơn vị đang chọn; danh sách (g, mcg, kcal) chỉ mở khi bấm.
     expect({
-      hasMg: html.includes('<option value="mg">'),
-      hasMcg: html.includes('<option value="mcg" selected="">'),
-    }).toEqual({ hasMg: false, hasMcg: true });
+      nativeSelect: html.includes('<select'),
+      showsMcg: html.includes(">mcg</span>"),
+      showsMg: html.includes(">mg</span>"),
+    }).toEqual({ nativeSelect: false, showsMcg: true, showsMg: false });
   });
 });

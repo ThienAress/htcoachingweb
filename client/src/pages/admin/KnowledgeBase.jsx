@@ -30,6 +30,9 @@ import {
   KNOWLEDGE_SEARCH_MODES,
   toDateInputValue,
 } from "./knowledgeBaseAdmin";
+import SelectField from "../../components/SelectField";
+import { useConfirmDialog } from "../../hooks/useConfirmDialog";
+import { getUserErrorMessage } from "../../utils/errorMessages";
 
 const emptyForm = (variants = []) => ({
   question: "",
@@ -95,6 +98,7 @@ const REVIEW_STATUS_LABELS = {
 };
 
 export default function KnowledgeBase() {
+  const { confirm, dialog } = useConfirmDialog();
   const queryClient = useQueryClient();
   const [tab, setTab] = useState("entries"); // entries | conversations | search
   const [entryPage, setEntryPage] = useState(1);
@@ -350,7 +354,7 @@ export default function KnowledgeBase() {
       setForm(emptyForm());
       await refreshKnowledge();
     } catch (err) {
-      toast.error(err.response?.data?.message || "Lỗi");
+      toast.error(getUserErrorMessage(err, "Không thực hiện được. Vui lòng thử lại."));
     } finally {
       setSaving(false);
     }
@@ -379,7 +383,7 @@ export default function KnowledgeBase() {
       setForm(emptyForm());
       await refreshKnowledge();
     } catch (err) {
-      toast.error(err.response?.data?.message || "Lỗi");
+      toast.error(getUserErrorMessage(err, "Không thực hiện được. Vui lòng thử lại."));
     } finally {
       setSaving(false);
     }
@@ -399,7 +403,7 @@ export default function KnowledgeBase() {
       setForm(emptyForm());
       await refreshKnowledge();
     } catch (err) {
-      toast.error(err.response?.data?.message || "Lỗi merge");
+      toast.error(getUserErrorMessage(err, "Không thể merge. Vui lòng thử lại."));
     } finally {
       setSaving(false);
     }
@@ -418,7 +422,7 @@ export default function KnowledgeBase() {
   };
 
   const handleDeleteVariant = async (variantId) => {
-    if (!confirm("Bạn có chắc chắn muốn xóa biến thể này?")) return;
+    if (!await confirm({ title: "Xóa biến thể", message: "Bạn có chắc chắn muốn xóa biến thể này?", confirmLabel: "Xóa", tone: "danger" })) return;
     try {
       await deleteKBVariant(viewingVariantsEntry._id, variantId);
       toast.success("Đã xóa biến thể");
@@ -469,7 +473,7 @@ export default function KnowledgeBase() {
   };
 
   const handleDelete = async (id) => {
-    if (!confirm("Xóa knowledge entry này?")) return;
+    if (!await confirm({ title: "Xóa mục kiến thức", message: "Xóa mục kiến thức này?", confirmLabel: "Xóa", tone: "danger" })) return;
     try {
       await deleteKBEntry(id);
       toast.success("Đã xóa");
@@ -485,7 +489,7 @@ export default function KnowledgeBase() {
       toast.success("Đã tạo lại embedding");
       await refreshKnowledge();
     } catch (error) {
-      toast.error(error.response?.data?.message || "Không thể tạo lại embedding");
+      toast.error(getUserErrorMessage(error, "Không thể tạo lại embedding"));
       await refreshKnowledge();
     } finally {
       setRegeneratingId(null);
@@ -594,7 +598,7 @@ export default function KnowledgeBase() {
           : "Đã bỏ qua phản hồi này",
       );
     } catch (error) {
-      toast.error(error.response?.data?.message || "Không thể cập nhật phản hồi");
+      toast.error(getUserErrorMessage(error, "Không thể cập nhật phản hồi"));
     } finally {
       setReviewingMessageId(null);
     }
@@ -710,7 +714,7 @@ export default function KnowledgeBase() {
         <>
           {/* Filters */}
           <div className="flex gap-3 mb-4">
-            <select
+            <SelectField
               value={filter.category}
               onChange={(e) => {
                 setEntryPage(1);
@@ -720,8 +724,8 @@ export default function KnowledgeBase() {
             >
               <option value="">Tất cả danh mục</option>
               {categories.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
-            </select>
-            <select
+            </SelectField>
+            <SelectField
               value={filter.status}
               onChange={(e) => {
                 setEntryPage(1);
@@ -733,7 +737,7 @@ export default function KnowledgeBase() {
               <option value="published">Published</option>
               <option value="draft">Draft</option>
               <option value="archived">Archived</option>
-            </select>
+            </SelectField>
             <input
               type="text"
               placeholder="Tìm kiếm..."
@@ -883,7 +887,7 @@ export default function KnowledgeBase() {
               </p>
             </div>
             <div className="flex items-center gap-3">
-              <select
+              <SelectField
                 value={suggestDays}
                 onChange={(e) => setSuggestDays(Number(e.target.value))}
                 className="px-3 py-2 border border-slate-300 rounded-lg text-sm"
@@ -893,7 +897,7 @@ export default function KnowledgeBase() {
                 <option value={7}>7 ngày qua</option>
                 <option value={14}>14 ngày qua</option>
                 <option value={30}>30 ngày qua</option>
-              </select>
+              </SelectField>
               <button
                 onClick={async () => {
                   setSuggesting(true);
@@ -970,7 +974,7 @@ export default function KnowledgeBase() {
           <div className="mb-4 flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 sm:flex-row sm:items-end">
             <label className="block flex-1 text-xs font-medium text-slate-600">
               Phản hồi câu trả lời
-              <select
+              <SelectField
                 value={conversationFilter.feedback}
                 onChange={(event) => updateConversationFilter("feedback", event.target.value)}
                 className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
@@ -978,11 +982,11 @@ export default function KnowledgeBase() {
                 <option value="">Tất cả phản hồi</option>
                 <option value="down">Chưa tốt</option>
                 <option value="up">Hữu ích</option>
-              </select>
+              </SelectField>
             </label>
             <label className="block flex-1 text-xs font-medium text-slate-600">
               Trạng thái xử lý
-              <select
+              <SelectField
                 value={conversationFilter.feedbackReviewStatus}
                 onChange={(event) => updateConversationFilter("feedbackReviewStatus", event.target.value)}
                 className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
@@ -991,7 +995,7 @@ export default function KnowledgeBase() {
                 <option value="pending">Chờ xử lý</option>
                 <option value="resolved">Đã xử lý</option>
                 <option value="dismissed">Đã bỏ qua</option>
-              </select>
+              </SelectField>
             </label>
             <p className="text-xs text-slate-500 sm:max-w-xs">
               Ưu tiên phản hồi chưa tốt để sửa câu trả lời hoặc bổ sung kiến thức có nguồn.
@@ -1391,17 +1395,17 @@ export default function KnowledgeBase() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Danh mục</label>
-                  <select
+                  <SelectField
                     value={form.category}
                     onChange={(e) => setForm((p) => ({ ...p, category: e.target.value }))}
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
                   >
                     {categories.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
-                  </select>
+                  </SelectField>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Trạng thái</label>
-                  <select
+                  <SelectField
                     value={form.status}
                     onChange={(e) => setForm((p) => ({ ...p, status: e.target.value }))}
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
@@ -1409,7 +1413,7 @@ export default function KnowledgeBase() {
                     <option value="draft">Bản nháp</option>
                     <option value="published">Đã xuất bản</option>
                     <option value="archived">Đã lưu trữ</option>
-                  </select>
+                  </SelectField>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Tags (cách nhau bởi dấu phẩy)</label>
@@ -1450,23 +1454,23 @@ export default function KnowledgeBase() {
                 <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
                   <label className="text-xs font-medium text-slate-600">
                     Mức bằng chứng
-                    <select
+                    <SelectField
                       value={form.evidenceLevel}
                       onChange={(event) => setForm((current) => ({ ...current, evidenceLevel: event.target.value }))}
                       className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
                     >
                       {EVIDENCE_LEVELS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
-                    </select>
+                    </SelectField>
                   </label>
                   <label className="text-xs font-medium text-slate-600">
                     Độ mới của nội dung
-                    <select
+                    <SelectField
                       value={form.freshnessClass}
                       onChange={(event) => setForm((current) => ({ ...current, freshnessClass: event.target.value }))}
                       className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
                     >
                       {FRESHNESS_CLASSES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
-                    </select>
+                    </SelectField>
                   </label>
                   <label className="text-xs font-medium text-slate-600">
                     Ngày cần kiểm tra lại
@@ -1486,23 +1490,23 @@ export default function KnowledgeBase() {
                       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                         <label className="text-xs font-medium text-slate-600">
                           Loại nguồn
-                          <select
+                          <SelectField
                             value={source.type}
                             onChange={(event) => updateKnowledgeSource(index, "type", event.target.value)}
                             className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
                           >
                             {SOURCE_TYPES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
-                          </select>
+                          </SelectField>
                         </label>
                         <label className="text-xs font-medium text-slate-600">
                           Cấp độ nguồn
-                          <select
+                          <SelectField
                             value={source.evidenceTier}
                             onChange={(event) => updateKnowledgeSource(index, "evidenceTier", event.target.value)}
                             className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
                           >
                             {EVIDENCE_TIERS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
-                          </select>
+                          </SelectField>
                         </label>
                         <label className="text-xs font-medium text-slate-600">
                           Tiêu đề
@@ -1710,6 +1714,7 @@ export default function KnowledgeBase() {
           </div>
         </div>
       )}
+      {dialog}
     </div>
   );
 }

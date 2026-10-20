@@ -35,6 +35,8 @@
 /trainer/workout-plans /index.html 200
 /trainer/workout-plans/* /index.html 200
 /trainer/orders /index.html 200
+/trainer/checkin-history /index.html 200
+/trainer/practice-center /index.html 200
 /trainer/contracts /index.html 200
 /trainer/checkin-history /index.html 200
 /admin /index.html 200
@@ -61,5 +63,9 @@
 /admin/knowledge-base /index.html 200
 /admin/recipes /index.html 200
 /admin/exercise-suggestions /index.html 200
+/admin/pricing /index.html 200
+/admin/pricing-gifts /index.html 200
+/admin/trainer-coordination /index.html 200
+/admin/practice-center /index.html 200
 
 /* /404.html 404

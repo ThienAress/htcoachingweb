@@ -2,8 +2,9 @@ import { lazy, Suspense, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  ArrowLeft,
   Home,
-  UserPlus,
+  Trash2,
   Users,
   SidebarClose,
   SidebarOpen,
@@ -11,7 +12,9 @@ import {
 import {
   createF1Customer,
   deleteF1Customer as deleteF1CustomerApi,
+  getDeletedF1Customers,
   getF1Customers,
+  restoreF1Customer,
   reviewTestPermission,
 } from "../../services/f1Customer.service";
 import { toast } from "react-toastify";
@@ -20,6 +23,14 @@ import { useDebounce } from "../../hooks/useDebounce";
 import { useConversionOriginOptions } from "../../hooks/useConversionOriginOptions";
 import { useAuth } from "../../context/AuthContext";
 import MorphStateIcon from "../../components/motion/MorphStateIcon";
+import {
+  F1_SOFT_DELETE_DAYS,
+  getF1Progress,
+} from "../../constants/f1CustomerStatus";
+import { useConfirmDialog } from "../../hooks/useConfirmDialog";
+import { WorkspaceBrand } from "../../components/workspace/WorkspaceSidebarParts";
+import { workspaceItemClass } from "../../components/workspace/workspaceSidebarClasses";
+import { getUserErrorMessage } from "../../utils/errorMessages";
 
 const F1CustomerList = lazy(
   () => import("../../components/F1/F1CustomerList"),
@@ -29,6 +40,9 @@ const F1CustomerDetail = lazy(
 );
 const F1IntakeWizard = lazy(
   () => import("../../components/F1/F1IntakeWizard"),
+);
+const F1DeletedCustomers = lazy(
+  () => import("../../components/F1/F1DeletedCustomers"),
 );
 const F1CreateCustomerForm = lazy(
   () => import("../../components/F1/F1CreateCustomerForm"),
@@ -41,6 +55,9 @@ const F1AiReportPanel = lazy(
 );
 const F1ResultPredictionPanel = lazy(
   () => import("../../components/F1/F1ResultPredictionPanel"),
+);
+const F1CustomerSummaryReport = lazy(
+  () => import("../../components/F1/F1CustomerSummaryReport"),
 );
 
 const initialCreateForm = {
@@ -55,11 +72,28 @@ const initialCreateForm = {
   originId: "",
 };
 
+// Nút "tiếp tục" của báo cáo tổng quát theo tiến trình hiện tại của khách.
+const getSummaryContinueAction = ({ customer, onAssessment, onReport }) => {
+  const { intakeDone, assessmentDone } = getF1Progress(customer?.status);
+  if (assessmentDone) {
+    return { continueLabel: "Mở phân tích tự động", onContinue: onReport };
+  }
+  if (intakeDone && customer?.testPermission !== "hold_test") {
+    return {
+      continueLabel: "Tiếp tục đánh giá thể chất",
+      onContinue: onAssessment,
+    };
+  }
+  return {};
+};
+
 const F1Customers = () => {
   const { user } = useAuth();
+  const { confirm, dialog: confirmDialog } = useConfirmDialog();
   const queryClient = useQueryClient();
   const [viewMode, setViewMode] = useState("list");
   const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [summaryReportOpen, setSummaryReportOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [desktopSidebarCollapsed, setDesktopSidebarCollapsed] = useState(false);
   const [isDesktopViewport, setIsDesktopViewport] = useState(false);
@@ -93,10 +127,19 @@ const F1Customers = () => {
     totalPages: 1,
     total: customers.length,
   };
+  const deletedQuery = useQuery({
+    queryKey: ["f1-customers-deleted"],
+    queryFn: getDeletedF1Customers,
+    enabled: viewMode === "deleted",
+  });
+  const deletedCustomers = Array.isArray(deletedQuery.data?.data)
+    ? deletedQuery.data.data
+    : [];
   const invalidateCustomers = () =>
     queryClient.invalidateQueries({ queryKey: ["f1-customers"] });
   const createMutation = useMutation({ mutationFn: createF1Customer });
   const deleteMutation = useMutation({ mutationFn: deleteF1CustomerApi });
+  const restoreMutation = useMutation({ mutationFn: restoreF1Customer });
   const reviewMutation = useMutation({
     mutationFn: ({ customerId, payload }) =>
       reviewTestPermission(customerId, payload),
@@ -127,27 +170,53 @@ const F1Customers = () => {
       toast.success("Đã tạo hồ sơ khách hàng F1");
     } catch (error) {
       toast.error(
-        error?.response?.data?.message ||
-          error?.response?.data?.errors?.[0]?.msg ||
-          "Tạo khách hàng thất bại",
+        getUserErrorMessage(error, error?.response?.data?.errors?.[0]?.msg ||
+          "Tạo khách hàng thất bại"),
       );
     }
   };
 
   const handleDeleteCustomer = async () => {
     if (!selectedCustomer?._id) return;
-    const confirmed = window.confirm(
-      `Bạn có chắc muốn yêu cầu xóa dữ liệu của "${selectedCustomer.fullName}" không?\n\nMedia sẽ được xóa khỏi private storage trước, sau đó dữ liệu sức khỏe mới được xóa.`,
-    );
+    const confirmed = await confirm({
+      title: "Xóa khách hàng F1?",
+      message: `Bạn có chắc muốn xóa khách hàng "${selectedCustomer.fullName}" không?`,
+      details: [
+        `Bạn có thể khôi phục khách hàng trong vòng ${F1_SOFT_DELETE_DAYS} ngày, sau đó khách hàng sẽ bị xóa vĩnh viễn tự động.`,
+        "Khách hàng đã tạo vẫn được tính vào giới hạn của gói, kể cả khi đã xóa.",
+      ],
+      confirmLabel: "Xóa khách hàng",
+      tone: "danger",
+    });
     if (!confirmed) return;
     try {
       await deleteMutation.mutateAsync(selectedCustomer._id);
-      toast.success("Đã tiếp nhận yêu cầu xóa dữ liệu an toàn");
+      toast.success(
+        `Đã chuyển vào mục Xóa khách hàng. Bạn có thể khôi phục trong ${F1_SOFT_DELETE_DAYS} ngày.`,
+      );
       setSelectedCustomer(null);
       setViewMode("list");
       await invalidateCustomers();
+      queryClient.invalidateQueries({ queryKey: ["f1-customers-deleted"] });
     } catch (error) {
-      toast.error(error?.response?.data?.message || "Xóa khách hàng thất bại");
+      toast.error(getUserErrorMessage(error, "Xóa khách hàng thất bại"));
+    }
+  };
+
+  const handleRestoreCustomer = async (customer) => {
+    const confirmed = await confirm({
+      title: "Khôi phục khách hàng F1?",
+      message: `Khách hàng "${customer.fullName}" sẽ quay lại danh sách cùng toàn bộ dữ liệu và ảnh cũ.`,
+      confirmLabel: "Khôi phục",
+    });
+    if (!confirmed) return;
+    try {
+      const res = await restoreMutation.mutateAsync(customer._id);
+      toast.success(res?.message || "Đã khôi phục khách hàng");
+      await invalidateCustomers();
+      await queryClient.invalidateQueries({ queryKey: ["f1-customers-deleted"] });
+    } catch (error) {
+      toast.error(getUserErrorMessage(error, "Khôi phục khách hàng thất bại"));
     }
   };
 
@@ -186,6 +255,7 @@ const F1Customers = () => {
       lastIntakeId: result?._id || result?.data?._id || prev?.lastIntakeId,
     }));
     setViewMode("detail");
+    setSummaryReportOpen(true);
     await invalidateCustomers();
   };
 
@@ -201,6 +271,7 @@ const F1Customers = () => {
         prev?.overallPhysicalLevel,
     }));
     setViewMode("detail");
+    setSummaryReportOpen(true);
     await invalidateCustomers();
   };
 
@@ -236,11 +307,11 @@ const F1Customers = () => {
           [],
         lastIntakeId: updatedIntake?._id || prev?.lastIntakeId,
       }));
-      toast.success(res?.message || "PT review thành công");
+      toast.success(res?.message || "HLV đã xem xét thành công");
       await invalidateCustomers();
     } catch (error) {
       toast.error(
-        error?.response?.data?.message || "PT review test permission thất bại",
+        getUserErrorMessage(error, "Xem xét quyền đánh giá thất bại"),
       );
     }
   };
@@ -256,6 +327,7 @@ const F1Customers = () => {
 
   return (
     <>
+      {confirmDialog}
     <SEO title="Quản lý khách hàng F1" noindex />
     <div className="flex min-h-screen bg-gradient-to-br from-slate-100 to-slate-200">
       {/* Mobile menu button */}
@@ -277,7 +349,7 @@ const F1Customers = () => {
           aria-label="Mở menu F1"
           aria-expanded="false"
           aria-controls="f1-navigation"
-          className="fixed left-4 top-4 z-50 hidden h-11 w-11 items-center justify-center rounded-xl bg-slate-900 text-white shadow-lg transition hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 md:inline-flex"
+          className="fixed left-4 top-4 z-50 hidden h-11 w-11 items-center justify-center rounded-xl bg-slate-900 text-white shadow-lg transition hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400 md:inline-flex"
         >
           <SidebarOpen size={20} aria-hidden="true" />
         </button>
@@ -288,66 +360,59 @@ const F1Customers = () => {
         id="f1-navigation"
         aria-hidden={isDesktopViewport && desktopSidebarCollapsed}
         inert={isDesktopViewport && desktopSidebarCollapsed}
-        className={`fixed inset-y-0 left-0 z-40 w-72 transform bg-gradient-to-b from-slate-800 to-slate-900 text-white shadow-2xl transition-[transform,width] duration-300 ease-in-out md:relative md:translate-x-0 md:overflow-hidden md:duration-200 ${
+        className={`fixed inset-y-0 left-0 z-40 w-64 transform bg-[#1C2D42] text-[#e2e8f0] shadow-2xl transition-[transform,width] duration-300 ease-in-out md:relative md:translate-x-0 md:overflow-hidden md:duration-200 ${
           mobileMenuOpen ? "translate-x-0" : "-translate-x-full"
-        } ${desktopSidebarCollapsed ? "md:w-0" : "md:w-72"}`}
+        } ${desktopSidebarCollapsed ? "md:w-0" : "md:w-64"}`}
       >
-        <div className="flex h-full w-72 flex-col">
-          <div className="flex items-start justify-between gap-3 border-b border-white/10 p-6">
-            <div>
-              <h3 className="text-2xl font-black tracking-tight">HTCOACHING</h3>
-              <p className="mt-1 text-xs text-slate-400">
-                powered by FitAssess AI
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setDesktopSidebarCollapsed(true)}
-              aria-label="Thu menu F1"
-              aria-expanded="true"
-              aria-controls="f1-navigation"
-              className="hidden h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-300 transition hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 md:inline-flex"
-            >
-              <SidebarClose size={20} aria-hidden="true" />
-            </button>
+        <div className="flex h-full w-64 flex-col">
+          <div className="hidden md:block">
+            <WorkspaceBrand
+              subtitle="Khách hàng F1"
+              onToggle={() => setDesktopSidebarCollapsed(true)}
+              toggleLabel="Thu menu F1"
+            />
           </div>
 
-          <nav className="flex-1 space-y-1 px-4 py-8">
+          <nav className="flex-1 space-y-1 px-4 pb-8 pt-16 md:pt-4">
             <button
               onClick={() => {
                 setViewMode("list");
                 setMobileMenuOpen(false);
               }}
-              className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all ${
-                viewMode === "list"
-                  ? "bg-amber-500/20 text-amber-300 shadow-inner"
-                  : "text-slate-300 hover:bg-white/10 hover:text-white"
-              }`}
+              className={workspaceItemClass(viewMode === "list" || viewMode === "create")}
             >
               <Users size={20} />
               <span>Khách hàng F1</span>
             </button>
 
             <button
-              onClick={handleOpenCreate}
-              className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all ${
-                viewMode === "create"
-                  ? "bg-amber-500/20 text-amber-300 shadow-inner"
-                  : "text-slate-300 hover:bg-white/10 hover:text-white"
-              }`}
+              data-testid="f1-nav-deleted"
+              onClick={() => {
+                setViewMode("deleted");
+                setMobileMenuOpen(false);
+              }}
+              className={workspaceItemClass(viewMode === "deleted")}
             >
-              <UserPlus size={20} />
-              <span>Thêm khách hàng F1</span>
+              <Trash2 size={20} />
+              <span>Xóa khách hàng</span>
             </button>
+
           </nav>
 
-          <div className="border-t border-white/10 p-4">
+          <div className="space-y-1 border-t border-[#34475f] p-4">
+            <Link
+              to="/trainer"
+              className={workspaceItemClass(false)}
+            >
+              <ArrowLeft size={20} aria-hidden="true" />
+              <span>Về khu HLV</span>
+            </Link>
             <Link
               to="/"
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-white/10 px-4 py-3 text-sm font-medium text-slate-200 transition hover:bg-white/20"
+              className={workspaceItemClass(false)}
             >
-              <Home size={18} />
-              <span>Trở về trang chủ</span>
+              <Home size={20} aria-hidden="true" />
+              <span>Trang chủ</span>
             </Link>
           </div>
         </div>
@@ -355,7 +420,7 @@ const F1Customers = () => {
 
       {/* Main content */}
       <main
-        className={`flex-1 overflow-x-auto p-4 transition-[padding] duration-200 md:p-8 ${
+        className={`flex-1 overflow-x-auto px-4 pb-4 pt-16 transition-[padding] duration-200 md:p-8 ${
           desktopSidebarCollapsed ? "md:pl-20" : ""
         }`}
       >
@@ -367,7 +432,7 @@ const F1Customers = () => {
               </div>
             }
           >
-          {viewMode === "list" && (
+          {(viewMode === "list" || viewMode === "create") && (
             <F1CustomerList
               loading={customersQuery.isLoading}
               search={search}
@@ -380,6 +445,17 @@ const F1Customers = () => {
               onPageChange={setPage}
               onOpenCreate={handleOpenCreate}
               onSelectCustomer={handleSelectCustomer}
+            />
+          )}
+
+          {viewMode === "deleted" && (
+            <F1DeletedCustomers
+              loading={deletedQuery.isLoading}
+              error={deletedQuery.isError}
+              customers={deletedCustomers}
+              restoringId={restoreMutation.isPending ? restoreMutation.variables : ""}
+              onRestore={handleRestoreCustomer}
+              onRetry={() => deletedQuery.refetch()}
             />
           )}
 
@@ -403,6 +479,7 @@ const F1Customers = () => {
               onStartAssessment={() => setViewMode("assessment")}
               onOpenAiReport={() => setViewMode("report")}
               onOpenResultPrediction={() => setViewMode("result_prediction")}
+              onOpenSummaryReport={() => setSummaryReportOpen(true)}
               onDelete={handleDeleteCustomer}
               deleting={deleteMutation.isPending}
               reviewingTestPermission={reviewMutation.isPending}
@@ -440,6 +517,23 @@ const F1Customers = () => {
               customer={selectedCustomer}
               onBack={() => setViewMode("detail")}
               onGenerated={handleResultPredictionGenerated}
+            />
+          )}
+          {summaryReportOpen && selectedCustomer && viewMode === "detail" && (
+            <F1CustomerSummaryReport
+              customer={selectedCustomer}
+              onClose={() => setSummaryReportOpen(false)}
+              {...getSummaryContinueAction({
+                customer: selectedCustomer,
+                onAssessment: () => {
+                  setSummaryReportOpen(false);
+                  setViewMode("assessment");
+                },
+                onReport: () => {
+                  setSummaryReportOpen(false);
+                  setViewMode("report");
+                },
+              })}
             />
           )}
           </Suspense>

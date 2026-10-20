@@ -53,10 +53,17 @@ describe("prerender content cache", () => {
     ).toMatchObject({ status: 200 });
     expect(
       responseForPrerenderRequest(
-        "https://api.htcoachingweb.io.vn/api/user/me",
+        "https://api.htcoachingweb.io.vn/api/users/me",
         cache,
       ),
     ).toMatchObject({ status: 401 });
+    // Tên cũ không còn tồn tại nên không được giả lập: request lạ phải đi tiếp tới trình duyệt thay vì nhận 401 giả.
+    expect(
+      responseForPrerenderRequest(
+        "https://api.htcoachingweb.io.vn/api/user/me",
+        cache,
+      ),
+    ).not.toMatchObject({ status: 401 });
   });
 
   it("allows a non-production recipe request to retry outside the cache", () => {

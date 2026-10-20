@@ -538,15 +538,18 @@ export const validateProductionEnvironment = (
     );
   }
 
-  if (String(env.AI_IMAGE_PROVIDER || "").toLowerCase() !== "openai") {
+  const imageProvider = String(env.AI_IMAGE_PROVIDER || "").toLowerCase();
+  if (!["openai", "gemini"].includes(imageProvider)) {
     addFinding(
       findings,
       "errors",
       "AI_IMAGE_PROVIDER_NOT_PRODUCTION",
-      "AI_IMAGE_PROVIDER must equal openai for the production profile.",
+      "AI_IMAGE_PROVIDER must equal openai or gemini for the production profile.",
     );
   }
-  validateSecret(env, findings, "OPENAI_API_KEY", { minimum: 20 });
+  if (imageProvider !== "gemini") {
+    validateSecret(env, findings, "OPENAI_API_KEY", { minimum: 20 });
+  }
 
   validateRequiredText(env, findings, "F1_CONSENT_VERSION", {
     minimum: 2,

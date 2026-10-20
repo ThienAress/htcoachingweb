@@ -140,3 +140,6 @@ export const summarizeProgressAvailability = (progress) =>
     (key) => (progress?.bodyProgress?.[key]?.series || []).length > 0,
   ) ||
   (progress?.weightTrend?.points || []).length > 0;
+
+export const isProgressEntitlementError = (error) =>
+  error?.response?.data?.code === "PROGRESS_ENTITLEMENT_REQUIRED";

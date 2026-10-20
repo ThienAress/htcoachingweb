@@ -7,8 +7,8 @@ export const getAdminDeposits = (status = "all") =>
 export const getAdminDepositPolicy = ({ signal } = {}) =>
   api.get("/admin/deposits/policy", { signal });
 
-export const updateAdminDepositPolicy = (rates) =>
-  api.put("/admin/deposits/policy", { rates });
+export const updateAdminDepositPolicy = ({ rates, thresholds, labels }) =>
+  api.put("/admin/deposits/policy", { rates, thresholds, labels });
 
 // Duyệt nạp tiền
 export const approveDeposit = (id) => api.post(`/admin/deposits/${id}/approve`);

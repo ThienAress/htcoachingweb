@@ -25,8 +25,12 @@ import {
   User,
   Clock,
 } from "lucide-react";
+import SelectField from "../../components/SelectField";
+import { useConfirmDialog } from "../../hooks/useConfirmDialog";
+import { getUserErrorMessage } from "../../utils/errorMessages";
 
 const BookingManagement = () => {
+  const { confirm, dialog } = useConfirmDialog();
   const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
   const [filterStatus, setFilterStatus] = useState("");
@@ -63,13 +67,13 @@ const BookingManagement = () => {
   });
 
   const handleStatusUpdate = async (booking, status) => {
-    if (!window.confirm(`Xác nhận chuyển trạng thái thành "${status}"?`))
+    if (!await confirm({ title: "Đổi trạng thái lịch hẹn", message: `Xác nhận chuyển trạng thái thành "${status}"?`, confirmLabel: "Xác nhận", tone: "default" }))
       return;
     try {
       await statusMutation.mutateAsync({ booking, status });
       toast.success("Đã cập nhật trạng thái booking");
     } catch (err) {
-      toast.error(err.response?.data?.message || "Không thể cập nhật booking");
+      toast.error(getUserErrorMessage(err, "Không thể cập nhật booking"));
       if (err.response?.status === 409) {
         await invalidateByKey(queryClient, adminQueryKeys.bookings.all());
       }
@@ -77,12 +81,12 @@ const BookingManagement = () => {
   };
 
   const handleArchive = async (booking) => {
-    if (!window.confirm("Lưu trữ booking này?")) return;
+    if (!await confirm({ title: "Lưu trữ lịch hẹn", message: "Lưu trữ booking này?", confirmLabel: "Lưu trữ", tone: "default" })) return;
     try {
       await archiveMutation.mutateAsync(booking);
       toast.success("Đã lưu trữ booking");
     } catch (err) {
-      toast.error(err.response?.data?.message || "Không thể lưu trữ booking");
+      toast.error(getUserErrorMessage(err, "Không thể lưu trữ booking"));
       if (err.response?.status === 409) {
         await invalidateByKey(queryClient, adminQueryKeys.bookings.all());
       }
@@ -138,7 +142,7 @@ const BookingManagement = () => {
           />
         </div>
         <div className="flex gap-2">
-          <select
+          <SelectField
             className="px-4 py-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-red-400"
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
@@ -148,7 +152,7 @@ const BookingManagement = () => {
             <option value="contacted">Đã liên hệ</option>
             <option value="completed">Hoàn thành</option>
             <option value="cancelled">Đã hủy</option>
-          </select>
+          </SelectField>
         </div>
       </div>
 
@@ -426,6 +430,7 @@ const BookingManagement = () => {
           </div>
         </div>
       )}
+      {dialog}
     </div>
     </phantom-ui>
   );

@@ -11,6 +11,7 @@ import {
   deleteExerciseReview,
   saveExerciseReview,
 } from "../../services/exercise.service";
+import { getUserErrorMessage } from "../../utils/errorMessages";
 
 const RatingStars = ({ value, onChange, readOnly = false, label }) => (
   <div className="flex items-center gap-1" aria-label={label}>
@@ -63,7 +64,7 @@ export default function ExerciseReviews({ exerciseId }) {
     },
     onError: (error) =>
       toast.error(
-        error.response?.data?.message || t("detail.reviews.save_error"),
+        getUserErrorMessage(error, t("detail.reviews.save_error")),
       ),
   });
   const deleteMutation = useMutation({
@@ -75,7 +76,7 @@ export default function ExerciseReviews({ exerciseId }) {
     },
     onError: (error) =>
       toast.error(
-        error.response?.data?.message || "Không thể xóa đánh giá bài tập",
+        getUserErrorMessage(error, "Không thể xóa đánh giá bài tập"),
       ),
   });
 

@@ -3,12 +3,12 @@ import get from "lodash/get.js";
 import { safeLog } from "../../utils/safeLogger.js";
 
 const PHASE_LABELS = {
-  pending_review: "Chờ review thêm trước khi vào phase huấn luyện",
-  phase_1: "Cấp độ 1 · Phase 1 - Stabilization Endurance",
-  phase_2: "Cấp độ 2 · Phase 2 - Strength Endurance",
-  phase_3: "Cấp độ 2 · Phase 3 - Muscular Development / Hypertrophy",
-  phase_4: "Cấp độ 2 · Phase 4 - Maximal Strength",
-  phase_5: "Cấp độ 3 · Phase 5 - Power",
+  pending_review: "Chờ xem xét thêm trước khi vào giai đoạn huấn luyện",
+  phase_1: "Cấp độ 1 · Giai đoạn 1 - Ổn định và sức bền nền (Stabilization Endurance)",
+  phase_2: "Cấp độ 2 · Giai đoạn 2 - Sức mạnh bền (Strength Endurance)",
+  phase_3: "Cấp độ 2 · Giai đoạn 3 - Phát triển cơ bắp (Muscular Development)",
+  phase_4: "Cấp độ 2 · Giai đoạn 4 - Sức mạnh tối đa (Maximal Strength)",
+  phase_5: "Cấp độ 3 · Giai đoạn 5 - Sức bật (Power)",
 };
 
 const round1 = (num) => Number(Number(num || 0).toFixed(1));
@@ -34,6 +34,8 @@ const collectCompensations = (assessment) => {
   return [...new Set([...postureFlags, ...movementFlags])];
 };
 
+const hasText = (value) => Boolean(String(value || "").trim());
+
 const buildRiskFlags = (intake) => {
   const flags = [];
 
@@ -48,6 +50,11 @@ const buildRiskFlags = (intake) => {
   if (["moderate", "severe"].includes(intake?.systemFlags?.painFlag)) {
     flags.push("pain_alert");
   }
+
+  const health = intake?.healthScreening || {};
+  if (hasText(health.injuries)) flags.push("injury_history");
+  if (hasText(health.surgeries)) flags.push("surgery_history");
+  if (hasText(health.medications)) flags.push("medication_use");
 
   return flags;
 };
@@ -79,8 +86,32 @@ const buildLifestyleFlags = (intake) => {
   return flags;
 };
 
+const MAX_CORRECTIVE_FOCUS = 3;
+const MAX_TRAINING_FOCUS = 4;
+
+// Đếm số lần mỗi ưu tiên được nhiều lỗi vận động cùng chỉ tới; ưu tiên nào được chỉ
+// nhiều nhất xếp trước, hoà thì giữ thứ tự xuất hiện.
+const createFocusCounter = () => {
+  const counts = new Map();
+  return {
+    add(item) {
+      counts.set(item, (counts.get(item) || 0) + 1);
+    },
+    get size() {
+      return counts.size;
+    },
+    ranked(limit) {
+      return [...counts.entries()]
+        .map(([item, count], index) => ({ item, count, index }))
+        .sort((a, b) => b.count - a.count || a.index - b.index)
+        .slice(0, limit)
+        .map((entry) => entry.item);
+    },
+  };
+};
+
 const buildCorrectiveFocus = (compensationFlags = []) => {
-  const focus = new Set();
+  const focus = createFocusCounter();
 
   if (
     compensationFlags.includes("feet_turn_out") ||
@@ -176,13 +207,105 @@ const buildCorrectiveFocus = (compensationFlags = []) => {
     focus.add("cervical_alignment");
   }
 
+  // Không có lỗi cần hiệu chỉnh thì chỉ giữ form khi tăng tải, không ép khách quay lại bài ổn định nền.
   if (focus.size === 0) {
-    focus.add("movement_foundation");
-    focus.add("stability_training");
+    focus.add("form_maintenance");
   }
 
-  return Array.from(focus);
+  return focus.ranked(MAX_CORRECTIVE_FOCUS);
 };
+
+const TIER_LABELS = {
+  easy: "mức dễ",
+  standard: "mức tiêu chuẩn",
+  advanced: "mức nâng cao",
+};
+const LEVEL_LABELS = {
+  low: "Yếu",
+  below_average: "Dưới trung bình",
+  average: "Trung bình",
+  good: "Tốt",
+};
+const TESTED_METRICS = [
+  ["Sức mạnh đẩy thân trên (Upper Push)", "strengthAssessment", "upperBodyPush"],
+  ["Sức mạnh kéo thân trên (Upper Pull)", "strengthAssessment", "upperBodyPull"],
+  ["Sức mạnh thân dưới (Lower Body)", "strengthAssessment", "lowerBody"],
+  ["Sức mạnh cơ lõi (Core)", "strengthAssessment", "coreStrength"],
+  ["Sức bền cơ bắp (Muscular Endurance)", "enduranceAssessment", "muscularEndurance"],
+  ["Sức bền cơ lõi (Core Endurance)", "enduranceAssessment", "coreEndurance"],
+  ["Năng lực tim mạch (Cardio Capacity)", "cardioAssessment", "cardioCapacity"],
+  ["Hồi phục nhịp tim (Heart Rate Recovery)", "cardioAssessment", "recoveryHeartRate"],
+];
+
+// Mỗi dòng: hạng mục + các bài đã test (tên, cấp độ, mức) để HLV thấy báo cáo dựa trên gì.
+const buildTestedExerciseFindings = (assessment) => {
+  const lines = [];
+  const rows = [];
+  for (const [label, group, key] of TESTED_METRICS) {
+    const exercises = assessment?.[group]?.[key]?.exercises || [];
+    if (!exercises.length) continue;
+    const detail = exercises
+      .map((item) => {
+        const tier = TIER_LABELS[item.tier] || "bài riêng của HLV";
+        const level = LEVEL_LABELS[item.level] || "chưa chấm";
+        return `${item.name} (${tier}, ${level})`;
+      })
+      .join("; ");
+    lines.push(`${label}: ${detail}`);
+    rows.push({
+      label,
+      entries: exercises.map((item) => ({
+        name: item.name,
+        note: TIER_LABELS[item.tier] || "bài riêng của HLV",
+        score:
+          item.score === "" || item.score == null ? "" : String(item.score),
+        result: LEVEL_LABELS[item.level] || "Chưa chấm",
+      })),
+    });
+  }
+
+  const ohsa = assessment?.movementAssessment?.overheadSquat || {};
+  const views = [
+    ["mặt trước", "anterior"],
+    ["mặt bên", "lateral"],
+    ["mặt sau", "posterior"],
+  ].map(([label, view]) => {
+    if ((ohsa[view] || []).length) return `${label}: có biểu hiện sai`;
+    return ohsa[`${view}Normal`]
+      ? `${label}: không có biểu hiện sai`
+      : `${label}: chưa đánh giá`;
+  });
+  lines.push(`Squat tay qua đầu (Overhead Squat) - ${views.join("; ")}`);
+  rows.push({
+    label: "Squat tay qua đầu (Overhead Squat)",
+    entries: [
+      ["Góc nhìn mặt trước", "anterior"],
+      ["Góc nhìn mặt bên", "lateral"],
+      ["Góc nhìn mặt sau", "posterior"],
+    ].map(([name, view]) => ({
+      name,
+      note: "",
+      result: (ohsa[view] || []).length
+        ? "Có biểu hiện sai"
+        : ohsa[`${view}Normal`]
+          ? "Không có biểu hiện sai"
+          : "Chưa đánh giá",
+    })),
+  });
+  return { lines, rows };
+};
+
+// Hạng mục chỉ test ở mức dễ mà vẫn dưới trung bình: tín hiệu nền yếu rõ hơn mức tổng.
+const countEasyTierStruggles = (assessment) =>
+  TESTED_METRICS.filter(([, group, key]) => {
+    const metric = assessment?.[group]?.[key] || {};
+    const exercises = metric.exercises || [];
+    return (
+      exercises.length > 0 &&
+      exercises.every((item) => item.tier === "easy") &&
+      ["low", "below_average"].includes(metric.level)
+    );
+  }).length;
 
 const normalizeLevel = (value = "") =>
   String(value || "")
@@ -277,14 +400,33 @@ const determineRecommendedStartPhase = ({
   const hasWarningSigns =
     Array.isArray(health.warningSigns) && health.warningSigns.length > 0;
   const painFlag = intake?.systemFlags?.painFlag || "none";
+  const hasInjuryHistory = riskFlags.includes("injury_history");
+  const hasSurgeryHistory = riskFlags.includes("surgery_history");
+  const usesMedication = riskFlags.includes("medication_use");
+  const easyTierStruggles = countEasyTierStruggles(assessment);
+  const reasons = [];
+  const decide = (phase) => ({ phase, reasons });
 
-  if (
+  // HLV đã xem xét và cho phép đánh giá thì không giữ khách ở "chờ xem xét" nữa.
+  const trainerCleared = ["approve_modified_test", "approve_full_test"].includes(
+    intake?.systemFlags?.reviewDecision,
+  );
+  const needsReview =
     readiness === "hold" ||
     hasWarningSigns ||
     hasDoctorRestrictions ||
-    painFlag === "severe"
-  ) {
-    return "pending_review";
+    painFlag === "severe";
+
+  if (needsReview) {
+    if (readiness === "hold") reasons.push("Khách đang ở trạng thái hoãn đánh giá.");
+    if (hasWarningSigns) reasons.push("Có dấu hiệu cảnh báo sức khỏe cần làm rõ.");
+    if (hasDoctorRestrictions) reasons.push("Có hạn chế vận động do bác sĩ.");
+    if (painFlag === "severe") reasons.push("Mức đau hiện tại ở mức nặng.");
+    if (!trainerCleared) return decide("pending_review");
+    reasons.push(
+      "HLV đã xem xét và cho phép đánh giá, nên bắt đầu ở Giai đoạn 1 để thận trọng và theo dõi sát.",
+    );
+    return decide("phase_1");
   }
 
   // Chỉ ép Phase 1 khi khách thực sự cần khởi đầu bảo thủ
@@ -295,9 +437,28 @@ const determineRecommendedStartPhase = ({
         compensationCount >= 4 ||
         lowPhysicalFlagCount >= 2)) ||
     overall === "low" ||
-    overall === "below_average"
+    overall === "below_average" ||
+    easyTierStruggles >= 2
   ) {
-    return "phase_1";
+    if (overall === "low" || overall === "below_average") {
+      reasons.push(`Mức thể chất tổng thể ở mức ${LEVEL_LABELS[overall].toLowerCase()}.`);
+    }
+    if (easyTierStruggles >= 2) {
+      reasons.push(
+        `Có ${easyTierStruggles} hạng mục chỉ test ở mức dễ mà vẫn chưa đạt mức trung bình.`,
+      );
+    }
+    if (readiness === "caution") {
+      if (hasCurrentConditions) reasons.push("Có bệnh lý hiện tại cần lưu ý.");
+      if (painFlag === "moderate") reasons.push("Có đau ở mức vừa.");
+      if (compensationCount >= 4) {
+        reasons.push(`Có ${compensationCount} biểu hiện vận động sai cần hiệu chỉnh.`);
+      }
+      if (lowPhysicalFlagCount >= 2) {
+        reasons.push(`Có ${lowPhysicalFlagCount} chỉ số thể lực còn thấp.`);
+      }
+    }
+    return decide("phase_1");
   }
 
   // Khách có nền tốt, tập đều, goal tăng cơ / tăng cân -> Phase 3
@@ -311,11 +472,22 @@ const determineRecommendedStartPhase = ({
     currentlyTraining &&
     trainingDays >= 3
   ) {
-    return "phase_3";
+    // Có tiền sử chấn thương / phẫu thuật / dùng thuốc thì chưa vào Giai đoạn 3.
+    if (hasInjuryHistory || hasSurgeryHistory || usesMedication) {
+      reasons.push(
+        "Nền thể chất đủ tốt cho Giai đoạn 3, nhưng có tiền sử chấn thương, phẫu thuật hoặc dùng thuốc nên bắt đầu ở Giai đoạn 2 để theo dõi.",
+      );
+      return decide("phase_2");
+    }
+    reasons.push(
+      "Mức sẵn sàng tốt, thể lực tốt, đang tập đều và mục tiêu phát triển cơ bắp.",
+    );
+    return decide("phase_3");
   }
 
   // Còn lại: khách ổn, không quá yếu, không có risk mạnh -> Phase 2
-  return "phase_2";
+  reasons.push("Không có yếu tố nguy cơ lớn và nền thể chất ở mức ổn.");
+  return decide("phase_2");
 };
 
 const buildTrainingFocus = ({
@@ -382,7 +554,19 @@ const buildTrainingFocus = ({
     focus.add("general_foundation");
   }
 
-  return Array.from(focus);
+  const weaknessDriven = [
+    "lower_body_strength",
+    "core_strength",
+    "muscular_endurance",
+    "pattern_retraining",
+    "cardio_base_building",
+  ];
+  const ordered = [
+    ...weaknessDriven.filter((item) => focus.has(item)),
+    ...Array.from(focus).filter((item) => !weaknessDriven.includes(item)),
+  ];
+
+  return ordered.slice(0, MAX_TRAINING_FOCUS);
 };
 
 const evaluateCondition = (condition, context) => {
@@ -429,10 +613,12 @@ const buildTrainingNotesAsync = async ({
   context
 }) => {
   const notes = [];
-  
+  let hasActiveRules = false;
+
   try {
     const rules = await F1AiRule.find({ isActive: true }).sort({ priority: -1 });
-    
+    hasActiveRules = rules.length > 0;
+
     for (const rule of rules) {
       if (evaluateRule(rule, context)) {
         notes.push(rule.recommendation.content);
@@ -442,8 +628,9 @@ const buildTrainingNotesAsync = async ({
     safeLog.error("f1.ai_rules_load_failed", err);
   }
 
-  // Fallback to hardcoded rules if DB is empty or fails
-  if (notes.length === 0) {
+  // Chỉ dùng luật dự phòng khi chưa có luật nào đang bật hoặc không tải được;
+  // có luật đang bật mà không khớp điều kiện nào thì giữ nguyên "không có ghi chú".
+  if (!hasActiveRules) {
     const { phase, flags: { lifestyleFlags, compensationFlags, riskFlags, strengthFlags, enduranceFlags, cardioFlags } } = context;
     if (phase === "pending_review") {
       notes.push("Chưa nên đẩy khách vào giáo án chính thức cho đến khi làm rõ thêm yếu tố sức khỏe.");
@@ -452,33 +639,33 @@ const buildTrainingNotesAsync = async ({
 
     if (phase === "phase_1") {
       notes.push("Ưu tiên các bài giúp khách cảm nhận cơ thể tốt hơn và kiểm soát chuyển động rõ hơn.");
-      notes.push("Tempo nên chậm, tải vừa phải và độ khó bài tập nên tăng từ từ.");
+      notes.push("Nhịp thực hiện nên chậm, tải vừa phải và độ khó bài tập nên tăng từ từ.");
       notes.push("Mục tiêu chính là xây lại nền ổn định, cảm nhận cơ thể và khả năng chịu vận động cơ bản.");
     }
 
     if (phase === "phase_2") {
       notes.push("Có thể bắt đầu tăng dần sức mạnh bền, nhưng vẫn cần giữ kỹ thuật ổn định ở từng bài.");
-      notes.push("Nên ưu tiên các bài cơ bản, unilateral work và khối lượng vừa phải để khách thích nghi tốt.");
-      notes.push("Volume có thể tăng dần nếu khách đáp ứng tốt và recovery ổn định.");
+      notes.push("Nên ưu tiên các bài cơ bản, bài tập một bên (unilateral) và khối lượng vừa phải để khách thích nghi tốt.");
+      notes.push("Khối lượng tập có thể tăng dần nếu khách đáp ứng tốt và hồi phục ổn định.");
     }
 
     if (phase === "phase_3") {
       notes.push("Có thể đi theo hướng phát triển cơ bắp rõ ràng hơn với cấu trúc bài tập mạch lạc hơn.");
-      notes.push("Ưu tiên progressive overload, volume đủ tốt và theo dõi recovery sát để tránh quá tải.");
-      notes.push("Corrective lúc này chỉ cần giữ ở mức duy trì nếu khách không còn lỗi nổi bật.");
+      notes.push("Ưu tiên tăng tải tiến triển (progressive overload), khối lượng tập đủ tốt và theo dõi hồi phục sát để tránh quá tải.");
+      notes.push("Bài hiệu chỉnh (corrective) lúc này chỉ cần giữ ở mức duy trì nếu khách không còn lỗi nổi bật.");
     }
 
     if (lifestyleFlags.includes("sleep_low")) notes.push("Nên để ý hồi phục vì thời lượng ngủ hiện tại còn thấp.");
-    if (lifestyleFlags.includes("stress_high")) notes.push("Nếu stress cao, nên giữ volume đầu vào vừa phải thay vì tăng nhanh.");
+    if (lifestyleFlags.includes("stress_high")) notes.push("Nếu căng thẳng cao, nên giữ khối lượng tập đầu vào vừa phải thay vì tăng nhanh.");
     if (compensationFlags.includes("knees_move_inward") || compensationFlags.includes("excessive_forward_lean")) {
-      notes.push("Chưa nên tăng nhanh các bài squat nặng khi pattern vận động vẫn chưa thật sự ổn.");
+      notes.push("Chưa nên tăng nhanh các bài squat nặng khi kiểu vận động vẫn chưa thật sự ổn.");
     }
     if (riskFlags.includes("medical_review_needed")) notes.push("Cần giữ sự thận trọng với yếu tố sức khỏe trước khi tăng cường độ tập.");
-    if (strengthFlags.includes("core_strength_low")) notes.push("Nên nâng nền core trước khi đẩy nhanh các bài compound.");
+    if (strengthFlags.includes("core_strength_low")) notes.push("Nên nâng nền cơ lõi trước khi đẩy nhanh các bài đa khớp.");
     if (strengthFlags.includes("lower_body_strength_low")) notes.push("Sức mạnh thân dưới nên được tăng dần bằng các bài cơ bản, dễ kiểm soát form.");
-    if (enduranceFlags.includes("muscular_endurance_low")) notes.push("Nên tăng volume từ từ, tránh dồn mật độ bài tập quá sớm ngay giai đoạn đầu.");
+    if (enduranceFlags.includes("muscular_endurance_low")) notes.push("Nên tăng khối lượng tập từ từ, tránh dồn mật độ bài tập quá sớm ngay giai đoạn đầu.");
     if (cardioFlags.includes("cardio_capacity_low")) notes.push("Nên bổ sung cardio nền cường độ vừa để cải thiện khả năng chịu vận động tổng thể.");
-    if (cardioFlags.includes("resting_hr_elevated")) notes.push("Nên theo dõi nhịp tim nghỉ và mức hồi phục trước khi nâng volume thêm.");
+    if (cardioFlags.includes("resting_hr_elevated")) notes.push("Nên theo dõi nhịp tim nghỉ và mức hồi phục trước khi tăng khối lượng tập thêm.");
   }
 
   return [...new Set(notes)];
@@ -531,7 +718,7 @@ const mapPhaseLabel = (value = "phase_1") =>
 const translateLifestyleFlags = (flags = []) => {
   const map = {
     sleep_low: "ngủ chưa đủ",
-    stress_high: "stress cao",
+    stress_high: "căng thẳng cao",
     meals_low: "số bữa ăn còn ít",
     hydration_low: "uống nước chưa đủ",
     eat_out_often: "ăn ngoài thường xuyên",
@@ -542,8 +729,11 @@ const translateLifestyleFlags = (flags = []) => {
 const translateRiskFlags = (flags = []) => {
   const map = {
     medical_review_needed: "cần rà soát y tế",
-    hold_test: "tạm hoãn test",
+    hold_test: "tạm hoãn đánh giá",
     pain_alert: "có cảnh báo đau",
+    injury_history: "có tiền sử chấn thương",
+    surgery_history: "từng phẫu thuật",
+    medication_use: "đang dùng thuốc",
   };
   return flags.map((item) => map[item] || item);
 };
@@ -553,7 +743,7 @@ const translateStrengthFlags = (flags = []) => {
     upper_body_push_low: "sức mạnh đẩy thân trên còn thấp",
     upper_body_pull_low: "sức mạnh kéo thân trên còn thấp",
     lower_body_strength_low: "sức mạnh thân dưới còn thấp",
-    core_strength_low: "sức mạnh core còn thấp",
+    core_strength_low: "sức mạnh cơ lõi còn thấp",
   };
   return flags.map((item) => map[item] || item);
 };
@@ -561,7 +751,7 @@ const translateStrengthFlags = (flags = []) => {
 const translateEnduranceFlags = (flags = []) => {
   const map = {
     muscular_endurance_low: "sức bền cơ còn thấp",
-    core_endurance_low: "sức bền core còn thấp",
+    core_endurance_low: "sức bền cơ lõi còn thấp",
   };
   return flags.map((item) => map[item] || item);
 };
@@ -604,7 +794,7 @@ const translateCompensationFlags = (flags = []) => {
   return flags.map((item) => map[item] || item);
 };
 
-const translateCorrectiveFocus = (items = []) => {
+export const translateCorrectiveFocus = (items = []) => {
   const map = {
     glute_activation: "kích hoạt cơ mông",
     ankle_mobility: "cải thiện linh hoạt cổ chân",
@@ -612,34 +802,36 @@ const translateCorrectiveFocus = (items = []) => {
     lower_body_alignment: "chỉnh trục thân dưới",
     stability_training: "tăng ổn định nền tảng",
     movement_foundation: "xây nền chuyển động",
-    core_control: "tăng kiểm soát core",
-    squat_pattern_retraining: "học lại pattern squat",
+    core_control: "tăng kiểm soát cơ lõi",
+    squat_pattern_retraining: "học lại kiểu squat",
     lumbopelvic_control: "kiểm soát lưng - chậu",
-    core_bracing: "học siết core",
+    core_bracing: "học siết cơ lõi",
     hip_mobility: "cải thiện linh hoạt hông",
     thoracic_mobility: "cải thiện linh hoạt lưng ngực",
     scapular_control: "kiểm soát xương bả vai",
     posture_awareness: "nhận thức tư thế",
     thoracic_extension: "cải thiện ưỡn lưng ngực",
     cervical_alignment: "căn chỉnh cổ",
+    form_maintenance: "duy trì kiểm soát form khi tăng tải",
   };
   return items.map((item) => map[item] || item);
 };
 
-const translateTrainingFocus = (items = []) => {
+export const translateTrainingFocus = (items = []) => {
   const map = {
     energy_expenditure: "tăng tiêu hao năng lượng",
     cardio_base_building: "xây nền tim mạch",
     strength_progression: "tăng tiến sức mạnh",
     movement_quality_under_load: "cải thiện chất lượng chuyển động khi có tải",
     lower_body_strength: "ưu tiên sức mạnh thân dưới",
-    core_strength: "ưu tiên sức mạnh core",
+    core_strength: "ưu tiên sức mạnh cơ lõi",
     muscular_endurance: "ưu tiên sức bền cơ",
-    pattern_retraining: "học lại pattern vận động",
+    pattern_retraining: "học lại kiểu vận động",
     general_foundation: "xây nền tổng quát",
     movement_foundation: "xây nền chuyển động",
     stability_training: "tăng ổn định nền tảng",
-    core_control: "tăng kiểm soát core",
+    core_control: "tăng kiểm soát cơ lõi",
+    form_maintenance: "duy trì kiểm soát form khi tăng tải",
   };
   return items.map((item) => map[item] || item);
 };
@@ -750,18 +942,18 @@ const buildBodyFatComment = (gender = "", bodyFat = 0) => {
   const highThreshold = isMale ? 25 : 35;
 
   if (value >= highThreshold) {
-    return `Với body fat khoảng ${value}%, đây là mức cao đối với ${getGenderLabel(gender)}. Nếu không cải thiện vận động và dinh dưỡng, nguy cơ tích lũy mỡ nội tạng, rối loạn chuyển hóa và các vấn đề sức khỏe liên quan sẽ tăng dần theo thời gian.`;
+    return `Với tỷ lệ mỡ khoảng ${value}%, đây là mức cao đối với ${getGenderLabel(gender)}. Nếu không cải thiện vận động và dinh dưỡng, nguy cơ tích lũy mỡ nội tạng, rối loạn chuyển hóa và các vấn đề sức khỏe liên quan sẽ tăng dần theo thời gian.`;
   }
 
   if (value >= elevatedThreshold) {
-    return `Body fat hiện tại khoảng ${value}% đang cao hơn vùng nên hướng tới đối với ${getGenderLabel(gender)}. Khách nên ưu tiên cải thiện vận động, hồi phục và kiểm soát dinh dưỡng để kéo body fat về vùng an toàn hơn.`;
+    return `Tỷ lệ mỡ hiện tại khoảng ${value}% đang cao hơn vùng nên hướng tới đối với ${getGenderLabel(gender)}. Khách nên ưu tiên cải thiện vận động, hồi phục và kiểm soát dinh dưỡng để kéo tỷ lệ mỡ về vùng an toàn hơn.`;
   }
 
   if (value > fitThreshold) {
-    return `Body fat khoảng ${value}% đang ở vùng có thể cải thiện thêm. Nếu mục tiêu là tối ưu hình thể, khách nên tiếp tục giảm dần về vùng gọn gàng hơn.`;
+    return `Tỷ lệ mỡ khoảng ${value}% đang ở vùng có thể cải thiện thêm. Nếu mục tiêu là tối ưu hình thể, khách nên tiếp tục giảm dần về vùng gọn gàng hơn.`;
   }
 
-  return `Body fat hiện tại khoảng ${value}% đang ở mức tương đối ổn để xây nền và tối ưu dần chất lượng hình thể.`;
+  return `Tỷ lệ mỡ hiện tại khoảng ${value}% đang ở mức tương đối ổn để xây nền và tối ưu dần chất lượng hình thể.`;
 };
 
 const buildBmiComment = (bmi = 0) => {
@@ -769,11 +961,11 @@ const buildBmiComment = (bmi = 0) => {
   if (!Number.isFinite(value) || value <= 0) return null;
 
   if (value >= 30) {
-    return `BMI khoảng ${value} cho thấy thể trạng đang ở mức béo phì. Điều này cần được lưu ý khi thiết kế volume, cardio và tốc độ progression ban đầu.`;
+    return `BMI khoảng ${value} cho thấy thể trạng đang ở mức béo phì. Điều này cần được lưu ý khi thiết kế khối lượng tập, cardio và tốc độ tăng tiến ban đầu.`;
   }
 
   if (value >= 25) {
-    return `BMI khoảng ${value} đang ở vùng thừa cân. Khách nên ưu tiên tăng vận động, cải thiện chất lượng ăn uống và kiểm soát body composition trong giai đoạn đầu.`;
+    return `BMI khoảng ${value} đang ở vùng thừa cân. Khách nên ưu tiên tăng vận động, cải thiện chất lượng ăn uống và kiểm soát thành phần cơ thể trong giai đoạn đầu.`;
   }
 
   if (value < 18.5) {
@@ -820,13 +1012,13 @@ const buildWeaknessSummary = ({
         .slice(0, 2)
         .join(
           ", ",
-        )}, nên PT vẫn cần xây nền work capacity trước khi tăng mật độ bài tập.`,
+        )}, nên HLV vẫn cần xây nền khả năng làm việc (work capacity) trước khi tăng mật độ bài tập.`,
     );
   }
 
   if (!parts.length) {
     parts.push(
-      "Từ assessment hiện tại chưa thấy điểm yếu nào quá nổi bật, tuy vậy PT vẫn nên ưu tiên chất lượng chuyển động và tăng tải theo hướng từ tốn.",
+      "Từ kết quả đánh giá thể chất hiện tại chưa thấy điểm yếu nào quá nổi bật, tuy vậy HLV vẫn nên ưu tiên chất lượng chuyển động và tăng tải theo hướng từ tốn.",
     );
   }
 
@@ -846,37 +1038,37 @@ const buildQuickOverviewByPhase = ({
   keyIssues = [],
 }) => {
   const issueText = keyIssues.length
-    ? ` Điểm PT nên lưu ý trước tiên là ${keyIssues.slice(0, 2).join(", ")}.`
+    ? ` Điểm HLV nên lưu ý trước tiên là ${keyIssues.slice(0, 2).join(", ")}.`
     : "";
 
   if (phase === "pending_review") {
     return {
       headline:
-        "Hiện tại khách chưa phù hợp để vào block tập chính thức. Nên review thêm về sức khỏe và mức an toàn vận động trước khi chốt hướng triển khai.",
-      coachConclusion: `Mức sẵn sàng hiện tại là ${readinessLabel}. Mục tiêu chính là ${goalLabel}, nhưng ở thời điểm này PT nên ưu tiên an toàn, xác nhận thêm yếu tố sức khỏe và tránh đẩy progression quá sớm.${issueText}`,
+        "Hiện tại khách chưa phù hợp để vào giai đoạn tập chính thức. Nên xem xét thêm về sức khỏe và mức an toàn vận động trước khi chốt hướng triển khai.",
+      coachConclusion: `Mức sẵn sàng hiện tại là ${readinessLabel}. Mục tiêu chính là ${goalLabel}, nhưng ở thời điểm này HLV nên ưu tiên an toàn, xác nhận thêm yếu tố sức khỏe và tránh tăng tiến quá sớm.${issueText}`,
     };
   }
 
   if (phase === "phase_1") {
     return {
       headline:
-        "Khách phù hợp bắt đầu từ Cấp độ 1 · Phase 1 - Stabilization Endurance để xây nền ổn định, cải thiện kiểm soát chuyển động và vào lộ trình một cách an toàn.",
-      coachConclusion: `Khách đang ở mức ${overallLabel}, mục tiêu chính là ${goalLabel}. Giai đoạn đầu nên đi theo hướng chỉnh movement, tăng stability và làm quen lại với nhịp tập trước khi tăng tải mạnh hơn.${issueText}`,
+        "Khách phù hợp bắt đầu từ Cấp độ 1 · Giai đoạn 1 - Ổn định và sức bền nền (Stabilization Endurance) để xây nền ổn định, cải thiện kiểm soát chuyển động và vào lộ trình một cách an toàn.",
+      coachConclusion: `Khách đang ở mức ${overallLabel}, mục tiêu chính là ${goalLabel}. Giai đoạn đầu nên đi theo hướng chỉnh chuyển động, tăng ổn định và làm quen lại với nhịp tập trước khi tăng tải mạnh hơn.${issueText}`,
     };
   }
 
   if (phase === "phase_2") {
     return {
       headline:
-        "Khách có thể bắt đầu ở Cấp độ 2 · Phase 2 - Strength Endurance. Đây là giai đoạn phù hợp để vừa xây sức mạnh bền, vừa tiếp tục giữ chất lượng chuyển động.",
-      coachConclusion: `Khách đang ở mức ${overallLabel}, mục tiêu chính là ${goalLabel}. Có thể triển khai block strength endurance với volume vừa phải, vẫn giữ corrective ở phần khởi động nếu cần.${issueText}`,
+        "Khách có thể bắt đầu ở Cấp độ 2 · Giai đoạn 2 - Sức mạnh bền (Strength Endurance). Đây là giai đoạn phù hợp để vừa xây sức mạnh bền, vừa tiếp tục giữ chất lượng chuyển động.",
+      coachConclusion: `Khách đang ở mức ${overallLabel}, mục tiêu chính là ${goalLabel}. Có thể triển khai giai đoạn sức mạnh bền (strength endurance) với khối lượng tập vừa phải, vẫn giữ corrective ở phần khởi động nếu cần.${issueText}`,
     };
   }
 
   return {
     headline:
-      "Khách có thể vào Cấp độ 2 · Phase 3 - Muscular Development / Hypertrophy vì nền vận động, thể lực và mức sẵn sàng hiện tại đã phù hợp hơn với block phát triển cơ bắp.",
-    coachConclusion: `Khách đang ở mức ${overallLabel}, mục tiêu chính là ${goalLabel}. PT có thể ưu tiên progressive overload, volume hypertrophy và theo dõi recovery sát để giữ chất lượng buổi tập.${issueText}`,
+      "Khách có thể vào Cấp độ 2 · Giai đoạn 3 - Phát triển cơ bắp (Muscular Development) vì nền vận động, thể lực và mức sẵn sàng hiện tại đã phù hợp hơn với giai đoạn phát triển cơ bắp.",
+    coachConclusion: `Khách đang ở mức ${overallLabel}, mục tiêu chính là ${goalLabel}. HLV có thể ưu tiên tăng tải tiến triển (progressive overload), khối lượng tập, phát triển cơ bắp (hypertrophy) và theo dõi hồi phục sát để giữ chất lượng buổi tập.${issueText}`,
   };
 };
 
@@ -894,9 +1086,9 @@ const buildStartupPlanByPhase = ({
     return {
       startPhase: phase,
       combinedPlan: [
-        "Tạm thời chưa nên vào block tập chính thức.",
+        "Tạm thời chưa nên vào giai đoạn tập chính thức.",
         "Ưu tiên làm rõ thêm triệu chứng, bệnh lý, thuốc đang dùng và giới hạn vận động nếu có.",
-        "Buổi đầu nên xem như buổi rà soát lại thể trạng, kiểm tra movement nhẹ và quan sát phản ứng cơ thể.",
+        "Buổi đầu nên xem như buổi rà soát lại thể trạng, kiểm tra chuyển động nhẹ và quan sát phản ứng cơ thể.",
         "Chỉ nên chuyển sang phase huấn luyện khi mức độ an toàn đã rõ ràng hơn.",
       ],
       cautions: Array.from(trainingNotes),
@@ -907,13 +1099,13 @@ const buildStartupPlanByPhase = ({
     return {
       startPhase: phase,
       combinedPlan: [
-        "Mỗi buổi nên bắt đầu bằng phần warm-up corrective rõ ràng, dễ theo dõi và dễ kiểm soát.",
+        "Mỗi buổi nên bắt đầu bằng phần khởi động hiệu chỉnh (corrective) rõ ràng, dễ theo dõi và dễ kiểm soát.",
         `Ưu tiên trước mắt: ${
           translatedCorrective.slice(0, 2).join(", ") ||
           "xây nền chuyển động, tăng ổn định nền tảng"
         }.`,
-        "Bài tập nên giữ ở mức đơn giản, tempo chậm, tải vừa phải và chưa cần độ phức tạp cao.",
-        "Trọng tâm giai đoạn này là alignment, core control, breathing và nền work capacity.",
+        "Bài tập nên giữ ở mức đơn giản, nhịp thực hiện chậm, tải vừa phải và chưa cần độ phức tạp cao.",
+        "Trọng tâm giai đoạn này là căn chỉnh tư thế, kiểm soát cơ lõi, nhịp thở và nền khả năng làm việc (work capacity).",
         `Hướng huấn luyện chính: ${
           translatedTraining.slice(0, 2).join(", ") || "xây nền tổng quát"
         }.`,
@@ -926,14 +1118,14 @@ const buildStartupPlanByPhase = ({
     return {
       startPhase: phase,
       combinedPlan: [
-        "Có thể bắt đầu block strength endurance thay vì chỉ dừng ở giai đoạn ổn định nền.",
-        "Nên ưu tiên các cặp bài kiểu strength + stabilization để vừa tăng sức mạnh, vừa giữ movement quality.",
-        "Tập trung vào unilateral basics, compound cơ bản và khối lượng vừa phải để khách thích nghi tốt.",
+        "Có thể bắt đầu giai đoạn sức mạnh bền (strength endurance) thay vì chỉ dừng ở giai đoạn ổn định nền.",
+        "Nên ưu tiên các cặp bài kiểu sức mạnh + ổn định để vừa tăng sức mạnh, vừa giữ chất lượng chuyển động.",
+        "Tập trung vào bài tập một bên cơ bản, bài đa khớp cơ bản và khối lượng vừa phải để khách thích nghi tốt.",
         `Hướng huấn luyện chính: ${
           translatedTraining.slice(0, 3).join(", ") ||
           "tăng tiến sức mạnh, cải thiện chất lượng chuyển động khi có tải"
         }.`,
-        "Corrective vẫn nên giữ ở phần khởi động hoặc block ngắn nếu khách còn lỗi cần duy trì.",
+        "Bài hiệu chỉnh (corrective) vẫn nên giữ ở phần khởi động hoặc đoạn ngắn nếu khách còn lỗi cần duy trì.",
       ],
       cautions: Array.from(trainingNotes),
     };
@@ -942,14 +1134,14 @@ const buildStartupPlanByPhase = ({
   return {
     startPhase: phase,
     combinedPlan: [
-      "Có thể vào block hypertrophy rõ ràng hơn thay vì tiếp tục đi theo hướng nền tảng.",
-      "Nên tổ chức buổi tập theo hướng compound + accessory, volume đủ tốt và progressive overload có kiểm soát.",
-      "PT cần theo dõi recovery, soreness và mức bám dinh dưỡng sát hơn so với phase 1-2.",
+      "Có thể vào giai đoạn phát triển cơ bắp (hypertrophy) rõ ràng hơn thay vì tiếp tục đi theo hướng nền tảng.",
+      "Nên tổ chức buổi tập theo hướng bài đa khớp + bài bổ trợ, khối lượng tập đủ tốt và tăng tải tiến triển (progressive overload) có kiểm soát.",
+      "HLV cần theo dõi hồi phục, đau nhức cơ và mức bám dinh dưỡng sát hơn so với phase 1-2.",
       `Hướng huấn luyện chính: ${
         translatedTraining.slice(0, 3).join(", ") ||
         "tăng tiến sức mạnh, cải thiện chất lượng chuyển động khi có tải"
       }.`,
-      "Corrective lúc này chỉ nên giữ vai trò duy trì ở warm-up nếu khách không còn lỗi nổi bật.",
+      "Bài hiệu chỉnh (corrective) lúc này chỉ nên giữ vai trò duy trì ở phần khởi động nếu khách không còn lỗi nổi bật.",
     ],
     cautions: Array.from(trainingNotes),
   };
@@ -1025,7 +1217,7 @@ const buildAiReportSummary = ({
     healthScreening.doctorRestrictions ||
     warningSigns.length
   ) {
-    let sentence = "Intake đang ghi nhận một vài yếu tố sức khỏe cần lưu ý";
+    let sentence = "Kết quả khảo sát đang ghi nhận một vài yếu tố sức khỏe cần lưu ý";
     const details = [];
 
     if (healthScreening.currentConditions) {
@@ -1058,7 +1250,7 @@ const buildAiReportSummary = ({
     );
   } else if (painLevel >= 5) {
     health.push(
-      `Mức đau hiện tại khoảng ${painLevel}/10 cho thấy cơ thể chưa thật sự ổn định. PT nên kiểm soát bài tập và cường độ chặt hơn để tránh quá tải sớm.`,
+      `Mức đau hiện tại khoảng ${painLevel}/10 cho thấy cơ thể chưa thật sự ổn định. HLV nên kiểm soát bài tập và cường độ chặt hơn để tránh quá tải sớm.`,
     );
   } else {
     health.push(
@@ -1072,7 +1264,7 @@ const buildAiReportSummary = ({
         ? "Đây là nền khá tốt để tiến triển bài bản."
         : overallPhysicalLevel === "average"
           ? "Khách đã có nền cơ bản nhưng vẫn cần xây chắc thêm trước khi tăng tải mạnh."
-          : "PT nên ưu tiên xây lại nền thể lực trước khi đẩy progression nhanh."
+          : "HLV nên ưu tiên xây lại nền thể lực trước khi tăng tiến nhanh."
     }`,
     ...buildWeaknessSummary({
       strengthFlags,
@@ -1098,10 +1290,10 @@ const buildAiReportSummary = ({
   if (stressLevel) {
     lifestyleReview.push(
       stressLevel === "high"
-        ? "Mức stress hiện tại khá cao, vì vậy PT nên tăng volume từ từ và quan sát phản ứng cơ thể sát hơn."
+        ? "Mức căng thẳng hiện tại khá cao, vì vậy HLV nên tăng khối lượng tập từ từ và quan sát phản ứng cơ thể sát hơn."
         : stressLevel === "medium"
-          ? "Stress đang ở mức trung bình, vẫn nên theo dõi cảm giác mệt và khả năng hồi phục trong giai đoạn đầu."
-          : "Stress hiện tương đối thấp, đây là một điểm thuận lợi cho hồi phục và khả năng bám lộ trình.",
+          ? "Căng thẳng đang ở mức trung bình, vẫn nên theo dõi cảm giác mệt và khả năng hồi phục trong giai đoạn đầu."
+          : "Căng thẳng hiện tương đối thấp, đây là một điểm thuận lợi cho hồi phục và khả năng bám lộ trình.",
     );
   }
 
@@ -1127,7 +1319,7 @@ const buildAiReportSummary = ({
 
   nutrition.push(
     lifestyle.usuallyEatOut
-      ? "Khách ăn ngoài khá thường xuyên, vì vậy PT nên theo dõi kỹ hơn độ ổn định của khẩu phần và chất lượng dinh dưỡng thực tế."
+      ? "Khách ăn ngoài khá thường xuyên, vì vậy HLV nên theo dõi kỹ hơn độ ổn định của khẩu phần và chất lượng dinh dưỡng thực tế."
       : "Khách không ăn ngoài quá thường xuyên, đây là một lợi thế khi muốn kiểm soát dinh dưỡng sát mục tiêu hơn.",
   );
 
@@ -1167,13 +1359,13 @@ const buildAiReportSummary = ({
 
   if (stressLevel === "high") {
     riskFactors.push(
-      "Stress cao có thể làm giảm khả năng hồi phục và mức độ bám giáo án, nên PT cần kiểm soát nhịp tăng tải hợp lý.",
+      "Căng thẳng cao có thể làm giảm khả năng hồi phục và mức độ bám giáo án, nên HLV cần kiểm soát nhịp tăng tải hợp lý.",
     );
   }
 
   if (mealsPerDay > 0 && mealsPerDay <= 2) {
     riskFactors.push(
-      "Tần suất ăn thấp có thể khiến khách thiếu năng lượng cho tập luyện và khó duy trì hồi phục tốt, nhất là khi mục tiêu là cải thiện body composition hoặc tăng cơ.",
+      "Tần suất ăn thấp có thể khiến khách thiếu năng lượng cho tập luyện và khó duy trì hồi phục tốt, nhất là khi mục tiêu là cải thiện thành phần cơ thể hoặc tăng cơ.",
     );
   }
 
@@ -1189,13 +1381,13 @@ const buildAiReportSummary = ({
     warningSigns.length
   ) {
     riskFactors.push(
-      "Những yếu tố sức khỏe ghi nhận từ intake khiến PT cần theo dõi phản ứng buổi đầu kỹ hơn bình thường.",
+      "Những yếu tố sức khỏe ghi nhận từ kết quả khảo sát khiến HLV cần theo dõi phản ứng buổi đầu kỹ hơn bình thường.",
     );
   }
 
   if (!riskFactors.length) {
     riskFactors.push(
-      "Hiện tại chưa thấy yếu tố rủi ro nổi bật ở mức cần cảnh báo mạnh, nhưng PT vẫn nên theo dõi phản ứng thực tế của khách trong 2 tuần đầu.",
+      "Hiện tại chưa thấy yếu tố rủi ro nổi bật ở mức cần cảnh báo mạnh, nhưng HLV vẫn nên theo dõi phản ứng thực tế của khách trong 2 tuần đầu.",
     );
   }
 
@@ -1237,7 +1429,8 @@ export const buildAiReport = async ({ customer, intake, assessment }) => {
   const { strengthFlags, enduranceFlags, cardioFlags } =
     collectPhysicalFlags(assessment);
 
-  const recommendedStartPhase = determineRecommendedStartPhase({
+  const { phase: recommendedStartPhase, reasons: phaseReasons } =
+    determineRecommendedStartPhase({
     customer,
     intake,
     assessment,
@@ -1278,6 +1471,24 @@ export const buildAiReport = async ({ customer, intake, assessment }) => {
     await buildTrainingNotesAsync({ context })
   );
 
+  // Lưu ý an toàn luôn có, không phụ thuộc luật trong DB.
+  const health = intake?.healthScreening || {};
+  if (riskFlags.includes("injury_history")) {
+    trainingNotes.add(
+      `Chọn bài tránh tạo áp lực lên vùng từng chấn thương (${String(health.injuries).trim()}) và tăng tải từ từ.`,
+    );
+  }
+  if (riskFlags.includes("surgery_history")) {
+    trainingNotes.add(
+      `Khách từng phẫu thuật (${String(health.surgeries).trim()}): xác nhận với bác sĩ về giới hạn vận động trước khi tăng cường độ.`,
+    );
+  }
+  if (riskFlags.includes("medication_use")) {
+    trainingNotes.add(
+      `Khách đang dùng thuốc (${String(health.medications).trim()}): theo dõi phản ứng của cơ thể và nhịp tim khi tập.`,
+    );
+  }
+
   return {
     inputSummary: {
       readinessStatus: customer.readinessStatus,
@@ -1292,11 +1503,16 @@ export const buildAiReport = async ({ customer, intake, assessment }) => {
       strengthFlags,
       enduranceFlags,
       cardioFlags,
+      ...(() => {
+        const tested = buildTestedExerciseFindings(assessment);
+        return { testedExercises: tested.lines, testedExerciseRows: tested.rows };
+      })(),
     },
     recommendations: {
       correctiveFocus,
       trainingFocus,
       recommendedStartPhase,
+      reasons: phaseReasons,
       trainingNotes: Array.from(trainingNotes),
     },
     reportSummary: buildAiReportSummary({
@@ -1314,6 +1530,6 @@ export const buildAiReport = async ({ customer, intake, assessment }) => {
       trainingNotes,
       recommendedStartPhase,
     }),
-    engineVersion: "nasm-rule-engine-v3",
+    engineVersion: "nasm-rule-engine-v4",
   };
 };

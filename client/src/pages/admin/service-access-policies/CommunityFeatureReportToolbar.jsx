@@ -9,6 +9,8 @@ import {
   formatCommunityFeatureDate,
   getCommunityFeatureHistoryDateRange,
 } from "./serviceAccessPolicyPresentation";
+import SelectField from "../../../components/SelectField";
+import { getUserErrorMessage } from "../../../utils/errorMessages";
 
 const downloadBlob = (response, filename) => {
   const blob =
@@ -61,7 +63,7 @@ export default function CommunityFeatureReportToolbar({
     },
     onError: (error) =>
       toast.error(
-        error.response?.data?.message || "Không thể tải báo cáo PDF",
+        getUserErrorMessage(error, "Không thể tải báo cáo PDF"),
       ),
   });
   const summary = reportQuery.data?.summary;
@@ -121,7 +123,7 @@ export default function CommunityFeatureReportToolbar({
             <span className="mb-1.5 block text-xs font-semibold text-zinc-700">
               Trạng thái
             </span>
-            <select
+            <SelectField
               name="community-feature-report-status"
               value={status}
               onChange={(event) => setStatus(event.target.value)}
@@ -133,7 +135,7 @@ export default function CommunityFeatureReportToolbar({
                   {item.label}
                 </option>
               ))}
-            </select>
+            </SelectField>
           </label>
         </div>
       </div>

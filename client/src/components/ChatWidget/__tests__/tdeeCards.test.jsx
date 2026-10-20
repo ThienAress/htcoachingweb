@@ -14,7 +14,7 @@ describe("HT Assistant TDEE cards", () => {
       noGenderDefault:
         html.includes("Nam</button>") &&
         !html.includes('aria-pressed="true"'),
-      noDefault: html.includes('value="" selected="">Chọn sau khi khai báo vận động</option>'),
+      noDefault: html.includes(">Chọn sau khi khai báo vận động</span>"),
       wholeDayEvidence:
         html.includes("Vận động ngoài buổi tập") &&
         html.includes("Số bước trung bình") &&

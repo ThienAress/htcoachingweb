@@ -163,7 +163,8 @@ test.describe("Community feature improvement report", () => {
         url.searchParams.get("audience") === "customer"
       );
     });
-    await page.getByLabel("Lọc theo đối tượng").selectOption("customer");
+    await page.getByRole("combobox", { name: /Lọc theo đối tượng/ }).click();
+    await page.getByRole("listbox").getByRole("option", { name: "Khách hàng", exact: true }).click();
     await filteredReportRequest;
     await expect(page.getByRole("row", { name: /HT Assistant/ })).toBeVisible();
     await expect(page.getByRole("row", { name: /TDEE Calculator/ })).toHaveCount(0);

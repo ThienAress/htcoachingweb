@@ -75,7 +75,7 @@ export const purchaseTrainerPlan = async (req, res) => {
       res,
       error,
       "TRAINER_PURCHASE_FAILED",
-      "Lỗi hệ thống khi kích hoạt gói",
+      "Không thể kích hoạt gói lúc này. Vui lòng thử lại.",
     );
   }
 };
@@ -130,7 +130,7 @@ export const getMySubscription = async (req, res) => {
       res,
       error,
       "TRAINER_SUBSCRIPTION_READ_FAILED",
-      "Lỗi hệ thống khi đọc gói",
+      "Không thể đọc gói lúc này. Vui lòng thử lại.",
     );
   }
 };
@@ -157,7 +157,7 @@ export const grantTrainerPlan = async (req, res) => {
       res,
       error,
       "TRAINER_GRANT_FAILED",
-      "Lỗi hệ thống khi cấp gói",
+      "Không thể cấp gói lúc này. Vui lòng thử lại.",
     );
   }
 };
@@ -172,7 +172,7 @@ export const getPendingTrainerGrants = async (req, res) => {
       res,
       error,
       "PENDING_TRAINER_GRANTS_READ_FAILED",
-      "Lỗi hệ thống khi đọc danh sách chờ",
+      "Không thể đọc danh sách chờ lúc này. Vui lòng thử lại.",
     );
   }
 };
@@ -195,7 +195,7 @@ export const revokeTrainerGrant = async (req, res) => {
       res,
       error,
       "PENDING_TRAINER_GRANT_REVOKE_FAILED",
-      "Lỗi hệ thống khi thu hồi gói",
+      "Không thể thu hồi gói lúc này. Vui lòng thử lại.",
     );
   }
 };

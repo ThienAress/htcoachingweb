@@ -9,28 +9,28 @@ import {
 
 const decisionMeta = {
   keep_hold: {
-    label: "Giữ HOLD",
+    label: "Giữ hoãn đánh giá",
     className:
       "border-red-200 bg-red-50 text-red-700 hover:bg-red-100 ring-red-200",
     icon: TriangleAlert,
     description:
-      "Tiếp tục giữ khách ở trạng thái HOLD TEST. Chưa cho đi tiếp sang assessment.",
+      "Tiếp tục giữ khách ở trạng thái hoãn đánh giá. Chưa cho sang bước đánh giá thể chất.",
   },
   approve_modified_test: {
-    label: "Duyệt Modified Test",
+    label: "Duyệt test điều chỉnh",
     className:
       "border-orange-200 bg-orange-50 text-orange-700 hover:bg-orange-100 ring-orange-200",
     icon: ClipboardCheck,
     description:
-      "Cho phép khách đi tiếp với modified assessment, ưu tiên các bài an toàn hơn.",
+      "Cho phép khách đi tiếp với đánh giá điều chỉnh, ưu tiên các bài an toàn hơn.",
   },
   approve_full_test: {
-    label: "Duyệt Full Test",
+    label: "Duyệt test đầy đủ",
     className:
       "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 ring-emerald-200",
     icon: ShieldCheck,
     description:
-      "Cho phép khách đi tiếp với assessment đầy đủ như workflow bình thường.",
+      "Cho phép khách đi tiếp với đánh giá đầy đủ như quy trình bình thường.",
   },
 };
 
@@ -68,7 +68,7 @@ const F1TestPermissionReviewCard = ({
           rows={4}
           value={reviewNote}
           onChange={(e) => setReviewNote(e.target.value)}
-          placeholder="Ví dụ: Đã xem giới hạn từ bác sĩ. Cho phép modified test, tránh squat nặng và bài tăng áp lực cột sống."
+          placeholder="Ví dụ: Đã xem giới hạn từ bác sĩ. Cho phép đánh giá có điều chỉnh, tránh squat nặng và bài tăng áp lực cột sống."
           className="mt-2 w-full rounded-lg border border-slate-200 px-4 py-3 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
         />
       </div>

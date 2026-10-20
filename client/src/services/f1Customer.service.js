@@ -52,6 +52,12 @@ export const updateF1CustomerStatus = (customerId, status) =>
 export const deleteF1Customer = (customerId) =>
   unwrap(api.delete(`/f1-customers/${customerId}`));
 
+export const getDeletedF1Customers = () =>
+  unwrap(api.get("/f1-customers/deleted"));
+
+export const restoreF1Customer = (customerId) =>
+  unwrap(api.post(`/f1-customers/${customerId}/restore`));
+
 // =========================
 // INTAKE
 // =========================
@@ -139,6 +145,10 @@ export const generateOutcomeForecast = (customerId, payload) =>
 // =========================
 // RESULT PREDICTION
 // =========================
+// Đổi cách dựng giai đoạn (hệ thống đề xuất hoặc HLV tự thiết kế): chỉ một lần cho mỗi khách.
+export const switchPlanMode = (customerId, mode) =>
+  unwrap(api.post(`/f1-customers/${customerId}/result-predictions/switch-mode`, { mode }));
+
 export const getLatestResultPrediction = (customerId) =>
   unwrap(api.get(`/f1-customers/${customerId}/result-predictions/latest`));
 
@@ -148,6 +158,44 @@ export const generateResultPrediction = (customerId, payload) =>
       `/f1-customers/${customerId}/result-predictions/generate`,
       payload,
     ),
+  );
+
+// Xem trước giai đoạn 1 do HLV thiết kế (gợi ý và bảng dự đoán của hệ thống, không lưu).
+export const previewStageDesign = (customerId, customStage) =>
+  unwrap(api.post(`/f1-customers/${customerId}/result-predictions/preview`, { customStage }));
+
+// =========================
+// PHASE REVIEW (đánh giá cuối giai đoạn)
+// =========================
+export const previewNextStageDesign = (customerId, stageOrder, customStage) =>
+  unwrap(
+    api.post(`/f1-customers/${customerId}/phase-reviews/${stageOrder}/design-preview`, { customStage }),
+  );
+
+export const saveNextStageDesign = (customerId, stageOrder, customStage) =>
+  unwrap(api.put(`/f1-customers/${customerId}/phase-reviews/${stageOrder}/design`, { customStage }));
+
+export const deleteLatestStage = (customerId, stageOrder) =>
+  unwrap(api.delete(`/f1-customers/${customerId}/phase-reviews/${stageOrder}`));
+
+export const getPhaseReviews = (customerId) =>
+  unwrap(api.get(`/f1-customers/${customerId}/phase-reviews`));
+
+export const savePhaseReview = (customerId, stageOrder, payload) =>
+  unwrap(
+    api.put(`/f1-customers/${customerId}/phase-reviews/${stageOrder}`, payload),
+  );
+
+export const saveStageProfile = (customerId, stageOrder, payload) =>
+  unwrap(api.put(`/f1-customers/${customerId}/phase-reviews/${stageOrder}/profile`, payload));
+
+// Ảnh của giai đoạn 2 trở đi (tải ảnh hiện tại và tạo ảnh dự đoán).
+export const uploadStagePhoto = (customerId, stageOrder, form) =>
+  unwrap(api.post(`/f1-customers/${customerId}/phase-reviews/${stageOrder}/photos`, form));
+
+export const generateStageVisual = (customerId, stageOrder, payload) =>
+  unwrap(
+    api.post(`/f1-customers/${customerId}/phase-reviews/${stageOrder}/generate-images`, payload),
   );
 
 export const generateResultPredictionStageImages = (

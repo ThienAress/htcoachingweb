@@ -10,6 +10,7 @@ import { incrementMetric } from "../observability/metrics.js";
 import { safeLog } from "../utils/safeLogger.js";
 import { resolveDepositCreditSnapshot } from "../services/depositPolicy.service.js";
 import IncomingBankTransaction from "../models/IncomingBankTransaction.js";
+import { DEFAULT_ERROR_MESSAGE } from "../utils/errorMessages.js";
 
 const MUTABLE_DEPOSIT_STATUSES = ["pending", "needs_review", "expired"];
 const DELETABLE_DEPOSIT_STATUSES = ["expired", "rejected"];
@@ -95,7 +96,7 @@ const sendMutationError = (res, error, event) => {
         : error.code || "FINANCIAL_OPERATION_FAILED",
     message:
       status >= 500
-        ? "Lỗi hệ thống khi xử lý giao dịch"
+        ? "Không thể xử lý giao dịch lúc này. Vui lòng thử lại."
         : error.message,
   });
 };
@@ -131,7 +132,7 @@ export const getAllDeposits = async (req, res) => {
     });
   } catch (error) {
     safeLog.error("financial.deposit_list_failed", error);
-    return res.status(500).json({ success: false, message: "Lỗi hệ thống" });
+    return res.status(500).json({ success: false, code: "INTERNAL_ERROR", message: DEFAULT_ERROR_MESSAGE });
   }
 };
 

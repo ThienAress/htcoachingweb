@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, useNavigate } from "react-router-dom";
+import { BrowserRouter, Navigate, Routes, Route, useNavigate } from "react-router-dom";
 import { useEffect, useState, useCallback, lazy, Suspense } from "react";
 
 import { AuthProvider } from "./context/AuthContext";
@@ -40,6 +40,7 @@ const UserManagement = lazy(() => import("./pages/admin/UserManagement"));
 const ContactMessages = lazy(() => import("./pages/admin/ContactMessages"));
 const FoodManagement = lazy(() => import("./pages/admin/FoodManagement"));
 const BookingManagement = lazy(() => import("./pages/admin/BookingManagement"));
+const PricingManagement = lazy(() => import("./pages/admin/PricingManagement"));
 const SeoAnalyticsPage = lazy(() => import("./pages/admin/SeoAnalyticsPage"));
 const ServiceAccessPoliciesPage = lazy(() => import("./pages/admin/ServiceAccessPoliciesPage"));
 const TrainerCoordinationPage = lazy(() =>
@@ -316,6 +317,7 @@ function AppContent() {
             </AdminRoute>
           }
         >
+          <Route index element={<Navigate to="users" replace />} />
           <Route path="orders" element={<Orders />} />
           <Route path="dashboard" element={<CheckinHistory />} />
           {/* Ẩn: trainer giờ dựa trên subscription, không tạo thủ công */}
@@ -325,6 +327,8 @@ function AppContent() {
           <Route path="contact-messages" element={<ContactMessages />} />
           <Route path="foods" element={<FoodManagement />} />
           <Route path="bookings" element={<BookingManagement />} />
+          <Route path="pricing" element={<PricingManagement />} />
+          <Route path="pricing-gifts" element={<Navigate to="/admin/pricing" replace />} />
           <Route path="seo-analytics" element={<SeoAnalyticsPage />} />
           <Route path="service-access-policies" element={<ServiceAccessPoliciesPage />} />
           <Route path="trainer-coordination" element={<TrainerCoordinationPage />} />

@@ -30,7 +30,7 @@ import {
 const router = Router();
 
 // User: Danh sách HĐ của tôi (phải đặt TRƯỚC /:id)
-router.get("/my", protect, getMyContracts);
+router.get("/me", protect, getMyContracts);
 
 // Admin/trainer: controller scope danh sách theo actor.
 router.get("/approved-orders", protect, requireTrainerAccess, getApprovedOrders);
@@ -61,7 +61,8 @@ router.get("/:id/download", protect, downloadContract);
 router.get("/:id/client-download", protect, clientDownloadContract);
 
 // Admin: Hủy hợp đồng
-router.put("/:id/cancel", protect, requireTrainerAccess, csrfProtection, cancelContract);
+// Hủy là hành động nên dùng POST.
+router.post("/:id/cancel", protect, requireTrainerAccess, csrfProtection, cancelContract);
 
 // Admin: Xóa hợp đồng
 router.delete("/:id", protect, requireRoles("admin"), csrfProtection, deleteContract);

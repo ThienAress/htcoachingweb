@@ -13,14 +13,15 @@ import {
 const router = express.Router();
 
 router.get("/catalog", getFitnessPlusCatalog);
+// Mua gói là tạo một đăng ký: POST vào tập hợp.
 router.post(
-  "/purchase",
+  "/",
   protect,
   financialCommandLimiter,
   csrfProtection,
   validateFitnessPlusPlanPurchase,
   purchaseFitnessPlusPlan,
 );
-router.get("/my", protect, getMyFitnessPlusSubscription);
+router.get("/me", protect, getMyFitnessPlusSubscription);
 
 export default router;

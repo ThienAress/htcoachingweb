@@ -1,6 +1,7 @@
 import express from "express";
 import { protect, requireRoles } from "../middlewares/auth.middleware.js";
 import { csrfProtection } from "../middlewares/csrf.js";
+import { financialCommandLimiter } from "../middlewares/rateLimit.js";
 import {
   validateId,
   validateTrainerPlanGrant,
@@ -22,14 +23,10 @@ import {
 const router = express.Router();
 
 router.get("/catalog", getTrainerPlanCatalog);
-router.post(
-  "/purchase",
-  protect,
-  csrfProtection,
-  validateTrainerPlanPurchase,
-  purchaseTrainerPlan,
-);
-router.get("/my", protect, getMySubscription);
+// Mua gói là tạo một đăng ký: POST vào tập hợp.
+// Mua gói trừ tiền trong ví nên dùng cùng chốt chặn tốc độ với mua gói HT Fitness+ (financialCommandLimiter, một instance dùng chung).
+router.post("/", protect, financialCommandLimiter, csrfProtection, validateTrainerPlanPurchase, purchaseTrainerPlan);
+router.get("/me", protect, getMySubscription);
 
 router.get("/all", protect, requireRoles("admin"), getAllSubscribers);
 router.get(

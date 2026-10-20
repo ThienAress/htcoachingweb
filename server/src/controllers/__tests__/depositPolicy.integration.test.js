@@ -58,9 +58,9 @@ describe("GET /api/deposits/policy", () => {
       maxAmount: 1000000000,
       policyVersion: 1,
       tiers: [
-        { key: "starter", minAmount: 10000, bonusRate: 10 },
-        { key: "growth", minAmount: 100000, bonusRate: 15 },
-        { key: "premium", minAmount: 200000, bonusRate: 20 },
+        { key: "starter", minAmount: 10000, bonusRate: 10, label: null },
+        { key: "growth", minAmount: 100000, bonusRate: 15, label: null },
+        { key: "premium", minAmount: 200000, bonusRate: 20, label: null },
       ],
     });
   });

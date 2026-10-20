@@ -22,8 +22,12 @@ import {
   updateSuggestionStatus,
   deleteSuggestion,
 } from "../../services/exerciseSuggestion.service";
+import SelectField from "../../components/SelectField";
+import { useConfirmDialog } from "../../hooks/useConfirmDialog";
+import { getUserErrorMessage } from "../../utils/errorMessages";
 
 const ExerciseSuggestionsManagement = () => {
+  const { confirm, dialog } = useConfirmDialog();
   const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
@@ -59,7 +63,7 @@ const ExerciseSuggestionsManagement = () => {
       invalidateByKey(queryClient, adminQueryKeys.exerciseSuggestions.all());
     },
     onError: (err) =>
-      toast.error(err.response?.data?.message || "Lỗi cập nhật"),
+      toast.error(getUserErrorMessage(err, "Không thể cập nhật. Vui lòng thử lại.")),
   });
   const deleteMutation = useMutation({
     mutationFn: deleteSuggestion,
@@ -67,20 +71,18 @@ const ExerciseSuggestionsManagement = () => {
       toast.success(" Xóa góp ý thành công");
       invalidateByKey(queryClient, adminQueryKeys.exerciseSuggestions.all());
     },
-    onError: (err) => toast.error(err.response?.data?.message || "Lỗi xóa"),
+    onError: (err) => toast.error(getUserErrorMessage(err, "Không thể xóa. Vui lòng thử lại.")),
   });
 
-  const handleStatusChange = (id, status) => {
+  const handleStatusChange = async (id, status) => {
     if (
-      !window.confirm(
-        `Đánh dấu là "${status === "approved" ? "Đã duyệt" : "Từ chối"}"?`,
-      )
+      !await confirm({ title: "Đổi trạng thái góp ý", message: `Đánh dấu là "${status === "approved" ? "Đã duyệt" : "Từ chối"}"?`, confirmLabel: "Đồng ý", tone: "default" })
     )
       return;
     updateStatusMutation.mutate({ id, status, adminNote: "" });
   };
-  const handleDelete = (id) => {
-    if (!window.confirm("Bạn có chắc muốn xóa góp ý này?")) return;
+  const handleDelete = async (id) => {
+    if (!await confirm({ title: "Xóa góp ý", message: "Bạn có chắc muốn xóa góp ý này?", confirmLabel: "Xóa", tone: "danger" })) return;
     deleteMutation.mutate(id);
   };
 
@@ -124,7 +126,7 @@ const ExerciseSuggestionsManagement = () => {
         </div>
         <div className="flex items-center gap-2">
           <Filter className="w-5 h-5 text-gray-400" />
-          <select
+          <SelectField
             className="px-4 py-2.5 border border-gray-200 rounded-xl bg-white shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
@@ -133,7 +135,7 @@ const ExerciseSuggestionsManagement = () => {
             <option value="pending">Chờ xử lý</option>
             <option value="approved">Đã duyệt</option>
             <option value="rejected">Từ chối</option>
-          </select>
+          </SelectField>
         </div>
       </div>
 
@@ -266,6 +268,7 @@ const ExerciseSuggestionsManagement = () => {
             </div>
           )}
 
+      {dialog}
     </div>
     </phantom-ui>
   );

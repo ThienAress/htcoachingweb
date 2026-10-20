@@ -9,6 +9,7 @@ import F1Media from "../models/F1Media.js";
 import F1MediaDeletionJob from "../models/F1MediaDeletionJob.js";
 import F1OutcomeForecast from "../models/F1OutcomeForecast.js";
 import F1ResultPrediction from "../models/F1ResultPrediction.js";
+import F1PhaseReview from "../models/F1PhaseReview.js";
 import { incrementMetric } from "../observability/metrics.js";
 import { createRecurringJob } from "../operations/recurringJob.js";
 import { safeLog } from "../utils/safeLogger.js";
@@ -285,6 +286,9 @@ export const processF1DataDeletionBatch = async ({
           await F1ResultPrediction.deleteMany({
             customerId: job.customerId,
           }).session(session);
+          await F1PhaseReview.deleteMany({
+            customerId: job.customerId,
+          }).session(session);
           await F1Media.deleteMany({ customerId: job.customerId }).session(
             session,
           );
@@ -390,6 +394,33 @@ export const runF1RetentionSweep = async ({
   return { dryRun: false, candidates: candidates.length, queued };
 };
 
+// Xoá vĩnh viễn khách đã xoá mềm quá hạn khôi phục: chuyển vào đường xoá dữ liệu có sẵn.
+export const purgeExpiredSoftDeletedF1Customers = async ({
+  now = new Date(),
+} = {}) => {
+  const candidates = await F1Customer.find({
+    softDeletedAt: { $ne: null },
+    purgeAt: { $ne: null, $lte: now },
+    deletionRequestedAt: null,
+    deletedAt: null,
+  })
+    .sort({ purgeAt: 1 })
+    .limit(RETENTION_BATCH_SIZE);
+
+  let queued = 0;
+  for (const customer of candidates) {
+    await requestF1CustomerDeletion({
+      customer,
+      actorId: customer.softDeletedBy || customer.createdBy,
+      actorRole: "trainer",
+      reason: "soft_delete_expired",
+    });
+    queued += 1;
+  }
+  if (queued > 0) incrementMetric("f1.soft_delete_purged", queued);
+  return { candidates: candidates.length, queued };
+};
+
 let lifecycleJob = null;
 
 export const startF1LifecycleCron = () => {
@@ -402,6 +433,7 @@ export const startF1LifecycleCron = () => {
       name: "f1.lifecycle",
       intervalMs,
       task: async () => {
+        await purgeExpiredSoftDeletedF1Customers();
         await processF1DataDeletionBatch();
         await runF1RetentionSweep();
       },

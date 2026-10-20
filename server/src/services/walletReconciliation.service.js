@@ -184,7 +184,7 @@ const reconcileWalletsInSnapshot = async ({
     status: { $in: ["success", "reversed"] },
   })
     .select(
-      "_id amount bonusRate bonusAmount creditedAmount bonusTierKey policyVersion status",
+      "_id amount bonusRate bonusAmount creditedAmount bonusTierKey bonusTierMinAmount policyVersion status",
     )
     .sort({ _id: 1 })
     .limit(safeWalletLimit + 1)

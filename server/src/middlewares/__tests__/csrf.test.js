@@ -92,6 +92,7 @@ describe("csrfProtection middleware", () => {
 
     expect(res.status).toBe(403);
     expect(res.body.message).toBe("CSRF token missing");
+    expect(res.body.code).toBe("CSRF_TOKEN_MISSING");
   });
 
   it("POST không có CSRF header → 403", async () => {
@@ -102,6 +103,7 @@ describe("csrfProtection middleware", () => {
 
     expect(res.status).toBe(403);
     expect(res.body.message).toBe("CSRF token missing");
+    expect(res.body.code).toBe("CSRF_TOKEN_MISSING");
   });
 
   it("POST không có cả cookie lẫn header → 403", async () => {
@@ -122,6 +124,7 @@ describe("csrfProtection middleware", () => {
 
     expect(res.status).toBe(403);
     expect(res.body.message).toBe("Invalid CSRF token");
+    expect(res.body.code).toBe("CSRF_TOKEN_INVALID");
   });
 });
 

@@ -104,6 +104,7 @@ const f1IntakeSchema = new mongoose.Schema(
       },
       targetWeightKg: { type: Number, default: null, min: 10, max: 300 },
       targetDeadline: { type: Date, default: null },
+      targetTimeframe: { type: String, default: "", trim: true, maxlength: 60 },
     },
     postureMediaSummary: {
       frontImageUploaded: { type: Boolean, default: false },

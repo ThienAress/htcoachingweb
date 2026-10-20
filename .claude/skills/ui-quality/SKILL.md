@@ -69,3 +69,10 @@ Gặp các dấu hiệu sau thì báo và sửa luôn trong phạm vi đang làm
 4. Báo cáo: scorecard 0–5 cho 8 chiều (AI slop, color/contrast, typography, layout, motion, interaction states,
    accessibility, responsive — tổng /40), bảng `# | finding | file:line | severity | fix`, và điểm làm tốt.
    Chỉ sửa khi user yêu cầu (`fix #1`, `fix all HIGH`), sau đó chạy lại gate.
+
+## Kiểm UI bằng trình duyệt
+
+- Dùng Playwright với viewport cố định: desktop 1440×900 và mobile 390×844; chụp cả hai trước khi báo xong. Không kéo hoặc resize khung trình duyệt
+  của app: khung hẹp làm trang hiện bố cục mobile và ảnh chụp sai so với desktop thật.
+- Đo bằng DOM, không chỉ nhìn ảnh: `scrollWidth - clientWidth` (tràn ngang), cột/lề thẳng hàng, chữ đè nhau, vùng bấm tối thiểu 36px.
+- Trang cần đăng nhập mà phiên hết hạn: dừng và nhờ user đăng nhập lại; không tự nhập thông tin đăng nhập.

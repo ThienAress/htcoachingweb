@@ -1,5 +1,6 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
+import SelectField from "../../components/SelectField";
 
 const MealSelector = ({
   selectedPlan,
@@ -41,7 +42,7 @@ const MealSelector = ({
           </div>
 
           <div className="p-5 sm:p-6 h-full flex flex-col">
-            <select
+            <SelectField tone="dark"
               value={selectedMacroPlan || ""}
               onChange={(e) => setSelectedMacroPlan(e.target.value)}
               className={selectClass}
@@ -54,7 +55,7 @@ const MealSelector = ({
                   {plan === "Tự nhập (Custom)" ? t("selector.custom_plan") : plan}
                 </option>
               ))}
-            </select>
+            </SelectField>
 
             {selectedMacroPlan && currentPlanData && (
               <div className={infoBoxClass}>
@@ -93,7 +94,7 @@ const MealSelector = ({
           </div>
 
           <div className="p-5 sm:p-6 h-full flex flex-col">
-            <select
+            <SelectField tone="dark"
               value={selectedPlan}
               onChange={(e) => setSelectedPlan(Number(e.target.value))}
               className={selectClass}
@@ -103,7 +104,7 @@ const MealSelector = ({
                   {t("selector.meals_unit", { num })}
                 </option>
               ))}
-            </select>
+            </SelectField>
 
             {selectedMacroPlan && currentPlanData && (
               <div className={infoBoxClass}>

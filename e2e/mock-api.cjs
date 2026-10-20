@@ -141,10 +141,23 @@ const readJsonBody = (req) =>
     req.on("error", reject);
   });
 
+// Quà tặng bảng giá do admin chỉnh (giữ trong bộ nhớ của máy chủ giả).
+const pricingGiftsStore = {};
+const PRICING_GIFT_PATH = /^\/api\/site-settings\/pricing-gifts\/([a-z0-9-]+)$/;
+const pricingContentStore = {};
+const PRICING_CONTENT_PATH = /^\/api\/site-settings\/pricing-content\/([a-z0-9-]+)$/;
+const DEFAULT_LOGIN_PROMO = { enabled: true, percent: 15 };
+let loginPromoStore = { ...DEFAULT_LOGIN_PROMO };
+const siteSettingsBody = () => ({
+  success: true,
+  data: { pricingGifts: pricingGiftsStore, pricingContent: pricingContentStore, loginPromo: loginPromoStore },
+});
+
 const handleApi = (req, res, path) => {
   const role = req.headers["x-e2e-role"];
   const aiScenario = req.headers["x-e2e-ai-scenario"];
   const actor = ACTORS[role] || null;
+  const isPricingGiftsWrite = PRICING_GIFT_PATH.test(path) && req.method === "PUT";
   const isF1MediaUpload =
     path === "/api/f1-customers/" + F1_CUSTOMER_ID + "/media" &&
     req.method === "POST";
@@ -154,18 +167,19 @@ const handleApi = (req, res, path) => {
     req.method === "POST";
   if (
     !["GET", "HEAD"].includes(req.method) &&
+    !isPricingGiftsWrite &&
     !isF1MediaUpload &&
     !isProviderScenarioChat
   ) {
     req.resume();
   }
 
-  if (path === "/api/user/me") {
+  if (path === "/api/users/me") {
     return actor
       ? sendJson(res, actor)
       : sendJson(res, null);
   }
-  if (path === "/api/trainer-subscriptions/my") {
+  if (path === "/api/trainer-subscriptions/me") {
     return req.headers["x-e2e-trainer-access"] === "true"
       ? sendJson(res, {
           success: true,
@@ -187,7 +201,45 @@ const handleApi = (req, res, path) => {
         });
   }
   if (path === "/api/site-settings") {
-    return sendJson(res, { success: true, data: {} });
+    return sendJson(res, siteSettingsBody());
+  }
+  if (PRICING_GIFT_PATH.test(path) && actor?.role === "admin") {
+    const key = path.match(PRICING_GIFT_PATH)[1];
+    if (req.method === "PUT") {
+      return readJsonBody(req).then((body) => {
+        pricingGiftsStore[key] = Array.isArray(body.gifts) ? body.gifts : [];
+        return sendJson(res, siteSettingsBody());
+      });
+    }
+    if (req.method === "DELETE") {
+      delete pricingGiftsStore[key];
+      return sendJson(res, siteSettingsBody());
+    }
+  }
+  if (PRICING_CONTENT_PATH.test(path) && actor?.role === "admin") {
+    const key = path.match(PRICING_CONTENT_PATH)[1];
+    if (req.method === "PUT") {
+      return readJsonBody(req).then((body) => {
+        pricingContentStore[key] = Array.isArray(body.items) ? body.items : [];
+        return sendJson(res, siteSettingsBody());
+      });
+    }
+    if (req.method === "DELETE") {
+      delete pricingContentStore[key];
+      return sendJson(res, siteSettingsBody());
+    }
+  }
+  if (path === "/api/site-settings/login-promo" && actor?.role === "admin") {
+    if (req.method === "PUT") {
+      return readJsonBody(req).then((body) => {
+        loginPromoStore = { enabled: Boolean(body.enabled), percent: Number(body.percent) };
+        return sendJson(res, siteSettingsBody());
+      });
+    }
+    if (req.method === "DELETE") {
+      loginPromoStore = { ...DEFAULT_LOGIN_PROMO };
+      return sendJson(res, siteSettingsBody());
+    }
   }
   if (path === "/api/exercises" && req.method === "GET") {
     const muscleGroups = ["Chân", "Ngực", "Lưng"];
@@ -282,7 +334,7 @@ const handleApi = (req, res, path) => {
           401,
         );
   }
-  if (path === "/api/checkin/me" && req.method === "GET") {
+  if (path === "/api/check-ins/me" && req.method === "GET") {
     return sendJson(res, {
       success: true,
       data: {
@@ -408,7 +460,7 @@ const handleApi = (req, res, path) => {
     };
     return sendJson(res, { success: true, data: todayJournal });
   }
-  if (path === "/api/coaching-habits/my" && req.method === "GET") {
+  if (path === "/api/coaching-habits/me" && req.method === "GET") {
     return sendJson(res, {
       success: true,
       data: { items: [], pagination: { page: 1, limit: 50, total: 0 } },
@@ -671,7 +723,26 @@ const handleApi = (req, res, path) => {
   ) {
     return sendJson(res, {
       success: true,
-      data: { sections: { strength: [], endurance: [], cardio: [] } },
+      data: {
+        sections: {
+          strength: [
+            {
+              key: "upperBodyPush",
+              target: "Sức mạnh đẩy thân trên (Upper Push)",
+              reason: "Ưu tiên bài đẩy dễ quan sát form.",
+              dosage: "2-3 hiệp x 8-10 reps hoặc 2-3 hiệp x 20-30 giây",
+              tiers: {
+                easy: ["Wall Push-Up"],
+                standard: ["Incline Push-Up"],
+                advanced: ["Full Push-Up"],
+              },
+              protocolOptions: [],
+            },
+          ],
+          endurance: [],
+          cardio: [],
+        },
+      },
     });
   }
   if (
@@ -732,13 +803,13 @@ const handleApi = (req, res, path) => {
     };
     return sendJson(res, { success: true, data: f1Report }, 201);
   }
-  if (path === "/api/training-booking/my-trainer") {
+  if (path === "/api/training-bookings/me/trainer") {
     return sendJson(res, {
       success: true,
       data: { _id: ACTORS.trainer._id, name: ACTORS.trainer.name },
     });
   }
-  if (path === "/api/training-booking/my-booking") {
+  if (path === "/api/training-bookings/me") {
     return sendJson(res, {
       success: true,
       data: [
@@ -761,11 +832,11 @@ const handleApi = (req, res, path) => {
       ],
     });
   }
-  if (path === "/api/training-booking/busy-times") {
+  if (path === "/api/training-bookings/busy-times") {
     return sendJson(res, { success: true, data: [] });
   }
   if (
-    path === "/api/training-booking/book" &&
+    path === "/api/training-bookings" &&
     req.method === "POST"
   ) {
     return sendJson(
@@ -778,7 +849,7 @@ const handleApi = (req, res, path) => {
     );
   }
   if (
-    path.startsWith("/api/training-booking/book/") &&
+    path.startsWith("/api/training-bookings/") &&
     ["PUT", "DELETE"].includes(req.method)
   ) {
     return sendJson(res, {
@@ -786,7 +857,7 @@ const handleApi = (req, res, path) => {
       data: { _id: "schedule-client-e2e", revision: 1 },
     });
   }
-  if (path === "/api/training-schedules/my-clients") {
+  if (path === "/api/training-schedules/me/clients") {
     return sendJson(res, {
       success: true,
       data: [
@@ -896,20 +967,20 @@ const handleApi = (req, res, path) => {
       ],
     });
   }
-  if (path === "/api/checkin" && req.method === "GET") {
+  if (path === "/api/check-ins" && req.method === "GET") {
     return sendJson(res, {
       success: true,
       data: [],
       pagination: { total: 0, page: 1, limit: 5, totalPages: 1 },
     });
   }
-  if (path === "/api/checkin" && req.method === "POST") {
+  if (path === "/api/check-ins" && req.method === "POST") {
     return sendJson(res, {
       success: true,
       data: { _id: "checkin-e2e", remainingSessions: 7 },
     });
   }
-  if (path === "/api/coaching/my-plans") {
+  if (path === "/api/coaching/me/plans") {
     return sendJson(res, {
       success: true,
       data: [
@@ -924,7 +995,7 @@ const handleApi = (req, res, path) => {
       ],
     });
   }
-  if (path === "/api/coaching/my-plans/2026-07-19") {
+  if (path === "/api/coaching/me/plans/2026-07-19") {
     return sendJson(res, {
       success: true,
       data: {

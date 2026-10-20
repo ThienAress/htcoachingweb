@@ -13,6 +13,7 @@ import {
 
 import { getExerciseDetailPath } from "./exerciseDetailPath";
 import { filterExerciseCatalog } from "./exerciseLibraryFilters";
+import SelectField from "../../components/SelectField";
 
 const INITIAL_VISIBLE_EXERCISES = 24;
 const EMPTY_PRIORITY_EXERCISE_IDS = Object.freeze([]);
@@ -200,7 +201,7 @@ export default function ExerciseLibrary({
                 className="min-h-12 w-full rounded-xl border border-gray-700 bg-gray-950 py-3 pl-12 pr-4 text-base text-white placeholder:text-gray-500 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
               />
             </label>
-            <select
+            <SelectField tone="dark"
               name="exercise-difficulty"
               value={difficulty}
               onChange={(event) => {
@@ -217,7 +218,7 @@ export default function ExerciseLibrary({
                 </option>
               ))}
               <option value="unrated">{t("difficulty.not_rated")}</option>
-            </select>
+            </SelectField>
           </div>
 
           <div className="mt-4 flex gap-2 overflow-x-auto overscroll-x-contain pb-1 sm:flex-wrap">

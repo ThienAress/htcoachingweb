@@ -212,8 +212,8 @@ app.use(passport.initialize());
 if (isProd) {
   app.use("/api/auth", authLimiter);
   app.use("/api/orders", apiLimiter);
-  app.use("/api/checkin", apiLimiter);
-  app.use("/api/contact", contactLimiter);
+  app.use("/api/check-ins", apiLimiter);
+  app.use("/api/contact-messages", contactLimiter);
 }
 
 // ================= CSRF COOKIE HELPER =================
@@ -240,13 +240,13 @@ app.use((req, res, next) => {
 
 // ================= ROUTES =================
 app.use("/api/auth", authRoutes);
-app.use("/api/user", userRoutes);
+app.use("/api/users", userRoutes);
 app.use("/api/orders", orderRoutes);
-app.use("/api/checkin", checkinRoutes);
+app.use("/api/check-ins", checkinRoutes);
 app.use("/api/f1-customers", f1CustomerRoutes);
 import f1AiRuleRoutes from "./src/routes/f1AiRule.routes.js";
 app.use("/api/f1-ai-rules", f1AiRuleRoutes);
-app.use("/api/contact", contactRoutes);
+app.use("/api/contact-messages", contactRoutes);
 app.use("/api/foods", foodRoutes);
 app.use("/api/food-references", foodReferenceRoutes);
 app.use("/api/bookings", bookingRoutes);
@@ -258,7 +258,7 @@ import trainerRoutes from "./src/routes/trainer.routes.js";
 app.use("/api/trainers", trainerRoutes);
 
 app.use("/api/deposits", depositRoutes);
-app.use("/api/mealplan-access", mealplanAccessRoutes);
+app.use("/api/meal-plan-access", mealplanAccessRoutes);
 app.use("/api/meal-scans", mealScanRoutes);
 app.use(TODAY_PLATFORM_API_PREFIXES, requireTodayPlatform);
 app.use("/api/today-dashboard", todayDashboardRoutes);
@@ -292,7 +292,7 @@ import trainingScheduleRoutes from "./src/routes/trainingSchedule.routes.js";
 app.use("/api/training-schedules", trainingScheduleRoutes);
 
 import trainingBookingRoutes from "./src/routes/trainingBooking.routes.js";
-app.use("/api/training-booking", trainingBookingRoutes);
+app.use("/api/training-bookings", trainingBookingRoutes);
 
 import coachingRoutes from "./src/routes/coaching.routes.js";
 app.use("/api/coaching", coachingRoutes);

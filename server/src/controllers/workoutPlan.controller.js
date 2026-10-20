@@ -10,6 +10,7 @@ import {
 } from "../services/coachingCommentPrivacy.service.js";
 import { safeLog } from "../utils/safeLogger.js";
 import { isTodayPlatformEnabled } from "../config/todayPlatform.js";
+import { DEFAULT_ERROR_MESSAGE } from "../utils/errorMessages.js";
 
 // Default sections template
 const DEFAULT_SECTIONS = [
@@ -28,7 +29,7 @@ const respondWorkoutPlanError = (res, err, event) => {
     });
   }
   safeLog.error(event, err);
-  return res.status(500).json({ success: false, message: "Lỗi hệ thống" });
+  return res.status(500).json({ success: false, code: "INTERNAL_ERROR", message: DEFAULT_ERROR_MESSAGE });
 };
 
 // ===== GET /api/workout-plans — Danh sách plans =====
@@ -68,7 +69,7 @@ export const getWorkoutPlans = async (req, res) => {
     });
   } catch (err) {
     safeLog.error("workout_plan.list_failed", err);
-    return res.status(500).json({ success: false, message: "Lỗi hệ thống" });
+    return res.status(500).json({ success: false, code: "INTERNAL_ERROR", message: DEFAULT_ERROR_MESSAGE });
   }
 };
 
@@ -92,7 +93,7 @@ export const getMyWorkoutPlans = async (req, res) => {
     return res.json({ success: true, data: plans });
   } catch (err) {
     safeLog.error("workout_plan.my_list_failed", err);
-    return res.status(500).json({ success: false, message: "Lỗi hệ thống" });
+    return res.status(500).json({ success: false, code: "INTERNAL_ERROR", message: DEFAULT_ERROR_MESSAGE });
   }
 };
 
@@ -130,7 +131,7 @@ export const getWorkoutPlanById = async (req, res) => {
     return res.json({ success: true, data: plan });
   } catch (err) {
     safeLog.error("workout_plan.detail_failed", err);
-    return res.status(500).json({ success: false, message: "Lỗi hệ thống" });
+    return res.status(500).json({ success: false, code: "INTERNAL_ERROR", message: DEFAULT_ERROR_MESSAGE });
   }
 };
 
@@ -267,7 +268,7 @@ export const deleteWorkoutPlan = async (req, res) => {
     return res.json({ success: true, message: "Đã xóa giáo án" });
   } catch (err) {
     safeLog.error("workout_plan.delete_failed", err);
-    return res.status(500).json({ success: false, message: "Lỗi hệ thống" });
+    return res.status(500).json({ success: false, code: "INTERNAL_ERROR", message: DEFAULT_ERROR_MESSAGE });
   } finally {
     if (session) await session.endSession();
   }

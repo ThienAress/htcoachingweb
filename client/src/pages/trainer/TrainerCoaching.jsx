@@ -38,6 +38,9 @@ import {
   addDaysToDateKey,
   getVietnamDateKey,
 } from "../../utils/vietnamDate";
+import WorkspacePageHeader from "../../components/WorkspacePageHeader";
+import { useConfirmDialog } from "../../hooks/useConfirmDialog";
+import { getUserErrorMessage } from "../../utils/errorMessages";
 
 
 
@@ -65,6 +68,7 @@ const serializeExercise = (exercise) => {
 };
 
 const TrainerCoaching = ({ embedded = false }) => {
+  const { confirm, dialog } = useConfirmDialog();
   // States
   const [clients, setClients] = useState([]);
   const [selectedClient, setSelectedClient] = useState(null);
@@ -359,7 +363,7 @@ const TrainerCoaching = ({ embedded = false }) => {
         await handleSelectClient(selectedClient);
         return;
       }
-      toast.error(err.response?.data?.message || "Lưu giáo án thất bại");
+      toast.error(getUserErrorMessage(err, "Lưu giáo án thất bại"));
     } finally {
       setIsSaving(false);
     }
@@ -367,7 +371,13 @@ const TrainerCoaching = ({ embedded = false }) => {
 
   // 6. Xoá giáo án ngày đang chọn
   const handleDeletePlan = async () => {
-    if (!window.confirm("Bạn có chắc chắn muốn xoá giáo án ngày này không?")) return;
+    const ok = await confirm({
+      title: "Xoá giáo án ngày",
+      message: "Bạn có chắc chắn muốn xoá giáo án ngày này không?",
+      confirmLabel: "Xoá",
+      tone: "danger",
+    });
+    if (!ok) return;
     if (!selectedClient) return;
 
     try {
@@ -424,6 +434,13 @@ const TrainerCoaching = ({ embedded = false }) => {
         <div className="max-w-7xl mx-auto px-4 md:px-6 space-y-6">
 
           {/* Header Tiêu Đề */}
+          {embedded ? (
+          <WorkspacePageHeader
+            icon={Sparkles}
+            title="Setup bài tập Coach Online"
+            description="Thiết lập giáo án cá nhân hóa chi tiết và đánh giá kết quả của học viên"
+          />
+          ) : (
           <div className="text-center mb-10">
             <h1 className="font-display text-fluid-5xl font-black uppercase text-white tracking-normal">
               SETUP BÀI TẬP <span className="text-primary">COACH ONLINE</span>
@@ -433,6 +450,7 @@ const TrainerCoaching = ({ embedded = false }) => {
               Thiết lập giáo án cá nhân hóa chi tiết và đánh giá kết quả của học viên
             </p>
           </div>
+          )}
 
           {/* BỐ CỤC 2 CỘT TỰ DO: TRÁI CHỌN KHÁCH HÀNG, PHẢI SETUP GIÁO ÁN */}
           <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-8 items-start">
@@ -1072,6 +1090,7 @@ const TrainerCoaching = ({ embedded = false }) => {
         ))}
       </datalist>
 
+      {dialog}
     </>
   );
 };

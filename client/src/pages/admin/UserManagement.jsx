@@ -7,9 +7,12 @@ import { Search, Trash2, User, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "react-toastify";
 import { getUsers, deleteUser } from "../../services/user.service";
 import { useDebounce } from "../../hooks/useDebounce";
+import { useConfirmDialog } from "../../hooks/useConfirmDialog";
+import { getUserErrorMessage } from "../../utils/errorMessages";
 
 const UserManagement = () => {
   const queryClient = useQueryClient();
+  const { confirm, dialog } = useConfirmDialog();
   const [searchInput, setSearchInput] = useState("");
   const debouncedSearchTerm = useDebounce(searchInput, 500);
   const [currentPage, setCurrentPage] = useState(1);
@@ -39,18 +42,24 @@ const UserManagement = () => {
       toast.success("Xóa người dùng thành công");
       invalidateByKey(queryClient, adminQueryKeys.users.all());
     },
-    onError: (err) => toast.error(err.response?.data?.message || "Lỗi xóa"),
+    onError: (err) => toast.error(getUserErrorMessage(err, "Không thể xóa. Vui lòng thử lại.")),
   });
 
-  const handleDelete = (id, name) => {
-    if (!window.confirm(`Xóa người dùng "${name}"?`)) return;
+  const handleDelete = async (id, name) => {
+    const ok = await confirm({
+      title: "Xóa người dùng",
+      message: `Xóa người dùng "${name}"?`,
+      confirmLabel: "Xóa",
+      tone: "danger",
+    });
+    if (!ok) return;
     deleteMutation.mutate(id);
   };
 
   if (isError) {
     return (
       <div className="p-6 text-center text-red-500">
-        Lỗi tải dữ liệu: {error.message}
+        {getUserErrorMessage(error, "Không tải được dữ liệu. Vui lòng thử lại.")}
       </div>
     );
   }
@@ -171,6 +180,7 @@ const UserManagement = () => {
             </button>
           </div>
         )}
+        {dialog}
       </div>
     </phantom-ui>
   );

@@ -70,7 +70,7 @@ describe("HT Fitness+ subscription lifecycle", () => {
 
     const requestId = "22222222-2222-4222-8222-222222222222";
     const response = await postAs(
-      "/api/fitness-plus-subscriptions/purchase",
+      "/api/fitness-plus-subscriptions",
       actor.accessToken,
       confirmedPurchaseBody("fitness_plus_smart", "month", requestId),
     );
@@ -102,7 +102,7 @@ describe("HT Fitness+ subscription lifecycle", () => {
     ).toBe(1);
 
     const current = await withAuth(
-      request(app).get("/api/fitness-plus-subscriptions/my"),
+      request(app).get("/api/fitness-plus-subscriptions/me"),
       actor.accessToken,
     );
     expect(current.status).toBe(200);
@@ -124,12 +124,12 @@ describe("HT Fitness+ subscription lifecycle", () => {
     );
 
     const first = await postAs(
-      "/api/fitness-plus-subscriptions/purchase",
+      "/api/fitness-plus-subscriptions",
       actor.accessToken,
       body,
     );
     const second = await postAs(
-      "/api/fitness-plus-subscriptions/purchase",
+      "/api/fitness-plus-subscriptions",
       actor.accessToken,
       body,
     );
@@ -152,7 +152,7 @@ describe("HT Fitness+ subscription lifecycle", () => {
 
     body.catalogFingerprint = "a".repeat(64);
     const stale = await postAs(
-      "/api/fitness-plus-subscriptions/purchase",
+      "/api/fitness-plus-subscriptions",
       actor.accessToken,
       body,
     );
@@ -160,7 +160,7 @@ describe("HT Fitness+ subscription lifecycle", () => {
     expect(await FitnessSubscription.countDocuments({ userId: actor.user._id })).toBe(0);
 
     const insufficient = await postAs(
-      "/api/fitness-plus-subscriptions/purchase",
+      "/api/fitness-plus-subscriptions",
       actor.accessToken,
       confirmedPurchaseBody(
         "fitness_plus_max",
@@ -178,7 +178,7 @@ describe("HT Fitness+ subscription lifecycle", () => {
     await Wallet.create({ userId: actor.user._id, balance: 500000, version: 0 });
 
     const first = await postAs(
-      "/api/fitness-plus-subscriptions/purchase",
+      "/api/fitness-plus-subscriptions",
       actor.accessToken,
       confirmedPurchaseBody(
         "fitness_plus_essential",
@@ -187,7 +187,7 @@ describe("HT Fitness+ subscription lifecycle", () => {
       ),
     );
     const second = await postAs(
-      "/api/fitness-plus-subscriptions/purchase",
+      "/api/fitness-plus-subscriptions",
       actor.accessToken,
       confirmedPurchaseBody(
         "fitness_plus_smart",
@@ -196,7 +196,7 @@ describe("HT Fitness+ subscription lifecycle", () => {
       ),
     );
     const repeatedPlan = await postAs(
-      "/api/fitness-plus-subscriptions/purchase",
+      "/api/fitness-plus-subscriptions",
       actor.accessToken,
       confirmedPurchaseBody(
         "fitness_plus_smart",
@@ -239,10 +239,10 @@ describe("HT Fitness+ subscription lifecycle", () => {
     );
 
     const anonymous = await request(app)
-      .post("/api/fitness-plus-subscriptions/purchase")
+      .post("/api/fitness-plus-subscriptions")
       .send(body);
     const missingCsrf = await request(app)
-      .post("/api/fitness-plus-subscriptions/purchase")
+      .post("/api/fitness-plus-subscriptions")
       .set("Cookie", [`accessToken=${actor.accessToken}`])
       .send(body);
 
@@ -268,7 +268,7 @@ describe("HT Fitness+ subscription lifecycle", () => {
     });
 
     const response = await postAs(
-      "/api/fitness-plus-subscriptions/purchase",
+      "/api/fitness-plus-subscriptions",
       actor.accessToken,
       confirmedPurchaseBody(
         "fitness_plus_essential",

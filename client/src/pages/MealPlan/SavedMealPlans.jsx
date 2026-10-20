@@ -20,6 +20,7 @@ import {
 } from "../../utils/savedMealPlan";
 import SavedMealPlanEditor from "./SavedMealPlanEditor";
 import SavedMealPlanTitleEditor from "./SavedMealPlanTitleEditor";
+import { getUserErrorMessage } from "../../utils/errorMessages";
 
 const requestId = () => window.crypto.randomUUID();
 const queryKey = ["saved-meal-plans", "active"];
@@ -69,7 +70,7 @@ const SavedMealPlans = ({ meals, onGenerateAnother, target, targetLabel }) => {
       setNotice("");
       setFailedCommand(variables);
       toast.error(
-        error.response?.data?.message || "Không thể cập nhật thực đơn đã lưu",
+        getUserErrorMessage(error, "Không thể cập nhật thực đơn đã lưu"),
       );
     },
   });

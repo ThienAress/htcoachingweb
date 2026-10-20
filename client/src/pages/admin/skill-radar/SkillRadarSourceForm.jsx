@@ -11,6 +11,8 @@ import {
   validateGitHubRepoUrl,
   validateSkillRadarSourceForm,
 } from "./skillRadarSourceForm.utils";
+import SelectField from "../../../components/SelectField";
+import { getUserErrorMessage } from "../../../utils/errorMessages";
 
 const inputClassName =
   "mt-1 min-h-11 w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 transition-colors hover:border-zinc-400 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600/20 disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-500";
@@ -75,7 +77,7 @@ export default function SkillRadarSourceForm({ previewMutation, createMutation, 
       onError: (error) => {
         const nextError = getSkillRadarMutationError(error, "Không thể phân tích repository lúc này. Vui lòng thử lại.");
         setRequestError(nextError);
-        toast.error(nextError.message);
+        toast.error(getUserErrorMessage(nextError, "Không thể thực hiện lúc này. Vui lòng thử lại."));
       },
     });
   };
@@ -102,7 +104,7 @@ export default function SkillRadarSourceForm({ previewMutation, createMutation, 
       onError: (error) => {
         const nextError = getSkillRadarMutationError(error, "Không thể lưu nguồn lúc này. Vui lòng thử lại.");
         setRequestError(nextError);
-        toast.error(nextError.message);
+        toast.error(getUserErrorMessage(nextError, "Không thể thực hiện lúc này. Vui lòng thử lại."));
       },
     });
   };
@@ -176,10 +178,10 @@ export default function SkillRadarSourceForm({ previewMutation, createMutation, 
           <div className="grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(18rem,0.65fr)]">
             <div className="grid gap-4 sm:grid-cols-2">
               <Field id={sourceTypeId} label="Loại nguồn">
-                <select id={sourceTypeId} name="sourceType" value={form.sourceType} onChange={updateField("sourceType")} disabled={isBusy} className={inputClassName}>
+                <SelectField id={sourceTypeId} name="sourceType" value={form.sourceType} onChange={updateField("sourceType")} disabled={isBusy} className={inputClassName}>
                   <option value="repository">Repository</option>
                   <option value="skill">Agent Skill</option>
-                </select>
+                </SelectField>
               </Field>
               <Field id={nameId} label="Skill / repository">
                 <input id={nameId} name="name" value={form.name} onChange={updateField("name")} required maxLength={120} disabled={isBusy} className={inputClassName} />
@@ -194,11 +196,11 @@ export default function SkillRadarSourceForm({ previewMutation, createMutation, 
                 <textarea id={summaryId} name="summary" value={form.summary} onChange={updateField("summary")} required maxLength={500} rows={4} disabled={isBusy} className={`${inputClassName} resize-y`} />
               </Field>
               <Field id={lifecycleId} label="Lifecycle">
-                <select id={lifecycleId} name="lifecycle" value={form.lifecycle} onChange={updateField("lifecycle")} disabled={isBusy} className={inputClassName}>
+                <SelectField id={lifecycleId} name="lifecycle" value={form.lifecycle} onChange={updateField("lifecycle")} disabled={isBusy} className={inputClassName}>
                   <option value="candidate">Ứng viên</option>
                   <option value="active">Đang theo dõi</option>
                   <option value="watch">Theo dõi chậm</option>
-                </select>
+                </SelectField>
               </Field>
             </div>
 

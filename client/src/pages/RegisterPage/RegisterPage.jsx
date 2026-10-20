@@ -1,6 +1,6 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useState, useCallback, useMemo } from "react";
-import { useForm, useFieldArray } from "react-hook-form";
+import { Controller, useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "react-toastify";
 import { useTranslation, Trans } from "react-i18next";
@@ -19,6 +19,9 @@ import OrderSummary from "./components/OrderSummary";
 import FirstTimeModal from "./components/FirstTimeModal";
 import { trackAnalyticsEventOnce } from "../../utils/analytics";
 import { getPublicAttribution } from "../../utils/publicAttribution";
+import SelectField from "../../components/SelectField";
+import { useLoginPromo } from "../../hooks/useLoginPromo";
+import { getUserErrorMessage, isFriendlyMessage } from "../../utils/errorMessages";
 
 const createDiscountCode = () => {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ0123456789";
@@ -122,7 +125,8 @@ function RegisterPage() {
     staleTime: 60_000,
   });
   const hasExistingBooking = bookingStatus?.hasBookings || false;
-  const discountCode = bookingStatus?.discountCode || "";
+  const loginPromo = useLoginPromo();
+  const discountCode = loginPromo.enabled ? bookingStatus?.discountCode || "" : "";
   const loadingCheck = isLoggedIn && loadingBookingStatus;
 
   useEffect(() => {
@@ -161,7 +165,7 @@ function RegisterPage() {
         note: formValues.note || "",
         package: `${planMode === "trial" ? "Trải nghiệm" : planMode === "1-1" ? "1-1" : "Online"} - ${selectedPackage.title}`,
         sessions: selectedPackage.totalSessions,
-        discountCode: isLoggedIn && !hasExistingBooking ? discountCode : null,
+        discountCode: isLoggedIn && !hasExistingBooking ? discountCode || null : null,
         gifts: gifts,
         attribution: getPublicAttribution(),
         clientRequestId:
@@ -182,15 +186,13 @@ function RegisterPage() {
         setTimeout(() => navigate("/"), 1500);
       } catch (error) {
         if (error.response) setBookingRequestId(null);
-        if (error.response?.data?.errors) {
-          const errorMessages = error.response.data.errors
-            .map((e) => e.msg)
-            .join("\n");
-          toast.error(errorMessages);
-        } else if (error.response?.data?.message) {
-          toast.error(error.response.data.message);
+        const fieldMessages = (error.response?.data?.errors || [])
+          .map((e) => e.msg)
+          .filter(isFriendlyMessage);
+        if (fieldMessages.length > 0) {
+          toast.error(fieldMessages.join("\n"));
         } else {
-          toast.error(t("register.error_general"));
+          toast.error(getUserErrorMessage(error, t("register.error_general")));
         }
       }
     },
@@ -214,14 +216,14 @@ function RegisterPage() {
   const onFormSubmit = useCallback(
     (data) => {
       // schedules đã được Zod validate tự động qua useFieldArray
-      if (isLoggedIn && !hasExistingBooking && !loadingCheck) {
+      if (isLoggedIn && !hasExistingBooking && !loadingCheck && loginPromo.enabled) {
         setPendingFormData(data);
         setShowFirstTimeModal(true);
         return;
       }
       performSubmit(data);
     },
-    [isLoggedIn, hasExistingBooking, loadingCheck, performSubmit],
+    [isLoggedIn, hasExistingBooking, loadingCheck, loginPromo.enabled, performSubmit],
   );
 
   const confirmFirstTimeSubmit = useCallback(() => {
@@ -322,17 +324,24 @@ function RegisterPage() {
                   <label className="block text-gray-700 font-semibold mb-1">
                     {t("register.location")}
                   </label>
-                  <select
-                    {...register("location")}
-                    className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-primary"
-                  >
-                    <option value="">{t("register.location_select")}</option>
-                    <option>WAYSTATION DÂN CHỦ</option>
-                    <option>WAYSTATION TRƯƠNG VĂN HẢI</option>
-                    <option>WAYSTATION HIỆP BÌNH</option>
-                    <option>WAYSTATION QL13</option>
-                    <option>Chung Cư Flora Novia</option>
-                  </select>
+                  <Controller
+                    control={control}
+                    name="location"
+                    render={({ field }) => (
+                      <SelectField
+                        value={field.value ?? ""}
+                        onChange={(event) => field.onChange(event.target.value)}
+                        className="p-3 border rounded-lg focus-visible:ring-2 focus-visible:ring-primary"
+                      >
+                        <option value="">{t("register.location_select")}</option>
+                        <option>WAYSTATION DÂN CHỦ</option>
+                        <option>WAYSTATION TRƯƠNG VĂN HẢI</option>
+                        <option>WAYSTATION HIỆP BÌNH</option>
+                        <option>WAYSTATION QL13</option>
+                        <option>Chung Cư Flora Novia</option>
+                      </SelectField>
+                    )}
+                  />
                   {errors.location && (
                     <p className="text-red-500 text-sm mt-1">
                       {errors.location.message}
@@ -345,7 +354,7 @@ function RegisterPage() {
                     {t("register.schedule")}
                   </label>
                   <div className="flex flex-col sm:flex-row gap-3 mb-3">
-                    <select
+                    <SelectField
                       className="flex-1 p-3 border rounded-lg"
                       value={tempDay}
                       onChange={(e) => setTempDay(e.target.value)}
@@ -358,8 +367,8 @@ function RegisterPage() {
                       <option value="Thứ 6">{t("register.days.fri")}</option>
                       <option value="Thứ 7">{t("register.days.sat")}</option>
                       <option value="Chủ nhật">{t("register.days.sun")}</option>
-                    </select>
-                    <select
+                    </SelectField>
+                    <SelectField
                       className="flex-1 p-3 border rounded-lg"
                       value={tempTime}
                       onChange={(e) => setTempTime(e.target.value)}
@@ -370,7 +379,7 @@ function RegisterPage() {
                           {tOpt}
                         </option>
                       ))}
-                    </select>
+                    </SelectField>
                     <button
                       type="button"
                       onClick={handleAddSchedule}
@@ -462,6 +471,7 @@ function RegisterPage() {
               isLoggedIn={isLoggedIn}
               hasExistingBooking={hasExistingBooking}
               discountCode={discountCode}
+              promoPercent={loginPromo.enabled ? loginPromo.percent : 0}
               gifts={gifts}
               onCopyCode={handleCopyCode}
             />
@@ -475,6 +485,7 @@ function RegisterPage() {
       {showFirstTimeModal && (
         <FirstTimeModal
           discountCode={discountCode}
+          percent={loginPromo.percent}
           onConfirm={confirmFirstTimeSubmit}
           onCancel={() => setShowFirstTimeModal(false)}
         />

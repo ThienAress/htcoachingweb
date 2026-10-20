@@ -68,12 +68,12 @@ describe("auth refresh interceptor", () => {
     });
     api.defaults.adapter = adapter;
 
-    await expect(api.get("/user/me")).rejects.toBeInstanceOf(AxiosError);
+    await expect(api.get("/users/me")).rejects.toBeInstanceOf(AxiosError);
     expect(adapter).toHaveBeenCalledTimes(1);
     expect(window.location.href).toBe("http://localhost:3000/exercises");
   });
 
-  it.each(["/user/me", "/user/me?session=check", "http://localhost:5000/api/user/me/"])(
+  it.each(["/users/me", "/users/me?session=check", "http://localhost:5000/api/users/me/"])(
     "keeps anonymous visitors on their page when session refresh fails for %s",
     async (url) => {
       const adapter = vi.fn(async (config) => { throw unauthorized(config); });
@@ -101,16 +101,16 @@ describe("auth refresh interceptor", () => {
       throw new AxiosError("Forbidden", "ERR_BAD_REQUEST", config, null, response(config, 403));
     };
 
-    await expect(api.get("/user/me")).rejects.toMatchObject(
+    await expect(api.get("/users/me")).rejects.toMatchObject(
       failure === "network" ? { code: "ERR_NETWORK" } : { response: { status: 403 } },
     );
     expect(window.location.href).toBe("http://localhost:3000/exercises");
   });
 
   it.each([
-    ["/user/me", "/user/me", "http://localhost:3000/exercises"],
-    ["/user/me", "/contracts", "/login"],
-    ["/contracts", "/user/me", "/login"],
+    ["/users/me", "/users/me", "http://localhost:3000/exercises"],
+    ["/users/me", "/contracts", "/login"],
+    ["/contracts", "/users/me", "/login"],
   ].flatMap((row) => [401, 403, "network"].map((failure) => [...row, failure])))(
     "settles concurrent failures for %s then %s to %s on refresh %s", async (first, second, target, failure) => {
     let releaseRefresh;
@@ -140,7 +140,7 @@ describe("auth refresh interceptor", () => {
     expect(refreshRequests).toBe(1);
     expect(window.location.href).toBe(target);
 
-    await expect(api.get("/user/me")).rejects.toMatchObject(
+    await expect(api.get("/users/me")).rejects.toMatchObject(
       failure === "network" ? { code: "ERR_NETWORK" } : { response: { status: failure } },
     );
     expect(refreshRequests).toBe(2);
@@ -172,15 +172,15 @@ describe("auth refresh interceptor", () => {
       throw unauthorized(config);
     };
 
-    const results = await Promise.allSettled([api.get("/user/me"), api.get("/contracts")]);
+    const results = await Promise.allSettled([api.get("/users/me"), api.get("/contracts")]);
     expect(results.map((result) => result.status)).toEqual(["rejected", "rejected"]);
     expect(refreshRequests).toBe(1);
   });
 
-  it("refreshes an expired /user/me request and retries the session check", async () => {
+  it("refreshes an expired /users/me request and retries the session check", async () => {
     let meAttempts = 0;
     const adapter = vi.fn(async (config) => {
-      if (config.url === "/user/me" && meAttempts++ === 0) {
+      if (config.url === "/users/me" && meAttempts++ === 0) {
         throw unauthorized(config);
       }
       if (config.url === "/auth/refresh") return response(config, 204);
@@ -188,13 +188,13 @@ describe("auth refresh interceptor", () => {
     });
     api.defaults.adapter = adapter;
 
-    const result = await api.get("/user/me");
+    const result = await api.get("/users/me");
 
     expect(result.data.email).toBe("user@example.com");
     expect(adapter.mock.calls.map(([config]) => config.url)).toEqual([
-      "/user/me",
+      "/users/me",
       "/auth/refresh",
-      "/user/me",
+      "/users/me",
     ]);
     expect(Cookies.set).toHaveBeenCalledWith(
       "csrfToken",
@@ -207,7 +207,7 @@ describe("auth refresh interceptor", () => {
     let initialMeRequests = 0;
     let refreshRequests = 0;
     const adapter = vi.fn(async (config) => {
-      if (config.url === "/user/me" && initialMeRequests++ < 2) {
+      if (config.url === "/users/me" && initialMeRequests++ < 2) {
         throw unauthorized(config);
       }
       if (config.url === "/auth/refresh") {
@@ -218,7 +218,7 @@ describe("auth refresh interceptor", () => {
     });
     api.defaults.adapter = adapter;
 
-    const results = await Promise.all([api.get("/user/me"), api.get("/user/me")]);
+    const results = await Promise.all([api.get("/users/me"), api.get("/users/me")]);
 
     expect(results).toHaveLength(2);
     expect(refreshRequests).toBe(1);
@@ -236,7 +236,7 @@ describe("auth refresh interceptor", () => {
     });
     api.defaults.adapter = adapter;
 
-    await expect(api.get("/user/me")).rejects.toMatchObject({
+    await expect(api.get("/users/me")).rejects.toMatchObject({
       response: { status: 401 },
     });
     expect(refreshRequests).toBe(1);

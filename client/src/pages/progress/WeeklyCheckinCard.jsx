@@ -3,7 +3,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-toastify";
 import {
   CalendarDays,
-  ChevronDown,
   LockKeyhole,
   Pencil,
   RefreshCw,
@@ -39,6 +38,8 @@ import {
   weeklyFormSchema,
   weeklyValuesToPatch,
 } from "./weeklyCheckinForm";
+import SelectField from "../../components/SelectField";
+import { getUserErrorMessage } from "../../utils/errorMessages";
 
 const requestId = () => window.crypto.randomUUID();
 const statusLabel = {
@@ -147,8 +148,7 @@ const WeeklyCheckinCardForMonth = ({
           fallbackMessage,
       );
       toast.error(
-        error.response?.data?.message ||
-          fallbackMessage,
+        getUserErrorMessage(error, fallbackMessage),
       );
       return null;
     }
@@ -365,46 +365,37 @@ const WeeklyCheckinCardForMonth = ({
             <label className="text-sm font-medium text-slate-300">
               Tháng
               <span className="relative mt-1.5 block">
-                <select
+                <SelectField tone="dark"
                   value={monthDateKey}
                   onChange={(event) => selectMonth(event.target.value)}
+                  aria-label="Tháng"
                   aria-describedby="weekly-period-help"
-                  className="min-h-11 w-full appearance-none rounded-lg border border-slate-700 bg-slate-950 px-3 pr-10 text-sm font-semibold text-white outline-none transition hover:border-slate-600 focus:border-orange-400 focus:ring-2 focus:ring-orange-400/30"
+                  className="min-h-11 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 text-sm font-semibold text-white outline-none transition hover:border-slate-600 focus-visible:border-orange-400 focus-visible:ring-2 focus-visible:ring-orange-400/30"
                 >
                   {monthOptions.map((option) => (
                     <option key={option} value={option}>
                       {monthLabelFor(option)}
                     </option>
                   ))}
-                </select>
-                <ChevronDown
-                  size={17}
-                  className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"
-                  aria-hidden="true"
-                />
+                </SelectField>
               </span>
             </label>
             <label className="text-sm font-medium text-slate-300">
               Tuần
               <span className="relative mt-1.5 block">
-                <select
+                <SelectField tone="dark"
                   value={weekStartDateKey}
                   onChange={(event) => selectPeriod(event.target.value)}
                   aria-describedby="weekly-period-help"
                   aria-label={`${selfManaged ? "Tuần theo dõi" : "Tuần báo cáo"} trong ${monthLabel}`}
-                  className="min-h-11 w-full appearance-none rounded-lg border border-slate-700 bg-slate-950 px-3 pr-10 text-sm font-semibold text-white outline-none transition hover:border-slate-600 focus:border-orange-400 focus:ring-2 focus:ring-orange-400/30"
+                  className="min-h-11 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 text-sm font-semibold text-white outline-none transition hover:border-slate-600 focus-visible:border-orange-400 focus-visible:ring-2 focus-visible:ring-orange-400/30"
                 >
                   {periods.map((period) => (
                     <option key={period.startDateKey} value={period.startDateKey}>
                       {periodLabelFor(period)}
                     </option>
                   ))}
-                </select>
-                <ChevronDown
-                  size={17}
-                  className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"
-                  aria-hidden="true"
-                />
+                </SelectField>
               </span>
             </label>
           </div>

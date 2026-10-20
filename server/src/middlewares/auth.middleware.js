@@ -3,12 +3,14 @@ import User from "../models/User.js";
 import TrainerSubscription from "../models/TrainerSubscription.js";
 import { safeLog } from "../utils/safeLogger.js";
 
+const AUTH_REQUIRED_MESSAGE = "Bạn cần đăng nhập để tiếp tục.";
+
 // ✅ Dùng 1 middleware duy nhất (bỏ verifyToken)
 export const protect = async (req, res, next) => {
   const token = req.cookies.accessToken;
 
   if (!token) {
-    return res.status(401).json({ success: false, message: "Không có token" });
+    return res.status(401).json({ success: false, code: "AUTH_REQUIRED", message: AUTH_REQUIRED_MESSAGE });
   }
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
@@ -17,7 +19,7 @@ export const protect = async (req, res, next) => {
     if (!user) {
       return res
         .status(401)
-        .json({ success: false, message: "Tài khoản không tồn tại" });
+        .json({ success: false, code: "ACCOUNT_NOT_FOUND", message: "Tài khoản không tồn tại hoặc đã bị xóa. Vui lòng đăng nhập lại." });
     }
     req.user = { id: user._id, role: user.role };
 
@@ -25,7 +27,7 @@ export const protect = async (req, res, next) => {
   } catch (err) {
     return res
       .status(401)
-      .json({ success: false, message: "Token không hợp lệ" });
+      .json({ success: false, code: "SESSION_INVALID", message: "Phiên đăng nhập không hợp lệ. Vui lòng đăng nhập lại." });
   }
 };
 
@@ -36,12 +38,12 @@ export const requireRoles =
     if (!req.user) {
       return res
         .status(401)
-        .json({ success: false, message: "Không có token" });
+        .json({ success: false, code: "AUTH_REQUIRED", message: AUTH_REQUIRED_MESSAGE });
     }
     if (!roles.includes(req.user.role)) {
       return res
         .status(403)
-        .json({ success: false, message: "Không có quyền" });
+        .json({ success: false, code: "FORBIDDEN", message: "Bạn không có quyền thực hiện thao tác này." });
     }
     next();
   };
@@ -49,7 +51,7 @@ export const requireRoles =
 // ✅ Check trainer access (Admin, Trainer cứng, hoặc User có subscription active)
 export const requireTrainerAccess = async (req, res, next) => {
   if (!req.user) {
-    return res.status(401).json({ success: false, message: "Không có token" });
+    return res.status(401).json({ success: false, code: "AUTH_REQUIRED", message: AUTH_REQUIRED_MESSAGE });
   }
 
   const { id, role } = req.user;
@@ -76,9 +78,9 @@ export const requireTrainerAccess = async (req, res, next) => {
       return next();
     }
 
-    return res.status(403).json({ success: false, message: "Không có quyền truy cập Trainer" });
+    return res.status(403).json({ success: false, code: "TRAINER_ACCESS_REQUIRED", message: "Bạn chưa có quyền truy cập khu Huấn luyện viên." });
   } catch (err) {
     safeLog.error("requireTrainerAccess", err);
-    return res.status(500).json({ success: false, message: "Lỗi kiểm tra quyền" });
+    return res.status(500).json({ success: false, code: "INTERNAL_ERROR", message: "Hệ thống đang bận. Bạn vui lòng thử lại sau ít phút." });
   }
 };

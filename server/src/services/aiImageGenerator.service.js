@@ -1,4 +1,16 @@
-const SUPPORTED_PROVIDERS = ["mock", "openai"];
+import { safeLog } from "../utils/safeLogger.js";
+
+const SUPPORTED_PROVIDERS = ["mock", "openai", "gemini"];
+
+// Nano Banana = dòng Gemini Image. Có thể đổi bản qua AI_IMAGE_MODEL
+// (ví dụ gemini-3-pro-image-preview) mà không cần sửa code.
+const DEFAULT_MODELS = {
+  openai: "gpt-image-1",
+  gemini: "gemini-2.5-flash-image",
+  mock: "mock-image",
+};
+const GEMINI_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models";
+const GEMINI_TIMEOUT_MS = 120_000;
 
 const safeText = (value = "") => String(value || "").trim();
 
@@ -17,15 +29,55 @@ const isValidDataUrl = (value = "") =>
 const isSupportedImageRef = (value = "") =>
   isValidHttpUrl(value) || isValidDataUrl(value);
 
+// Lỗi từ nhà cung cấp ảnh được đổi sang thông báo tiếng Việt an toàn (không lộ
+// khoá API hay nội dung thô của provider) và đánh dấu `expose` để errorHandler
+// trả thẳng cho người dùng. Nội dung gốc chỉ ghi vào log đã lọc.
+export const buildProviderError = ({ provider, status, rawMessage }) => {
+  const httpStatus = Number(status) || 502;
+  let code = "AI_IMAGE_PROVIDER_ERROR";
+  let responseStatus = 502;
+  let message =
+    "Dịch vụ tạo ảnh đang gặp sự cố. Vui lòng thử lại sau ít phút.";
+
+  if (httpStatus === 429) {
+    code = "AI_IMAGE_PROVIDER_RATE_LIMITED";
+    responseStatus = 429;
+    message =
+      "Dịch vụ tạo ảnh đang quá tải hoặc đã hết hạn mức. Vui lòng thử lại sau ít phút; lượt tạo chưa bị tính.";
+  } else if (httpStatus === 401 || httpStatus === 403) {
+    code = "AI_IMAGE_PROVIDER_AUTH";
+    message =
+      "Khoá dịch vụ tạo ảnh chưa hợp lệ hoặc chưa được cấp quyền. Vui lòng liên hệ quản trị viên.";
+  } else if (httpStatus >= 400 && httpStatus < 500) {
+    code = "AI_IMAGE_PROVIDER_REJECTED";
+    message =
+      "Dịch vụ tạo ảnh từ chối yêu cầu này. Hãy thử ảnh khác hoặc liên hệ quản trị viên.";
+  }
+
+  safeLog.error("ai_image.provider_error", new Error(String(rawMessage || "")), {
+    provider,
+    providerStatus: httpStatus,
+  });
+
+  const error = new Error(message);
+  error.status = responseStatus;
+  error.code = code;
+  error.expose = true;
+  return error;
+};
+
 const getProviderConfig = () => {
   const provider = safeText(
     process.env.AI_IMAGE_PROVIDER ||
       (process.env.NODE_ENV === "production" ? "" : "mock"),
   ).toLowerCase();
 
-  const model = safeText(process.env.AI_IMAGE_MODEL || "gpt-image-1");
+  const model = safeText(
+    process.env.AI_IMAGE_MODEL || DEFAULT_MODELS[provider] || DEFAULT_MODELS.openai,
+  );
 
   const openaiApiKey = safeText(process.env.OPENAI_API_KEY || "");
+  const geminiApiKey = safeText(process.env.GEMINI_API_KEY || "");
 
   if (!SUPPORTED_PROVIDERS.includes(provider)) {
     const error = new Error(
@@ -50,6 +102,7 @@ const getProviderConfig = () => {
     provider,
     model,
     openaiApiKey,
+    geminiApiKey,
   };
 };
 
@@ -224,13 +277,14 @@ const callOpenAiImageEdit = async ({
   }
 
   if (!response.ok) {
-    const message =
-      safeText(data?.error?.message) ||
-      safeText(data?.message) ||
-      "OpenAI image edit trả về lỗi";
-    const error = new Error(message);
-    error.status = response.status || 502;
-    throw error;
+    throw buildProviderError({
+      provider: "openai",
+      status: response.status,
+      rawMessage:
+        safeText(data?.error?.message) ||
+        safeText(data?.message) ||
+        "OpenAI image edit trả về lỗi",
+    });
   }
 
   const firstImage = data?.data?.[0];
@@ -252,6 +306,130 @@ const callOpenAiImageEdit = async ({
   const error = new Error("Kết quả ảnh từ OpenAI không hợp lệ");
   error.status = 502;
   throw error;
+};
+
+const callGeminiImageEdit = async ({
+  imageUrl,
+  prompt,
+  phaseKey,
+  view,
+  model,
+  geminiApiKey,
+}) => {
+  if (!geminiApiKey) {
+    const error = new Error("Thiếu GEMINI_API_KEY");
+    error.status = 500;
+    throw error;
+  }
+
+  const sourceBlob = await fetchImageAsBlob(imageUrl);
+  const mimeType = getMimeTypeFromContentType(sourceBlob.type);
+  const base64 = Buffer.from(await sourceBlob.arrayBuffer()).toString("base64");
+
+  const response = await fetch(
+    `${GEMINI_ENDPOINT}/${encodeURIComponent(model)}:generateContent`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-goog-api-key": geminiApiKey,
+      },
+      body: JSON.stringify({
+        contents: [
+          {
+            role: "user",
+            parts: [
+              { text: buildOpenAiEditPrompt({ prompt, phaseKey, view }) },
+              { inlineData: { mimeType, data: base64 } },
+            ],
+          },
+        ],
+      }),
+      signal: AbortSignal.timeout(GEMINI_TIMEOUT_MS),
+    },
+  );
+
+  let data = null;
+  try {
+    data = await response.json();
+  } catch (_error) {
+    data = null;
+  }
+
+  if (!response.ok) {
+    throw buildProviderError({
+      provider: "gemini",
+      status: response.status,
+      rawMessage: safeText(data?.error?.message) || "Gemini image trả về lỗi",
+    });
+  }
+
+  const blockReason = safeText(data?.promptFeedback?.blockReason);
+  if (blockReason) {
+    const error = new Error(
+      "Gemini từ chối tạo ảnh do bộ lọc an toàn. Hãy thử ảnh khác hoặc ảnh đủ trang phục.",
+    );
+    error.status = 422;
+    error.code = "AI_IMAGE_PROVIDER_SAFETY_BLOCK";
+    error.expose = true;
+    throw error;
+  }
+
+  const parts = data?.candidates?.[0]?.content?.parts || [];
+  const imagePart = parts.find((part) => (part.inlineData || part.inline_data)?.data);
+  const inline = imagePart?.inlineData || imagePart?.inline_data;
+
+  if (!inline?.data) {
+    const error = new Error("Gemini không trả về ảnh kết quả");
+    error.status = 502;
+    throw error;
+  }
+
+  return base64ToDataUrl(
+    inline.data,
+    safeText(inline.mimeType || inline.mime_type) || "image/png",
+  );
+};
+
+const generateGeminiStageImages = async ({
+  beforeImages,
+  prompts,
+  phaseKey,
+  provider,
+  model,
+  geminiApiKey,
+}) => {
+  const frontSource = safeText(beforeImages?.frontUrl);
+  const sideSource = safeText(beforeImages?.sideUrl);
+
+  if (!isSupportedImageRef(frontSource) || !isSupportedImageRef(sideSource)) {
+    const error = new Error(
+      "Gemini image generator cần beforeImages.frontUrl và beforeImages.sideUrl hợp lệ",
+    );
+    error.status = 400;
+    throw error;
+  }
+
+  const [frontUrl, sideUrl] = await Promise.all([
+    callGeminiImageEdit({
+      imageUrl: frontSource,
+      prompt: safeText(prompts?.front),
+      phaseKey,
+      view: "front",
+      model,
+      geminiApiKey,
+    }),
+    callGeminiImageEdit({
+      imageUrl: sideSource,
+      prompt: safeText(prompts?.side),
+      phaseKey,
+      view: "side",
+      model,
+      geminiApiKey,
+    }),
+  ]);
+
+  return normalizeGeneratedImageRefs({ frontUrl, sideUrl, provider, model });
 };
 
 const generateOpenAiStageImages = async ({
@@ -326,6 +504,17 @@ export const generateStageImagesWithAI = async ({
       provider: config.provider,
       model: config.model,
       openaiApiKey: config.openaiApiKey,
+    });
+  }
+
+  if (config.provider === "gemini") {
+    return generateGeminiStageImages({
+      beforeImages,
+      prompts,
+      phaseKey,
+      provider: config.provider,
+      model: config.model,
+      geminiApiKey: config.geminiApiKey,
     });
   }
 

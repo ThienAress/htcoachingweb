@@ -90,7 +90,7 @@ beforeAll(async () => {
   app = createTestApp();
   app.use("/api/saved-meal-plans", savedMealPlanRoutes);
   app.use("/api/ops", opsRoutes);
-  app.use("/api/user", userRoutes);
+  app.use("/api/users", userRoutes);
   app.use(errorHandler);
 });
 
@@ -224,7 +224,7 @@ describe("Saved Meal Plan privacy lifecycle", () => {
     await createPlan(data);
 
     const deleted = await withAuth(
-      request(app).delete("/api/user/" + data.client.user._id),
+      request(app).delete("/api/users/" + data.client.user._id),
       admin.accessToken,
     );
 

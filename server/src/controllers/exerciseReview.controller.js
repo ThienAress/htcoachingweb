@@ -6,12 +6,11 @@ import {
   upsertExerciseReview,
 } from "../services/exerciseReview.service.js";
 import { safeLog } from "../utils/safeLogger.js";
+import { sendApiError } from "../utils/sendApiError.js";
 
 const handleError = (res, error) => {
   if (error?.statusCode) {
-    return res
-      .status(error.statusCode)
-      .json({ success: false, message: error.message });
+    return sendApiError(res, error, "exerciseReview.request_failed", { status: error.statusCode, exposeClientMessage: true });
   }
   if (error?.code === 11000) {
     return res.status(409).json({

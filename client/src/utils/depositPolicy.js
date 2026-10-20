@@ -1,5 +1,14 @@
 const TIER_KEYS = ["starter", "growth", "premium"];
-const TIER_MINIMUMS = [10_000, 100_000, 200_000];
+export const MAX_DEPOSIT_TIER_LABEL_LENGTH = 40;
+export const DEPOSIT_TIER_MINIMUM_STEP = 1_000;
+
+// Mốc nạp của bậc 1 luôn là mức nạp tối thiểu; mốc bậc 2 và bậc 3 do admin chỉnh nên phải tăng dần.
+const hasValidLabel = (tier) =>
+  tier?.label === undefined ||
+  tier.label === null ||
+  (typeof tier.label === "string" &&
+    tier.label.length > 0 &&
+    tier.label.length <= MAX_DEPOSIT_TIER_LABEL_LENGTH);
 
 export const parseDepositBonusRateDraft = (value) => {
   if (typeof value !== "string" || value.trim() === "") return null;
@@ -7,9 +16,24 @@ export const parseDepositBonusRateDraft = (value) => {
   return Number.isSafeInteger(rate) && rate >= 0 && rate <= 100 ? rate : null;
 };
 
-const isValidTier = (tier, index) =>
+// Mốc nạp nhập tay: chỉ nhận số nguyên dương chia hết cho 1.000; chuỗi rỗng không phải 0.
+export const parseDepositMinimumDraft = (value) => {
+  if (typeof value !== "string" || !/^\d+$/.test(value.trim())) return null;
+  const amount = Number(value.trim());
+  return Number.isSafeInteger(amount) && amount > 0 && amount % DEPOSIT_TIER_MINIMUM_STEP === 0
+    ? amount
+    : null;
+};
+
+const isValidTier = (tier, index, tiers, policy) =>
   tier?.key === TIER_KEYS[index] &&
-  tier?.minAmount === TIER_MINIMUMS[index] &&
+  Number.isSafeInteger(tier?.minAmount) &&
+  (index === 0
+    ? tier.minAmount === policy?.minAmount
+    : tier.minAmount > tiers[index - 1].minAmount &&
+      tier.minAmount % DEPOSIT_TIER_MINIMUM_STEP === 0 &&
+      tier.minAmount <= policy?.maxAmount) &&
+  hasValidLabel(tier) &&
   Number.isSafeInteger(tier?.bonusRate) &&
   tier.bonusRate >= 0 &&
   tier.bonusRate <= 100;
@@ -20,7 +44,7 @@ export const normalizeDepositPolicyResponse = (response) => {
   const tiersValid =
     Array.isArray(tiers) &&
     tiers.length === TIER_KEYS.length &&
-    tiers.every(isValidTier) &&
+    tiers.every((tier, index) => isValidTier(tier, index, tiers, policy)) &&
     tiers.every(
       (tier, index) =>
         index === 0 || tier.bonusRate >= tiers[index - 1].bonusRate,
@@ -40,10 +64,11 @@ export const normalizeDepositPolicyResponse = (response) => {
     minAmount: policy.minAmount,
     maxAmount: policy.maxAmount,
     policyVersion: policy.policyVersion,
-    tiers: tiers.map(({ key, minAmount, bonusRate }) => ({
+    tiers: tiers.map(({ key, minAmount, bonusRate, label }) => ({
       key,
       minAmount,
       bonusRate,
+      label: label || null,
     })),
   };
 };

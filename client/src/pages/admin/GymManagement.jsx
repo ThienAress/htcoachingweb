@@ -4,8 +4,12 @@ import { Plus, Pencil, Trash2, Search, MapPin, Loader2, Database } from "lucide-
 import { toast } from "react-toastify";
 import SEO from "../../components/SEO";
 import { getAllGyms, createGym, updateGym, deleteGym, seedGyms } from "../../services/gym.service";
+import SelectField from "../../components/SelectField";
+import { useConfirmDialog } from "../../hooks/useConfirmDialog";
+import { getUserErrorMessage } from "../../utils/errorMessages";
 
 const GymManagement = () => {
+  const { confirm, dialog } = useConfirmDialog();
   const queryClient = useQueryClient();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedGym, setSelectedGym] = useState(null);
@@ -22,7 +26,7 @@ const GymManagement = () => {
       toast.success(res.data.message);
       queryClient.invalidateQueries({ queryKey: ["admin-gyms"] });
     },
-    onError: (err) => toast.error(err.response?.data?.message || "Lỗi seed data"),
+    onError: (err) => toast.error(getUserErrorMessage(err, "Không thể seed data. Vui lòng thử lại.")),
   });
 
   const deleteMut = useMutation({
@@ -31,11 +35,11 @@ const GymManagement = () => {
       toast.success("Xóa phòng tập thành công!");
       queryClient.invalidateQueries({ queryKey: ["admin-gyms"] });
     },
-    onError: (err) => toast.error(err.response?.data?.message || "Lỗi khi xóa"),
+    onError: (err) => toast.error(getUserErrorMessage(err, "Không thể xóa. Vui lòng thử lại.")),
   });
 
-  const handleDelete = (id) => {
-    if (window.confirm("Bạn có chắc chắn muốn xóa phòng tập này?")) {
+  const handleDelete = async (id) => {
+    if (await confirm({ title: "Xóa phòng tập", message: "Bạn có chắc chắn muốn xóa phòng tập này?", confirmLabel: "Xóa", tone: "danger" })) {
       deleteMut.mutate(id);
     }
   };
@@ -63,7 +67,7 @@ const GymManagement = () => {
         <div className="flex gap-3">
           {gymsData?.length === 0 && (
             <button
-              onClick={() => { if (window.confirm("Chắc chắn seed 33 chi nhánh Waystation?")) seedMut.mutate() }}
+              onClick={async () => { if (await confirm({ title: "Nạp dữ liệu mẫu", message: "Chắc chắn nạp dữ liệu mẫu 33 chi nhánh Waystation?", confirmLabel: "Nạp dữ liệu", tone: "default" })) seedMut.mutate() }}
               disabled={seedMut.isPending}
               className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition disabled:opacity-50"
             >
@@ -162,6 +166,7 @@ const GymManagement = () => {
       {isModalOpen && (
         <GymModal gym={selectedGym} onClose={() => setIsModalOpen(false)} />
       )}
+      {dialog}
     </div>
   );
 };
@@ -188,7 +193,7 @@ const GymModal = ({ gym, onClose }) => {
       queryClient.invalidateQueries({ queryKey: ["admin-gyms"] });
       onClose();
     },
-    onError: (err) => toast.error(err.response?.data?.message || "Lỗi xử lý"),
+    onError: (err) => toast.error(getUserErrorMessage(err, "Không thể xử lý. Vui lòng thử lại.")),
   });
 
   const handleSubmit = (e) => {
@@ -253,10 +258,10 @@ const GymModal = ({ gym, onClose }) => {
                 </div>
                 <div className="flex-1">
                   <label className="block text-sm font-semibold text-slate-700 mb-1">Trạng thái</label>
-                  <select value={formData.status} onChange={e => setFormData({ ...formData, status: e.target.value })} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary/50">
+                  <SelectField value={formData.status} onChange={e => setFormData({ ...formData, status: e.target.value })} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary/50">
                     <option value="active">Hoạt động</option>
                     <option value="inactive">Tạm ngưng</option>
-                  </select>
+                  </SelectField>
                 </div>
               </div>
             </div>

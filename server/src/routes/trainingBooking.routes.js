@@ -17,11 +17,12 @@ const router = express.Router();
 router.use(protect);
 
 // Chỉ user mới được tạo lịch booking. (Thực tế trainer cũng có role user, nhưng logic này dành cho client interface)
-router.get("/my-booking", getMyBookings);
-router.get("/my-trainer", getMyTrainer);
+// Đặt tên theo quy tắc API (.claude/rules/api-design.md).
+router.get("/me", getMyBookings);
+router.get("/me/trainer", getMyTrainer);
 router.get("/busy-times", getBusyTimes);
-router.post("/book", scheduleMutationLimiter, csrfProtection, createBooking);
-router.put("/book/:id", scheduleMutationLimiter, csrfProtection, updateBooking);
-router.delete("/book/:id", scheduleMutationLimiter, csrfProtection, cancelBooking);
+router.post("/", scheduleMutationLimiter, csrfProtection, createBooking);
+router.put("/:id", scheduleMutationLimiter, csrfProtection, updateBooking);
+router.delete("/:id", scheduleMutationLimiter, csrfProtection, cancelBooking);
 
 export default router;

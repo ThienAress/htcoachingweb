@@ -2,6 +2,7 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import { Plus, Trash2, X, Dumbbell, Activity } from "lucide-react";
 import { workoutSections } from "./constants";
+import SelectField from "../../components/SelectField";
 
 export default function ExerciseSections({
   selectedMuscleGroups,
@@ -35,7 +36,7 @@ export default function ExerciseSections({
     );
 
     const renderSelect = (record) => (
-      <select
+      <SelectField tone="dark"
         value={record.name || ""}
         onChange={(e) =>
           handleExerciseChange(record._id, "name", e.target.value)
@@ -48,7 +49,7 @@ export default function ExerciseSections({
             {ex.name}
           </option>
         ))}
-      </select>
+      </SelectField>
     );
 
     return (

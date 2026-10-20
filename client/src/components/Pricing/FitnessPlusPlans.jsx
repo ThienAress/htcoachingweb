@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { toast } from "react-toastify";
-import { AlertTriangle, ArrowRight, CheckCircle, Sparkles, Wallet, X } from "lucide-react";
+import { AlertTriangle, ArrowRight, Check, CheckCircle, Sparkles, Wallet, X } from "lucide-react";
 
 import { useAuth } from "../../context/AuthContext";
 import { purchaseFitnessPlusPlan } from "../../services/fitnessPlus.service";
@@ -13,6 +13,7 @@ import { applyFitnessPlusPurchaseResponse, fitnessPlusCatalogQueryOptions, myFit
 import { createFitnessPlusPurchasePayload } from "../../utils/fitnessPlusCatalog";
 import PricingSegmentedControl from "./PricingSegmentedControl";
 import { useModalScrollLock } from "../../hooks/useModalScrollLock";
+import { getUserErrorMessage } from "../../utils/errorMessages";
 
 const FITNESS_PLUS_CATALOG_CHANGED_CODE = "FITNESS_PLUS_CATALOG_CHANGED";
 
@@ -99,8 +100,7 @@ export default function FitnessPlusPlans({ billingCycle, onBillingCycleChange })
           t("pricing.fitness_plus.checkout_failed"),
       });
       toast.error(
-        error.response?.data?.message ||
-          t("pricing.fitness_plus.checkout_failed"),
+        getUserErrorMessage(error, t("pricing.fitness_plus.checkout_failed")),
       );
       if (errorCode === FITNESS_PLUS_CATALOG_CHANGED_CODE) {
         requestIdRef.current = null;
@@ -134,6 +134,10 @@ export default function FitnessPlusPlans({ billingCycle, onBillingCycleChange })
 
   const activePlanCode = subscriptionQuery.data?.planCode;
   const plans = catalogQuery.data?.plans || [];
+  // Tính năng gói nào cũng có thì nêu một lần; thẻ chỉ nêu điểm khác biệt (hạn mức credit AI).
+  const sharedFeatures = (plans[0]?.features || []).filter((feature) =>
+    plans.every((plan) => plan.features.includes(feature)),
+  );
   const checkoutAmount = checkoutPlan?.prices?.[billingCycle] || 0;
   const walletBalance = walletQuery.data?.balance;
   const walletReady = Number.isSafeInteger(walletBalance);
@@ -164,6 +168,28 @@ export default function FitnessPlusPlans({ billingCycle, onBillingCycleChange })
         value={billingCycle}
       />
 
+      {sharedFeatures.length > 0 && (
+        <section
+          aria-label={t("pricing.included_all")}
+          className="mx-auto mb-8 max-w-6xl rounded-xl border border-gray-800 bg-[#1a1a1a] p-5 md:p-6"
+        >
+          <h3 className="mb-4 text-sm font-bold uppercase tracking-wide text-primary">
+            {t("pricing.included_all")}
+          </h3>
+          <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">
+            {t("pricing.system_benefits_plain")}
+          </h4>
+          <ul className="grid gap-x-6 gap-y-2 sm:grid-cols-2 lg:grid-cols-1">
+            {sharedFeatures.map((feature) => (
+              <li key={feature} className="flex items-start gap-2 text-sm text-gray-200">
+                <Check aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                <span>{t(`pricing.fitness_plus.features.${feature}`)}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       <div className="mx-auto grid max-w-6xl grid-cols-1 gap-6 md:grid-cols-3 md:items-stretch">
         {plans.map((plan) => {
           const isActive = activePlanCode === plan.code;
@@ -193,38 +219,18 @@ export default function FitnessPlusPlans({ billingCycle, onBillingCycleChange })
                 </div>
               </div>
 
-              <div className="mt-6 flex-1">
-                <h4 className="mb-2 text-sm font-semibold uppercase tracking-wide text-primary">
-                  {t("pricing.fitness_plus.quota_title")}
-                </h4>
-                <ul className="mb-4 space-y-2 text-fluid-base text-gray-200">
-                  <li className="flex items-start gap-2 border-b border-gray-700 pb-1">
-                    <span className="text-primary">{"\u2713"}</span>
-                    <span>
-                      {t("pricing.fitness_plus.ai_credit_quota", {
-                        burst: getQuotaWindowLimit(plan.quotas.aiCredits, "burst"),
-                        monthly: getQuotaWindowLimit(
-                          plan.quotas.aiCredits,
-                          "monthly",
-                        ),
-                      })}
-                    </span>
-                  </li>
-                </ul>
-
-                <div className="mt-4 mb-4">
-                  <h4 className="mb-2 text-sm font-semibold uppercase tracking-wide text-primary">
-                    {t("pricing.system_benefits")}
-                  </h4>
-                  <ul className="space-y-1.5">
-                    {plan.features.map((feature) => (
-                      <li className="flex items-start gap-2 text-fluid-sm text-gray-300" key={feature}>
-                        <span className="mt-0.5 text-blue-400">{"\u2713"}</span>
-                        <span>{t(`pricing.fitness_plus.features.${feature}`)}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
+              <div className="mt-5 flex-1 rounded-lg border border-primary/30 bg-primary/10 px-4 py-3 text-center">
+                <p className="font-display text-4xl font-black text-white">
+                  {getQuotaWindowLimit(plan.quotas.aiCredits, "monthly")}
+                </p>
+                <p className="text-xs font-bold uppercase tracking-wide text-primary">
+                  {t("pricing.fitness_plus.credits_unit")}
+                </p>
+                <p className="mt-2 text-sm text-gray-300">
+                  {t("pricing.fitness_plus.credits_burst", {
+                    count: getQuotaWindowLimit(plan.quotas.aiCredits, "burst"),
+                  })}
+                </p>
               </div>
 
               <button

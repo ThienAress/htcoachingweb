@@ -124,10 +124,38 @@ const f1CustomerSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    // Xoá mềm: khách ẩn khỏi danh sách và khôi phục được tới purgeAt; sau đó cron mới xoá vĩnh viễn.
+    softDeletedAt: {
+      type: Date,
+      default: null,
+    },
+    purgeAt: {
+      type: Date,
+      default: null,
+    },
+    softDeletedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
     notesInternal: {
       type: String,
       default: "",
       trim: true,
+    },
+    // Cách dựng giai đoạn: đổi đúng một lần (planModeLockedAt đã đặt là khoá vĩnh viễn), áp dụng từ giai đoạn planModeSwitchedAtStage.
+    planModeSwitchTo: {
+      type: String,
+      enum: ["system", "trainer", null],
+      default: null,
+    },
+    planModeSwitchedAtStage: {
+      type: Number,
+      default: null,
+    },
+    planModeLockedAt: {
+      type: Date,
+      default: null,
     },
   },
   { timestamps: true },
@@ -140,6 +168,8 @@ f1CustomerSchema.index({ email: 1 });
 f1CustomerSchema.index({ assignedTrainerId: 1, status: 1, createdAt: -1 });
 f1CustomerSchema.index({ status: 1, createdAt: -1 });
 f1CustomerSchema.index({ status: 1, retentionExpiresAt: 1 });
+f1CustomerSchema.index({ softDeletedAt: 1, purgeAt: 1 });
+f1CustomerSchema.index({ createdBy: 1, createdAt: 1 });
 f1CustomerSchema.index({ fullName: "text", phone: "text", email: "text" });
 
 export default mongoose.model("F1Customer", f1CustomerSchema);

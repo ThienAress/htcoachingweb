@@ -67,7 +67,7 @@ const StepBodyMetrics = ({ register, errors, bmi, waistHipRatio }) => {
           placeholder="Ví dụ: 65"
         />
         <Field
-          label="% Body fat"
+          label="Tỷ lệ mỡ (%)"
           icon={TrendingUp}
           type="number"
           registration={register("bodyMetrics.bodyFatPercent")}

@@ -17,6 +17,8 @@ import {
   uploadTrainerVideo,
 } from "../../services/trainer.service";
 import TrainerProfile from "../TrainerProfile";
+import SelectField from "../../components/SelectField";
+import { getUserErrorMessage } from "../../utils/errorMessages";
 
 const API_URL = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? "http://localhost:5000/api" : "");
 const API_ORIGIN = API_URL.replace(/\/api\/?$/, "");
@@ -178,7 +180,7 @@ export default function SetupProfileModal({ trainers, initialTrainerId, onClose 
       invalidateByKey(queryClient, adminQueryKeys.trainers.all());
       invalidateByKey(queryClient, adminQueryKeys.trainers.detail(selectedId));
     },
-    onError: (err) => toast.error(err.response?.data?.message || "Lỗi khi cập nhật Profile"),
+    onError: (err) => toast.error(getUserErrorMessage(err, "Không thể cập nhật Profile. Vui lòng thử lại.")),
   });
 
   const uploadMutation = useMutation({
@@ -281,7 +283,7 @@ export default function SetupProfileModal({ trainers, initialTrainerId, onClose 
                 Thiết Lập Profile Chi Tiết
               </h2>
               {trainers && trainers.length > 0 && (
-                <select
+                <SelectField
                   value={selectedId || ""}
                   onChange={(e) => setSelectedId(e.target.value)}
                   className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm font-bold text-slate-700 outline-none focus:border-primary focus:ring-1 focus:ring-primary"
@@ -290,7 +292,7 @@ export default function SetupProfileModal({ trainers, initialTrainerId, onClose 
                   {trainers.map((t) => (
                     <option key={t._id} value={t._id}>{t.name}</option>
                   ))}
-                </select>
+                </SelectField>
               )}
             </div>
 
@@ -521,7 +523,7 @@ export default function SetupProfileModal({ trainers, initialTrainerId, onClose 
                               toast.success('Upload video thành công!');
                             }
                           } catch (err) {
-                            toast.error(err.response?.data?.message || 'Lỗi khi upload video');
+                            toast.error(getUserErrorMessage(err, 'Không thể tải lên video. Vui lòng thử lại.'));
                           } finally {
                             setIsUploadingVideo(false);
                             e.target.value = '';

@@ -54,6 +54,7 @@ const F1_INTAKE_DRAFT_FIELDS_BY_ROOT = Object.freeze({
     "primaryGoal",
     "targetWeightKg",
     "targetDeadline",
+    "targetTimeframe",
   ]),
   consent: Object.freeze([
     "allowDataStorage",

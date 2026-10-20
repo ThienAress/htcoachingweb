@@ -5,6 +5,8 @@ export {
   updateF1Customer,
   updateF1CustomerStatus,
   deleteF1Customer,
+  getDeletedF1Customers,
+  restoreF1Customer,
 } from "./customer.controller.js";
 
 export {
@@ -43,7 +45,22 @@ export {
   generateResultPrediction,
   getLatestResultPrediction,
   generateResultPredictionStageImages,
+  previewStageDesign,
 } from "./resultPrediction.controller.js";
+
+export {
+  getPhaseReviews,
+  savePhaseReview,
+  saveStageProfile,
+  previewNextStageDesign,
+  saveNextStageDesign,
+  deleteLatestStage,
+} from "./phaseReview.controller.js";
+export {
+  generateStageVisual,
+  uploadStagePhoto,
+} from "./phaseReview.visual.controller.js";
 
 export { getF1DashboardSummary } from "./dashboard.controller.js";
 export { reviewTestPermission } from "./testPermissionReview.controller.js";
+export { switchPlanMode } from "./planMode.controller.js";

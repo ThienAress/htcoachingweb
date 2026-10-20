@@ -1,63 +1,71 @@
 import { safeLog } from "../utils/safeLogger.js";
 import { incrementMetric } from "../observability/metrics.js";
+import {
+  codeForStatus,
+  isErrorCode,
+  messageForStatus,
+  normalizeErrorStatus,
+} from "../utils/errorMessages.js";
 
+// Mọi lỗi trả về dạng { success: false, code, message, requestId }. `message` luôn là câu tiếng Việt
+// thân thiện; chi tiết kỹ thuật chỉ nằm trong log (safeLog), không gửi ra ngoài.
 export const errorHandler = (err, req, res, next) => {
   incrementMetric("server.errors");
   safeLog.error("global.error", err, { requestId: req.id });
 
-  const isProd = process.env.NODE_ENV === "production";
+  const send = (status, code, message) =>
+    res.status(status).json({ success: false, code, message, requestId: req.id });
 
   // Lỗi upload file (Multer)
   if (err.name === "MulterError") {
-    let message = "Lỗi upload file";
     if (err.code === "LIMIT_FILE_SIZE") {
-      message = "Ảnh quá lớn. Vui lòng chọn ảnh có dung lượng nhỏ hơn.";
-    } else if (err.code === "LIMIT_FILE_COUNT") {
-      message = "Quá nhiều file. Vui lòng chọn ít file hơn.";
-    } else if (err.code === "LIMIT_UNEXPECTED_FILE") {
-      message = "File không hợp lệ hoặc sai tên field.";
+      return send(400, "FILE_TOO_LARGE", "Ảnh quá lớn. Vui lòng chọn ảnh có dung lượng nhỏ hơn.");
     }
-    return res.status(400).json({ success: false, message, requestId: req.id });
+    if (err.code === "LIMIT_FILE_COUNT") {
+      return send(400, "TOO_MANY_FILES", "Quá nhiều file. Vui lòng chọn ít file hơn.");
+    }
+    if (err.code === "LIMIT_UNEXPECTED_FILE") {
+      return send(400, "FILE_INVALID", "File không hợp lệ. Vui lòng chọn lại file khác.");
+    }
+    return send(400, "UPLOAD_FAILED", "Không tải được file lên. Vui lòng thử lại.");
   }
 
   // Lỗi file không đúng định dạng (từ fileFilter)
   if (err.message?.includes("Chỉ chấp nhận")) {
-    return res.status(400).json({ success: false, message: err.message, requestId: req.id });
+    return send(400, "FILE_TYPE_NOT_ALLOWED", err.message);
   }
 
-  // Lỗi mongoose validation
+  // Lỗi mongoose validation: không gửi tên trường hay thông báo của thư viện
   if (err.name === "ValidationError") {
-    const messages = Object.values(err.errors).map((e) => e.message);
-    return res.status(400).json({
-      success: false,
-      message: "Dữ liệu không hợp lệ: " + messages.join(", "),
-      requestId: req.id,
-    });
+    return send(400, "VALIDATION_FAILED", "Dữ liệu chưa hợp lệ. Vui lòng kiểm tra lại các thông tin đã nhập.");
   }
 
-  // Lỗi duplicate key (unique)
+  // Mã (ObjectId) sai định dạng: bản ghi không thể tồn tại nên trả 404; giá trị sai kiểu ở chỗ khác là dữ liệu không hợp lệ.
+  if (err.name === "CastError") {
+    if (err.path === "_id" || err.kind === "ObjectId") {
+      return send(404, "NOT_FOUND", messageForStatus(404));
+    }
+    return send(400, "VALIDATION_FAILED", "Dữ liệu chưa hợp lệ. Vui lòng kiểm tra lại các thông tin đã nhập.");
+  }
+
+  // Lỗi duplicate key (unique): không lộ tên trường trong database
   if (err.code === 11000) {
-    const field = Object.keys(err.keyPattern)[0];
-    return res.status(409).json({
-      success: false,
-      message: `${field} đã tồn tại`,
-      requestId: req.id,
-    });
+    return send(409, "DUPLICATE_VALUE", "Thông tin này đã tồn tại. Vui lòng kiểm tra lại.");
   }
 
   // Lỗi JWT
   if (err.name === "JsonWebTokenError") {
-    return res.status(401).json({
-      success: false,
-      message: "Token không hợp lệ",
-      requestId: req.id,
-    });
+    return send(401, "SESSION_INVALID", "Phiên đăng nhập không hợp lệ. Vui lòng đăng nhập lại.");
   }
 
-  // Lỗi khác
-  res.status(err.status || 500).json({
-    success: false,
-    message: isProd ? "Lỗi server nội bộ" : (err.message || "Lỗi server nội bộ"),
-    requestId: req.id,
-  });
+  // Lỗi 4xx do code chủ động đánh dấu `expose` (thông báo đã được kiểm soát,
+  // không chứa nội dung thô của dịch vụ ngoài) thì trả nguyên message.
+  const status = normalizeErrorStatus(err.status);
+  const exposeMessage = err.expose === true && status < 500 && typeof err.message === "string" && err.message;
+
+  return send(
+    status,
+    exposeMessage && isErrorCode(err.code) ? err.code : codeForStatus(status),
+    exposeMessage ? err.message : messageForStatus(status),
+  );
 };

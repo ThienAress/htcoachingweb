@@ -5,12 +5,15 @@ import {
   createTrainerPlanPurchasePayload,
   normalizeTrainerPlanCatalogResponse,
 } from "../trainerPlanCatalog";
+import { getRoadmapIntro } from "../../constants/f1Phases";
 import { deriveMealPlanAccess } from "../mealPlanAccess";
 import { ORDER_STATUS_META } from "../../constants/orderStatus";
 import { CONTRACT_STATUS_META } from "../../constants/contractStatus";
 import {
   F1_CUSTOMER_STATUS_LABELS,
+  getF1CustomerStageLabel,
   getF1Progress,
+  getRemainingDeleteDays,
 } from "../../constants/f1CustomerStatus";
 
 const catalogResponse = {
@@ -159,5 +162,32 @@ describe("cross-layer client contracts", () => {
       assessmentDone: true,
       reportDone: true,
     });
+  });
+
+  it("labels the F1 list status by the pending step and finishes after the prediction", () => {
+    const label = (customer) => getF1CustomerStageLabel(customer);
+    expect(label({ status: "new" })).toBe("Khảo sát");
+    expect(label({ status: "intake_completed" })).toBe("Đánh giá thể chất");
+    expect(label({ status: "assessment_completed" })).toBe("Phân tích tự động");
+    expect(label({ status: "ai_report_generated" })).toBe("Dự đoán");
+    expect(label({ status: "ai_report_generated", lastResultPredictionId: "p1" })).toBe("Đã hoàn thành");
+    expect(label({ status: "program_started", lastResultPredictionId: "p1" })).toBe("Đã hoàn thành");
+    // hold is shown by the readiness badge; the status column keeps naming the pending step
+    expect(label({ status: "intake_completed", readinessStatus: "hold" })).toBe("Đánh giá thể chất");
+    expect(label({ status: "archived" })).toBe("Đã lưu trữ");
+  });
+
+  it("counts the remaining restore days up to the deadline", () => {
+    const now = Date.parse("2026-10-16T00:00:00Z");
+    expect(getRemainingDeleteDays("2026-10-23T00:00:00Z", now)).toBe(7);
+    expect(getRemainingDeleteDays("2026-10-16T12:00:00Z", now)).toBe(1);
+    expect(getRemainingDeleteDays("2026-10-15T00:00:00Z", now)).toBe(0);
+  });
+
+  it("says who designed stage 1 in the roadmap intro", () => {
+    expect(getRoadmapIntro("trainer")).toContain("do HLV thiết kế");
+    expect(getRoadmapIntro("trainer")).not.toContain("được đề xuất");
+    expect(getRoadmapIntro("system")).toContain("được đề xuất từ kết quả đánh giá ban đầu");
+    expect(getRoadmapIntro(undefined)).toContain("được đề xuất");
   });
 });

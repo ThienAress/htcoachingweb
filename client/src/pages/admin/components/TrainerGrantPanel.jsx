@@ -8,6 +8,8 @@ import {
   revokePendingTrainerGrant,
 } from "../../../services/trainerSubscription.service";
 import { useTrainerPlanCatalog } from "../../../hooks/useTrainerPlanCatalog";
+import SelectField from "../../../components/SelectField";
+import { getUserErrorMessage } from "../../../utils/errorMessages";
 
 
 const TrainerGrantPanel = () => {
@@ -68,7 +70,7 @@ const TrainerGrantPanel = () => {
       refreshLists();
     },
     onError: (error) =>
-      toast.error(error.response?.data?.message || "Không thể cấp gói"),
+      toast.error(getUserErrorMessage(error, "Không thể cấp gói")),
   });
 
   const revokeMutation = useMutation({
@@ -78,7 +80,7 @@ const TrainerGrantPanel = () => {
       refreshLists();
     },
     onError: (error) =>
-      toast.error(error.response?.data?.message || "Không thể thu hồi gói"),
+      toast.error(getUserErrorMessage(error, "Không thể thu hồi gói")),
   });
 
   const handlePlanChange = (event) => {
@@ -138,7 +140,7 @@ const TrainerGrantPanel = () => {
         </label>
         <label className="space-y-1 text-sm font-medium text-slate-700">
           Gói dịch vụ
-          <select
+          <SelectField
             value={planCode}
             onChange={handlePlanChange}
             className="w-full rounded-lg border border-slate-300 px-3 py-2 font-normal outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
@@ -148,11 +150,11 @@ const TrainerGrantPanel = () => {
                 {plan.label}
               </option>
             ))}
-          </select>
+          </SelectField>
         </label>
         <label className="space-y-1 text-sm font-medium text-slate-700">
           Chu kỳ
-          <select
+          <SelectField
             value={billingCycle}
             onChange={(event) => setBillingCycle(event.target.value)}
             className="w-full rounded-lg border border-slate-300 px-3 py-2 font-normal outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
@@ -162,7 +164,7 @@ const TrainerGrantPanel = () => {
                 {cycle.label}
               </option>
             ))}
-          </select>
+          </SelectField>
         </label>
         <button
           type="submit"

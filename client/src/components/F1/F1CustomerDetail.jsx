@@ -11,10 +11,12 @@ import {
   CheckCircle2,
   Clock,
   ShieldAlert,
+  FileText,
 } from "lucide-react";
 import F1TestPermissionReviewCard from "./F1TestPermissionReviewCard";
+import { getF1GenderLabel } from "../../constants/f1Labels";
 import {
-  F1_CUSTOMER_STATUS_LABELS,
+  getF1CustomerStageLabel,
   getF1Progress,
 } from "../../constants/f1CustomerStatus";
 
@@ -61,10 +63,16 @@ const ProgressCard = ({ title, done }) => {
   );
 };
 
-const StatusBadge = ({ value }) => {
+const StatusBadge = ({ customer }) => {
+  const label = getF1CustomerStageLabel(customer);
+  const done = label === "Đã hoàn thành";
   return (
-    <span className="inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700 ring-1 ring-inset ring-slate-200">
-      {F1_CUSTOMER_STATUS_LABELS[value] || value}
+    <span
+      className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ring-1 ring-inset ${
+        done ? "bg-emerald-50 text-emerald-700 ring-emerald-200" : "bg-slate-100 text-slate-700 ring-slate-200"
+      }`}
+    >
+      {label}
     </span>
   );
 };
@@ -167,6 +175,7 @@ const F1CustomerDetail = ({
   onStartAssessment,
   onOpenAiReport,
   onOpenResultPrediction,
+  onOpenSummaryReport,
   onDelete,
   deleting = false,
   reviewingTestPermission = false,
@@ -207,10 +216,20 @@ const F1CustomerDetail = ({
               <p className="mt-1 text-slate-500">
                 {customer.occupation || "Chưa có nghề nghiệp"}
               </p>
+              {intakeDone && (
+                <button
+                  data-testid="f1-open-summary-report"
+                  onClick={onOpenSummaryReport}
+                  className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-orange-200 bg-orange-50 px-3 py-1.5 text-sm font-semibold text-orange-700 shadow-sm transition hover:bg-orange-100"
+                >
+                  <FileText size={16} />
+                  Báo cáo tổng quát
+                </button>
+              )}
             </div>
             <div className="flex flex-col items-end gap-3">
               <div className="flex flex-wrap items-center justify-end gap-2">
-                <StatusBadge value={customer.status || "new"} />
+                <StatusBadge customer={customer} />
                 <ReadinessBadge value={customer.readinessStatus || "pending"} />
                 <PermissionBadge value={customer.testPermission} />
               </div>
@@ -229,7 +248,7 @@ const F1CustomerDetail = ({
         <div className="px-6 py-6 md:px-8">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <InfoItem label="Tuổi" value={customer.age} />
-            <InfoItem label="Giới tính" value={customer.gender} />
+            <InfoItem label="Giới tính" value={getF1GenderLabel(customer.gender)} />
             <InfoItem label="Số điện thoại" value={customer.phone} />
             <InfoItem label="Email" value={customer.email} />
           </div>
@@ -259,7 +278,7 @@ const F1CustomerDetail = ({
               <ProgressCard title="Hồ sơ cơ bản" done />
               <ProgressCard title="Khảo sát" done={intakeDone} />
               <ProgressCard title="Đánh giá thể chất" done={assessmentDone} />
-              <ProgressCard title="AI Report" done={reportDone} />
+              <ProgressCard title="Phân tích tự động" done={reportDone} />
               <ProgressCard
                 title="Dự đoán kết quả"
                 done={resultPredictionDone}
@@ -273,7 +292,7 @@ const F1CustomerDetail = ({
               className="shrink-0 inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-orange-600 to-orange-500 px-5 py-3 font-bold text-white shadow-md transition hover:shadow-lg"
             >
               <ClipboardList size={18} />
-              Bắt đầu khảo sát
+              {intakeDone ? "Xem lại khảo sát" : "Bắt đầu khảo sát"}
             </button>
             <button
               data-testid="f1-open-assessment"
@@ -291,7 +310,7 @@ const F1CustomerDetail = ({
               className="shrink-0 inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
             >
               <Sparkles size={18} />
-              AI Report
+              Phân tích tự động
             </button>
             <button
               onClick={onOpenResultPrediction}

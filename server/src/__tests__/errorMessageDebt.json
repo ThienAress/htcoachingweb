@@ -1,0 +1,11 @@
+{
+  "controllers/contract.controller.js": 2,
+  "controllers/exerciseInstructionsImport.controller.js": 1,
+  "controllers/food.controller.js": 2,
+  "controllers/recipeNutritionImport.controller.js": 1,
+  "controllers/sepayWebhook.controller.js": 1,
+  "controllers/trainerTransfer.controller.js": 1,
+  "controllers/workoutPlan.controller.js": 1,
+  "routes/ops.routes.js": 7,
+  "services/workoutPlanRelationship.service.js": 1
+}

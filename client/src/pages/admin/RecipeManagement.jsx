@@ -24,8 +24,12 @@ import {
 } from "../../services/recipe.service";
 import RecipeEditModal from "./RecipeEditModal";
 import RecipeNutritionImportModal from "./RecipeNutritionImportModal";
+import SelectField from "../../components/SelectField";
+import { useConfirmDialog } from "../../hooks/useConfirmDialog";
+import { getUserErrorMessage } from "../../utils/errorMessages";
 
 const RecipeManagement = () => {
+  const { confirm, dialog } = useConfirmDialog();
   const [searchTerm, setSearchTerm] = useState("");
   const debouncedSearch = useDebounce(searchTerm, 500);
   const [page, setPage] = useState(1);
@@ -57,7 +61,7 @@ const RecipeManagement = () => {
     },
     onError: (err) => {
       toast.error(
-        err.response?.data?.message || "Lỗi khi cập nhật trạng thái"
+        getUserErrorMessage(err, "Không thể cập nhật trạng thái. Vui lòng thử lại.")
       );
     },
   });
@@ -69,21 +73,21 @@ const RecipeManagement = () => {
       queryClient.invalidateQueries({ queryKey: ["adminRecipes"] });
     },
     onError: (err) => {
-      toast.error(err.response?.data?.message || "Lỗi khi xóa công thức");
+      toast.error(getUserErrorMessage(err, "Không thể xóa công thức. Vui lòng thử lại."));
     },
   });
 
-  const handleTogglePublish = (recipe) => {
+  const handleTogglePublish = async (recipe) => {
     const action = recipe.isPublished ? "ẩn" : "hiển thị công khai";
-    if (!window.confirm(`Bạn có chắc muốn ${action} công thức "${recipe.name}"?`)) return;
+    if (!await confirm({ title: "Đổi trạng thái công thức", message: `Bạn có chắc muốn ${action} công thức "${recipe.name}"?`, confirmLabel: "Đồng ý", tone: "default" })) return;
     togglePublishMutation.mutate({
       id: recipe._id,
       isPublished: recipe.isPublished,
     });
   };
 
-  const handleDelete = (id) => {
-    if (window.confirm("Bạn có chắc chắn muốn xóa công thức này? Hành động này không thể hoàn tác.")) {
+  const handleDelete = async (id) => {
+    if (await confirm({ title: "Xóa công thức", message: "Bạn có chắc chắn muốn xóa công thức này? Hành động này không thể hoàn tác.", confirmLabel: "Xóa", tone: "danger" })) {
       deleteMutation.mutate(id);
     }
   };
@@ -142,7 +146,7 @@ const RecipeManagement = () => {
               size={20}
             />
           </div>
-          <select
+          <SelectField
             aria-label="Lọc theo trạng thái"
             className="w-full sm:w-48 px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent outline-none text-gray-700 bg-white"
             value={filterPublished}
@@ -154,7 +158,7 @@ const RecipeManagement = () => {
             <option value="">Tất cả trạng thái</option>
             <option value="true">Đã duyệt (Public)</option>
             <option value="false">Chưa duyệt (Draft)</option>
-          </select>
+          </SelectField>
         </div>
       </div>
 
@@ -194,7 +198,7 @@ const RecipeManagement = () => {
               ) : isError ? (
                 <tr>
                   <td colSpan="5" className="py-10 text-center text-red-500">
-                    Lỗi: {error.message}
+                    {getUserErrorMessage(error, "Không tải được dữ liệu. Vui lòng thử lại.")}
                   </td>
                 </tr>
               ) : data?.data?.length === 0 ? (
@@ -341,6 +345,7 @@ const RecipeManagement = () => {
           queryClient.invalidateQueries({ queryKey: ["recipe"] });
         }}
       />
+      {dialog}
     </div>
   );
 };

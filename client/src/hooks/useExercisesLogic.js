@@ -3,12 +3,14 @@ import { useQuery } from "@tanstack/react-query";
 import { toast } from "react-toastify";
 import { sendExerciseSuggestion as submitExerciseSuggestion } from "../services/exerciseSuggestion.service";
 import { getExercises } from "../services/exercise.service";
+import { useConfirmDialog } from "./useConfirmDialog";
 import {
   muscleGroups,
   workoutSections,
 } from "../pages/ExercisesPage/constants";
 
 export default function useExercisesLogic() {
+  const { confirm, dialog: confirmDialog } = useConfirmDialog();
   const [workoutData, setWorkoutData] = useState([]);
   const [selectedMuscleGroups, setSelectedMuscleGroups] = useState([]);
   const [windowWidth, setWindowWidth] = useState(
@@ -45,13 +47,16 @@ export default function useExercisesLogic() {
     );
   };
 
-  const handleCustomGroupSelection = () => {
+  const handleCustomGroupSelection = async () => {
     // Nếu đã có dữ liệu bài tập → hỏi xác nhận
     const hasData = workoutData.length > 0;
     if (hasData) {
-      const confirmed = window.confirm(
-        "⚠️ Bạn đã có dữ liệu bài tập. Chọn nhóm cơ mới sẽ xóa toàn bộ nhóm cơ và bài tập hiện tại. Bạn có chắc chắn?"
-      );
+      const confirmed = await confirm({
+        title: "Chọn nhóm cơ mới",
+        message: "Bạn đã có dữ liệu bài tập. Chọn nhóm cơ mới sẽ xóa toàn bộ nhóm cơ và bài tập hiện tại. Bạn có chắc chắn?",
+        confirmLabel: "Xóa và chọn lại",
+        tone: "danger",
+      });
       if (!confirmed) return;
       // Xóa toàn bộ dữ liệu cũ
       setWorkoutData([]);
@@ -200,5 +205,6 @@ export default function useExercisesLogic() {
     customGroupName,
     setCustomGroupName,
     sendExerciseSuggestion,
+    confirmDialog,
   };
 }
