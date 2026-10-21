@@ -8,9 +8,11 @@ export const assertTrainerCatalogConfirmation = ({
   body,
   planCode,
   billingCycle,
+  amount,
 }) => {
   const meta = getTrainerPlanCatalogMeta();
-  const canonicalAmount = getTrainerPlanAmount(planCode, billingCycle);
+  // amount: số tiền server đã tính (có thể đã trừ phần gói tháng chưa dùng); mặc định là giá niêm yết.
+  const canonicalAmount = amount ?? getTrainerPlanAmount(planCode, billingCycle);
   const confirmed =
     body?.protocolVersion === meta.protocolVersion &&
     body?.catalogFingerprint === meta.catalogFingerprint &&

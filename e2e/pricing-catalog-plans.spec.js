@@ -91,3 +91,111 @@ test.describe("trainer plans", () => {
     expect(overflowing).toBe(0);
   });
 });
+
+const nowPlus = (days) => new Date(Date.now() + days * 86400000).toISOString();
+
+test.describe("plan states for subscribers", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.route("**/api/**", (route) =>
+      route.continue({ headers: { ...route.request().headers(), "x-e2e-role": "user" } }),
+    );
+  });
+
+  test("HT FITNESS+ monthly subscriber: current plan locked, yearly upgrade shows the discounted total", async ({ page }) => {
+    await page.route("**/api/fitness-plus-subscriptions/me", (route) =>
+      route.fulfill(
+        fulfillJson({
+          success: true,
+          data: {
+            planCode: "fitness_plus_essential",
+            planTitle: "Nền tảng",
+            billingCycle: "month",
+            amount: 99000,
+            startDate: nowPlus(-15),
+            endDate: nowPlus(15),
+          },
+        }),
+      ),
+    );
+    await page.route("**/api/fitness-plus-subscriptions/quotes**", (route) =>
+      route.fulfill(
+        fulfillJson({
+          success: true,
+          data: {
+            eligible: true,
+            action: "upgrade_to_year",
+            planCode: "fitness_plus_essential",
+            billingCycle: "year",
+            listAmount: 990000,
+            creditAmount: 49500,
+            amount: 940500,
+            remainingDays: 15,
+            periodDays: 30,
+          },
+        }),
+      ),
+    );
+    const pricing = await openPricing(page, { tab: "HT FITNESS+" });
+    const cards = pricing.locator("article");
+
+    await expect(cards.nth(0).getByRole("button", { name: "Đang sử dụng" })).toBeDisabled();
+    await pricing.getByRole("button", { name: "Năm", exact: true }).click();
+    const upgrade = cards.nth(0).getByRole("button", { name: "Nâng cấp lên gói năm" });
+    await expect(upgrade).toBeEnabled();
+    await upgrade.click();
+
+    const dialog = page.getByRole("dialog");
+    await expect(dialog).toContainText("940.500");
+    await expect(dialog).toContainText("49.500");
+    await expect(dialog).toContainText("còn 15 ngày");
+  });
+
+  test("trainer plans: same locked state, only upgrades to yearly of the same or a higher plan stay open", async ({ page }) => {
+    await page.route("**/api/trainer-subscriptions/me", (route) =>
+      route.fulfill(
+        fulfillJson({
+          success: true,
+          data: {
+            planCode: "professional",
+            planTitle: "Chuyên nghiệp",
+            billingCycle: "month",
+            amount: 250000,
+            startDate: nowPlus(-10),
+            endDate: nowPlus(20),
+          },
+          freeTrial: { status: "used", reason: null, claimedAt: null },
+        }),
+      ),
+    );
+    const pricing = await openPricing(page, { trainer: true });
+
+    await expect(pricing.getByRole("button", { name: "Đang sử dụng" })).toHaveCount(1);
+    await expect(pricing.getByRole("button", { name: "Đang sử dụng" })).toBeDisabled();
+    await expect(pricing.getByRole("button", { name: "Không khả dụng" })).toHaveCount(2);
+    await expect(pricing.getByText("Bạn có thể nâng cấp lên gói năm của cùng gói hoặc gói cao hơn.").first()).toBeVisible();
+
+    await pricing.getByRole("button", { name: "Năm", exact: true }).click();
+    // Chuyên nghiệp và Cao cấp lên năm được nâng cấp; Tiêu chuẩn (gói thấp hơn) bị khóa.
+    await expect(pricing.getByRole("button", { name: "Nâng cấp lên gói năm" })).toHaveCount(2);
+    await expect(pricing.getByRole("button", { name: "Không khả dụng" })).toHaveCount(1);
+  });
+
+  test("account menu shows the plan on its own line without truncating it", async ({ page }) => {
+    await page.route("**/api/trainer-subscriptions/me", (route) =>
+      route.fulfill(
+        fulfillJson({
+          success: true,
+          data: { planCode: "professional", planTitle: "Chuyên nghiệp", billingCycle: "month", amount: 250000, startDate: nowPlus(-1), endDate: nowPlus(29) },
+          freeTrial: { status: "used", reason: null, claimedAt: null },
+        }),
+      ),
+    );
+    await openPricing(page);
+    await page.locator("[aria-controls=\"account-dropdown-menu\"]").first().click();
+    const badge = page.getByTestId("account-plan-badge");
+    await expect(badge).toContainText("Chuyên nghiệp");
+    const clipped = await badge.locator("span").last().evaluate((node) => node.scrollWidth > node.clientWidth);
+    expect(clipped).toBe(false);
+  });
+});

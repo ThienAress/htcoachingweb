@@ -2,6 +2,7 @@ import { queryOptions } from "@tanstack/react-query";
 
 import {
   getFitnessPlusCatalog,
+  getFitnessPlusPurchaseQuote,
   getMyFitnessPlusSubscription,
 } from "../services/fitnessPlus.service";
 import { normalizeFitnessPlusCatalogResponse } from "../utils/fitnessPlusCatalog";
@@ -54,3 +55,15 @@ export const applyFitnessPlusPurchaseResponse = async ({
     invalidateByKey(queryClient, fitnessPlusKeys.mine(userId)),
   ]);
 };
+
+// Báo giá nâng cấp (đã trừ phần gói tháng chưa dùng): luôn lấy mới khi mở thanh toán để số tiền khớp với server.
+export const fitnessPlusPurchaseQuoteQueryOptions = ({ userId, planCode, billingCycle, enabled = true } = {}) =>
+  queryOptions({
+    queryKey: fitnessPlusKeys.quote(userId, planCode, billingCycle),
+    queryFn: ({ signal }) =>
+      getFitnessPlusPurchaseQuote({ planCode, billingCycle, signal }).then((response) => response.data.data),
+    enabled: Boolean(userId && planCode && billingCycle && enabled),
+    staleTime: 0,
+    gcTime: 0,
+    retry: retryServerQueryOnce,
+  });

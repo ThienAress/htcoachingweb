@@ -8,3 +8,6 @@ export const purchaseFitnessPlusPlan = (payload) =>
 
 export const getMyFitnessPlusSubscription = ({ signal } = {}) =>
   api.get("/fitness-plus-subscriptions/me", { signal });
+
+export const getFitnessPlusPurchaseQuote = ({ planCode, billingCycle, signal } = {}) =>
+  api.get("/fitness-plus-subscriptions/quotes", { params: { planCode, billingCycle }, signal });

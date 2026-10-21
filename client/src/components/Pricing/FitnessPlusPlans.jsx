@@ -9,8 +9,16 @@ import { AlertTriangle, ArrowRight, Check, CheckCircle, Sparkles, Wallet, X } fr
 import { useAuth } from "../../context/AuthContext";
 import { purchaseFitnessPlusPlan } from "../../services/fitnessPlus.service";
 import { walletBalanceQueryOptions } from "../../queries/walletAccount.queries";
-import { applyFitnessPlusPurchaseResponse, fitnessPlusCatalogQueryOptions, myFitnessPlusSubscriptionQueryOptions } from "../../queries/fitnessPlus.queries";
+import {
+  applyFitnessPlusPurchaseResponse,
+  fitnessPlusCatalogQueryOptions,
+  fitnessPlusPurchaseQuoteQueryOptions,
+  myFitnessPlusSubscriptionQueryOptions,
+} from "../../queries/fitnessPlus.queries";
 import { createFitnessPlusPurchasePayload } from "../../utils/fitnessPlusCatalog";
+import { getPlanIcon } from "../../utils/planBadges";
+import { PLAN_STATE_HINT_KEYS, PLAN_STATE_LABEL_KEYS, getPlanCtaState } from "../../utils/planStatus";
+import PlanUpgradeBreakdown from "./PlanUpgradeBreakdown";
 import PricingSegmentedControl from "./PricingSegmentedControl";
 import { useModalScrollLock } from "../../hooks/useModalScrollLock";
 import { getUserErrorMessage } from "../../utils/errorMessages";
@@ -43,6 +51,15 @@ export default function FitnessPlusPlans({ billingCycle, onBillingCycleChange })
   const catalogQuery = useQuery(fitnessPlusCatalogQueryOptions());
   const walletQuery = useQuery(walletBalanceQueryOptions({ userId, enabled: Boolean(checkoutPlan) }));
   const subscriptionQuery = useQuery(myFitnessPlusSubscriptionQueryOptions({ userId }));
+  // Báo giá do server tính: đã trừ phần gói tháng chưa dùng khi nâng cấp lên gói năm.
+  const quoteQuery = useQuery(
+    fitnessPlusPurchaseQuoteQueryOptions({
+      userId,
+      planCode: checkoutPlan?.code,
+      billingCycle,
+      enabled: Boolean(checkoutPlan),
+    }),
+  );
   const purchaseMutation = useMutation({
     mutationFn: purchaseFitnessPlusPlan,
     onSuccess: (response) => applyFitnessPlusPurchaseResponse({ queryClient, userId, response }),
@@ -82,6 +99,7 @@ export default function FitnessPlusPlans({ billingCycle, onBillingCycleChange })
         planCode: checkoutPlan.code,
         billingCycle,
         requestId: requestIdRef.current,
+        quotedAmount: quoteQuery.data?.amount,
       });
       const response = await purchaseMutation.mutateAsync(payload);
       setCheckoutResult({
@@ -104,7 +122,7 @@ export default function FitnessPlusPlans({ billingCycle, onBillingCycleChange })
       );
       if (errorCode === FITNESS_PLUS_CATALOG_CHANGED_CODE) {
         requestIdRef.current = null;
-        await catalogQuery.refetch();
+        await Promise.all([catalogQuery.refetch(), quoteQuery.refetch()]);
       }
     }
   };
@@ -132,13 +150,18 @@ export default function FitnessPlusPlans({ billingCycle, onBillingCycleChange })
     );
   }
 
-  const activePlanCode = subscriptionQuery.data?.planCode;
+  const currentSubscription = subscriptionQuery.data
+    ? { planCode: subscriptionQuery.data.planCode, billingCycle: subscriptionQuery.data.billingCycle }
+    : null;
   const plans = catalogQuery.data?.plans || [];
   // Tính năng gói nào cũng có thì nêu một lần; thẻ chỉ nêu điểm khác biệt (hạn mức credit AI).
   const sharedFeatures = (plans[0]?.features || []).filter((feature) =>
     plans.every((plan) => plan.features.includes(feature)),
   );
-  const checkoutAmount = checkoutPlan?.prices?.[billingCycle] || 0;
+  const quote = quoteQuery.data;
+  const quoteBlocked = quote?.eligible === false;
+  const quoteReady = Boolean(quote?.eligible) && Number.isSafeInteger(quote.amount);
+  const checkoutAmount = quoteReady ? quote.amount : checkoutPlan?.prices?.[billingCycle] || 0;
   const walletBalance = walletQuery.data?.balance;
   const walletReady = Number.isSafeInteger(walletBalance);
   const walletInsufficient =
@@ -192,7 +215,12 @@ export default function FitnessPlusPlans({ billingCycle, onBillingCycleChange })
 
       <div className="mx-auto grid max-w-6xl grid-cols-1 gap-6 md:grid-cols-3 md:items-stretch">
         {plans.map((plan) => {
-          const isActive = activePlanCode === plan.code;
+          const cta = getPlanCtaState({
+            family: "fitness",
+            current: currentSubscription,
+            planCode: plan.code,
+            billingCycle,
+          });
           const price = plan.prices[billingCycle];
           const planTitle = isEnglish ? plan.titleEn : plan.title;
           const planSubtitle = isEnglish ? plan.subtitleEn : plan.subtitle;
@@ -235,7 +263,8 @@ export default function FitnessPlusPlans({ billingCycle, onBillingCycleChange })
 
               <button
                 type="button"
-                disabled={isActive}
+                disabled={cta.disabled}
+                aria-disabled={cta.disabled}
                 onClick={() => {
                   if (!user) {
                     navigate("/login", { state: { from: "/#pricing" } });
@@ -247,8 +276,11 @@ export default function FitnessPlusPlans({ billingCycle, onBillingCycleChange })
                 }}
                 className="mt-7 w-full rounded-lg bg-primary py-3 font-bold text-white shadow-lg shadow-orange-500/20 transition-[background-color,box-shadow] duration-200 hover:bg-orange-500 hover:shadow-orange-500/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300 disabled:cursor-not-allowed disabled:opacity-50 motion-reduce:transition-none"
               >
-                {isActive ? t("pricing.fitness_plus.current") : t("pricing.buy")}
+                {cta.kind === "buy" ? t("pricing.buy") : t(PLAN_STATE_LABEL_KEYS[cta.kind])}
               </button>
+              {cta.kind === "blocked" && (
+                <p className="mt-2 text-center text-xs leading-5 text-gray-400">{t(PLAN_STATE_HINT_KEYS[cta.reason])}</p>
+              )}
             </article>
           );
         })}
@@ -281,7 +313,11 @@ export default function FitnessPlusPlans({ billingCycle, onBillingCycleChange })
             <div className="border-b border-gray-800 px-6 pb-5 pt-16">
               <div className="flex items-center gap-3">
                 <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary">
-                  <Sparkles className="size-6" aria-hidden="true" />
+                  {getPlanIcon(checkoutPlan.code) ? (
+                    <span className="text-2xl" aria-hidden="true">{getPlanIcon(checkoutPlan.code)}</span>
+                  ) : (
+                    <Sparkles className="size-6" aria-hidden="true" />
+                  )}
                 </div>
                 <div className="min-w-0">
                   <h3 id="fitness-plus-checkout-title" className="text-xl font-bold text-white">
@@ -406,16 +442,18 @@ export default function FitnessPlusPlans({ billingCycle, onBillingCycleChange })
                   </div>
                 </div>
 
-                <div className="space-y-3 rounded-xl bg-[#222] p-4">
-                  <div className="flex justify-between gap-4 text-sm">
-                    <span className="text-gray-400">{t("pricing.fitness_plus.plan_price")}</span>
-                    <span className="font-medium text-white">{checkoutFormattedPrice}</span>
-                  </div>
-                  <div className="flex items-center justify-between gap-4 border-t border-gray-700 pt-3">
-                    <span className="font-bold text-white">{t("pricing.fitness_plus.total")}</span>
-                    <span className="text-2xl font-bold text-primary">{checkoutFormattedPrice}</span>
-                  </div>
-                </div>
+                <PlanUpgradeBreakdown
+                  quote={quote}
+                  loading={quoteQuery.isPending}
+                  error={quoteQuery.isError}
+                  onRetry={() => quoteQuery.refetch()}
+                  fallbackAmount={checkoutAmount}
+                />
+                {quoteBlocked && (
+                  <p className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-center text-sm text-red-400" role="alert">
+                    {quote.message}
+                  </p>
+                )}
 
                 {walletInsufficient && (
                   <div className="space-y-2 rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-center" role="alert">
@@ -441,7 +479,7 @@ export default function FitnessPlusPlans({ billingCycle, onBillingCycleChange })
                 <button
                   type="button"
                   onClick={() => void submitPurchase()}
-                  disabled={purchaseMutation.isPending || !walletReady || walletQuery.isError || walletInsufficient}
+                  disabled={purchaseMutation.isPending || !quoteReady || !walletReady || walletQuery.isError || walletInsufficient}
                   className="w-full rounded-xl bg-primary py-4 text-lg font-bold text-white shadow-lg shadow-orange-500/20 transition-[background-color,box-shadow] duration-200 hover:bg-orange-500 hover:shadow-orange-500/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none motion-reduce:transition-none"
                 >
                   {purchaseMutation.isPending

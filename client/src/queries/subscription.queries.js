@@ -1,6 +1,6 @@
 import { queryOptions } from "@tanstack/react-query";
 
-import { getMySubscription } from "../services/trainerSubscription.service";
+import { getMySubscription, getTrainerPurchaseQuote } from "../services/trainerSubscription.service";
 import { subscriptionKeys } from "./queryKeys";
 import { retryServerQueryOnce } from "./queryRetry";
 
@@ -26,4 +26,16 @@ export const mySubscriptionQueryOptions = ({
     refetchOnWindowFocus: true,
     retry: retry === undefined ? retryServerQueryOnce : retry,
     select,
+  });
+
+// Báo giá nâng cấp (đã trừ phần gói tháng chưa dùng): luôn lấy mới khi mở thanh toán để số tiền khớp với server.
+export const trainerPurchaseQuoteQueryOptions = ({ userId, planCode, billingCycle, enabled = true }) =>
+  queryOptions({
+    queryKey: subscriptionKeys.quote(userId, planCode, billingCycle),
+    queryFn: ({ signal }) =>
+      getTrainerPurchaseQuote({ planCode, billingCycle, signal }).then((response) => response.data.data),
+    enabled: Boolean(userId && planCode && billingCycle && enabled),
+    staleTime: 0,
+    gcTime: 0,
+    retry: retryServerQueryOnce,
   });

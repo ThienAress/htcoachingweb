@@ -28,6 +28,8 @@ import { useAuth } from "../../context/AuthContext";
 import LanguageSwitcher from "../../components/LanguageSwitcher";
 import { useQuery } from "@tanstack/react-query";
 import { mySubscriptionQueryOptions } from "../../queries/subscription.queries";
+import { myFitnessPlusSubscriptionQueryOptions } from "../../queries/fitnessPlus.queries";
+import { buildPlanDisplay } from "../../utils/planBadges";
 import { walletBalanceQueryOptions } from "../../queries/walletAccount.queries";
 import { NotificationCenter } from "../../components/NotificationCenter";
 import { getAccountWorkspaceItems } from "../../navigation/workspaceNavigation";
@@ -66,6 +68,9 @@ function Header() {
   const { data: activeSubscriptionData } = useQuery(
     mySubscriptionQueryOptions({ userId }),
   );
+  const { data: fitnessSubscriptionData } = useQuery(
+    myFitnessPlusSubscriptionQueryOptions({ userId }),
+  );
   const { data: customerDashboardAccess } = useQuery({
     queryKey: ["today-dashboard", "prompt-eligibility", userId],
     queryFn: async () =>
@@ -77,12 +82,13 @@ function Header() {
   const walletBalance = user ? (wallet?.balance ?? null) : null;
   const activeSubscription = user ? (activeSubscriptionData ?? null) : null;
 
-  // Map tên gói -> icon
-  const planIconMap = {
-    "Tiêu chuẩn": "🔥",
-    "Chuyên nghiệp": "💎",
-    "Cao cấp": "👑",
-  };
+  // Gói hiển thị cạnh tên: gói HLV ưu tiên, nếu không có thì HT Fitness+ (không gộp vào activeSubscription để không mở quyền menu HLV).
+  const planDisplay = user
+    ? buildPlanDisplay({
+        trainerSubscription: activeSubscription,
+        fitnessSubscription: fitnessSubscriptionData ?? null,
+      })
+    : null;
 
   // Hàm scroll đến section
   const handleScrollToSection = (sectionId) => {
@@ -327,9 +333,9 @@ function Header() {
                     className="w-8 h-8 2xl:w-9 2xl:h-9 rounded-full"
                     alt="avatar"
                   />
-                  {activeSubscription && (
-                    <span className="absolute -top-1 -right-1 text-xs" title={activeSubscription.planTitle}>
-                      {planIconMap[activeSubscription.planTitle] || ""}
+                  {planDisplay?.icon && (
+                    <span className="absolute -top-1 -right-1 text-xs" title={planDisplay.label}>
+                      {planDisplay.icon}
                     </span>
                   )}
                 </div>
@@ -352,9 +358,19 @@ function Header() {
                   className="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] overflow-hidden z-50 border border-gray-100"
                 >
                   <div className="px-4 py-3 border-b border-gray-100 bg-gray-50/50">
-                    <p className="font-semibold text-gray-800 truncate">
-                      {user.name}{activeSubscription ? ` - ${activeSubscription.planTitle}` : ""}
+                    <p className="font-semibold text-gray-800 truncate" title={user.name}>
+                      {user.name}
                     </p>
+                    {planDisplay && (
+                      <p
+                        data-testid="account-plan-badge"
+                        title={planDisplay.label}
+                        className="mt-1 inline-flex max-w-full items-start gap-1 rounded-full bg-orange-50 px-2.5 py-0.5 text-xs font-semibold leading-5 text-orange-700"
+                      >
+                        {planDisplay.icon && <span aria-hidden="true">{planDisplay.icon}</span>}
+                        <span className="break-words">{planDisplay.label}</span>
+                      </p>
+                    )}
                     <p className="text-xs text-gray-500 truncate mt-0.5">
                       {user.email || "user@example.com"}
                     </p>
@@ -456,14 +472,20 @@ function Header() {
                       className="h-12 w-12 rounded-full border-2 border-white/30 object-cover shadow-md"
                       alt="avatar"
                     />
-                    {activeSubscription && (
-                      <span className="absolute -right-1 -top-1 text-base" title={activeSubscription.planTitle}>
-                        {planIconMap[activeSubscription.planTitle] || ""}
+                    {planDisplay?.icon && (
+                      <span className="absolute -right-1 -top-1 text-base" title={planDisplay.label}>
+                        {planDisplay.icon}
                       </span>
                     )}
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-bold text-white">{user.name}</p>
+                    {planDisplay && (
+                      <p className="mt-0.5 inline-flex max-w-full items-start gap-1 rounded-full bg-white/15 px-2.5 py-0.5 text-xs font-semibold leading-5 text-white">
+                        {planDisplay.icon && <span aria-hidden="true">{planDisplay.icon}</span>}
+                        <span className="break-words">{planDisplay.label}</span>
+                      </p>
+                    )}
                     <p className="truncate text-xs text-white/60">{user.email}</p>
                     {walletBalance !== null && (
                       <p className="mt-1 flex items-center gap-1 text-xs font-semibold text-yellow-300">

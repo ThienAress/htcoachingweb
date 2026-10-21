@@ -54,6 +54,9 @@ const trainerSubscriptionSchema = new mongoose.Schema(
       required: true,
       min: 0,
     },
+    // Giá niêm yết và phần gói tháng chưa dùng được trừ khi nâng cấp lên gói năm (amount = đã thanh toán thực tế).
+    listAmount: { type: Number, default: null, min: 0 },
+    upgradeCreditAmount: { type: Number, default: 0, min: 0 },
 
     // Ngày bắt đầu & kết thúc
     startDate: {
