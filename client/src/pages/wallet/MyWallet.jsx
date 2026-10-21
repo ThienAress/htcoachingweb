@@ -34,6 +34,7 @@ import { calculateDepositPreview } from "../../utils/depositPolicy";
 import {
   caretPositionForDigitCount,
   formatAmountInput,
+  normalizeAmountDigits,
   resolveAmountEdit,
 } from "../../utils/amountInput";
 import { resolveDepositHistoryAmounts } from "./walletDepositHistory.ui";
@@ -264,6 +265,9 @@ const MyWallet = () => {
   const [depositAmount, setDepositAmount] = useState("");
   const amountInputRef = useRef(null);
   const pendingCaretDigits = useRef(null);
+  // Khi đang gõ bằng bộ gõ tiếng Việt (IME/Unikey), văn bản đang "compose" không được viết lại giữa chừng,
+  // nếu không ô sẽ bị sai số; lúc đó hiển thị nguyên văn người dùng gõ và chỉ định dạng lại khi kết thúc compose.
+  const [composingText, setComposingText] = useState(null);
   // Sau khi định dạng lại 10000000 thành 10.000.000, giữ con trỏ đúng chỗ người dùng đang gõ.
   useLayoutEffect(() => {
     const input = amountInputRef.current;
@@ -271,7 +275,7 @@ const MyWallet = () => {
     const position = caretPositionForDigitCount(input.value, pendingCaretDigits.current);
     input.setSelectionRange(position, position);
     pendingCaretDigits.current = null;
-  }, [depositAmount]);
+  }, [depositAmount, composingText]);
   const [selectedDeposit, setSelectedDeposit] = useState(null);
   const [qrFailed, setQrFailed] = useState(false);
   const previousSettlementSignal = useRef(null);
@@ -566,7 +570,7 @@ const MyWallet = () => {
                         inputMode="numeric"
                         autoComplete="off"
                         ref={amountInputRef}
-                        value={formatAmountInput(depositAmount, language)}
+                        value={composingText ?? formatAmountInput(depositAmount, language)}
                         onChange={(event) => {
                           const input = event.target;
                           const edit = resolveAmountEdit({
@@ -575,8 +579,19 @@ const MyWallet = () => {
                             previousDigits: depositAmount,
                             inputType: event.nativeEvent?.inputType,
                           });
-                          pendingCaretDigits.current = edit.caretDigits;
                           setDepositAmount(edit.digits);
+                          if (event.nativeEvent?.isComposing) {
+                            setComposingText(input.value);
+                            return;
+                          }
+                          setComposingText(null);
+                          pendingCaretDigits.current = edit.caretDigits;
+                        }}
+                        onCompositionEnd={(event) => {
+                          const digits = normalizeAmountDigits(event.currentTarget.value);
+                          setDepositAmount(digits);
+                          setComposingText(null);
+                          pendingCaretDigits.current = digits.length;
                         }}
                         disabled={hasOpenDeposit || createDepositMutation.isPending}
                         aria-describedby="deposit-range"

@@ -100,4 +100,24 @@ test.describe("customer deposit amount input", () => {
     await page.keyboard.type("abc12x");
     await expect(input).toHaveValue("12");
   });
+
+  test("keeps the digits correct while a Vietnamese IME is composing the amount", async ({ page, browserName }) => {
+    test.skip(browserName !== "chromium", "IME composition is simulated through the Chrome DevTools Protocol");
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.route("**/api/**", (route) =>
+      route.continue({ headers: { ...route.request().headers(), "x-e2e-role": "user" } }),
+    );
+    await page.goto("/wallet");
+    const input = page.locator("#deposit-amount");
+    await input.click();
+    const client = await page.context().newCDPSession(page);
+
+    // Bộ gõ giữ cả chuỗi đang gõ là một đoạn compose; ô không được viết lại giữa chừng (lỗi cũ: 1.000 rồi thêm 0 ra số sai).
+    for (const text of ["1", "10", "100", "1000", "10000", "100000"]) {
+      await client.send("Input.imeSetComposition", { text, selectionStart: text.length, selectionEnd: text.length });
+      await expect(input).toHaveValue(text);
+    }
+    await client.send("Input.insertText", { text: "100000" });
+    await expect(input).toHaveValue("100.000");
+  });
 });
