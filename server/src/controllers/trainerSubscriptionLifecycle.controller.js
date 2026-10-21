@@ -7,7 +7,10 @@ import {
   listTrainerPlanBenefits,
   listTrainerPlans,
 } from "../services/trainerPlanCatalog.service.js";
-import { purchaseTrainerSubscription } from "../services/trainerSubscriptionPurchase.service.js";
+import {
+  getTrainerPurchaseQuote,
+  purchaseTrainerSubscription,
+} from "../services/trainerSubscriptionPurchase.service.js";
 import {
   grantTrainerPlanByEmail,
   listPendingTrainerGrants,
@@ -196,6 +199,25 @@ export const revokeTrainerGrant = async (req, res) => {
       error,
       "PENDING_TRAINER_GRANT_REVOKE_FAILED",
       "Không thể thu hồi gói lúc này. Vui lòng thử lại.",
+    );
+  }
+};
+
+export const getTrainerPurchaseQuoteHandler = async (req, res) => {
+  try {
+    const data = await getTrainerPurchaseQuote({
+      userId: req.user.id,
+      planCode: req.query.planCode,
+      billingCycle: req.query.billingCycle,
+    });
+    return res.status(200).json({ success: true, data });
+  } catch (error) {
+    safeLog.error("financial.trainer_quote_failed", error);
+    return sendError(
+      res,
+      error,
+      "TRAINER_QUOTE_FAILED",
+      "Không thể tính giá nâng cấp lúc này. Vui lòng thử lại.",
     );
   }
 };

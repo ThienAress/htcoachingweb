@@ -38,6 +38,14 @@ const fitnessSubscriptionSchema = new mongoose.Schema(
       min: 0,
       validate: Number.isSafeInteger,
     },
+    // Giá niêm yết và phần gói tháng chưa dùng được trừ khi nâng cấp lên gói năm (amount = đã thanh toán thực tế).
+    listAmount: {
+      type: Number,
+      default: null,
+      min: 0,
+      validate: (value) => value === null || Number.isSafeInteger(value),
+    },
+    upgradeCreditAmount: { type: Number, default: 0, min: 0, validate: Number.isSafeInteger },
     startDate: {
       type: Date,
       required: true,

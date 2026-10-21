@@ -2904,3 +2904,15 @@ export const validateSelfAssessmentHistory = [
   query("limit").optional().isInt({ min: 1, max: 20 }).withMessage("Số lượng mỗi trang không hợp lệ"),
   handleValidationErrors,
 ];
+
+export const validateFitnessPlusPurchaseQuote = [
+  query("planCode").isIn(FITNESS_PLUS_PLAN_CODES).withMessage("planCode HT Fitness+ không hợp lệ"),
+  query("billingCycle").isIn(FITNESS_PLUS_BILLING_CYCLES).withMessage("billingCycle HT Fitness+ không hợp lệ"),
+  handleValidationErrors,
+];
+
+export const validateTrainerPurchaseQuote = [
+  query("planCode").isIn(TRAINER_PLAN_CODES).withMessage("planCode gói huấn luyện viên không hợp lệ"),
+  query("billingCycle").isIn(["month", "year"]).withMessage("billingCycle gói huấn luyện viên không hợp lệ"),
+  handleValidationErrors,
+];

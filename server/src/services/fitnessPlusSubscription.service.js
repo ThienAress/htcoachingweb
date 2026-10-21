@@ -7,6 +7,7 @@ import {
   SERVICE_ACCESS_POLICY_VERSION,
   createServiceEntitlementSnapshot,
 } from "../constants/serviceAccessPolicies.js";
+import { publicErrorMessage } from "../utils/errorMessages.js";
 import { applyWalletEntry } from "./walletLedger.service.js";
 import {
   calculateFitnessPlusPlanEndDate,
@@ -15,6 +16,7 @@ import {
   getFitnessPlusCatalogMeta,
   resolveFitnessPlusPlanCode,
 } from "./fitnessPlusCatalog.service.js";
+import { resolveFitnessPlusPurchasePricing } from "./fitnessPlusPurchasePricing.js";
 
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -26,9 +28,11 @@ export const assertFitnessPlusCatalogConfirmation = ({
   body,
   planCode,
   billingCycle,
+  amount,
 }) => {
   const meta = getFitnessPlusCatalogMeta();
-  const canonicalAmount = getFitnessPlusPlanAmount(planCode, billingCycle);
+  // amount: số tiền server đã tính (có thể đã trừ phần gói tháng chưa dùng); mặc định là giá niêm yết.
+  const canonicalAmount = amount ?? getFitnessPlusPlanAmount(planCode, billingCycle);
   const confirmed =
     body?.protocolVersion === meta.protocolVersion &&
     body?.catalogFingerprint === meta.catalogFingerprint &&
@@ -69,6 +73,7 @@ export const activateFitnessPlusSubscription = async ({
   planCode,
   billingCycle,
   purchaseRequestId,
+  expectedAmount,
   now = new Date(),
 }) => {
   const plan = getFitnessPlusPlan(planCode);
@@ -102,11 +107,13 @@ export const activateFitnessPlusSubscription = async ({
     );
     active = null;
   }
-  if (active?.planCode === plan.code) {
+  const pricing = resolveFitnessPlusPurchasePricing({ active, plan, billingCycle, now });
+  if (expectedAmount !== undefined && expectedAmount !== pricing.amount) {
+    // Gói hiện tại đổi giữa lúc báo giá và lúc thanh toán: không trừ ví, yêu cầu xác nhận lại giá.
     throw fitnessPlusSubscriptionError(
       409,
-      "FITNESS_PLUS_PLAN_ALREADY_ACTIVE",
-      "Bạn đang sử dụng gói HT Fitness+ này",
+      "FITNESS_PLUS_CATALOG_CHANGED",
+      "Giá nâng cấp đã thay đổi. Vui lòng tải lại và xác nhận giá mới.",
     );
   }
 
@@ -131,7 +138,9 @@ export const activateFitnessPlusSubscription = async ({
         planCode: plan.code,
         planTitle: plan.title,
         billingCycle,
-        amount: getFitnessPlusPlanAmount(plan.code, billingCycle),
+        amount: pricing.amount,
+        listAmount: pricing.listAmount,
+        upgradeCreditAmount: pricing.creditAmount,
         startDate: now,
         endDate: calculateFitnessPlusPlanEndDate(plan.code, billingCycle, now),
         status: "active",
@@ -183,10 +192,17 @@ export const purchaseFitnessPlusSubscription = async ({
     );
   }
   const billingCycle = body?.billingCycle;
+  const now = new Date();
+  // Báo giá trước giao dịch: chặn sớm các trường hợp không hợp lệ và xác nhận số tiền đã trừ phần gói tháng chưa dùng.
+  const currentSubscription = await getActiveFitnessPlusSubscription(user._id, now);
+  const quote = plan.billingCycles.includes(billingCycle)
+    ? resolveFitnessPlusPurchasePricing({ active: currentSubscription, plan, billingCycle, now })
+    : null;
   const amount = assertFitnessPlusCatalogConfirmation({
     body,
     planCode,
     billingCycle,
+    amount: quote?.amount,
   });
 
   const session = await mongoose.startSession();
@@ -213,12 +229,14 @@ export const purchaseFitnessPlusSubscription = async ({
         planCode,
         billingCycle,
         purchaseRequestId: requestId,
+        expectedAmount: amount,
+        now,
       });
 
       const ledger = await applyWalletEntry({
         session,
         userId: user._id,
-        amount: -amount,
+        amount: -subscription.amount,
         type: "purchase",
         referenceType: "fitness_subscription",
         referenceId: subscription._id,
@@ -228,6 +246,9 @@ export const purchaseFitnessPlusSubscription = async ({
           planTitle: subscription.planTitle,
           billingCycle,
           subscriptionId: subscription._id,
+          listAmount: subscription.listAmount,
+          upgradeCreditAmount: subscription.upgradeCreditAmount,
+          previousSubscriptionId: subscription.previousSubscriptionId,
         },
       });
       if (ledger.skipped) {
@@ -249,7 +270,9 @@ export const purchaseFitnessPlusSubscription = async ({
             metadata: {
               planCode,
               billingCycle,
-              amount,
+              amount: subscription.amount,
+              listAmount: subscription.listAmount,
+              upgradeCreditAmount: subscription.upgradeCreditAmount,
               requestId,
               balanceAfter: ledger.balanceAfter,
             },
@@ -299,3 +322,38 @@ export const getActiveFitnessPlusSubscription = async (userId, now = new Date())
     )
     .sort({ createdAt: -1 })
     .lean();
+
+// Báo giá cho giao diện: không ghi dữ liệu. Trường hợp không được mua trả eligible=false kèm mã và thông báo.
+export const getFitnessPlusPurchaseQuote = async ({ userId, planCode, billingCycle, now = new Date() }) => {
+  const resolvedCode = resolveFitnessPlusPlanCode(planCode);
+  const plan = getFitnessPlusPlan(resolvedCode);
+  if (!plan) {
+    throw fitnessPlusSubscriptionError(400, "INVALID_FITNESS_PLUS_PLAN", "Gói HT Fitness+ không tồn tại");
+  }
+  if (!plan.billingCycles.includes(billingCycle)) {
+    throw fitnessPlusSubscriptionError(
+      400,
+      "INVALID_FITNESS_PLUS_BILLING_CYCLE",
+      "Chu kỳ thanh toán không hợp lệ với gói HT Fitness+",
+    );
+  }
+  const active = await getActiveFitnessPlusSubscription(userId, now);
+  const current = active
+    ? { planCode: active.planCode, billingCycle: active.billingCycle, endDate: active.endDate }
+    : null;
+  try {
+    const pricing = resolveFitnessPlusPurchasePricing({ active, plan, billingCycle, now });
+    return { eligible: true, planCode: plan.code, billingCycle, current, ...pricing };
+  } catch (error) {
+    if (error.status !== 409) throw error;
+    return {
+      eligible: false,
+      code: error.code,
+      message: publicErrorMessage(error, "Bạn chưa thể mua gói này lúc này."),
+      planCode: plan.code,
+      billingCycle,
+      current,
+      listAmount: getFitnessPlusPlanAmount(plan.code, billingCycle),
+    };
+  }
+};

@@ -27,3 +27,6 @@ export const getPendingTrainerGrants = (page = 1, limit = 20) =>
 
 export const revokePendingTrainerGrant = (id) =>
   api.post(`/trainer-subscriptions/admin/grants/${id}/revoke`);
+
+export const getTrainerPurchaseQuote = ({ planCode, billingCycle, signal } = {}) =>
+  api.get("/trainer-subscriptions/quotes", { params: { planCode, billingCycle }, signal });
