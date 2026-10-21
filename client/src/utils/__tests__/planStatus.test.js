@@ -75,10 +75,11 @@ describe("planBadges", () => {
         trainerSubscription: { planCode: "professional", planTitle: "Chuyên nghiệp" },
         fitnessSubscription: { planCode: "fitness_plus_max", planTitle: "Toàn diện" },
       }),
-    ).toMatchObject({ kind: "trainer", label: "Chuyên nghiệp", icon: "💎" });
+    ).toMatchObject({ kind: "trainer", label: "Chuyên nghiệp", shortLabel: "Chuyên nghiệp", icon: "💎" });
     expect(buildPlanDisplay({ fitnessSubscription: { planCode: "fitness_plus_smart", planTitle: "Tăng tốc" } })).toMatchObject({
       kind: "fitness",
       label: "HT Fitness+ Tăng tốc",
+      shortLabel: "Tăng tốc",
       icon: "💎",
     });
     expect(buildPlanDisplay({})).toBeNull();

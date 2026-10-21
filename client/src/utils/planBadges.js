@@ -21,6 +21,7 @@ export const buildPlanDisplay = ({ trainerSubscription, fitnessSubscription }) =
       kind: "trainer",
       planCode: trainerSubscription.planCode || null,
       label: trainerSubscription.planTitle,
+      shortLabel: trainerSubscription.planTitle,
       icon: getPlanIcon(trainerSubscription.planCode) || getPlanIcon(titleToTrainerCode(trainerSubscription.planTitle)),
     };
   }
@@ -30,6 +31,8 @@ export const buildPlanDisplay = ({ trainerSubscription, fitnessSubscription }) =
       kind: "fitness",
       planCode: fitnessSubscription.planCode,
       label: `${FITNESS_PLUS_LABEL}${title}`,
+      // Menu tài khoản chỉ ghi tên gói ngắn gọn ("Nền tảng"); chi tiết xem ở trang Tài khoản.
+      shortLabel: fitnessSubscription.planTitle || FITNESS_PLUS_LABEL,
       icon: getPlanIcon(fitnessSubscription.planCode),
     };
   }

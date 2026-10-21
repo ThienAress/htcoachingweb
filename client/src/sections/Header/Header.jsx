@@ -358,21 +358,20 @@ function Header() {
                   className="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] overflow-hidden z-50 border border-gray-100"
                 >
                   <div className="px-4 py-3 border-b border-gray-100 bg-gray-50/50">
-                    <p className="font-semibold text-gray-800 truncate" title={user.name}>
-                      {user.name}
-                    </p>
-                    {planDisplay && (
-                      <p
-                        data-testid="account-plan-badge"
-                        title={planDisplay.label}
-                        className="mt-1 inline-flex max-w-full items-start gap-1 rounded-full bg-orange-50 px-2.5 py-0.5 text-xs font-semibold leading-5 text-orange-700"
-                      >
-                        {planDisplay.icon && <span aria-hidden="true">{planDisplay.icon}</span>}
-                        <span className="break-words">{planDisplay.label}</span>
-                      </p>
-                    )}
-                    <p className="text-xs text-gray-500 truncate mt-0.5">
-                      {user.email || "user@example.com"}
+                    <p
+                      data-testid="account-menu-title"
+                      title={planDisplay ? `${user.name} - ${planDisplay.label}` : user.name}
+                      className="flex items-baseline gap-1.5 font-semibold text-gray-800"
+                    >
+                      <span className="min-w-0 truncate">{user.name}</span>
+                      {planDisplay && (
+                        <>
+                          <span aria-hidden="true" className="shrink-0 text-gray-400">-</span>
+                          <span data-testid="account-plan-badge" className="shrink-0 whitespace-nowrap text-orange-600">
+                            {planDisplay.shortLabel}
+                          </span>
+                        </>
+                      )}
                     </p>
                   </div>
                   <div className="py-2">
@@ -479,14 +478,15 @@ function Header() {
                     )}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate font-bold text-white">{user.name}</p>
-                    {planDisplay && (
-                      <p className="mt-0.5 inline-flex max-w-full items-start gap-1 rounded-full bg-white/15 px-2.5 py-0.5 text-xs font-semibold leading-5 text-white">
-                        {planDisplay.icon && <span aria-hidden="true">{planDisplay.icon}</span>}
-                        <span className="break-words">{planDisplay.label}</span>
-                      </p>
-                    )}
-                    <p className="truncate text-xs text-white/60">{user.email}</p>
+                    <p className="flex items-baseline gap-1.5 font-bold text-white">
+                      <span className="min-w-0 truncate">{user.name}</span>
+                      {planDisplay && (
+                        <>
+                          <span aria-hidden="true" className="shrink-0 text-white/50">-</span>
+                          <span className="shrink-0 whitespace-nowrap text-orange-200">{planDisplay.shortLabel}</span>
+                        </>
+                      )}
+                    </p>
                     {walletBalance !== null && (
                       <p className="mt-1 flex items-center gap-1 text-xs font-semibold text-yellow-300">
                         <Wallet size={12} /> {new Intl.NumberFormat("vi-VN").format(walletBalance)}đ

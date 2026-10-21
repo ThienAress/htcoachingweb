@@ -181,7 +181,7 @@ test.describe("plan states for subscribers", () => {
     await expect(pricing.getByRole("button", { name: "Không khả dụng" })).toHaveCount(1);
   });
 
-  test("account menu shows the plan on its own line without truncating it", async ({ page }) => {
+  test('account menu shows name - plan on one line, never truncates the plan and hides the email', async ({ page }) => {
     await page.route("**/api/trainer-subscriptions/me", (route) =>
       route.fulfill(
         fulfillJson({
@@ -193,9 +193,15 @@ test.describe("plan states for subscribers", () => {
     );
     await openPricing(page);
     await page.locator("[aria-controls=\"account-dropdown-menu\"]").first().click();
+    const title = page.getByTestId("account-menu-title");
     const badge = page.getByTestId("account-plan-badge");
-    await expect(badge).toContainText("Chuyên nghiệp");
-    const clipped = await badge.locator("span").last().evaluate((node) => node.scrollWidth > node.clientWidth);
+    await expect(title).toContainText("E2E Client");
+    await expect(title).toContainText("Chuyên nghiệp");
+    await expect(title.locator("span").nth(1)).toHaveText("-");
+    await expect(badge).toHaveText("Chuyên nghiệp");
+    const clipped = await badge.evaluate((node) => node.scrollWidth > node.clientWidth);
     expect(clipped).toBe(false);
+    // Email chỉ xem ở trang Tài khoản, không hiện trong menu.
+    await expect(page.getByTestId("account-dropdown-menu")).not.toContainText("@");
   });
 });
