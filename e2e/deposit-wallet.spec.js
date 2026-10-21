@@ -73,3 +73,31 @@ test.describe("deposit and wallet administration", () => {
     await expect.poll(() => cancelCalls).toBe(1);
   });
 });
+
+test.describe("customer deposit amount input", () => {
+  test("groups the typed amount with thousand separators while keeping the digits editable", async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.route("**/api/**", (route) =>
+      route.continue({ headers: { ...route.request().headers(), "x-e2e-role": "user" } }),
+    );
+    await page.goto("/wallet");
+    const input = page.locator("#deposit-amount");
+    await expect(input).toBeVisible();
+
+    await input.click();
+    await page.keyboard.type("10000000");
+    await expect(input).toHaveValue("10.000.000");
+    await expect(page.getByLabel("Quyền lợi dự kiến").or(page.locator("aside[aria-live]")).first()).toContainText("10.000.000");
+
+    // Sửa ở giữa: xóa một chữ số, con trỏ không nhảy về cuối.
+    await input.evaluate((node) => node.setSelectionRange(3, 3));
+    await page.keyboard.press("Backspace");
+    await expect(input).toHaveValue("1.000.000");
+    await page.keyboard.type("5");
+    await expect(input).toHaveValue("15.000.000");
+
+    await input.fill("");
+    await page.keyboard.type("abc12x");
+    await expect(input).toHaveValue("12");
+  });
+});

@@ -1264,6 +1264,25 @@ const handleApi = (req, res, path) => {
   if (path === "/api/me/wallet") {
     return sendJson(res, { success: true, data: { balance: 500000 } });
   }
+  if (path === "/api/deposits/policy" && req.method === "GET") {
+    return sendJson(res, {
+      success: true,
+      data: {
+        currency: "VND",
+        minAmount: 10000,
+        maxAmount: 1000000000,
+        policyVersion: 3,
+        tiers: [
+          { key: "starter", minAmount: 10000, bonusRate: 10, label: null },
+          { key: "growth", minAmount: 100000, bonusRate: 15, label: null },
+          { key: "premium", minAmount: 200000, bonusRate: 20, label: null },
+        ],
+      },
+    });
+  }
+  if (path === "/api/deposits" && req.method === "GET") {
+    return sendJson(res, { success: true, data: [] });
+  }
   if (
     aiScenario === "confirmation" &&
     path === "/api/ai/tool-confirmations/confirm" &&
