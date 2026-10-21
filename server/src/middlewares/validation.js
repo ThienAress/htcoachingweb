@@ -2883,3 +2883,24 @@ export const validateSwitchPlanMode = [
   body("mode").isIn(["system", "trainer"]).withMessage("Cách dựng giai đoạn không hợp lệ"),
   handleValidationErrors,
 ];
+
+export const validateSelfAssessmentDraftBody = [
+  body().custom((value) => {
+    if (!value || typeof value !== "object" || Array.isArray(value)) {
+      throw new Error("Dữ liệu đánh giá không hợp lệ");
+    }
+    return true;
+  }),
+  handleValidationErrors,
+];
+
+export const validateSelfAssessmentId = [
+  param("id").isMongoId().withMessage("Mã bản đánh giá không hợp lệ"),
+  handleValidationErrors,
+];
+
+export const validateSelfAssessmentHistory = [
+  query("page").optional().isInt({ min: 1, max: 1000 }).withMessage("Trang không hợp lệ"),
+  query("limit").optional().isInt({ min: 1, max: 20 }).withMessage("Số lượng mỗi trang không hợp lệ"),
+  handleValidationErrors,
+];

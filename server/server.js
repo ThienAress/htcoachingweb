@@ -288,6 +288,9 @@ app.use("/api/trainer-subscriptions", trainerSubscriptionRoutes);
 import fitnessPlusSubscriptionRoutes from "./src/routes/fitnessPlusSubscription.routes.js";
 app.use("/api/fitness-plus-subscriptions", fitnessPlusSubscriptionRoutes);
 
+import fitnessSelfAssessmentRoutes from "./src/routes/fitnessSelfAssessment.routes.js";
+app.use("/api/fitness-self-assessments", fitnessSelfAssessmentRoutes);
+
 import trainingScheduleRoutes from "./src/routes/trainingSchedule.routes.js";
 app.use("/api/training-schedules", trainingScheduleRoutes);
 

@@ -124,6 +124,17 @@ export const wellnessTargetMutationLimiter = rateLimit({
     message: "Quá nhiều thay đổi mục tiêu sức khỏe. Vui lòng thử lại sau.",
   },
 });
+export const fitnessSelfAssessmentMutationLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 90,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    code: "RATE_LIMITED",
+    message: "Bạn thao tác quá nhanh. Vui lòng thử lại sau ít phút.",
+  },
+});
 export const savedMealPlanMutationLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 60,

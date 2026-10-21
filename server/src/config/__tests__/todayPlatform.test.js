@@ -89,6 +89,7 @@ describe("Today platform server feature flag", () => {
         "/api/notifications",
         "/api/trainer-client-overview",
         "/api/coaching-activity",
+        "/api/fitness-self-assessments",
       ]),
     );
   });
