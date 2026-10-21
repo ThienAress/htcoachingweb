@@ -349,6 +349,18 @@
       "rollout": "not_started",
       "owner": "root",
       "updatedAt": "2026-10-12"
+    },
+    {
+      "id": "111",
+      "title": "Launch Đánh giá bản thân cho HT Fitness+",
+      "path": "docs/plans/111-launch-fitness-plus-self-assessment.md",
+      "priority": "P1",
+      "complexity": "complex",
+      "lifecycle": "in_progress",
+      "verification": "focused",
+      "rollout": "not_started",
+      "owner": "root",
+      "updatedAt": "2026-10-21"
     }
   ]
 }

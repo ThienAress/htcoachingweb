@@ -11,6 +11,7 @@ import {
   isJournalDateEditable,
 } from "./dailyJournalAccess.service.js";
 import { resolveCustomerDashboardAccess } from "./customerDashboardAccess.service.js";
+import { hasSelfAssessmentHistory } from "./fitnessSelfAssessment.service.js";
 import {
   TODAY_SOURCE_DEFINITIONS,
   errorTodaySection,
@@ -30,6 +31,7 @@ export const getTodayProgressPromptEligibility = async (actor) => {
     accessMode: access.accessMode,
     hasActiveCustomerPlan: access.hasActiveCustomerPlan,
     hasCoaching: access.hasCoaching,
+    hasSelfAssessmentHistory: await hasSelfAssessmentHistory(actor.id),
   };
 };
 

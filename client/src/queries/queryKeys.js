@@ -5,6 +5,12 @@ export const subscriptionKeys = {
   mine: (userId) => [...subscriptionKeys.all(), userId],
 };
 
+export const selfAssessmentKeys = {
+  all: () => ["self-assessment"],
+  mine: (userId) => [...selfAssessmentKeys.all(), "mine", userId],
+  history: (userId) => [...selfAssessmentKeys.all(), "history", userId],
+};
+
 export const fitnessPlusKeys = {
   all: () => ["fitness-plus"],
   catalog: () => [...fitnessPlusKeys.all(), "catalog"],

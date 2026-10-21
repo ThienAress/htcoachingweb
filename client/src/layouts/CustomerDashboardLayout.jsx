@@ -1,5 +1,6 @@
 import {
   CalendarCheck2,
+  ClipboardCheck,
   Dumbbell,
   Home,
   NotebookPen,
@@ -20,6 +21,7 @@ import {
   dashboardDateFromPath,
   dashboardPathFor,
   dashboardSectionFromPath,
+  isDashboardSectionVisible,
 } from "../utils/customerDashboardNavigation";
 import { getVietnamDateKey } from "../utils/vietnamDate";
 import {
@@ -30,6 +32,12 @@ import { getTodayProgressPromptEligibility } from "../services/todayDashboard.se
 
 const NAV_ITEMS = [
   { key: "today", label: "Hôm nay", icon: CalendarCheck2 },
+  {
+    key: "selfAssessment",
+    label: "Đánh giá bản thân",
+    shortLabel: "Đánh giá",
+    icon: ClipboardCheck,
+  },
   { key: "training", label: "Tập luyện", icon: Dumbbell },
   { key: "nutrition", label: "Dinh dưỡng", icon: Utensils },
   { key: "journal", label: "Nhật ký", icon: NotebookPen },
@@ -45,9 +53,9 @@ const initialsFor = (name = "Học viên") =>
     .join("") || "HV";
 
 /* ── Sidebar nav ── */
-const getNavItems = (accessMode) =>
-  NAV_ITEMS.filter(
-    (item) => accessMode === "coaching" || item.key !== "training",
+const getNavItems = (accessMode, hasSelfAssessmentHistory = false) =>
+  NAV_ITEMS.filter((item) =>
+    isDashboardSectionVisible(item.key, { accessMode, hasSelfAssessmentHistory }),
   );
 
 const CustomerNav = ({
@@ -56,18 +64,19 @@ const CustomerNav = ({
   compact = false,
   dateKey,
   accessMode,
+  hasSelfAssessmentHistory = false,
 }) => (
   <nav
     aria-label={ariaLabel}
     className={
       compact
-        ? getNavItems(accessMode).length <= 4
+        ? getNavItems(accessMode, hasSelfAssessmentHistory).length <= 4
           ? "grid grid-cols-4"
           : "grid grid-cols-5"
         : "space-y-0.5"
     }
   >
-    {getNavItems(accessMode).map((item) => {
+    {getNavItems(accessMode, hasSelfAssessmentHistory).map((item) => {
       const Icon = item.icon;
       const active = activeSection === item.key;
       return (
@@ -97,7 +106,9 @@ const CustomerNav = ({
           >
             <Icon aria-hidden="true" className="h-4 w-4 shrink-0" />
           </span>
-          <span className={compact ? "whitespace-nowrap" : undefined}>{item.label}</span>
+          <span className={compact ? "whitespace-nowrap" : undefined}>
+            {compact ? item.shortLabel || item.label : item.label}
+          </span>
         </Link>
       );
     })}
@@ -120,6 +131,9 @@ const CustomerDashboardLayout = () => {
     staleTime: 60_000,
   });
   const accessMode = accessQuery.data?.accessMode || "blocked";
+  const hasSelfAssessmentHistory = Boolean(
+    accessQuery.data?.hasSelfAssessmentHistory,
+  );
 
   useEffect(() => {
     persistCustomerDashboardTheme(dashboardTheme);
@@ -196,6 +210,7 @@ const CustomerDashboardLayout = () => {
           <CustomerNav
             activeSection={activeSection}
             accessMode={accessMode}
+            hasSelfAssessmentHistory={hasSelfAssessmentHistory}
             dateKey={dateKey}
           />
 
@@ -328,6 +343,7 @@ const CustomerDashboardLayout = () => {
           <CustomerNav
             activeSection={activeSection}
             accessMode={accessMode}
+            hasSelfAssessmentHistory={hasSelfAssessmentHistory}
             compact
             dateKey={dateKey}
           />
@@ -341,6 +357,7 @@ const CustomerDashboardLayout = () => {
               activeSection={activeSection}
               ariaLabel="Điều hướng nhanh bảng theo dõi"
               accessMode={accessMode}
+              hasSelfAssessmentHistory={hasSelfAssessmentHistory}
               dateKey={dateKey}
               compact
             />

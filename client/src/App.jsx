@@ -98,6 +98,7 @@ const TodayNutrition = lazy(() => import("./pages/today-dashboard/TodayNutrition
 const TodayJournal = lazy(() => import("./pages/today-dashboard/TodayJournal"));
 const LegacyDashboardRedirect = lazy(() => import("./pages/today-dashboard/LegacyDashboardRedirect"));
 const ProgressPage = lazy(() => import("./pages/progress/ProgressPage"));
+const SelfAssessmentPage = lazy(() => import("./pages/self-assessment/SelfAssessmentPage"));
 const NotificationsPage = lazy(() => import("./pages/notifications/NotificationsPage"));
 
 import "./index.css";
@@ -208,6 +209,7 @@ function AppContent() {
             <Route path="journal" element={<TodayJournal />} />
           </Route>
           <Route path="progress" element={<ProgressPage embedded />} />
+          <Route path="self-assessment" element={<SelfAssessmentPage />} />
         </Route>
         <Route
           path="/today"

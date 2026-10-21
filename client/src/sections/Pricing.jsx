@@ -85,7 +85,13 @@ const Pricing = ({ isHeroAnimDone = false }) => {
 
   const isTrainer = viewMode === "trainer";
 
-  const [mode, setMode] = useState("1-1");
+  // Liên kết từ dashboard (/?plan=fitness-plus#pricing) mở sẵn tab HT Fitness+
+  const [mode, setMode] = useState(() =>
+    typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).get("plan") === "fitness-plus"
+      ? "fitness-plus"
+      : "1-1",
+  );
   const [billingCycle, setBillingCycle] = useState("month");
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [pendingPlan, setPendingPlan] = useState(null);
