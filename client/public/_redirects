@@ -16,6 +16,7 @@
 /dashboard/today /index.html 200
 /dashboard/today/* /index.html 200
 /dashboard/progress /index.html 200
+/dashboard/self-assessment /index.html 200
 /today /index.html 200
 /today/* /index.html 200
 /progress /index.html 200
