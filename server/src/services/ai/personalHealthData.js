@@ -162,6 +162,7 @@ const normalizeHealthText = (value, { preserveClausePunctuation = false } = {}) 
     .replaceAll("đầu tiên", "thu_nhat")
     .replaceAll("đầu gối", "khop_goi")
     .replaceAll("đầu", "neutral_head")
+    .replace(/(?<![\p{L}])hệ(?![\p{L}])/gu, "he_thong")
     .replaceAll("thi đấu", "thi_dau")
     .replaceAll("ở đâu", "vi_tri")
     .replaceAll("đậu", preserveClausePunctuation ? "neutral_bean" : "đậu")
@@ -311,11 +312,14 @@ export function containsDateOfBirthInformation(value) {
   );
 }
 
+// Chế độ chỉ chặn danh tính (Plan 112): bệnh, thuốc, số đo, người thân, triệu chứng và cả tên riêng đều được cho qua.
+// Vẫn chặn ý định tự hại. Số điện thoại, email, số định danh, địa chỉ, đường dẫn và mã script do các lớp kiểm riêng xử lý.
+
 /**
  * Nhận diện disclosure sức khỏe cá nhân bằng subject + assertion/event thay vì
  * chỉ dựa vào danh sách một số tên bệnh. Không trả raw text hoặc chi tiết match.
  */
-export function containsPersonalHealthData(value) {
+export function containsPersonalHealthData(value, { identityOnly = false } = {}) {
   const normalized = maskNonMedicalStrokePhrases(normalizeHealthText(value));
   const assertionText = maskEducationalHealthQueryIntro(normalized);
   const assertionClauses = maskEducationalHealthQueryIntro(maskNonMedicalStrokePhrases(
@@ -323,6 +327,11 @@ export function containsPersonalHealthData(value) {
   ));
   const clinicalStructure = normalizeClinicalStructureText(value);
   if (!normalized) return false;
+  if (identityOnly) {
+    // Ngày sinh, tuổi, tên riêng, bệnh, thuốc, số đo đều được cho qua; chỉ ý định tự hại bị chặn ở mục kiến thức và tìm kiếm nội bộ
+    // (trợ lý trả lời bằng lời khuyên, xem system prompt).
+    return DIRECT_SELF_HARM_DISCLOSURE_PATTERN.test(normalized);
+  }
   if (
     DATE_OF_BIRTH_LABEL_PATTERN.test(clinicalStructure) ||
     PERSONAL_DATE_OF_BIRTH_PATTERN.test(clinicalStructure) ||

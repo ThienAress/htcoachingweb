@@ -17,8 +17,8 @@ Spec canonical: [`docs/specs/knowledge-privacy-false-positive-tuning.md`](../spe
 - **Depends on**: Plan 096C (cùng nhóm 28 bản nháp)
 - **Category**: security
 - **Planned at**: 2026-10-22
-- **Lifecycle**: PLANNED
-- **Verification**: NONE
+- **Lifecycle**: IN PROGRESS
+- **Verification**: FOCUSED
 - **Rollout**: NOT STARTED
 - **Owner**: root
 - **Updated at**: 2026-10-22
@@ -184,3 +184,76 @@ Mở PR vào `staging`; sau khi merge và deploy (theo skill `staging-verify`), 
 ## Kết quả đo
 
 (điền ở Step 1 và Step 7)
+
+### Baseline (Step 1, 2026-10-22, từ file xuất của nút "Tải toàn bộ": 67 mục, 28 nháp và 39 đã xuất bản)
+
+- Bộ lọc hiện tại chặn **62/67** mục (28/28 nháp, 34/39 đã xuất bản): `sensitive_personal_health` 50, `ambiguous_person_identity` 12.
+- Phần gây chặn theo thành phần: câu trả lời (sức khỏe 45, tên người 15), biến thể câu hỏi (tên người 44, sức khỏe 27), câu hỏi (tên người 22), nguồn (DOI/PMID 5).
+- Nhóm nhận diện nhầm xác định bằng cách đo từng hàm: thuật ngữ thể hình viết hoa (Body Recomposition, Fat Burner, Mass Gainer...), địa danh/tổ chức (Việt Nam, Hoa Kỳ, NASM...), từ chức năng đầu câu (Nếu, Không, Khi...), tiêu đề tài liệu chứa từ y khoa, DOI/PMID trong nguồn, mô tả tình trạng thông thường (bậc 2). Tên vận động viên công khai (tiểu sử) thuộc Plan 096C, không đổi ở đây.
+
+### Step 3 (2026-10-22)
+
+- Thêm `server/src/services/ai/knowledgeGeneralTerms.js` (từ vựng khái niệm chung, tiêu đề tài liệu) và 8 từ chức năng vào `NON_NAME_CAPITALIZED_STARTS`.
+- Đo lại: **53/67** mục còn bị chặn (từ 62); 14 mục hợp lệ (11 đã xuất bản, 3 nháp). 0 mục hợp lệ trước đó bị chặn thêm.
+- Test bộ lọc cũ 657/657 pass; test mới AC-001/002/003 và các ca "vẫn chặn" pass; AC-004 (Step 4) và AC-005 (Step 5) còn đỏ theo kế hoạch.
+
+### Step 4 (2026-10-22)
+
+- Thêm `stripBibliographicIdentifiers` trong `knowledgePrivacy.js`: bỏ qua DOI (có nhãn `DOI:` hoặc `doi.org/`) và PMID (có nhãn) chỉ ở tiêu đề/nhà xuất bản và URL nguồn; hậu tố DOI có dạng số điện thoại Việt Nam vẫn bị chặn.
+- Đo lại 67 mục: nguồn bị chặn vì mã định danh giảm từ 5 xuống **0**. Số mục bị chặn toàn bộ vẫn 53 vì các phần khác (biến thể "Tôi bị...", nội dung "khách hàng bị...", tiểu sử vận động viên) còn lại thuộc Step 5 và Plan 096C.
+- Còn lại ngoài phạm vi: 3 câu trả lời chứa số điện thoại và email liên hệ của HTCOACHING (thông tin liên hệ doanh nghiệp) bị chặn đúng theo bậc 1; cần quyết định riêng nếu muốn cho phép liên hệ doanh nghiệp đã đăng ký.
+- Test bộ lọc: 666/666 pass; nhóm test Knowledge: 26 file / 833 test pass. Test AC-005 (tự mô tả tình trạng) chưa đưa vào commit, thêm ở Step 5.
+
+### Rà soát bảo mật độc lập (Step 3 và 4, 2026-10-22)
+
+- `security-reviewer`: 0 BLOCK/HIGH. 1 MED đã sửa: pattern DOI nuốt toàn bộ phần đuôi nên email, số điện thoại hoặc token sau `doi.org/10.x/...?email=...` lọt qua; nay DOI chỉ gồm ký tự hợp lệ, phần dư vẫn được kiểm định danh, và DOI có đoạn số giống số điện thoại Việt Nam vẫn bị chặn. 1 LOW đã sửa: địa danh/danh hiệu trong từ vựng không còn bị hạ chữ thường khi đứng sau từ xưng hô (Chị/Ông/Ms...), nên "Chị Thanh Hóa" vẫn bị coi là tên.
+- Rủi ro còn lại đã biết: CCCD 12 chữ số nằm trong hậu tố DOI không phân biệt được với DOI số thật (ví dụ 201010050); chấp nhận vì chỉ áp ở tiêu đề/URL nguồn do admin nhập.
+- Ngoài phạm vi review: `sourceUrlPrivateRecordRisk`, phía controller (ai được tạo entry kèm nguồn).
+
+### Step 5 (2026-10-22): nêu bệnh thông thường không kèm danh tính
+
+Chính sách chủ sở hữu chốt: khách xưng "tôi" hoặc nói "khách hàng bị cao huyết áp" là bình thường; chỉ chặn khi kèm họ tên, số điện thoại, email, ngày sinh hoặc số đo/thuốc cụ thể.
+
+- `containsPersonalHealthData(value, { allowCommonConditions })` và `containsSensitivePersonalHealth` có tùy chọn mới, bật ở `validateKnowledgeEntryPrivacy` (mục kiến thức) và `prepareKnowledgeRetrievalQuery` (tìm kiếm nội bộ). **Không** bật ở `prepareExternalKnowledgeQuery` (truy vấn gửi ra ngoài) và `prepareKnowledgeSuggestionPair` (gợi ý từ cuộc trò chuyện).
+- Vẫn chặn khi bật: chủ thể có tên riêng, số đo hoặc giá trị xét nghiệm, tên thuốc cụ thể, tự khai chẩn đoán ("được chẩn đoán", "bác sĩ chẩn đoán tôi"), bệnh của người thân, biến cố lâm sàng (phẫu thuật, điều trị, ngất), triệu chứng cấp (đau ngực, khó thở), ý định tự hại, sốt kèm số đo.
+- Bổ sung tên chung khiến bộ dò tên nhầm: từ vựng dinh dưỡng/bài tập, tiền tố tổ chức (Báo, Viện, Hội, Journal of...), "Chỉ nên", "an toàn", "bình thường" viết thường, "hệ thần kinh".
+- Đo lại 67 mục production sau rà soát bảo mật: **23 hợp lệ** (trước đó 5), 44 còn bị chặn, **0 mục hợp lệ trước đó bị chặn thêm**. Phần còn lại chủ yếu là tiểu sử vận động viên (Plan 096C), số điện thoại/email liên hệ của HTCOACHING (bậc 1) và đuôi dài các câu tiếng Việt cần tinh chỉnh tiếp.
+- Test cũ đổi kỳ vọng có lý do: các ca "Tôi bị PCOS", "I have migraine/eczema/Crohn/MS/narcolepsy", "I have a fever after training", "Khách hàng mọi người bị tiểu đường" từ "luôn chặn" sang "cho qua ở mục kiến thức và tìm kiếm nội bộ, vẫn chặn ở truy vấn gửi ra ngoài và AI Suggest"; test tích hợp Search Test đổi sang truy vấn có tên thuốc ("I take prednisone...") để giữ mục đích chặn trước nhà cung cấp embedding.
+
+### Rà soát bảo mật độc lập (Step 5, 2026-10-22)
+
+Lần rà đầu tìm ra 2 BLOCK, 3 HIGH, 1 MED trên bản nháp đầu của bước 5; toàn bộ đã sửa kèm test hồi quy trước khi mở PR:
+- Che theo tiền tố tổ chức ("Viện/Hội/Bộ + tên") làm lọt tên người cạnh bệnh và làm lỏng truy vấn gửi ra ngoài: bỏ cơ chế đó, chỉ giữ cụm tên tổ chức/ấn phẩm cụ thể; thuật ngữ đứng liền sau một từ viết hoa ("Hùng Deadlift") không còn bị hạ chữ thường.
+- Chế độ nêu bệnh thông thường quá lỏng (người thân, tự khai chẩn đoán, phẫu thuật/nhập viện/điều trị, ung thư/HIV/suy thận/thai kỳ/tự kỷ, số đo, thuốc có tên, tự giới thiệu tên): đổi sang chặn khi đi cùng chủ thể cá nhân hoặc vai trò chung.
+- Quy tắc "chủ ngữ có dấu" và "Minh" làm lọt tên riêng: chỉ áp cho cụm 4 từ trở lên; "minh" là đại từ chỉ khi viết "mình".
+- Truy vấn tìm kiếm nội bộ cho qua khi có số điện thoại, email, mã, tên: dùng mức chặn đầy đủ khi truy vấn mang danh tính.
+- Lần rà thứ hai còn 1 HIGH và 1 MED, đã sửa: ngày sinh đứng cạnh bệnh, thuốc bôi/dán có tên (Salonpas, Voltaren gel).
+- Còn lại, chấp nhận hoặc chờ chủ sở hữu: "Tôi bị đau lưng, ở Hà Nội" và "bác sĩ bảo nghỉ" cho qua; "sau sinh" cho qua; "Sinh ngày ..." đứng một mình ở câu hỏi cho qua (có sẵn từ trước, do ngày sinh người nổi tiếng đã được xác minh); câu ngắn "Khách hàng bị huyết áp cao" đứng riêng vẫn bị chặn (an toàn hơn, lệch chính sách).
+
+### Thông tin liên hệ doanh nghiệp và thông tin nhạy cảm (2026-10-22)
+
+- Quyết định chủ sở hữu: 3 câu trả lời có số điện thoại/email của HTCOACHING được viết lại thành "liên hệ qua form" (không thêm danh sách liên hệ được phép, giữ chặn bậc 1). Nội dung thay thế do admin dán vào Knowledge Base production; plan không ghi gì lên production.
+- System prompt thêm quy tắc: bệnh thông thường user tự nêu thì trả lời bình thường kèm nhắc bác sĩ; khi user gửi định danh hoặc hồ sơ nhạy cảm (số điện thoại, email, CCCD, ngày sinh, xét nghiệm, đơn thuốc) thì không lặp lại, không báo lỗi kỹ thuật, nói nhẹ nhàng đây là thông tin nhạy cảm và đề nghị gửi qua [Form liên hệ](/#contact) để HLV kiểm tra. `AI_PROMPT_CONTRACT_VERSION` tăng lên `2026-10-22.v1`.
+- Từ vựng chung thêm "HTCOACHING", "HLV", "Gói PT".
+
+### Đổi chính sách: chỉ chặn danh tính (2026-10-22, chủ sở hữu)
+
+Chủ sở hữu thấy mức chặn bước 5 còn gắt (ví dụ "Mẹ tôi bị tiểu đường" bị chặn dù chỉ mô tả): trợ lý không đưa nhận định, luôn khuyên hỏi bác sĩ, và các trợ lý AI phổ biến không chặn nội dung kiểu này. Chính sách mới: **chỉ chặn danh tính** (tên riêng, số điện thoại, email, ngày sinh, số định danh, địa chỉ, giới thiệu tên); bệnh, thuốc, số đo, bệnh của người thân, chẩn đoán, sự kiện lâm sàng và triệu chứng được cho qua.
+
+- Tùy chọn đổi tên thành `identityOnly` (`containsPersonalHealthData`, `containsSensitivePersonalHealth`); bản mã nháp dài của bước 5 (người thân, chẩn đoán, sự kiện lâm sàng, nhóm bệnh nhạy cảm, số đo, thuốc) được gỡ, `personalHealthData.js` quay về bản trước bước 5 cộng nhánh `identityOnly` ngắn. Vẫn chặn: chủ thể có tên riêng, ngày sinh, tự giới thiệu tên, ý định tự hại.
+- Truy vấn tìm kiếm nội bộ có số điện thoại, email, mã hoặc tên dùng mức chặn đầy đủ. **Truy vấn gửi ra ngoài và AI Suggest giữ nguyên mức chặt.**
+- System prompt: bệnh, thuốc, số đo của bản thân hoặc người thân được trả lời bình thường kèm nhắc bác sĩ, không đưa nhận định chẩn đoán; chỉ thông tin định danh mới hướng dẫn gửi qua Form liên hệ. `AI_PROMPT_CONTRACT_VERSION` lên `2026-10-22.v2`.
+- Test cũ đổi kỳ vọng có lý do: các ca nội dung sức khỏe không định danh từ "luôn chặn" sang "cho qua ở mục kiến thức và tìm kiếm nội bộ, vẫn chặn ở truy vấn ngoài"; ca Search Test dùng truy vấn có tên và số điện thoại.
+- Đo lại 67 mục production: **28 hợp lệ** (trước đó 5), 0 mục bị chặn thêm.
+
+### Chính sách cuối: chỉ chặn số điện thoại, CCCD, địa chỉ nhà, link web đen và mã script (2026-10-22, chủ sở hữu)
+
+Chủ sở hữu quyết định tiếp: **cho phép cả tên riêng**; chỉ không cho phép số điện thoại, CCCD/số định danh, địa chỉ nhà, đường dẫn web đen/cá cược và đoạn mã script. Mọi thứ khác (bệnh, thuốc, số đo, người thân, chẩn đoán, tên riêng) được cho qua ở mục kiến thức và tìm kiếm nội bộ.
+
+- `validateKnowledgeEntryPrivacy` bỏ hẳn chặn tên riêng; nguồn dùng chế độ `identityOnly`; thêm kiểm `forbidden_content` mới (`knowledgeForbiddenContent.js`: link cá cược/người lớn/rút gọn link trong URL hoặc tên miền, và mã script như `<script>`, `javascript:`, `onerror=`, `eval(`, `document.cookie`, PHP, SQL phá hoại). `prepareKnowledgeRetrievalQuery` cũng chặn nội dung bị cấm và vẫn che số điện thoại, email, mã, địa chỉ; tên riêng không còn bị chặn hay làm ngưng tìm kiếm nội bộ.
+- Địa chỉ nhà không cần nhãn: thêm `STREET_ADDRESS_PATTERN` (số nhà, ngõ/hẻm/phố/đường + tên riêng, "25 Nguyễn Huệ, quận 1", "123 Main Street"); "100 đường huyết" không bị nhầm.
+- **Cập nhật cùng ngày:** ngày sinh và tuổi được cho qua. Email và ý định tự hại: vẫn bị chặn ở mục kiến thức (email là định danh trực tiếp, tự hại bị chặn ở tìm kiếm nội bộ), còn trợ lý chat khuyên trước, và nếu người dùng cố tình tiếp tục thì từ chối trả lời (system prompt). Truy vấn gửi ra ngoài và AI Suggest vẫn giữ mức chặt cũ (có chặn tên).
+- Thông báo lỗi khi lưu Knowledge Entry đổi thành câu tiếng Việt nêu đúng các thứ bị chặn (số điện thoại, email, số định danh, địa chỉ nhà, ngày sinh, đường dẫn không phù hợp, đoạn mã). System prompt: tên riêng bình thường; `AI_PROMPT_CONTRACT_VERSION` lên `2026-10-22.v4`.
+- Test cũ về tên riêng và sức khỏe của `validateKnowledgeEntryPrivacy` đổi kỳ vọng theo chính sách mới (mỗi test ghi "accepted under the identity-only policy"); các test mã đăng nhập, định danh trực tiếp, ngày sinh và URL hồ sơ riêng tư giữ nguyên.
+- Đo lại 67 mục production: **64 hợp lệ** (trước đó 5), 0 mục bị chặn thêm. 3 mục còn lại là 3 mục HTCOACHING có số điện thoại/email (admin thay bằng "liên hệ qua form").
+- Rà soát bảo mật độc lập hai lần: 0 BLOCK/HIGH; truy vấn gửi ra ngoài và AI Suggest không nới (0 khác biệt trên 869 chuỗi). Đã sửa 2 MED và 3 LOW: địa chỉ thiếu số nhà hoặc viết thường/không dấu, link cá cược che dấu (ký tự rộng bằng 0, `[.]`, đuôi lạ, %-encode, link rút gọn), biến thể script, báo nhầm (`slots-training`, `let x = 3 sets`, "100 Đường Huyết"), giới hạn độ dài chống tốn thời gian regex, và thông báo cũ của Search Test.

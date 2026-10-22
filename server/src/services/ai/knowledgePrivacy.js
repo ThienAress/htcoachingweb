@@ -1,5 +1,10 @@
 import crypto from "crypto";
 import { findPublicFigures } from "./publicFigureRegistry.js";
+import { containsForbiddenKnowledgeContent } from "./knowledgeForbiddenContent.js";
+import {
+  maskGeneralKnowledgeTerms,
+  neutralizeReferenceTitles,
+} from "./knowledgeGeneralTerms.js";
 
 import {
   containsDateOfBirthInformation,
@@ -35,12 +40,17 @@ const CREDENTIAL_ASSIGNMENT_PATTERN =
   /(?:^|[?&#;\s])(?:access[_-]?token|refresh[_-]?token|id[_-]?token|auth(?:orization)?[_-]?token|api[_-]?key|password|passwd|secret|session[_-]?(?:id|token))\s*[:=]\s*[^\s&#,;]{4,}/gi;
 const ADDRESS_PATTERN =
   /\b(?:(?:địa chỉ|dia chi)\s*(?:của tôi|cua toi)?\s*[:=]?|(?:my|our|home|residential|billing|shipping)\s+address(?:\s+is)?|address\s*[:=])\s*[^,;\n]{5,120}/giu;
+// Địa chỉ nhà không có nhãn "địa chỉ": số nhà, ngõ/hẻm/thôn/tổ/tòa + số, "25 Nguyễn Huệ, quận 1", "123 Main Street".
+// Không dùng cờ i: "100 đường huyết" (đường = glucose) và "xã hội", "tỉnh táo" không bị nhầm; từ khoá chữ thường/không dấu
+// được liệt kê tường minh và bắt buộc có số theo sau.
+const STREET_ADDRESS_PATTERN =
+  /(?:\b(?:[Ss]ố nhà|[Ss]o nha|[Nn]hà số|[Nn]ha so)\s*\d+[\p{L}\d/-]*|\b(?:[Nn]gõ|[Nn]go|[Hh]ẻm|[Hh]em|[Nn]gách|[Nn]gach|[Tt]ổ|[Kk]hu phố|[Tt]hôn|[Xx]óm|[Tt]òa|[Cc]ăn hộ)\s+\d[\p{L}\d/-]*|\b[Tt]òa nhà\s+\p{Lu}|\b[Tt]ầng\s+\d{1,2}\s*,\s*[Tt]òa|\b\d{1,4}[A-Za-z]?(?:\/\d{1,4}[A-Za-z]?){0,3}\s+(?:[Pp]hố|[Nn]gõ|[Nn]gách|[Hh]ẻm)\s+\p{Lu}[\p{L}'’-]*(?:\s+\p{Lu}[\p{L}'’-]*){0,3}|\b\d{1,4}[A-Za-z]?(?:\/\d{1,4}[A-Za-z]?){0,3}\s+(?:[Đđ]ường\s+)?\p{Lu}[\p{L}'’-]*(?:\s+\p{Lu}[\p{L}'’-]*){0,3}\s*,\s*(?:[Pp]hường|[Qq]uận|[Hh]uyện|[Tt]hị xã|[Tt]hị trấn|[Tt]hành phố|TP\.?|P\.|Q\.)\s*[\p{L}\d][\p{L}\d\s.'’-]{0,30}|\b\d{1,4}[A-Za-z]?(?:\/\d{1,4}[A-Za-z]?){0,3}\s+[\p{L}'’-]+(?:\s+[\p{L}'’-]+){0,3}\s*,\s*(?:[Pp]hường|[Pp]huong|[Qq]uận|[Qq]uan|[Hh]uyện|[Hh]uyen|[Xx]ã|[Xx]a|[Tt]hị xã|[Tt]hanh pho|[Tt]hành phố|TP\.?|tp\.?|[Pp]\.|[Qq]\.)\s*\d{1,3}\b|\b\d{1,5}[A-Za-z]?\s+[A-Z][a-z]+(?:\s+[A-Z][a-z]+)?\s+(?:Street|St|Road|Avenue|Ave|Lane|Boulevard)\b)/gu;
 const PRIVATE_RECORD_LABEL_SOURCE =
   "(?:[Kk]hách hàng|[Hh]ọc viên|[Bb]ệnh nhân|[Cc]lient|[Pp]atient|[Cc]ustomer|[Mm]ember|[Uu]ser)";
 const PRIVATE_NAME_PREDICATE_SOURCE =
   "(?:thường|hay|hỏi|muốn|đang|vừa|đã|bị|có|nên|cần|tập|uống|dùng|asks?|wants?|needs?|is|was|has|had|receiv(?:e|es|ing)|takes?|uses?|trains?)";
 const PRIVATE_NAME_RESERVED_TOKEN_SOURCE =
-  "(?:của|cua|tôi|toi|mình|minh|em|chúng|chung|my|mine|our|ours|should|do|does|follow)";
+  "(?:của|cua|tôi|toi|mình|minh|em|chúng|chung|my|mine|our|ours|should|do|does|follow|mắc|gặp|phải|được|không|chưa|vẫn|rất|còn|luôn|mới|ăn|ngủ|chọn)";
 const PRIVATE_NAME_TOKEN_SOURCE =
   `(?!(?:${PRIVATE_NAME_PREDICATE_SOURCE}|${PRIVATE_NAME_RESERVED_TOKEN_SOURCE})\\b)\\p{L}[\\p{L}'’-]*`;
 const EXPLICIT_NAME_VALUE_TOKEN_SOURCE =
@@ -163,6 +173,15 @@ const containsPublicHealthOrganizationAcronym = (name) =>
 
 const NON_NAME_CAPITALIZED_STARTS = new Set([
   "ai",
+  "biet",
+  "gen",
+  "khan",
+  "khi",
+  "khong",
+  "neu",
+  "nen",
+  "nhin",
+  "uong",
   "bai",
   "ban",
   "barbell",
@@ -674,9 +693,21 @@ const isLikelyPrivateNameCandidate = (value) => {
     .every((token) => /^\p{Lu}[\p{L}\p{M}'’-]*$/u.test(token));
 };
 
+// Cụm viết thường bắt đầu bằng động từ/phó từ ("mắc bệnh hen suyễn", "gặp đau lưng khi") là vị ngữ, không phải tên người.
+const LOWERCASE_PREDICATE_STARTS = new Set([
+  "mac", "gap", "phai", "duoc", "khong", "chua", "van", "rat", "luon", "moi", "ngu", "chon",
+  "bi", "co", "can", "nen", "dang", "se", "muon", "tap",
+]);
+
 const isSyntacticallyBoundPrivateNameCandidate = (value) => {
   const candidate = String(value || "").trim();
   if (!candidate) return false;
+  if (
+    /^\p{Ll}/u.test(candidate) &&
+    LOWERCASE_PREDICATE_STARTS.has(normalizePrivacyText(candidate).trim().split(/\s+/)[0])
+  ) {
+    return false;
+  }
   if (isGeneralKnowledgeNounPhrase(candidate)) return false;
   const normalizedCandidate = normalizePrivacyText(candidate).trim();
   if (
@@ -764,6 +795,8 @@ const extractPredicateBoundVietnameseNames = (value) => {
       }
       if (
         !addedSurnameCandidate &&
+        // Chữ thường như "bình thường" là tính từ, không phải tên "Bình"; tên riêng phải viết hoa.
+        /^\p{Lu}/u.test(lastWord[0]) &&
         COMMON_VIETNAMESE_GIVEN_NAMES.has(normalizeNameLexeme(lastWord[0])) &&
         !isGeneralNormalRangeQualifier({
           prefix: prefix.slice(0, trimmedEnd),
@@ -841,7 +874,7 @@ const extractStrongPrivateCueNames = (value) => {
 };
 
 const extractUnboundPrivateNames = (value, allowedPublicPersonNames = []) => {
-  const text = normalizeAthleteRoleAbbreviations(value);
+  const text = normalizeAthleteRoleAbbreviations(maskGeneralKnowledgeTerms(value));
   const names = new Set();
   const multiTokenNameRanges = [];
   const publicDateOfBirthLookup = containsPublicDateOfBirthBinding(
@@ -1192,9 +1225,9 @@ const containsSensitivePersonalHealth = (
   question,
   answer,
   allowedPublicPersonNames = [],
-  { allowCallerVettedPublicDateOfBirth = false } = {},
+  { allowCallerVettedPublicDateOfBirth = false, identityOnly = false } = {},
 ) => {
-  const combined = `${question}\n${answer}`.normalize("NFKC");
+  const combined = neutralizeReferenceTitles(`${question}\n${answer}`.normalize("NFKC"));
   const publicDateOfBirthAllowed =
     allowCallerVettedPublicDateOfBirth &&
     !String(answer || "").trim() &&
@@ -1243,7 +1276,7 @@ const containsSensitivePersonalHealth = (
     ) &&
     extractUnboundPrivateNames(combined, allowedPublicPersonNames).length === 0;
   if (
-    containsPersonalHealthData(combined) &&
+    containsPersonalHealthData(combined, { identityOnly }) &&
     !publicDateOfBirthAllowed &&
     !callerVettedPublicPersonOnly
   ) {
@@ -1253,6 +1286,8 @@ const containsSensitivePersonalHealth = (
   const normalized = normalizePrivacyText(combined);
   const containsHealth = containsHealthInformation(combined);
   const containsMetric = containsPersonalBodyMetric(combined);
+  // Chỉ chặn danh tính: tên riêng được cho qua; ngày sinh và ý định tự hại đã xử lý ở bước trên.
+  if (identityOnly) return false;
   const containsExplicitPrivateHealthRecord =
     EXPLICIT_PRIVATE_RECORD_SUBJECT_PATTERN.test(normalized) &&
     (containsHealth ||
@@ -1496,7 +1531,8 @@ const redactDirectIdentifiers = (value, privateNames = []) => {
     .replace(SECRET_PATTERN, "[đã ẩn thông tin xác thực]")
     .replace(LABELED_IDENTIFIER_PATTERN, "[đã ẩn mã định danh]")
     .replace(LONG_IDENTIFIER_PATTERN, "[đã ẩn mã định danh]")
-    .replace(ADDRESS_PATTERN, "[đã ẩn địa chỉ]");
+    .replace(ADDRESS_PATTERN, "[đã ẩn địa chỉ]")
+    .replace(STREET_ADDRESS_PATTERN, "[đã ẩn địa chỉ]");
   return { text: redacted, redacted: redacted !== before };
 };
 
@@ -1581,7 +1617,15 @@ export function prepareKnowledgeRetrievalQuery(value) {
   if (!query) return { eligible: false, reason: "empty_query" };
 
   const allowedPublicPersonNames = getPublicPersonLookupNames(query);
-  if (containsSensitivePersonalHealth(query, "", allowedPublicPersonNames)) {
+  if (containsForbiddenKnowledgeContent(query)) {
+    return { eligible: false, reason: "forbidden_content" };
+  }
+  // Bệnh, thuốc, số đo, người thân và tên riêng được cho qua; số điện thoại, email, mã, địa chỉ vẫn bị che bên dưới.
+  if (
+    containsSensitivePersonalHealth(query, "", allowedPublicPersonNames, {
+      identityOnly: true,
+    })
+  ) {
     return { eligible: false, reason: "sensitive_personal_health" };
   }
   if (
@@ -1607,6 +1651,30 @@ export function prepareKnowledgeRetrievalQuery(value) {
   };
 }
 
+// DOI và PMID là mã tra cứu tài liệu công khai, chỉ được bỏ qua ở tiêu đề/URL nguồn và khi có nhãn
+// (DOI:, doi.org/, PMID:). Dạng DOI có hậu tố giống số điện thoại thì vẫn giữ để bị chặn.
+const LABELED_DOI_PATTERN =
+  /(?:\bdoi\s*[:=]\s*|\bdoi\.org\/)(10\.\d{4,9}\/[-._;()/:A-Za-z0-9]+)/giu;
+const NUMERIC_RUN_PATTERN = /(?<![A-Za-z0-9])\d+(?:[-. ]\d+)*(?![A-Za-z0-9])/g;
+const VIETNAM_PHONE_DIGITS_PATTERN = /^(?:0\d{9,10}|\+?84\d{9,10})$/;
+
+// DOI chỉ gồm ký tự hợp lệ: phần đi sau (?email=, ,phone=, khoảng trắng + số) vẫn được kiểm định danh.
+const isPhoneShapedDoi = (doi, following) =>
+  /^\s+\d/.test(following) ||
+  (doi.match(NUMERIC_RUN_PATTERN) || []).some((run) =>
+    VIETNAM_PHONE_DIGITS_PATTERN.test(run.replace(/\D/g, "")),
+  );
+const LABELED_PMID_PATTERN = /\bpmc?id\s*[:#=]?\s*(?:pmc)?\d{5,8}\b/giu;
+
+const stripBibliographicIdentifiers = (value) =>
+  String(value || "")
+    .replace(LABELED_DOI_PATTERN, (match, doi, offset, whole) =>
+      isPhoneShapedDoi(doi, whole.slice(offset + match.length))
+        ? match
+        : "bibliographic_doi",
+    )
+    .replace(LABELED_PMID_PATTERN, "bibliographic_pmid");
+
 const hasDirectKnowledgeIdentifier = (value) => {
   const patterns = [
     EMAIL_PATTERN,
@@ -1617,6 +1685,7 @@ const hasDirectKnowledgeIdentifier = (value) => {
     LABELED_IDENTIFIER_PATTERN,
     LONG_IDENTIFIER_PATTERN,
     ADDRESS_PATTERN,
+    STREET_ADDRESS_PATTERN,
   ];
   return decodePrivacyCandidates(value).some(
     (candidate) =>
@@ -1662,8 +1731,10 @@ export function validateKnowledgeEntryPrivacy(entry = {}) {
     .filter(Boolean);
   const combined = contentFields.join("\n").normalize("NFKC");
 
+  // Bệnh, thuốc, số đo, người thân không định danh ai nên là nội dung hợp lệ; chỉ chặn danh tính (Plan 112).
   const sensitiveHealthOptions = {
     allowCallerVettedPublicDateOfBirth: true,
+    identityOnly: true,
   };
   if (
     contentFields.some((field) =>
@@ -1684,46 +1755,40 @@ export function validateKnowledgeEntryPrivacy(entry = {}) {
     return { valid: false, reason: "sensitive_personal_health" };
   }
   if (
-    [...contentFields, ...sourceMetadataFields, ...sourceUrlFields].some(
+    [
+      ...contentFields,
+      ...[...sourceMetadataFields, ...sourceUrlFields].map(
+        stripBibliographicIdentifiers,
+      ),
+    ].some(
       hasDirectKnowledgeIdentifier,
     )
   ) {
     return { valid: false, reason: "direct_identifier" };
   }
 
-  const contextualPrivateNames = extractContextualPrivateNames(combined);
-  const unboundPrivateNames = extractUnboundPrivateNames(
-    combined,
-    allowedPublicPersonNames,
-  );
-  if (contextualPrivateNames.length > 0 || unboundPrivateNames.length > 0) {
-    return { valid: false, reason: "ambiguous_person_identity" };
+  // Đường dẫn cá cược/trang web đen và đoạn mã không được lưu; tên riêng thì được phép (Plan 112).
+  if (
+    [...contentFields, ...sourceMetadataFields, ...sourceUrlFields].some(
+      containsForbiddenKnowledgeContent,
+    )
+  ) {
+    return { valid: false, reason: "forbidden_content" };
   }
 
   // Metadata nguồn dùng heuristic hẹp: tên có cue riêng tư, tên phổ biến hoặc
   // tên đứng trước predicate cá nhân. Không coi mọi Title Case organization là
   // người, tránh chặn ACSM/BJSM/NSCA/Nike và tên tạp chí công khai.
   const sourceMetadata = sourceMetadataFields.join("\n").normalize("NFKC");
-  if (sourceMetadata) {
-    const sourcePrivateNames = extractSourceMetadataPrivateNames(
-      sourceMetadataFields,
-      allowedPublicPersonNames,
-    );
-    const sourceHasPrivateContext =
-      sourcePrivateNames.length > 0 ||
-      PERSONAL_CONTEXT_PATTERN.test(normalizePrivacyText(sourceMetadata)) ||
-      EXPLICIT_PRIVATE_RECORD_SUBJECT_PATTERN.test(
-        normalizePrivacyText(sourceMetadata),
-      );
-    if (
-      sourceHasPrivateContext &&
-      sourceMetadataFields.some(containsPersonalHealthData)
-    ) {
-      return { valid: false, reason: "sensitive_personal_health" };
-    }
-    if (sourcePrivateNames.length > 0) {
-      return { valid: false, reason: "ambiguous_person_identity" };
-    }
+  if (
+    sourceMetadata &&
+    sourceMetadataFields.some((field) =>
+      containsPersonalHealthData(neutralizeReferenceTitles(field), {
+        identityOnly: true,
+      }),
+    )
+  ) {
+    return { valid: false, reason: "sensitive_personal_health" };
   }
 
   for (const sourceUrl of sourceUrlFields) {

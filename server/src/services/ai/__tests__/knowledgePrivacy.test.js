@@ -115,25 +115,6 @@ describe("Knowledge Base conversation privacy boundary", () => {
   );
 
   it.each([
-    "Tôi bị PCOS và muốn có lịch tập phù hợp",
-    "Tôi được chẩn đoán PCOS và cần lịch tập",
-    "Tôi bị buồng trứng đa nang và cần lịch tập",
-    "Tôi bị đa nang buồng trứng và cần lịch tập",
-    "I have polycystic ovarian syndrome and need exercise advice",
-    "Tôi có câu hỏi: tôi bị PCOS thì tập gì?",
-    "my friend bob who tore his ACL",
-    "my son who is autistic",
-    "my kid with covid",
-    "I have migraine",
-    "I take prednisone",
-    "client Bob has epilepsy",
-    "Tôi sinh ngày 01/02/1990 và muốn có lịch tập phù hợp",
-    "Ngày sinh của tôi: 01/02/1990",
-    "DOB: 01/02/1990",
-    "Date of birth: 1990-02-01",
-    "Tôi sinh vào ngày 01/02/1990",
-    "Ngày sinh của khách hàng Lan là 01/02/1990",
-    "bob was born on 1990-01-01",
   ])("keeps raw PHI and birth dates out of every knowledge sink: %s", (content) => {
     const suggestion = prepareKnowledgeSuggestionPair({
       conversationId: new mongoose.Types.ObjectId(),
@@ -153,6 +134,94 @@ describe("Knowledge Base conversation privacy boundary", () => {
       suggestion: { eligible: false, reason: "sensitive_personal_health" },
     });
   });
+
+  // Plan 112 (chỉ chặn danh tính): dữ liệu y tế không định danh ai được cho qua ở tìm kiếm nội bộ; vẫn không ra truy vấn ngoài và AI Suggest.
+  it.each([
+      "Tôi được chẩn đoán PCOS và cần lịch tập",
+      "my friend bob who tore his ACL",
+      "my son who is autistic",
+      "my kid with covid",
+      "I take prednisone",
+      "Tôi bị sốt 39 độ sau khi tập",
+      "Liều warfarin của tôi là 5mg",
+      "I have chest pain after squat and want swimming stroke tips",
+      "I take levothyroxine, current exercise recommendations",
+      "My doctor put me on levothyroxine, latest exercise advice",
+      "My friend has Hashimotos, what changed recently?",
+      "I'm on methotrexate, latest research?",
+      "My friend is on methotrexate, latest research?",
+      "my friend has lupus, latest fitness advice",
+      "client Bob has epilepsy",
+      "I am on Ozempic and need exercise advice",
+      "Tôi sinh ngày 01/02/1990 và muốn có lịch tập phù hợp",
+      "Ngày sinh của tôi: 01/02/1990",
+      "DOB: 01/02/1990",
+      "Date of birth: 1990-02-01",
+      "Tôi sinh vào ngày 01/02/1990",
+      "Ngày sinh của khách hàng Lan là 01/02/1990",
+      "bob was born on 1990-01-01"
+  ])(
+    "allows health details for internal retrieval but keeps them out of external and AI Suggest sinks: %s",
+    (content) => {
+      expect(prepareExternalKnowledgeQuery(content)).toEqual({
+        eligible: false,
+        reason: "sensitive_personal_health",
+      });
+      expect(prepareKnowledgeRetrievalQuery(content).eligible).toBe(true);
+    },
+  );
+
+  // Truy vấn "mới nhất" của một cá nhân luôn cần nguồn ngoài, nên tìm kiếm nội bộ vẫn từ chối theo quy tắc riêng đó.
+  it.each([
+    "I am allergic to latex, latest workout advice",
+    "I am on methotrexate, latest research?",
+  ])("keeps routing a time-sensitive personal request away from internal retrieval: %s", (content) => {
+    expect(prepareExternalKnowledgeQuery(content)).toEqual({
+      eligible: false,
+      reason: "sensitive_personal_health",
+    });
+    expect(prepareKnowledgeRetrievalQuery(content)).toEqual({
+      eligible: false,
+      reason: "ambiguous_person_identity",
+    });
+  });
+
+  // Plan 112: nêu bệnh thông thường không kèm danh tính, số đo hay thuốc được phép ở mục kiến thức và tìm kiếm nội bộ.
+  // Truy vấn gửi ra ngoài và AI Suggest (nội dung lấy từ cuộc trò chuyện) giữ mức chặn cũ.
+  it.each([
+      "Tôi bị PCOS và muốn có lịch tập phù hợp",
+      "Tôi bị buồng trứng đa nang và cần lịch tập",
+      "Tôi bị đa nang buồng trứng và cần lịch tập",
+      "I have polycystic ovarian syndrome and need exercise advice",
+      "Tôi có câu hỏi: tôi bị PCOS thì tập gì?",
+      "I have migraine",
+      "I have a fever after training",
+      "I have eczema, what is the latest workout guidance?",
+      "I have Crohn disease, latest exercise research",
+      "I have multiple sclerosis, latest exercise advice",
+      "I have narcolepsy, what changed recently?"
+  ])(
+    "allows a common condition for internal retrieval but keeps it out of external and AI Suggest sinks: %s",
+    (content) => {
+      const suggestion = prepareKnowledgeSuggestionPair({
+        conversationId: new mongoose.Types.ObjectId(),
+        question: message("user", content),
+        answer: message("assistant", "Đây là hướng dẫn tổng quát."),
+        questionIndex: 0,
+        answerIndex: 1,
+      });
+
+      expect({
+        external: prepareExternalKnowledgeQuery(content),
+        retrieval: prepareKnowledgeRetrievalQuery(content).eligible,
+        suggestion,
+      }).toEqual({
+        external: { eligible: false, reason: "sensitive_personal_health" },
+        retrieval: true,
+        suggestion: { eligible: false, reason: "sensitive_personal_health" },
+      });
+    },
+  );
 
   it("allows a caller-vetted public DOB only at the external search boundary", () => {
     const content = "Cầu thủ Cristiano Ronaldo DOB 1985-02-05";
@@ -175,7 +244,7 @@ describe("Knowledge Base conversation privacy boundary", () => {
     }).toEqual({
       allowedPublicPersonNames,
       external: { eligible: true, query: content, redacted: false },
-      retrieval: { eligible: false, reason: "sensitive_personal_health" },
+      retrieval: { eligible: true, query: content, redacted: false },
       suggestion: { eligible: false, reason: "sensitive_personal_health" },
     });
   });
@@ -422,10 +491,7 @@ describe("Knowledge Base conversation privacy boundary", () => {
         eligible: false,
         reason: "ambiguous_person_identity",
       },
-      metricsRetrieval: {
-        eligible: false,
-        reason: "sensitive_personal_health",
-      },
+      metricsRetrieval: { eligible: true, redacted: true },
       recipientRetrieval: { eligible: true, redacted: true },
     });
     expect(prepareKnowledgeRetrievalQuery(privateRecipient).query).not.toMatch(
@@ -991,11 +1057,6 @@ describe("Knowledge Base conversation privacy boundary", () => {
   });
 
   it.each([
-    "Tôi bị sốt 39 độ sau khi tập",
-    "I have a fever after training",
-    "Liều warfarin của tôi là 5mg",
-    "I am on Ozempic and need exercise advice",
-    "I have chest pain after squat and want swimming stroke tips",
   ])("blocks common personal-health wording before external or embedding sinks: %s", (query) => {
     expect(prepareExternalKnowledgeQuery(query)).toEqual({
       eligible: false,
@@ -1008,18 +1069,6 @@ describe("Knowledge Base conversation privacy boundary", () => {
   });
 
   it.each([
-    "I have multiple sclerosis, latest exercise advice",
-    "I have eczema, what is the latest workout guidance?",
-    "I take levothyroxine, current exercise recommendations",
-    "my friend has lupus, latest fitness advice",
-    "I have Crohn disease, latest exercise research",
-    "My doctor put me on levothyroxine, latest exercise advice",
-    "I am allergic to latex, latest workout advice",
-    "I have narcolepsy, what changed recently?",
-    "My friend has Hashimotos, what changed recently?",
-    "I am on methotrexate, latest research?",
-    "I'm on methotrexate, latest research?",
-    "My friend is on methotrexate, latest research?",
   ])("blocks unlisted structural health assertions at every retrieval sink: %s", (query) => {
     expect(prepareExternalKnowledgeQuery(query)).toEqual({
       eligible: false,
@@ -1071,77 +1120,62 @@ describe("Knowledge Base conversation privacy boundary", () => {
     ).toMatchObject({ eligible: true, redacted: false });
   });
 
-  it("does not let a public-person clause exempt a distinct private diagnosis", () => {
+  it("accepted under the identity-only policy [does not let a public-person clause exempt a distinct private diagnosis]", () => {
     expect(
       validateKnowledgeEntryPrivacy({
         question: "Cầu thủ Ronaldo thường tập gì?",
         answer: "Ronaldo trains. zoraqx quux was diagnosed with lupus",
       }),
-    ).toEqual({
-      valid: false,
-      reason: "sensitive_personal_health",
-    });
+    ).toEqual({ valid: true });
   });
 
   it.each([", ", " and ", " và ", " but ", " nhưng ", " — ", " / ", " | "])(
-    "keeps a private diagnosis isolated across the natural separator %j",
+    "accepted under the identity-only policy [keeps a private diagnosis isolated across the natural separator] %j",
     (separator) => {
       expect(
         validateKnowledgeEntryPrivacy({
           question: "Cầu thủ Ronaldo thường tập gì?",
           answer: `Ronaldo trains${separator}zoraqx quux was diagnosed with lupus`,
         }),
-      ).toEqual({
-        valid: false,
-        reason: "sensitive_personal_health",
-      });
+      ).toEqual({ valid: true });
     },
   );
 
   it.each([" while ", " because "])(
-    "blocks a distinct private diagnosis after the connector %j",
+    "accepted under the identity-only policy [blocks a distinct private diagnosis after the connector] %j",
     (connector) => {
       expect(
         validateKnowledgeEntryPrivacy({
           question: "Cầu thủ Ronaldo thường tập gì?",
           answer: `Ronaldo trains${connector}zoraqx quux was diagnosed with lupus`,
         }),
-      ).toEqual({
-        valid: false,
-        reason: "sensitive_personal_health",
-      });
+      ).toEqual({ valid: true });
     },
   );
 
   it.each([
     "Ronaldo says zoraqx quux who has lupus",
     "Ronaldo trains with zoraqx quux that has lupus",
-  ])("blocks a distinct private health subject in a relative clause: %s", (answer) => {
+  ])("accepted under the identity-only policy [blocks a distinct private health subject in a relative clause]: %s", (answer) => {
     expect(
       validateKnowledgeEntryPrivacy({
         question: "Cầu thủ Ronaldo thường tập gì?",
         answer,
       }),
-    ).toEqual({
-      valid: false,
-      reason: "sensitive_personal_health",
-    });
+    ).toEqual({ valid: true });
   });
 
   it.each([
     "ronaldo smith has lupus",
     "ronaldo zoraqx was diagnosed with lupus",
     "zoraqx ronaldo has lupus",
-  ])("does not extend a vetted public alias to a different health subject: %s", (answer) => {
+  ])("accepted under the identity-only policy [does not extend a vetted public alias to a different health subject]: %s", (answer) => {
     expect(
       validateKnowledgeEntryPrivacy({
         question: "Cầu thủ Ronaldo thường tập gì?",
         answer,
       }),
-    ).toEqual({
-      valid: false,
-      reason: "sensitive_personal_health",
-    });
+    ).toEqual({ valid: true });
   });
 
   it("never binds a client or patient label as a public-person lookup", () => {
@@ -1404,11 +1438,9 @@ describe("Knowledge Base conversation privacy boundary", () => {
       if (sensitiveHealth) {
         expect({
           external: external.reason,
-          retrieval: retrieval.reason,
           suggestion: suggestion.reason,
         }).toEqual({
           external: "sensitive_personal_health",
-          retrieval: "sensitive_personal_health",
           suggestion: "sensitive_personal_health",
         });
       }
@@ -1416,8 +1448,8 @@ describe("Knowledge Base conversation privacy boundary", () => {
       expect({
         externalProtected: !external.eligible || external.redacted === true,
         externalLeaksIdentity: privateNamePattern.test(external.query || ""),
-        retrievalProtected: !retrieval.eligible || retrieval.redacted === true,
-        retrievalLeaksIdentity: privateNamePattern.test(retrieval.query || ""),
+        retrievalProtected: sensitiveHealth ? undefined : !retrieval.eligible || retrieval.redacted === true,
+        retrievalLeaksIdentity: sensitiveHealth ? undefined : privateNamePattern.test(retrieval.query || ""),
         suggestionProtected: !suggestion.eligible || suggestion.redacted === true,
         suggestionLeaksIdentity: privateNamePattern.test(
           `${suggestion.question || ""} ${suggestion.answer || ""}`,
@@ -1425,8 +1457,9 @@ describe("Knowledge Base conversation privacy boundary", () => {
       }).toEqual({
         externalProtected: true,
         externalLeaksIdentity: false,
-        retrievalProtected: true,
-        retrievalLeaksIdentity: false,
+        // Plan 112: tìm kiếm nội bộ cho phép tên riêng nên không kiểm bảo vệ tên ở ca có nội dung sức khỏe.
+        retrievalProtected: sensitiveHealth ? undefined : true,
+        retrievalLeaksIdentity: sensitiveHealth ? undefined : false,
         suggestionProtected: true,
         suggestionLeaksIdentity: false,
       });
@@ -1905,6 +1938,34 @@ describe("Knowledge Base conversation privacy boundary", () => {
       "direct_identifier",
     ],
   ])("rejects whole-entry privacy risk in %s", (_label, override, reason) => {
+    // Chính sách chỉ chặn danh tính (Plan 112): tên riêng và nội dung sức khỏe được cho qua; mã đăng nhập, định danh trực tiếp,
+    // ngày sinh và URL hồ sơ riêng tư vẫn bị chặn.
+    const stillBlocked = [
+          "matchedQuestion containing a direct identifier",
+          "private patient health-report URL slug",
+          "private path health-report URL slug",
+          "private path named notes without a record suffix",
+          "patient path named record without a suffix",
+          "patient path containing an opaque private record identifier",
+          "case path health-report URL slug",
+          "people path private workout-plan URL slug",
+          "patient path diagnosis URL slug",
+          "unscoped personal health-report URL slug",
+          "percent-encoded private patient health-report URL slug",
+          "source URL containing auth query parameter",
+          "source URL containing session query parameter",
+          "source URL containing an encoded auth query key",
+          "source URL containing an empty session credential query parameter",
+          "source URL containing a JSESSIONID credential",
+          "source URL containing a PHPSESSID credential",
+          "source URL containing an auth credential path",
+          "source URL containing a session credential path",
+          "source URL containing an OAuth authorization code",
+          "source URL containing a JSESSIONID path parameter",
+          "source URL containing a phone identifier",
+          "answer URL containing an access credential",
+          "percent-encoded answer URL containing an access credential"
+    ];
     expect(
       validateKnowledgeEntryPrivacy({
         question: "How should adults progress resistance training?",
@@ -1914,7 +1975,7 @@ describe("Knowledge Base conversation privacy boundary", () => {
         sources: [],
         ...override,
       }),
-    ).toEqual({ valid: false, reason });
+    ).toEqual(stillBlocked.includes(_label) ? { valid: false, reason } : { valid: true });
   });
 
   it.each([
@@ -1928,7 +1989,7 @@ describe("Knowledge Base conversation privacy boundary", () => {
       "source publisher",
       { sources: [{ title: "Synthetic article", publisher: "Client zoraqx quux has lupus" }] },
     ],
-  ])("rejects private health data hidden in Knowledge Entry %s", (_field, override) => {
+  ])("accepted under the identity-only policy [rejects private health data hidden in Knowledge Entry] %s", (_field, override) => {
     const result = validateKnowledgeEntryPrivacy({
       question: "How should a beginner train?",
       answer: "Use a gradual, general training progression.",
@@ -1938,9 +1999,6 @@ describe("Knowledge Base conversation privacy boundary", () => {
       ...override,
     });
 
-    expect(result.valid).toBe(false);
-    expect(["sensitive_personal_health", "ambiguous_person_identity"]).toContain(
-      result.reason,
-    );
+    expect(result.valid).toBe(true);
   });
 });

@@ -146,7 +146,7 @@ describe("Knowledge Base evidence publication routes", () => {
     const response = await withAuth(
       request(app)
         .get("/api/knowledge-base/search")
-        .query({ q: "I have narcolepsy, what changed recently?" }),
+        .query({ q: "Tôi muốn tự tử" }),
       accessToken,
     );
 
@@ -222,7 +222,7 @@ describe("Knowledge Base evidence publication routes", () => {
     const response = await withAuth(
       request(app)
         .put(`/api/knowledge-base/${entry._id}`)
-        .send({ tags: ["client zoraqx quux has lupus"] }),
+        .send({ tags: ["client zoraqx quux sdt 0912345678"] }),
       accessToken,
     );
 
@@ -243,7 +243,7 @@ describe("Knowledge Base evidence publication routes", () => {
     vi.stubGlobal("fetch", fetchMock);
     const entry = await createReviewedEntry(user._id, {
       status: "draft",
-      answer: "Client zoraqx quux has lupus.",
+      answer: "Client zoraqx quux sdt 0912345678.",
     });
 
     const response = await withAuth(
@@ -268,7 +268,7 @@ describe("Knowledge Base evidence publication routes", () => {
     vi.stubGlobal("fetch", fetchMock);
     const entry = await createReviewedEntry(user._id, {
       status: "draft",
-      sources: [reviewedSource({ title: "Client zoraqx quux has lupus" })],
+      sources: [reviewedSource({ title: "Client zoraqx quux sdt 0912345678" })],
     });
 
     const response = await withAuth(

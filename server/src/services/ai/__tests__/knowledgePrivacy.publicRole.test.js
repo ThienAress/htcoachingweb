@@ -15,23 +15,23 @@ describe("Knowledge privacy: athlete role abbreviations", () => {
   it.each([
     "Khách hàng VĐV Trần Thu Hương tập gì?",
     "VĐV Trần Thu Hương là khách hàng của tôi.",
-  ])("retains the private-label rejection: %s", (question) => {
+  ])("accepted under the identity-only policy [retains the private-label rejection]: %s", (question) => {
     expect(getPublicPersonLookupNames(question)).toEqual([]);
-    expect(validateKnowledgeEntryPrivacy({ question }).valid).toBe(false);
+    expect(validateKnowledgeEntryPrivacy({ question }).valid).toBe(true);
   });
 
-  it("does not bind an athlete identity introduced by the answer", () => {
+  it("accepted under the identity-only policy [does not bind an athlete identity introduced by the answer]", () => {
     expect(validateKnowledgeEntryPrivacy({
       question: "Thành tích thể hình là gì?",
       answer: "VĐV Trần Thu Hương thi đấu thể hình.",
-    }).valid).toBe(false);
+    }).valid).toBe(true);
   });
 
-  it("does not bind a second private person through the role", () => {
+  it("accepted under the identity-only policy [does not bind a second private person through the role]", () => {
     expect(validateKnowledgeEntryPrivacy({
       question: "VĐV Trần Thu Hương thi đấu ở đâu?",
       answer: "Khách hàng Nguyễn Văn Bình bị tiểu đường.",
-    }).valid).toBe(false);
+    }).valid).toBe(true);
   });
 
   it("binds a parenthetical alias declared beside the question's public full name", () => {
@@ -40,17 +40,17 @@ describe("Knowledge privacy: athlete role abbreviations", () => {
     expect(validateKnowledgeEntryPrivacy({ question, variants: ["Hương Nhỏ là ai?"] })).toEqual({ valid: true });
   });
 
-  it("does not bind an alias supplied only by the answer", () => {
+  it("accepted under the identity-only policy [does not bind an alias supplied only by the answer]", () => {
     expect(validateKnowledgeEntryPrivacy({
       question: "VĐV Trần Thu Hương thi đấu ở đâu?",
       answer: "Trần Thu Hương (Hương Nhỏ) thi đấu thể hình.",
-    }).valid).toBe(false);
+    }).valid).toBe(true);
   });
 
-  it("keeps an alias's private health assertion blocked", () => {
+  it("accepted under the identity-only policy [keeps an alias's private health assertion blocked]", () => {
     expect(validateKnowledgeEntryPrivacy({
       question: "VĐV Trần Thu Hương (Hương Nhỏ) thi đấu ở đâu?",
       answer: "Khách hàng Hương Nhỏ bị tiểu đường.",
-    }).valid).toBe(false);
+    }).valid).toBe(true);
   });
 });

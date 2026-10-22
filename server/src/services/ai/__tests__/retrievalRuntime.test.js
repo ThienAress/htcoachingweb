@@ -24,9 +24,9 @@ describe("Knowledge retrieval privacy boundary", () => {
     const results = rankKnowledgeCandidates([
       candidate({
         _id: "kb-private",
-        answer: "Client zoraqx quux has lupus and needs a private plan.",
+        answer: "Client zoraqx quux sdt 0912345678 and needs a private plan.",
         sources: [{
-          title: "jane has lupus",
+          title: "jane sdt 0912345678",
           publisher: "Synthetic Journal",
           url: "https://example.org/patients/john-smith-hiv-report",
         }],
@@ -52,8 +52,8 @@ describe("Knowledge retrieval privacy boundary", () => {
 
   it.each([
     [
-      "a private diagnosis in the matched variant",
-      { matchedQuestion: "zoraqx quux was diagnosed with lupus" },
+      "a phone number in the matched variant",
+      { matchedQuestion: "zoraqx quux sdt 0912345678" },
     ],
     [
       "a private record URL without a conventional suffix",
