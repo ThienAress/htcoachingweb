@@ -44,7 +44,7 @@ const PRIVATE_RECORD_LABEL_SOURCE =
 const PRIVATE_NAME_PREDICATE_SOURCE =
   "(?:thường|hay|hỏi|muốn|đang|vừa|đã|bị|có|nên|cần|tập|uống|dùng|asks?|wants?|needs?|is|was|has|had|receiv(?:e|es|ing)|takes?|uses?|trains?)";
 const PRIVATE_NAME_RESERVED_TOKEN_SOURCE =
-  "(?:của|cua|tôi|toi|mình|minh|em|chúng|chung|my|mine|our|ours|should|do|does|follow)";
+  "(?:của|cua|tôi|toi|mình|minh|em|chúng|chung|my|mine|our|ours|should|do|does|follow|mắc|gặp|phải|được|không|chưa|vẫn|rất|còn|luôn|mới|ăn|ngủ|chọn)";
 const PRIVATE_NAME_TOKEN_SOURCE =
   `(?!(?:${PRIVATE_NAME_PREDICATE_SOURCE}|${PRIVATE_NAME_RESERVED_TOKEN_SOURCE})\\b)\\p{L}[\\p{L}'’-]*`;
 const EXPLICIT_NAME_VALUE_TOKEN_SOURCE =
@@ -687,9 +687,21 @@ const isLikelyPrivateNameCandidate = (value) => {
     .every((token) => /^\p{Lu}[\p{L}\p{M}'’-]*$/u.test(token));
 };
 
+// Cụm viết thường bắt đầu bằng động từ/phó từ ("mắc bệnh hen suyễn", "gặp đau lưng khi") là vị ngữ, không phải tên người.
+const LOWERCASE_PREDICATE_STARTS = new Set([
+  "mac", "gap", "phai", "duoc", "khong", "chua", "van", "rat", "luon", "moi", "ngu", "chon",
+  "bi", "co", "can", "nen", "dang", "se", "muon", "tap",
+]);
+
 const isSyntacticallyBoundPrivateNameCandidate = (value) => {
   const candidate = String(value || "").trim();
   if (!candidate) return false;
+  if (
+    /^\p{Ll}/u.test(candidate) &&
+    LOWERCASE_PREDICATE_STARTS.has(normalizePrivacyText(candidate).trim().split(/\s+/)[0])
+  ) {
+    return false;
+  }
   if (isGeneralKnowledgeNounPhrase(candidate)) return false;
   const normalizedCandidate = normalizePrivacyText(candidate).trim();
   if (
