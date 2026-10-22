@@ -461,3 +461,12 @@ describe("Fitness-first general-helpful prompt contract", () => {
     });
   });
 });
+
+describe("Sensitive personal information handling", () => {
+  it("tells the assistant to route identity and medical records to the contact form instead of erroring", () => {
+    const prompt = buildSystemPrompt();
+    expect(prompt).toContain("không báo lỗi kỹ thuật");
+    expect(prompt).toContain("[Form liên hệ](/#contact) để HLV kiểm tra trực tiếp");
+    expect(prompt).toContain("Bệnh hoặc triệu chứng thông thường user tự nêu");
+  });
+});

@@ -229,3 +229,9 @@ Lần rà đầu tìm ra 2 BLOCK, 3 HIGH, 1 MED trên bản nháp đầu của b
 - Truy vấn tìm kiếm nội bộ cho qua khi có số điện thoại, email, mã, tên: dùng mức chặn đầy đủ khi truy vấn mang danh tính.
 - Lần rà thứ hai còn 1 HIGH và 1 MED, đã sửa: ngày sinh đứng cạnh bệnh, thuốc bôi/dán có tên (Salonpas, Voltaren gel).
 - Còn lại, chấp nhận hoặc chờ chủ sở hữu: "Tôi bị đau lưng, ở Hà Nội" và "bác sĩ bảo nghỉ" cho qua; "sau sinh" cho qua; "Sinh ngày ..." đứng một mình ở câu hỏi cho qua (có sẵn từ trước, do ngày sinh người nổi tiếng đã được xác minh); câu ngắn "Khách hàng bị huyết áp cao" đứng riêng vẫn bị chặn (an toàn hơn, lệch chính sách).
+
+### Thông tin liên hệ doanh nghiệp và thông tin nhạy cảm (2026-10-22)
+
+- Quyết định chủ sở hữu: 3 câu trả lời có số điện thoại/email của HTCOACHING được viết lại thành "liên hệ qua form" (không thêm danh sách liên hệ được phép, giữ chặn bậc 1). Nội dung thay thế do admin dán vào Knowledge Base production; plan không ghi gì lên production.
+- System prompt thêm quy tắc: bệnh thông thường user tự nêu thì trả lời bình thường kèm nhắc bác sĩ; khi user gửi định danh hoặc hồ sơ nhạy cảm (số điện thoại, email, CCCD, ngày sinh, xét nghiệm, đơn thuốc) thì không lặp lại, không báo lỗi kỹ thuật, nói nhẹ nhàng đây là thông tin nhạy cảm và đề nghị gửi qua [Form liên hệ](/#contact) để HLV kiểm tra. `AI_PROMPT_CONTRACT_VERSION` tăng lên `2026-10-22.v1`.
+- Từ vựng chung thêm "HTCOACHING", "HLV", "Gói PT".

@@ -25,6 +25,8 @@ const GENERAL_TERMS = [
   "Deadlift", "Deload", "Crunch", "Sit-up", "Butt wink", "Neutral Spine", "Test Booster", "Linea Alba", "Overtraining",
   "DOMS", "Delayed Onset Muscle Soreness", "Resting Heart Rate", "Hormone Tăng Trưởng", "Red Flag", "Hypertension",
   "Hypothyroidism", "Lipolysis",
+  // Thương hiệu và chức danh của chính hệ thống
+  "HTCOACHING", "HLV", "Gói PT",
   // Hạng mục thi đấu, danh hiệu
   "Classic Physique", "Men's Physique", "Women's Physique", "Bikini Open", "Pro Card", "Pro League", "Pro Show",
   "Golden Era", "Mr Olympia", "Mr. Olympia", "Head Coach",
