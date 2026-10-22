@@ -19,6 +19,14 @@ const GENERAL_TERMS = [
   "Total Daily Energy Expenditure", "If It Fits Your Macros", "Eat Clean", "Real Food", "Dietary Supplements",
   "Sports Nutrition", "Sports Medicine", "Public Health", "Heat Shock Proteins", "Cold Water Immersion",
   "Ice Bath", "Deep Sleep", "Online Coaching", "Offline Coaching",
+  // Chất dinh dưỡng, hormone, thuật ngữ cơ thể và bài tập (từ đơn rõ ràng không phải tên người)
+  "Keto", "Kẽm", "Magiê", "Magnesium", "Serotonin", "Melatonin", "Fructose", "Glucose", "Cortisol", "Adenosine",
+  "Sodium", "Glycogen", "Caffeine", "Creatine", "Testosterone", "Insulin", "Tribulus", "Maca", "BCAA", "EAA", "ZMA",
+  "Deadlift", "Deload", "Crunch", "Sit-up", "Butt wink", "Neutral Spine", "Test Booster", "Linea Alba", "Overtraining",
+  "DOMS", "Delayed Onset Muscle Soreness", "Resting Heart Rate", "Hormone Tăng Trưởng", "Red Flag", "Hypertension",
+  "Hypothyroidism", "Lipolysis",
+  // Thương hiệu và chức danh của chính hệ thống
+  "HTCOACHING", "HLV", "Gói PT",
   // Hạng mục thi đấu, danh hiệu
   "Classic Physique", "Men's Physique", "Women's Physique", "Bikini Open", "Pro Card", "Pro League", "Pro Show",
   "Golden Era", "Mr Olympia", "Mr. Olympia", "Head Coach",
@@ -30,6 +38,11 @@ const GENERAL_TERMS = [
   // Quốc gia, địa danh, tổ chức tiếng Việt
   "Việt Nam", "Hoa Kỳ", "Nhật Bản", "Hàn Quốc", "Hà Nội", "Bắc Giang", "Thanh Hóa", "An Giang", "Viện Y tế Quốc gia Hoa Kỳ",
   "Viện Dinh dưỡng Quốc gia", "Cục Thể dục Thể thao", "Hiệp hội Dinh dưỡng Thể thao Quốc tế",
+  "Hiệp hội Tuyến giáp Hoa Kỳ", "Hiệp hội Thể lực và Thể thao Hoa Kỳ", "Trường Cao đẳng Sản phụ khoa Hoa Kỳ",
+  "Trung tâm Kiểm soát và Phòng ngừa Dịch bệnh", "Viện Dinh dưỡng Thể thao Quốc tế",
+  "Tạp chí Quốc tế về Dinh dưỡng Thể thao và Chuyển hóa Tập thể dục",
+  "Journal of Strength and Conditioning Research", "Journal of Clinical Medicine",
+  "Báo Người Đưa Tin", "Báo Thể Thao Văn Hóa", "Báo Thanh Niên", "Báo Phụ Nữ Hiện Đại", "Báo Đời Sống",
 ];
 
 const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -46,6 +59,9 @@ const GENERAL_TERM_PATTERN = new RegExp(
 const ADDRESS_TERM_BEFORE_PATTERN =
   /(?:^|[^\p{L}])(?:chi|anh|em|ong|ba|co|cau|bac|di|chu|ms|mr|mrs|miss|hoc vien|khach hang|khach|member|client)\.?\s+$/u;
 
+// Một từ viết hoa đứng liền trước (không dấu câu) cho thấy cụm có thể là họ tên ("Hùng Deadlift").
+const CAPITALIZED_WORD_RIGHT_BEFORE_PATTERN = /\p{Lu}[\p{L}\p{M}'’-]*[ \t]+$/u;
+
 const foldForCue = (value) =>
   value
     .normalize("NFD")
@@ -53,13 +69,20 @@ const foldForCue = (value) =>
     .replace(/đ/gi, "d")
     .toLowerCase();
 
+// "an toàn" (chữ thường) là tính từ, không phải tên "An" ("cho an toàn"). Không dùng cờ i: "An Toàn" viết hoa vẫn là tên.
+const SAFE_ADJECTIVE_PATTERN = /(?<![\p{L}\p{N}_])an toàn(?![\p{L}\p{N}_])/gu;
+
 // Giữ nguyên độ dài chuỗi để vị trí khớp của các bước sau không bị lệch.
 export const maskGeneralKnowledgeTerms = (value) =>
-  String(value || "").replace(GENERAL_TERM_PATTERN, (match, offset, whole) =>
-    ADDRESS_TERM_BEFORE_PATTERN.test(foldForCue(whole.slice(Math.max(0, offset - 24), offset)))
-      ? match
-      : match.toLocaleLowerCase("vi"),
-  );
+  String(value || "")
+    .replace(GENERAL_TERM_PATTERN, (match, offset, whole) => {
+      const before = whole.slice(Math.max(0, offset - 24), offset);
+      return ADDRESS_TERM_BEFORE_PATTERN.test(foldForCue(before)) ||
+        CAPITALIZED_WORD_RIGHT_BEFORE_PATTERN.test(before)
+        ? match
+        : match.toLocaleLowerCase("vi");
+    })
+    .replace(SAFE_ADJECTIVE_PATTERN, "an_toan");
 
 // Tên tổ chức và tiêu đề tài liệu có chứa từ y khoa ("Sports Medicine", "Clients with Hypertension").
 // Thay bằng cụm trung tính trước khi dò dữ liệu sức khỏe cá nhân để dòng dẫn nguồn không bị coi là hồ sơ bệnh.

@@ -777,6 +777,8 @@ const extractPredicateBoundVietnameseNames = (value) => {
       }
       if (
         !addedSurnameCandidate &&
+        // Chữ thường như "bình thường" là tính từ, không phải tên "Bình"; tên riêng phải viết hoa.
+        /^\p{Lu}/u.test(lastWord[0]) &&
         COMMON_VIETNAMESE_GIVEN_NAMES.has(normalizeNameLexeme(lastWord[0])) &&
         !isGeneralNormalRangeQualifier({
           prefix: prefix.slice(0, trimmedEnd),
@@ -1205,7 +1207,7 @@ const containsSensitivePersonalHealth = (
   question,
   answer,
   allowedPublicPersonNames = [],
-  { allowCallerVettedPublicDateOfBirth = false } = {},
+  { allowCallerVettedPublicDateOfBirth = false, allowCommonConditions = false } = {},
 ) => {
   const combined = neutralizeReferenceTitles(`${question}\n${answer}`.normalize("NFKC"));
   const publicDateOfBirthAllowed =
@@ -1256,7 +1258,7 @@ const containsSensitivePersonalHealth = (
     ) &&
     extractUnboundPrivateNames(combined, allowedPublicPersonNames).length === 0;
   if (
-    containsPersonalHealthData(combined) &&
+    containsPersonalHealthData(combined, { allowCommonConditions }) &&
     !publicDateOfBirthAllowed &&
     !callerVettedPublicPersonOnly
   ) {
@@ -1268,7 +1270,7 @@ const containsSensitivePersonalHealth = (
   const containsMetric = containsPersonalBodyMetric(combined);
   const containsExplicitPrivateHealthRecord =
     EXPLICIT_PRIVATE_RECORD_SUBJECT_PATTERN.test(normalized) &&
-    (containsHealth ||
+    ((containsHealth && !allowCommonConditions) ||
       containsMetric ||
       PRIVATE_HEALTH_RECORD_CUE_PATTERN.test(normalized));
   if (containsExplicitPrivateHealthRecord) return true;
@@ -1594,7 +1596,16 @@ export function prepareKnowledgeRetrievalQuery(value) {
   if (!query) return { eligible: false, reason: "empty_query" };
 
   const allowedPublicPersonNames = getPublicPersonLookupNames(query);
-  if (containsSensitivePersonalHealth(query, "", allowedPublicPersonNames)) {
+  // Nêu bệnh thông thường chỉ được cho qua khi truy vấn không mang danh tính (số điện thoại, email, mã, tên riêng).
+  const carriesIdentity =
+    hasDirectKnowledgeIdentifier(query) ||
+    extractContextualPrivateNames(query).length > 0 ||
+    extractUnboundPrivateNames(query, allowedPublicPersonNames).length > 0;
+  if (
+    containsSensitivePersonalHealth(query, "", allowedPublicPersonNames, {
+      allowCommonConditions: !carriesIdentity,
+    })
+  ) {
     return { eligible: false, reason: "sensitive_personal_health" };
   }
   if (
@@ -1699,8 +1710,10 @@ export function validateKnowledgeEntryPrivacy(entry = {}) {
     .filter(Boolean);
   const combined = contentFields.join("\n").normalize("NFKC");
 
+  // Nêu bệnh/triệu chứng thông thường không kèm danh tính, số đo hay thuốc là nội dung hợp lệ (Plan 112).
   const sensitiveHealthOptions = {
     allowCallerVettedPublicDateOfBirth: true,
+    allowCommonConditions: true,
   };
   if (
     contentFields.some((field) =>

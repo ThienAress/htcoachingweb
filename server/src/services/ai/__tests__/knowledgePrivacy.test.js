@@ -115,16 +115,10 @@ describe("Knowledge Base conversation privacy boundary", () => {
   );
 
   it.each([
-    "Tôi bị PCOS và muốn có lịch tập phù hợp",
     "Tôi được chẩn đoán PCOS và cần lịch tập",
-    "Tôi bị buồng trứng đa nang và cần lịch tập",
-    "Tôi bị đa nang buồng trứng và cần lịch tập",
-    "I have polycystic ovarian syndrome and need exercise advice",
-    "Tôi có câu hỏi: tôi bị PCOS thì tập gì?",
     "my friend bob who tore his ACL",
     "my son who is autistic",
     "my kid with covid",
-    "I have migraine",
     "I take prednisone",
     "client Bob has epilepsy",
     "Tôi sinh ngày 01/02/1990 và muốn có lịch tập phù hợp",
@@ -153,6 +147,43 @@ describe("Knowledge Base conversation privacy boundary", () => {
       suggestion: { eligible: false, reason: "sensitive_personal_health" },
     });
   });
+
+  // Plan 112: nêu bệnh thông thường không kèm danh tính, số đo hay thuốc được phép ở mục kiến thức và tìm kiếm nội bộ.
+  // Truy vấn gửi ra ngoài và AI Suggest (nội dung lấy từ cuộc trò chuyện) giữ mức chặn cũ.
+  it.each([
+      "Tôi bị PCOS và muốn có lịch tập phù hợp",
+      "Tôi bị buồng trứng đa nang và cần lịch tập",
+      "Tôi bị đa nang buồng trứng và cần lịch tập",
+      "I have polycystic ovarian syndrome and need exercise advice",
+      "Tôi có câu hỏi: tôi bị PCOS thì tập gì?",
+      "I have migraine",
+      "I have a fever after training",
+      "I have eczema, what is the latest workout guidance?",
+      "I have Crohn disease, latest exercise research",
+      "I have multiple sclerosis, latest exercise advice",
+      "I have narcolepsy, what changed recently?"
+  ])(
+    "allows a common condition for internal retrieval but keeps it out of external and AI Suggest sinks: %s",
+    (content) => {
+      const suggestion = prepareKnowledgeSuggestionPair({
+        conversationId: new mongoose.Types.ObjectId(),
+        question: message("user", content),
+        answer: message("assistant", "Đây là hướng dẫn tổng quát."),
+        questionIndex: 0,
+        answerIndex: 1,
+      });
+
+      expect({
+        external: prepareExternalKnowledgeQuery(content),
+        retrieval: prepareKnowledgeRetrievalQuery(content).eligible,
+        suggestion,
+      }).toEqual({
+        external: { eligible: false, reason: "sensitive_personal_health" },
+        retrieval: true,
+        suggestion: { eligible: false, reason: "sensitive_personal_health" },
+      });
+    },
+  );
 
   it("allows a caller-vetted public DOB only at the external search boundary", () => {
     const content = "Cầu thủ Cristiano Ronaldo DOB 1985-02-05";
@@ -992,7 +1023,6 @@ describe("Knowledge Base conversation privacy boundary", () => {
 
   it.each([
     "Tôi bị sốt 39 độ sau khi tập",
-    "I have a fever after training",
     "Liều warfarin của tôi là 5mg",
     "I am on Ozempic and need exercise advice",
     "I have chest pain after squat and want swimming stroke tips",
@@ -1008,14 +1038,10 @@ describe("Knowledge Base conversation privacy boundary", () => {
   });
 
   it.each([
-    "I have multiple sclerosis, latest exercise advice",
-    "I have eczema, what is the latest workout guidance?",
     "I take levothyroxine, current exercise recommendations",
     "my friend has lupus, latest fitness advice",
-    "I have Crohn disease, latest exercise research",
     "My doctor put me on levothyroxine, latest exercise advice",
     "I am allergic to latex, latest workout advice",
-    "I have narcolepsy, what changed recently?",
     "My friend has Hashimotos, what changed recently?",
     "I am on methotrexate, latest research?",
     "I'm on methotrexate, latest research?",

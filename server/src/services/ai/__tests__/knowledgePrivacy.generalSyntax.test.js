@@ -29,9 +29,14 @@ describe("Knowledge privacy: Vietnamese educational grammar", () => {
     "Nam thường tập tạ.",
     "Bình thường uống insulin.",
     "Tôi có huyết áp 150/95.",
-    "Khách hàng mọi người bị tiểu đường.",
   ])("retains explicit identity or health rejection: %s", (answer) => {
     expect(validateKnowledgeEntryPrivacy({ question: "Tập luyện là gì?", answer }).valid).toBe(false);
+  });
+
+  it("accepts a generic-role mention of a common condition without identity (Plan 112)", () => {
+    expect(
+      validateKnowledgeEntryPrivacy({ question: "Tập luyện là gì?", answer: "Khách hàng mọi người bị tiểu đường." }).valid,
+    ).toBe(true);
   });
 
   it("does not confuse evening time with a personal subject across fields", () => {

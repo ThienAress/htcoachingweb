@@ -209,3 +209,29 @@ Mở PR vào `staging`; sau khi merge và deploy (theo skill `staging-verify`), 
 - `security-reviewer`: 0 BLOCK/HIGH. 1 MED đã sửa: pattern DOI nuốt toàn bộ phần đuôi nên email, số điện thoại hoặc token sau `doi.org/10.x/...?email=...` lọt qua; nay DOI chỉ gồm ký tự hợp lệ, phần dư vẫn được kiểm định danh, và DOI có đoạn số giống số điện thoại Việt Nam vẫn bị chặn. 1 LOW đã sửa: địa danh/danh hiệu trong từ vựng không còn bị hạ chữ thường khi đứng sau từ xưng hô (Chị/Ông/Ms...), nên "Chị Thanh Hóa" vẫn bị coi là tên.
 - Rủi ro còn lại đã biết: CCCD 12 chữ số nằm trong hậu tố DOI không phân biệt được với DOI số thật (ví dụ 201010050); chấp nhận vì chỉ áp ở tiêu đề/URL nguồn do admin nhập.
 - Ngoài phạm vi review: `sourceUrlPrivateRecordRisk`, phía controller (ai được tạo entry kèm nguồn).
+
+### Step 5 (2026-10-22): nêu bệnh thông thường không kèm danh tính
+
+Chính sách chủ sở hữu chốt: khách xưng "tôi" hoặc nói "khách hàng bị cao huyết áp" là bình thường; chỉ chặn khi kèm họ tên, số điện thoại, email, ngày sinh hoặc số đo/thuốc cụ thể.
+
+- `containsPersonalHealthData(value, { allowCommonConditions })` và `containsSensitivePersonalHealth` có tùy chọn mới, bật ở `validateKnowledgeEntryPrivacy` (mục kiến thức) và `prepareKnowledgeRetrievalQuery` (tìm kiếm nội bộ). **Không** bật ở `prepareExternalKnowledgeQuery` (truy vấn gửi ra ngoài) và `prepareKnowledgeSuggestionPair` (gợi ý từ cuộc trò chuyện).
+- Vẫn chặn khi bật: chủ thể có tên riêng, số đo hoặc giá trị xét nghiệm, tên thuốc cụ thể, tự khai chẩn đoán ("được chẩn đoán", "bác sĩ chẩn đoán tôi"), bệnh của người thân, biến cố lâm sàng (phẫu thuật, điều trị, ngất), triệu chứng cấp (đau ngực, khó thở), ý định tự hại, sốt kèm số đo.
+- Bổ sung tên chung khiến bộ dò tên nhầm: từ vựng dinh dưỡng/bài tập, tiền tố tổ chức (Báo, Viện, Hội, Journal of...), "Chỉ nên", "an toàn", "bình thường" viết thường, "hệ thần kinh".
+- Đo lại 67 mục production sau rà soát bảo mật: **23 hợp lệ** (trước đó 5), 44 còn bị chặn, **0 mục hợp lệ trước đó bị chặn thêm**. Phần còn lại chủ yếu là tiểu sử vận động viên (Plan 096C), số điện thoại/email liên hệ của HTCOACHING (bậc 1) và đuôi dài các câu tiếng Việt cần tinh chỉnh tiếp.
+- Test cũ đổi kỳ vọng có lý do: các ca "Tôi bị PCOS", "I have migraine/eczema/Crohn/MS/narcolepsy", "I have a fever after training", "Khách hàng mọi người bị tiểu đường" từ "luôn chặn" sang "cho qua ở mục kiến thức và tìm kiếm nội bộ, vẫn chặn ở truy vấn gửi ra ngoài và AI Suggest"; test tích hợp Search Test đổi sang truy vấn có tên thuốc ("I take prednisone...") để giữ mục đích chặn trước nhà cung cấp embedding.
+
+### Rà soát bảo mật độc lập (Step 5, 2026-10-22)
+
+Lần rà đầu tìm ra 2 BLOCK, 3 HIGH, 1 MED trên bản nháp đầu của bước 5; toàn bộ đã sửa kèm test hồi quy trước khi mở PR:
+- Che theo tiền tố tổ chức ("Viện/Hội/Bộ + tên") làm lọt tên người cạnh bệnh và làm lỏng truy vấn gửi ra ngoài: bỏ cơ chế đó, chỉ giữ cụm tên tổ chức/ấn phẩm cụ thể; thuật ngữ đứng liền sau một từ viết hoa ("Hùng Deadlift") không còn bị hạ chữ thường.
+- Chế độ nêu bệnh thông thường quá lỏng (người thân, tự khai chẩn đoán, phẫu thuật/nhập viện/điều trị, ung thư/HIV/suy thận/thai kỳ/tự kỷ, số đo, thuốc có tên, tự giới thiệu tên): đổi sang chặn khi đi cùng chủ thể cá nhân hoặc vai trò chung.
+- Quy tắc "chủ ngữ có dấu" và "Minh" làm lọt tên riêng: chỉ áp cho cụm 4 từ trở lên; "minh" là đại từ chỉ khi viết "mình".
+- Truy vấn tìm kiếm nội bộ cho qua khi có số điện thoại, email, mã, tên: dùng mức chặn đầy đủ khi truy vấn mang danh tính.
+- Lần rà thứ hai còn 1 HIGH và 1 MED, đã sửa: ngày sinh đứng cạnh bệnh, thuốc bôi/dán có tên (Salonpas, Voltaren gel).
+- Còn lại, chấp nhận hoặc chờ chủ sở hữu: "Tôi bị đau lưng, ở Hà Nội" và "bác sĩ bảo nghỉ" cho qua; "sau sinh" cho qua; "Sinh ngày ..." đứng một mình ở câu hỏi cho qua (có sẵn từ trước, do ngày sinh người nổi tiếng đã được xác minh); câu ngắn "Khách hàng bị huyết áp cao" đứng riêng vẫn bị chặn (an toàn hơn, lệch chính sách).
+
+### Thông tin liên hệ doanh nghiệp và thông tin nhạy cảm (2026-10-22)
+
+- Quyết định chủ sở hữu: 3 câu trả lời có số điện thoại/email của HTCOACHING được viết lại thành "liên hệ qua form" (không thêm danh sách liên hệ được phép, giữ chặn bậc 1). Nội dung thay thế do admin dán vào Knowledge Base production; plan không ghi gì lên production.
+- System prompt thêm quy tắc: bệnh thông thường user tự nêu thì trả lời bình thường kèm nhắc bác sĩ; khi user gửi định danh hoặc hồ sơ nhạy cảm (số điện thoại, email, CCCD, ngày sinh, xét nghiệm, đơn thuốc) thì không lặp lại, không báo lỗi kỹ thuật, nói nhẹ nhàng đây là thông tin nhạy cảm và đề nghị gửi qua [Form liên hệ](/#contact) để HLV kiểm tra. `AI_PROMPT_CONTRACT_VERSION` tăng lên `2026-10-22.v1`.
+- Từ vựng chung thêm "HTCOACHING", "HLV", "Gói PT".
