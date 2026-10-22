@@ -301,6 +301,9 @@ describe("Knowledge privacy false positives: security review regressions", () =>
     "Hệ miễn dịch bị suy giảm ở người tiểu đường thì cần nghỉ ngơi.",
     "Nguồn tham khảo: Báo Thanh Niên, Hiệp hội Tuyến giáp Hoa Kỳ (ATA).",
     "Mình bị thừa cân thì nên ăn thế nào?",
+    "Khách hàng mắc bệnh hen suyễn cần khởi động kỹ.",
+    "Đối với người lớn tuổi bị huyết áp cao, nên tránh nín thở khi nâng tạ.",
+    "Khách hàng gặp đau lưng khi tập thì cần giảm tải.",
   ])("still accepts ordinary educational wording: %s", (text) => {
     expect(isValid(answerOf(text))).toBe(true);
   });
