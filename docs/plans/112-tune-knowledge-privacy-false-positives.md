@@ -17,8 +17,8 @@ Spec canonical: [`docs/specs/knowledge-privacy-false-positive-tuning.md`](../spe
 - **Depends on**: Plan 096C (cùng nhóm 28 bản nháp)
 - **Category**: security
 - **Planned at**: 2026-10-22
-- **Lifecycle**: PLANNED
-- **Verification**: NONE
+- **Lifecycle**: IN PROGRESS
+- **Verification**: FOCUSED
 - **Rollout**: NOT STARTED
 - **Owner**: root
 - **Updated at**: 2026-10-22
@@ -184,3 +184,28 @@ Mở PR vào `staging`; sau khi merge và deploy (theo skill `staging-verify`), 
 ## Kết quả đo
 
 (điền ở Step 1 và Step 7)
+
+### Baseline (Step 1, 2026-10-22, từ file xuất của nút "Tải toàn bộ": 67 mục, 28 nháp và 39 đã xuất bản)
+
+- Bộ lọc hiện tại chặn **62/67** mục (28/28 nháp, 34/39 đã xuất bản): `sensitive_personal_health` 50, `ambiguous_person_identity` 12.
+- Phần gây chặn theo thành phần: câu trả lời (sức khỏe 45, tên người 15), biến thể câu hỏi (tên người 44, sức khỏe 27), câu hỏi (tên người 22), nguồn (DOI/PMID 5).
+- Nhóm nhận diện nhầm xác định bằng cách đo từng hàm: thuật ngữ thể hình viết hoa (Body Recomposition, Fat Burner, Mass Gainer...), địa danh/tổ chức (Việt Nam, Hoa Kỳ, NASM...), từ chức năng đầu câu (Nếu, Không, Khi...), tiêu đề tài liệu chứa từ y khoa, DOI/PMID trong nguồn, mô tả tình trạng thông thường (bậc 2). Tên vận động viên công khai (tiểu sử) thuộc Plan 096C, không đổi ở đây.
+
+### Step 3 (2026-10-22)
+
+- Thêm `server/src/services/ai/knowledgeGeneralTerms.js` (từ vựng khái niệm chung, tiêu đề tài liệu) và 8 từ chức năng vào `NON_NAME_CAPITALIZED_STARTS`.
+- Đo lại: **53/67** mục còn bị chặn (từ 62); 14 mục hợp lệ (11 đã xuất bản, 3 nháp). 0 mục hợp lệ trước đó bị chặn thêm.
+- Test bộ lọc cũ 657/657 pass; test mới AC-001/002/003 và các ca "vẫn chặn" pass; AC-004 (Step 4) và AC-005 (Step 5) còn đỏ theo kế hoạch.
+
+### Step 4 (2026-10-22)
+
+- Thêm `stripBibliographicIdentifiers` trong `knowledgePrivacy.js`: bỏ qua DOI (có nhãn `DOI:` hoặc `doi.org/`) và PMID (có nhãn) chỉ ở tiêu đề/nhà xuất bản và URL nguồn; hậu tố DOI có dạng số điện thoại Việt Nam vẫn bị chặn.
+- Đo lại 67 mục: nguồn bị chặn vì mã định danh giảm từ 5 xuống **0**. Số mục bị chặn toàn bộ vẫn 53 vì các phần khác (biến thể "Tôi bị...", nội dung "khách hàng bị...", tiểu sử vận động viên) còn lại thuộc Step 5 và Plan 096C.
+- Còn lại ngoài phạm vi: 3 câu trả lời chứa số điện thoại và email liên hệ của HTCOACHING (thông tin liên hệ doanh nghiệp) bị chặn đúng theo bậc 1; cần quyết định riêng nếu muốn cho phép liên hệ doanh nghiệp đã đăng ký.
+- Test bộ lọc: 666/666 pass; nhóm test Knowledge: 26 file / 833 test pass. Test AC-005 (tự mô tả tình trạng) chưa đưa vào commit, thêm ở Step 5.
+
+### Rà soát bảo mật độc lập (Step 3 và 4, 2026-10-22)
+
+- `security-reviewer`: 0 BLOCK/HIGH. 1 MED đã sửa: pattern DOI nuốt toàn bộ phần đuôi nên email, số điện thoại hoặc token sau `doi.org/10.x/...?email=...` lọt qua; nay DOI chỉ gồm ký tự hợp lệ, phần dư vẫn được kiểm định danh, và DOI có đoạn số giống số điện thoại Việt Nam vẫn bị chặn. 1 LOW đã sửa: địa danh/danh hiệu trong từ vựng không còn bị hạ chữ thường khi đứng sau từ xưng hô (Chị/Ông/Ms...), nên "Chị Thanh Hóa" vẫn bị coi là tên.
+- Rủi ro còn lại đã biết: CCCD 12 chữ số nằm trong hậu tố DOI không phân biệt được với DOI số thật (ví dụ 201010050); chấp nhận vì chỉ áp ở tiêu đề/URL nguồn do admin nhập.
+- Ngoài phạm vi review: `sourceUrlPrivateRecordRisk`, phía controller (ai được tạo entry kèm nguồn).

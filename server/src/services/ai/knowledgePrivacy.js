@@ -1,5 +1,9 @@
 import crypto from "crypto";
 import { findPublicFigures } from "./publicFigureRegistry.js";
+import {
+  maskGeneralKnowledgeTerms,
+  neutralizeReferenceTitles,
+} from "./knowledgeGeneralTerms.js";
 
 import {
   containsDateOfBirthInformation,
@@ -163,6 +167,15 @@ const containsPublicHealthOrganizationAcronym = (name) =>
 
 const NON_NAME_CAPITALIZED_STARTS = new Set([
   "ai",
+  "biet",
+  "gen",
+  "khan",
+  "khi",
+  "khong",
+  "neu",
+  "nen",
+  "nhin",
+  "uong",
   "bai",
   "ban",
   "barbell",
@@ -841,7 +854,7 @@ const extractStrongPrivateCueNames = (value) => {
 };
 
 const extractUnboundPrivateNames = (value, allowedPublicPersonNames = []) => {
-  const text = normalizeAthleteRoleAbbreviations(value);
+  const text = normalizeAthleteRoleAbbreviations(maskGeneralKnowledgeTerms(value));
   const names = new Set();
   const multiTokenNameRanges = [];
   const publicDateOfBirthLookup = containsPublicDateOfBirthBinding(
@@ -1194,7 +1207,7 @@ const containsSensitivePersonalHealth = (
   allowedPublicPersonNames = [],
   { allowCallerVettedPublicDateOfBirth = false } = {},
 ) => {
-  const combined = `${question}\n${answer}`.normalize("NFKC");
+  const combined = neutralizeReferenceTitles(`${question}\n${answer}`.normalize("NFKC"));
   const publicDateOfBirthAllowed =
     allowCallerVettedPublicDateOfBirth &&
     !String(answer || "").trim() &&
@@ -1607,6 +1620,30 @@ export function prepareKnowledgeRetrievalQuery(value) {
   };
 }
 
+// DOI và PMID là mã tra cứu tài liệu công khai, chỉ được bỏ qua ở tiêu đề/URL nguồn và khi có nhãn
+// (DOI:, doi.org/, PMID:). Dạng DOI có hậu tố giống số điện thoại thì vẫn giữ để bị chặn.
+const LABELED_DOI_PATTERN =
+  /(?:\bdoi\s*[:=]\s*|\bdoi\.org\/)(10\.\d{4,9}\/[-._;()/:A-Za-z0-9]+)/giu;
+const NUMERIC_RUN_PATTERN = /(?<![A-Za-z0-9])\d+(?:[-. ]\d+)*(?![A-Za-z0-9])/g;
+const VIETNAM_PHONE_DIGITS_PATTERN = /^(?:0\d{9,10}|\+?84\d{9,10})$/;
+
+// DOI chỉ gồm ký tự hợp lệ: phần đi sau (?email=, ,phone=, khoảng trắng + số) vẫn được kiểm định danh.
+const isPhoneShapedDoi = (doi, following) =>
+  /^\s+\d/.test(following) ||
+  (doi.match(NUMERIC_RUN_PATTERN) || []).some((run) =>
+    VIETNAM_PHONE_DIGITS_PATTERN.test(run.replace(/\D/g, "")),
+  );
+const LABELED_PMID_PATTERN = /\bpmc?id\s*[:#=]?\s*(?:pmc)?\d{5,8}\b/giu;
+
+const stripBibliographicIdentifiers = (value) =>
+  String(value || "")
+    .replace(LABELED_DOI_PATTERN, (match, doi, offset, whole) =>
+      isPhoneShapedDoi(doi, whole.slice(offset + match.length))
+        ? match
+        : "bibliographic_doi",
+    )
+    .replace(LABELED_PMID_PATTERN, "bibliographic_pmid");
+
 const hasDirectKnowledgeIdentifier = (value) => {
   const patterns = [
     EMAIL_PATTERN,
@@ -1684,7 +1721,12 @@ export function validateKnowledgeEntryPrivacy(entry = {}) {
     return { valid: false, reason: "sensitive_personal_health" };
   }
   if (
-    [...contentFields, ...sourceMetadataFields, ...sourceUrlFields].some(
+    [
+      ...contentFields,
+      ...[...sourceMetadataFields, ...sourceUrlFields].map(
+        stripBibliographicIdentifiers,
+      ),
+    ].some(
       hasDirectKnowledgeIdentifier,
     )
   ) {
@@ -1717,7 +1759,9 @@ export function validateKnowledgeEntryPrivacy(entry = {}) {
       );
     if (
       sourceHasPrivateContext &&
-      sourceMetadataFields.some(containsPersonalHealthData)
+      sourceMetadataFields.some((field) =>
+        containsPersonalHealthData(neutralizeReferenceTitles(field)),
+      )
     ) {
       return { valid: false, reason: "sensitive_personal_health" };
     }
