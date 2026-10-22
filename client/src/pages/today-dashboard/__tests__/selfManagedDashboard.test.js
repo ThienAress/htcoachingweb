@@ -15,7 +15,7 @@ describe("HT Fitness+ self-managed presentation contract", () => {
     const weekly = read("../../progress/WeeklyCheckinCard.jsx");
     const dayLayout = read("../TodayDashboardDayLayout.jsx");
 
-    expect(layout).toContain('accessMode === "coaching" || item.key !== "training"');
+    expect(layout).toContain("isDashboardSectionVisible(item.key,");
     expect(dashboard).toContain('data.accessMode !== "self_managed" || key !== "training"');
     expect(nutrition).toContain("!selfManaged && <div");
     expect(nutrition).toContain(

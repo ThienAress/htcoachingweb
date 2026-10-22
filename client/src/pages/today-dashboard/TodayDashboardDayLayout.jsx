@@ -8,6 +8,7 @@ import {
   dashboardSectionFromPath,
 } from "../../utils/customerDashboardNavigation";
 import { addDaysToDateKey, getVietnamDateKey } from "../../utils/vietnamDate";
+import FitnessPlusOnboardingCard from "./FitnessPlusOnboardingCard";
 import { getSectionProgressPresentation } from "./todayDashboardProgress";
 
 const SECTION_META = {
@@ -61,7 +62,7 @@ const ONBOARDING_CONFIG = {
     badgeBg: "bg-orange-500/10 border-orange-500/30",
     badgeText: "text-orange-300",
     badge: "Chưa đăng ký",
-    title: "Bắt đầu hành trình huấn luyện",
+    title: "Bắt đầu hành trình với Huấn Luyện Viên",
     description:
       "Bạn chưa có gói huấn luyện. Khi gói được kích hoạt, kế hoạch tập luyện và dinh dưỡng mỗi ngày sẽ xuất hiện tại đây.",
     steps: [
@@ -390,7 +391,12 @@ const TodayDashboardDayLayout = () => {
           </button>
         </section>
       ) : !query.data.capabilities.canViewSources ? (
-        <OnboardingState status={query.data.eligibility.status} />
+        <div className="space-y-6">
+          <OnboardingState status={query.data.eligibility.status} />
+          {query.data.eligibility.status === "never_coached" && (
+            <FitnessPlusOnboardingCard />
+          )}
+        </div>
       ) : (
         <>
           {query.data.eligibility.status === "inactive" && (

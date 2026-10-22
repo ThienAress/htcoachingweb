@@ -18,6 +18,7 @@ import {
 import {
   mySubscriptionQueryOptions,
   selectMySubscriptionSnapshot,
+  trainerPurchaseQuoteQueryOptions,
 } from "../queries/subscription.queries";
 import {
   applyTrainerPlanPurchaseResponse,
@@ -28,6 +29,8 @@ import FitnessPlusPlans from "../components/Pricing/FitnessPlusPlans";
 import CoachingPlans from "../components/Pricing/CoachingPlans";
 import TrainerPlans from "../components/Pricing/TrainerPlans";
 import PricingSegmentedControl from "../components/Pricing/PricingSegmentedControl";
+import PlanUpgradeBreakdown from "../components/Pricing/PlanUpgradeBreakdown";
+import { PLAN_STATE_HINT_KEYS, PLAN_STATE_LABEL_KEYS, getPlanCtaState } from "../utils/planStatus";
 import { useModalScrollLock } from "../hooks/useModalScrollLock";
 import { useSiteSettings } from "../hooks/useSiteSettings";
 import { resolvePricingGifts } from "../utils/pricingGifts";
@@ -85,7 +88,13 @@ const Pricing = ({ isHeroAnimDone = false }) => {
 
   const isTrainer = viewMode === "trainer";
 
-  const [mode, setMode] = useState("1-1");
+  // Liên kết từ dashboard (/?plan=fitness-plus#pricing) mở sẵn tab HT Fitness+
+  const [mode, setMode] = useState(() =>
+    typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).get("plan") === "fitness-plus"
+      ? "fitness-plus"
+      : "1-1",
+  );
   const [billingCycle, setBillingCycle] = useState("month");
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [pendingPlan, setPendingPlan] = useState(null);
@@ -103,7 +112,6 @@ const Pricing = ({ isHeroAnimDone = false }) => {
     refetch: refetchTrainerCatalog,
   } = useTrainerPlanCatalog();
   const [showFreeTrialNotice, setShowFreeTrialNotice] = useState(false);
-  const [showAlreadySubscribed, setShowAlreadySubscribed] = useState(false);
   const purchaseRequestIdRef = useRef(null);
 
 
@@ -155,6 +163,15 @@ const Pricing = ({ isHeroAnimDone = false }) => {
           })
         : undefined,
   });
+  // Báo giá do server tính: đã trừ phần gói tháng chưa dùng khi nâng cấp lên gói năm.
+  const trainerQuoteQuery = useQuery(
+    trainerPurchaseQuoteQueryOptions({
+      userId,
+      planCode: checkoutPlan?.code,
+      billingCycle,
+      enabled: Boolean(checkoutPlan && !checkoutPlan.isFree),
+    }),
+  );
   const walletBalance = walletQuery.data?.balance ?? null;
   const walletLoading = Boolean(user && walletQuery.isFetching);
   const walletError = walletQuery.isError;
@@ -582,9 +599,24 @@ const Pricing = ({ isHeroAnimDone = false }) => {
               perPlan={trainerBenefits.perPlan}
               billingCycle={billingCycle}
               showTrial={!user || !["used", "ineligible", "unknown"].includes(freeTrialStatus)}
-              renderAction={(plan) => (
+              renderAction={(plan) => {
+                const cta = plan.isFree
+                  ? null
+                  : getPlanCtaState({
+                      family: "trainer",
+                      current: activeSubscription
+                        ? { planCode: activeSubscription.planCode, billingCycle: activeSubscription.billingCycle }
+                        : null,
+                      planCode: plan.code,
+                      billingCycle,
+                    });
+                return (
+                  <>
                     <button
-                      disabled={plan.isFree && Boolean(user) && freeTrialStatus === "unknown"}
+                      disabled={
+                        (plan.isFree && Boolean(user) && freeTrialStatus === "unknown") ||
+                        Boolean(user && cta?.disabled)
+                      }
                       onClick={() => {
                         if (!user) {
                           setShowTrainerLoginPrompt(true);
@@ -601,10 +633,6 @@ const Pricing = ({ isHeroAnimDone = false }) => {
                           setShowFreeTrialNotice(true);
                           return;
                         }
-                        if (activeSubscription && activeSubscription.planCode === plan.code) {
-                          setShowAlreadySubscribed(true);
-                          return;
-                        }
                         purchaseRequestIdRef.current =
                           globalThis.crypto.randomUUID();
                         setCheckoutPlan(plan);
@@ -613,7 +641,7 @@ const Pricing = ({ isHeroAnimDone = false }) => {
                           void walletQuery.refetch();
                         }
                       }}
-                      className="w-full rounded-lg bg-primary py-3 font-bold text-white shadow-lg shadow-orange-500/20 transition-all duration-300 hover:bg-orange-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300 disabled:cursor-wait disabled:opacity-60"
+                      className="w-full rounded-lg bg-primary py-3 font-bold text-white shadow-lg shadow-orange-500/20 transition-all duration-300 hover:bg-orange-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       {plan.isFree && user && freeTrialStatus === "unknown"
                         ? t("pricing.trainer_plans.checking_trial")
@@ -625,9 +653,18 @@ const Pricing = ({ isHeroAnimDone = false }) => {
                               ? t("pricing.trainer_plans.upgrade_cta")
                               : plan.isFree
                                 ? t("pricing.trainer_plans.start_free")
-                                : t("pricing.buy")}
+                                : user && cta && cta.kind !== "buy"
+                                  ? t(PLAN_STATE_LABEL_KEYS[cta.kind])
+                                  : t("pricing.buy")}
                     </button>
-              )}
+                    {user && cta?.kind === "blocked" && (
+                      <p className="mt-2 text-center text-xs leading-5 text-gray-400">
+                        {t(PLAN_STATE_HINT_KEYS[cta.reason])}
+                      </p>
+                    )}
+                  </>
+                );
+              }}
             />
           )}
         </div>
@@ -757,49 +794,19 @@ const Pricing = ({ isHeroAnimDone = false }) => {
           </div>
         )}
 
-        {showAlreadySubscribed && (
-          <div
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-            onClick={() => setShowAlreadySubscribed(false)}
-          >
-            <div
-              className="bg-[#1a1a1a] border-2 border-primary rounded-2xl max-w-sm w-full shadow-2xl"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex justify-end p-3 pb-0">
-                <button aria-label={t("common:a11y.close")}
-                  onClick={() => setShowAlreadySubscribed(false)}
-                  className="text-gray-400 hover:text-white transition"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-              <div className="px-6 pb-6 space-y-4 text-center">
-                <span className="text-4xl">{activeSubscription ? ({"Tiêu chuẩn": "\uD83D\uDD25", "Chuyên nghiệp": "\uD83D\uDC8E", "Cao cấp": "\uD83D\uDC51"}[activeSubscription.planTitle] || "") : ""}</span>
-                <h3 className="text-base font-bold text-white">
-                  Bạn đang sử dụng gói {activeSubscription?.planTitle}
-                </h3>
-                <p className="text-gray-400 text-sm">
-                  Hãy nâng cấp lên gói cao hơn để trải nghiệm nhiều tính năng hơn!
-                </p>
-                <button
-                  onClick={() => setShowAlreadySubscribed(false)}
-                  className="w-full py-3 bg-gradient-to-r from-primary to-orange-500 text-white font-bold rounded-lg hover:scale-105 transition"
-                >
-                  Xem các gói khác
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* ===== DRAWER CHECKOUT GÓI HLV (trượt từ phải) ===== */}
         {checkoutPlan && (() => {
           const isFreeCheckout = checkoutPlan.isFree;
           const selectedBillingCycle = isFreeCheckout ? "trial" : billingCycle;
-          const price = isFreeCheckout
+          const listPrice = isFreeCheckout
             ? 0
             : billingCycle === "year" ? checkoutPlan.priceYear : checkoutPlan.priceMonth;
+          const quote = trainerQuoteQuery.data;
+          const quoteBlocked = !isFreeCheckout && quote?.eligible === false;
+          const quoteReady =
+            isFreeCheckout || (quote?.eligible === true && Number.isSafeInteger(quote.amount));
+          // Số tiền thanh toán lấy từ báo giá của server (đã trừ phần gói tháng chưa dùng khi nâng cấp).
+          const price = isFreeCheckout ? 0 : quoteReady ? quote.amount : listPrice;
           const formattedPrice = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price);
           const isWalletVerified =
             isFreeCheckout ||
@@ -819,6 +826,7 @@ const Pricing = ({ isHeroAnimDone = false }) => {
                 planCode: checkoutPlan.code,
                 billingCycle: selectedBillingCycle,
                 requestId: purchaseRequestIdRef.current,
+                quotedAmount: isFreeCheckout ? undefined : quote?.amount,
               });
               const res = await purchaseMutation.mutateAsync(payload);
               setCheckoutResult({
@@ -831,7 +839,7 @@ const Pricing = ({ isHeroAnimDone = false }) => {
             } catch (err) {
               if (err.response?.data?.code === "CATALOG_CHANGED") {
                 purchaseRequestIdRef.current = null;
-                await refetchTrainerCatalog();
+                await Promise.all([refetchTrainerCatalog(), trainerQuoteQuery.refetch()]);
               }
               setCheckoutResult({
                 success: false,
@@ -1006,16 +1014,18 @@ const Pricing = ({ isHeroAnimDone = false }) => {
                     )}
 
                     {/* Chi tiết thanh toán */}
-                    <div className="bg-[#222] rounded-xl p-4 space-y-3">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-400">Giá gói</span>
-                        <span className="text-white font-medium">{formattedPrice}</span>
-                      </div>
-                      <div className="border-t border-gray-700 pt-3 flex justify-between items-center">
-                        <span className="text-white font-bold">Tổng cộng</span>
-                        <span className="text-2xl font-bold text-primary">{formattedPrice}</span>
-                      </div>
-                    </div>
+                    <PlanUpgradeBreakdown
+                      quote={isFreeCheckout ? null : quote}
+                      loading={!isFreeCheckout && trainerQuoteQuery.isPending}
+                      error={!isFreeCheckout && trainerQuoteQuery.isError}
+                      onRetry={() => trainerQuoteQuery.refetch()}
+                      fallbackAmount={price}
+                    />
+                    {quoteBlocked && (
+                      <p className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-center text-sm text-red-400" role="alert">
+                        {quote.message}
+                      </p>
+                    )}
 
                     {/* Thiếu tiền warning */}
                     {!isFreeCheckout && !walletLoading && !isEnough && isWalletVerified && (
@@ -1039,7 +1049,7 @@ const Pricing = ({ isHeroAnimDone = false }) => {
                     {/* Nút thanh toán */}
                     <button
                       onClick={handlePurchase}
-                      disabled={checkoutLoading || walletLoading || !isEnough}
+                      disabled={checkoutLoading || walletLoading || !isEnough || !quoteReady}
                       className="w-full py-4 bg-gradient-to-r from-primary to-orange-500 text-white font-bold text-lg rounded-xl shadow-lg shadow-orange-500/20 hover:shadow-orange-500/40 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
                     >
                       {checkoutLoading

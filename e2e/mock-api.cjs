@@ -153,6 +153,46 @@ const siteSettingsBody = () => ({
   data: { pricingGifts: pricingGiftsStore, pricingContent: pricingContentStore, loginPromo: loginPromoStore },
 });
 
+// Đánh giá bản thân HT Fitness+: trạng thái giữ trong bộ nhớ; header x-e2e-access-mode chọn self_managed hoặc expired.
+let selfAssessmentDraft = null;
+let selfAssessmentLatest = null;
+const selfAssessmentResult = () => ({
+  version: "e2e",
+  scoring: {
+    overallLevel: "good",
+    overallLevelLabel: "Khá",
+    metrics: {
+      upperBodyPush: { exercise: "Push-Up", variant: "standard", value: 30, level: "very_good", levelLabel: "Tốt", note: "" },
+    },
+  },
+  recommendation: {
+    mode: "plan",
+    startPhase: { code: "phase_2", label: "Cấp độ 2 · Giai đoạn 2 - Sức mạnh bền (Strength Endurance)", reasons: ["Bạn có kinh nghiệm tập."] },
+    trainingStatus: "intermediate",
+    weeklyPlan: { daysPerWeek: 4, recommendedRange: { min: 3, max: 4 }, split: "Thân trên / Thân dưới (Upper/Lower)", sessionTips: ["Khởi động kỹ."] },
+    resistance: { setsPerExercise: { min: 2, max: 4 }, repRange: { min: 8, max: 12 }, rir: { min: 2, max: 3 }, restSeconds: { min: 60, max: 90 }, weeklySetsPerMuscle: { min: 8, max: 14 } },
+    cardio: { weeklyMinutes: { min: 150, max: 250 }, intensity: "moderate", intensityNote: "Giữ cường độ vừa.", heartRateZones: null },
+    nutrition: { proteinGPerKg: { min: 1.6, max: 2.2 }, proteinGramsPerDay: null, energyAdjustment: "Ăn quanh mức TDEE.", cautions: [], tools: { tdee: "/tdee-calculator", mealPlan: "/mealplan" } },
+    recovery: { sleepTargetHours: { min: 7, max: 9 }, notes: [] },
+    dailyActivity: { stepsTarget: { min: 8000, max: 10000 } },
+    focusAreas: [{ metric: "lowerBody", label: "Sức mạnh thân dưới (Lower Body)", level: null, levelLabel: "Chưa xếp mức", exercises: ["Goblet Squat"] }],
+    cautions: [],
+    insights: [],
+    libraryPath: "/exercises",
+    references: ["WHO (2020)."],
+  },
+});
+const selfAssessmentState = (mode) => ({
+  canWrite: mode !== "expired",
+  draft: mode === "expired" ? null : selfAssessmentDraft,
+  latestCompleted: selfAssessmentLatest,
+  retest: {
+    recommendedAfterDays: 28,
+    nextEligibleAt: selfAssessmentLatest ? selfAssessmentLatest.nextEligibleAt : null,
+    isEarly: Boolean(selfAssessmentLatest),
+  },
+});
+
 const handleApi = (req, res, path) => {
   const role = req.headers["x-e2e-role"];
   const aiScenario = req.headers["x-e2e-ai-scenario"];
@@ -165,9 +205,12 @@ const handleApi = (req, res, path) => {
     ["provider-failure", "provider-recovery"].includes(aiScenario) &&
     path === "/api/ai/chat" &&
     req.method === "POST";
+  const isSelfAssessmentWrite =
+    path.startsWith("/api/fitness-self-assessments") && ["PUT", "POST"].includes(req.method);
   if (
     !["GET", "HEAD"].includes(req.method) &&
     !isPricingGiftsWrite &&
+    !isSelfAssessmentWrite &&
     !isF1MediaUpload &&
     !isProviderScenarioChat
   ) {
@@ -318,6 +361,16 @@ const handleApi = (req, res, path) => {
     path === "/api/today-dashboard/prompt-eligibility" &&
     req.method === "GET"
   ) {
+    const accessMode = req.headers["x-e2e-access-mode"];
+    if (actor && (accessMode === "self_managed" || accessMode === "expired")) {
+      return sendJson(res, { success: true, data: {
+        eligible: false,
+        accessMode: accessMode === "expired" ? "blocked" : "self_managed",
+        hasActiveCustomerPlan: accessMode === "self_managed",
+        hasCoaching: false,
+        hasSelfAssessmentHistory: Boolean(selfAssessmentLatest),
+      } });
+    }
     const eligible =
       actor?.role === "user" &&
       req.headers["x-e2e-trainer-access"] !== "true";
@@ -333,6 +386,42 @@ const handleApi = (req, res, path) => {
           { success: false, message: "Bạn chưa đăng nhập" },
           401,
         );
+  }
+  if (path === "/api/fitness-self-assessments/me" && req.method === "GET") {
+    return actor
+      ? sendJson(res, { success: true, data: selfAssessmentState(req.headers["x-e2e-access-mode"]) })
+      : sendJson(res, { success: false, message: "Bạn chưa đăng nhập" }, 401);
+  }
+  if (path === "/api/fitness-self-assessments" && req.method === "GET") {
+    return sendJson(res, {
+      success: true,
+      data: { items: selfAssessmentLatest ? [selfAssessmentLatest] : [], total: selfAssessmentLatest ? 1 : 0, page: 1, limit: 10 },
+    });
+  }
+  if (path === "/api/fitness-self-assessments/me/draft" && req.method === "PUT") {
+    return readJsonBody(req).then((body) => {
+      const previous = selfAssessmentDraft || { id: "e2e-self-assessment-draft", status: "draft", draftStep: 1 };
+      selfAssessmentDraft = {
+        ...previous,
+        ...Object.fromEntries(["screening", "profile", "training", "tests", "consent"].filter((key) => body[key]).map((key) => [key, { ...(previous[key] || {}), ...body[key] }])),
+        draftStep: Math.max(previous.draftStep, body.step || 1),
+        systemFlags: { testPermission: "full_test" },
+      };
+      return sendJson(res, { success: true, data: selfAssessmentDraft });
+    });
+  }
+  if (path.startsWith("/api/fitness-self-assessments/") && path.endsWith("/submit") && req.method === "POST") {
+    selfAssessmentLatest = {
+      id: "e2e-self-assessment-1",
+      status: "completed",
+      draftStep: 4,
+      completedAt: new Date().toISOString(),
+      nextEligibleAt: new Date(Date.now() + 28 * 86400000).toISOString(),
+      systemFlags: { testPermission: "full_test" },
+      result: selfAssessmentResult(),
+    };
+    selfAssessmentDraft = null;
+    return sendJson(res, { success: true, data: selfAssessmentLatest });
   }
   if (path === "/api/check-ins/me" && req.method === "GET") {
     return sendJson(res, {
@@ -1174,6 +1263,25 @@ const handleApi = (req, res, path) => {
   }
   if (path === "/api/me/wallet") {
     return sendJson(res, { success: true, data: { balance: 500000 } });
+  }
+  if (path === "/api/deposits/policy" && req.method === "GET") {
+    return sendJson(res, {
+      success: true,
+      data: {
+        currency: "VND",
+        minAmount: 10000,
+        maxAmount: 1000000000,
+        policyVersion: 3,
+        tiers: [
+          { key: "starter", minAmount: 10000, bonusRate: 10, label: null },
+          { key: "growth", minAmount: 100000, bonusRate: 15, label: null },
+          { key: "premium", minAmount: 200000, bonusRate: 20, label: null },
+        ],
+      },
+    });
+  }
+  if (path === "/api/deposits" && req.method === "GET") {
+    return sendJson(res, { success: true, data: [] });
   }
   if (
     aiScenario === "confirmation" &&

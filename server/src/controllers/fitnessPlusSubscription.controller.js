@@ -6,6 +6,7 @@ import {
 } from "../services/fitnessPlusCatalog.service.js";
 import {
   getActiveFitnessPlusSubscription,
+  getFitnessPlusPurchaseQuote,
   purchaseFitnessPlusSubscription,
 } from "../services/fitnessPlusSubscription.service.js";
 import { WalletLedgerError } from "../services/walletLedger.service.js";
@@ -98,6 +99,25 @@ export const getMyFitnessPlusSubscription = async (req, res) => {
       error,
       "FITNESS_PLUS_SUBSCRIPTION_READ_FAILED",
       "Không thể đọc gói HT Fitness+ lúc này. Vui lòng thử lại.",
+    );
+  }
+};
+
+export const getFitnessPlusPurchaseQuoteHandler = async (req, res) => {
+  try {
+    const data = await getFitnessPlusPurchaseQuote({
+      userId: req.user.id,
+      planCode: req.query.planCode,
+      billingCycle: req.query.billingCycle,
+    });
+    return res.status(200).json({ success: true, data });
+  } catch (error) {
+    safeLog.error("fitness_plus.quote_failed", error);
+    return sendError(
+      res,
+      error,
+      "FITNESS_PLUS_QUOTE_FAILED",
+      "Không thể tính giá nâng cấp lúc này. Vui lòng thử lại.",
     );
   }
 };

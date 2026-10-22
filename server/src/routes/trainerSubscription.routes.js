@@ -6,6 +6,7 @@ import {
   validateId,
   validateTrainerPlanGrant,
   validateTrainerPlanPurchase,
+  validateTrainerPurchaseQuote,
 } from "../middlewares/validation.js";
 import {
   getAllSubscribers,
@@ -15,6 +16,7 @@ import {
   getMySubscription,
   getPendingTrainerGrants,
   getTrainerPlanCatalog,
+  getTrainerPurchaseQuoteHandler,
   grantTrainerPlan,
   purchaseTrainerPlan,
   revokeTrainerGrant,
@@ -27,6 +29,8 @@ router.get("/catalog", getTrainerPlanCatalog);
 // Mua gói trừ tiền trong ví nên dùng cùng chốt chặn tốc độ với mua gói HT Fitness+ (financialCommandLimiter, một instance dùng chung).
 router.post("/", protect, financialCommandLimiter, csrfProtection, validateTrainerPlanPurchase, purchaseTrainerPlan);
 router.get("/me", protect, getMySubscription);
+// Báo giá nâng cấp (đã trừ phần gói tháng chưa dùng): chỉ đọc, không ghi dữ liệu.
+router.get("/quotes", protect, validateTrainerPurchaseQuote, getTrainerPurchaseQuoteHandler);
 
 router.get("/all", protect, requireRoles("admin"), getAllSubscribers);
 router.get(

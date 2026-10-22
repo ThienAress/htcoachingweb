@@ -40,4 +40,5 @@ export const TODAY_PLATFORM_API_PREFIXES = [
   "/api/notifications",
   "/api/trainer-client-overview",
   "/api/coaching-activity",
+  "/api/fitness-self-assessments",
 ];

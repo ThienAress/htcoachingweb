@@ -56,6 +56,8 @@ export const activateTrainerSubscription = async ({
   purchaseRequestId = null,
   supersedeActive = false,
   supersedeFreeOnly = false,
+  resolvePricing = null,
+  expectedAmount,
   now = new Date(),
 }) => {
   const plan = getTrainerPlan(planCode);
@@ -103,13 +105,27 @@ export const activateTrainerSubscription = async ({
   const activePlan = active
     ? getTrainerPlan(active.planCode || active.planTitle)
     : null;
-  const canSupersedeFree = supersedeFreeOnly && activePlan?.code === "free";
-  if (active && !supersedeActive && !canSupersedeFree) {
-    throw trainerSubscriptionError(
-      409,
-      "ACTIVE_SUBSCRIPTION_EXISTS",
-      "Bạn đang có gói huấn luyện viên còn hiệu lực",
-    );
+  // Luồng tự mua dùng resolvePricing (được phép nâng cấp tháng lên năm kèm trừ phần chưa dùng);
+  // luồng cấp gói của admin giữ cờ supersedeActive/supersedeFreeOnly như cũ.
+  let pricing = null;
+  if (resolvePricing) {
+    pricing = resolvePricing({ active, activePlan, plan, billingCycle, now });
+    if (expectedAmount !== undefined && expectedAmount !== pricing.amount) {
+      throw trainerSubscriptionError(
+        409,
+        "CATALOG_CHANGED",
+        "Giá nâng cấp đã thay đổi. Vui lòng tải lại và xác nhận giá mới.",
+      );
+    }
+  } else {
+    const canSupersedeFree = supersedeFreeOnly && activePlan?.code === "free";
+    if (active && !supersedeActive && !canSupersedeFree) {
+      throw trainerSubscriptionError(
+        409,
+        "ACTIVE_SUBSCRIPTION_EXISTS",
+        "Bạn đang có gói huấn luyện viên còn hiệu lực",
+      );
+    }
   }
 
   if (active) {
@@ -126,7 +142,10 @@ export const activateTrainerSubscription = async ({
         planCode: plan.code,
         planTitle: plan.title,
         billingCycle,
-        amount: getTrainerPlanAmount(plan.code, billingCycle),
+        amount: pricing ? pricing.amount : getTrainerPlanAmount(plan.code, billingCycle),
+        ...(pricing
+          ? { listAmount: pricing.listAmount, upgradeCreditAmount: pricing.creditAmount }
+          : {}),
         startDate: now,
         endDate: calculateTrainerPlanEndDate(plan.code, billingCycle, now),
         status: "active",

@@ -33,7 +33,14 @@ Không dùng “VIP” cho HT Fitness+ vì plan không bao gồm HLV riêng. Kh�
   - Tăng tốc: 199.000 VND/tháng hoặc 1.990.000 VND/năm.
   - Toàn diện: 299.000 VND/tháng hoặc 2.990.000 VND/năm.
 - Thanh toán dùng Wallet Ledger hiện có; backend tự tính số tiền từ catalog, không tin `expectedAmount` từ client.
-- Mỗi user chỉ có một HT Fitness+ subscription active. Mua plan khác sẽ supersede plan cũ và tính phí đầy đủ; không prorate/refund trong phiên bản này.
+- Mỗi user chỉ có một HT Fitness+ subscription active. Mua plan khác cùng chu kỳ sẽ supersede plan cũ và tính phí đầy đủ; không hoàn tiền.
+- Nâng cấp từ gói tháng lên gói năm (cùng plan hoặc plan khác) được phép: server trả giá năm trừ phần gói tháng chưa dùng (đã được chủ sản phẩm chọn cách "giảm tiền trực tiếp", 2026-10-21):
+  - tín dụng = số tiền đã trả cho gói tháng x (số ngày còn lại / số ngày của kỳ), ngày còn dở tính là một ngày, làm tròn xuống 100 VND; ví dụ Nền tảng đã dùng 15/30 ngày: 990.000 - 49.500 = 940.500 VND.
+  - client lấy báo giá từ `GET /api/fitness-plus-subscriptions/quotes` và gửi lại số tiền đó làm `expectedAmount`; giá lệch thì 409 `FITNESS_PLUS_CATALOG_CHANGED` và không trừ ví.
+  - subscription mới lưu `amount` (đã thanh toán), `listAmount` (giá niêm yết) và `upgradeCreditAmount`; gói được tặng (`amount` 0) không tạo tín dụng.
+  - cùng plan cùng chu kỳ vẫn 409 `FITNESS_PLUS_PLAN_ALREADY_ACTIVE`; đang dùng gói năm thì không chuyển sang gói tháng (409 `FITNESS_PLUS_DOWNGRADE_NOT_ALLOWED`).
+  - hạn mức AI credits tính theo `planCode`, không đổi khi nâng cấp từ tháng lên năm; không có kho credit tặng thêm.
+  - gói HLV do admin tạo (`admin_grant`, `pending_grant`) cho HLV đã chuyển khoản riêng được coi như đã trả đủ giá niêm yết: báo giá nâng cấp, tín dụng và các quy tắc chặn giống hệt gói HLV tự mua (chủ sản phẩm xác nhận 2026-10-22). Không dùng cơ chế này để tặng gói miễn phí hoặc thu thấp hơn giá niêm yết; nếu cần thì phải tách nguồn gói và không tính tín dụng.
 - Subscription có `purchaseRequestId` duy nhất để chống retry/debit lặp.
 - Không thực thi migration/seed/production write trong task này. Vì production tắt Mongoose `autoIndex`, release có script index guarded để preflight duplicate/name conflict và chỉ được apply sau khi khóa đúng target database cùng confirmation vận hành.
 - Hai collection mới không cần backfill document cũ. Migration manifest có sáu index suy ra trực tiếp từ schema: hai query indexes, unique active subscription, unique purchase request, unique quota subject/service và TTL quota usage.

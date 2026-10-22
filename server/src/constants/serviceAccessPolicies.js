@@ -15,6 +15,9 @@ export const SERVICE_ACCESS_TIERS = Object.freeze({
 
 export const SERVICE_ACCESS_POLICY_VERSION = "2026-10-13.2";
 
+// Số ngày khuyến nghị giữa hai lần Đánh giá bản thân (nhắc mềm, không chặn cứng).
+export const SELF_ASSESSMENT_RETEST_DAYS = 28;
+
 // Credit trừ cho mỗi thao tác AI, dùng chung pool "ai_credits".
 // Tìm kiếm thông minh = câu hỏi thường + phụ phí, phụ phí được hoàn nếu lượt đó không tra web.
 export const AI_CREDIT_COSTS = Object.freeze({
@@ -266,6 +269,22 @@ export const SERVICE_ACCESS_POLICY_REGISTRY = deepFreeze([
       coaching_customer: unlimited(),
       trainer: unlimited(),
       admin: unlimited(),
+      fitness_plus_essential: unlimited(),
+      fitness_plus_smart: unlimited(),
+      fitness_plus_max: unlimited(),
+    },
+  },
+  {
+    serviceKey: "self_assessment",
+    label: "Đánh giá bản thân",
+    category: "Công cụ",
+    description: `Tự khảo sát, tự kiểm tra thể lực và nhận gợi ý tập luyện; nên làm lại sau ${SELF_ASSESSMENT_RETEST_DAYS} ngày.`,
+    policies: {
+      guest: unavailable(),
+      user: unavailable(),
+      coaching_customer: unavailable(),
+      trainer: unavailable(),
+      admin: unavailable(),
       fitness_plus_essential: unlimited(),
       fitness_plus_smart: unlimited(),
       fitness_plus_max: unlimited(),

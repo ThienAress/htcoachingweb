@@ -83,9 +83,11 @@ export const createFitnessPlusPurchasePayload = ({
   planCode,
   billingCycle,
   requestId,
+  quotedAmount,
 }) => {
   const plan = catalog?.byCode?.[planCode];
-  const expectedAmount = plan?.prices?.[billingCycle];
+  // quotedAmount: số tiền server đã báo (có thể đã trừ phần gói tháng chưa dùng); mặc định là giá niêm yết.
+  const expectedAmount = quotedAmount ?? plan?.prices?.[billingCycle];
   if (!plan || !Number.isSafeInteger(expectedAmount)) {
     throw new Error("HT Fitness+ plan selection is not in the active catalog");
   }

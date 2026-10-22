@@ -3,12 +3,20 @@ const listKey = (root, filters) => [...root, "list", filters];
 export const subscriptionKeys = {
   all: () => ["route-subscription"],
   mine: (userId) => [...subscriptionKeys.all(), userId],
+  quote: (userId, planCode, billingCycle) => [...subscriptionKeys.all(), "quote", userId, planCode, billingCycle],
+};
+
+export const selfAssessmentKeys = {
+  all: () => ["self-assessment"],
+  mine: (userId) => [...selfAssessmentKeys.all(), "mine", userId],
+  history: (userId) => [...selfAssessmentKeys.all(), "history", userId],
 };
 
 export const fitnessPlusKeys = {
   all: () => ["fitness-plus"],
   catalog: () => [...fitnessPlusKeys.all(), "catalog"],
   mine: (userId) => [...fitnessPlusKeys.all(), "mine", userId],
+  quote: (userId, planCode, billingCycle) => [...fitnessPlusKeys.all(), "quote", userId, planCode, billingCycle],
 };
 
 export const walletAccountKeys = {

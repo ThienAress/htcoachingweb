@@ -359,4 +359,24 @@ describe("resolveServiceAccessTier", () => {
       ["monthly", 400],
     ]);
   });
+
+  it("chỉ mở Đánh giá bản thân cho ba gói HT Fitness+", () => {
+    const modes = Object.fromEntries(
+      Object.values(SERVICE_ACCESS_TIERS).map((tier) => [
+        tier,
+        getServiceAccessPolicy("self_assessment", tier).mode,
+      ]),
+    );
+
+    expect(modes).toEqual({
+      guest: "unavailable",
+      user: "unavailable",
+      coaching_customer: "unavailable",
+      trainer: "unavailable",
+      admin: "unavailable",
+      fitness_plus_essential: "unlimited",
+      fitness_plus_smart: "unlimited",
+      fitness_plus_max: "unlimited",
+    });
+  });
 });

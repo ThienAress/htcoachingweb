@@ -25,6 +25,7 @@ nguồn canonical trước khi thay đổi code.
 - [Session Governor cho Codex (đã ngừng — chuyển sang Claude Code)](./specs/codex-session-governor.md)
 - [Today Dashboard spec](./specs/today-dashboard.md)
 - [Wellness targets spec](./specs/wellness-targets.md)
+- [Đánh giá bản thân cho HT Fitness+ spec (draft)](./specs/fitness-plus-self-assessment.md)
 - [Trainer client workspace spec](./specs/trainer-client-workspace.md)
 - [Workspace navigation spec](./specs/workspace-navigation.md)
 - [Wallet/Account Query migration spec](./specs/wallet-account-query-migration.md)
