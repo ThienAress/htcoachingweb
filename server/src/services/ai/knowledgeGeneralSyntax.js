@@ -31,7 +31,8 @@ const SENTENCE_START_PHRASES = new Map([
   ["co", /^\s+nen\b/],
   ["nen", /^\s+tap\b/],
   ["moi", /^\s+tap\b/],
-  ["nguoi", /^\s+co gen\b/],
+  ["nguoi", /^\s+(?:co gen|tap|moi|lon tuoi|cao tuoi|ta)\b/],
+  ["chi", /^\s+(?:nen|can|co|duoc|dung|la|thuc hien)\b/],
   ["di", /^\s+tap\b/],
   ["quen", /^\s+uong protein\b/],
 ]);
@@ -40,7 +41,7 @@ export function isGeneralKnowledgeSyntax({ text, index, name }) {
   const prefix = String(text || "").slice(0, index);
   const suffix = normalize(String(text || "").slice(index + name.length));
   const predicate = SENTENCE_START_PHRASES.get(normalize(name));
-  if (predicate && (!prefix.trim() || /[.!?\n]\s*$/.test(prefix))) {
+  if (predicate && (!prefix.trim() || /[.!?:;(\n—–-]\s*$/.test(prefix))) {
     return predicate.test(` ${suffix}`);
   }
   return normalize(name) === "bao" && /(?:moi nguoi|nguoi ta)\s+$/i.test(normalize(prefix) + " ") &&

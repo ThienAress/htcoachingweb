@@ -146,7 +146,7 @@ describe("Knowledge Base evidence publication routes", () => {
     const response = await withAuth(
       request(app)
         .get("/api/knowledge-base/search")
-        .query({ q: "I have narcolepsy, what changed recently?" }),
+        .query({ q: "I take prednisone every day, what changed recently?" }),
       accessToken,
     );
 
