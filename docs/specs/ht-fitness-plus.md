@@ -40,6 +40,7 @@ Không dùng “VIP” cho HT Fitness+ vì plan không bao gồm HLV riêng. Kh�
   - subscription mới lưu `amount` (đã thanh toán), `listAmount` (giá niêm yết) và `upgradeCreditAmount`; gói được tặng (`amount` 0) không tạo tín dụng.
   - cùng plan cùng chu kỳ vẫn 409 `FITNESS_PLUS_PLAN_ALREADY_ACTIVE`; đang dùng gói năm thì không chuyển sang gói tháng (409 `FITNESS_PLUS_DOWNGRADE_NOT_ALLOWED`).
   - hạn mức AI credits tính theo `planCode`, không đổi khi nâng cấp từ tháng lên năm; không có kho credit tặng thêm.
+  - gói HLV do admin tạo (`admin_grant`, `pending_grant`) cho HLV đã chuyển khoản riêng được coi như đã trả đủ giá niêm yết: báo giá nâng cấp, tín dụng và các quy tắc chặn giống hệt gói HLV tự mua (chủ sản phẩm xác nhận 2026-10-22). Không dùng cơ chế này để tặng gói miễn phí hoặc thu thấp hơn giá niêm yết; nếu cần thì phải tách nguồn gói và không tính tín dụng.
 - Subscription có `purchaseRequestId` duy nhất để chống retry/debit lặp.
 - Không thực thi migration/seed/production write trong task này. Vì production tắt Mongoose `autoIndex`, release có script index guarded để preflight duplicate/name conflict và chỉ được apply sau khi khóa đúng target database cùng confirmation vận hành.
 - Hai collection mới không cần backfill document cũ. Migration manifest có sáu index suy ra trực tiếp từ schema: hai query indexes, unique active subscription, unique purchase request, unique quota subject/service và TTL quota usage.
