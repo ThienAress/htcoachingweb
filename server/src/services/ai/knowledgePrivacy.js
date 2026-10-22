@@ -1,5 +1,6 @@
 import crypto from "crypto";
 import { findPublicFigures } from "./publicFigureRegistry.js";
+import { containsForbiddenKnowledgeContent } from "./knowledgeForbiddenContent.js";
 import {
   maskGeneralKnowledgeTerms,
   neutralizeReferenceTitles,
@@ -39,6 +40,11 @@ const CREDENTIAL_ASSIGNMENT_PATTERN =
   /(?:^|[?&#;\s])(?:access[_-]?token|refresh[_-]?token|id[_-]?token|auth(?:orization)?[_-]?token|api[_-]?key|password|passwd|secret|session[_-]?(?:id|token))\s*[:=]\s*[^\s&#,;]{4,}/gi;
 const ADDRESS_PATTERN =
   /\b(?:(?:địa chỉ|dia chi)\s*(?:của tôi|cua toi)?\s*[:=]?|(?:my|our|home|residential|billing|shipping)\s+address(?:\s+is)?|address\s*[:=])\s*[^,;\n]{5,120}/giu;
+// Địa chỉ nhà không có nhãn "địa chỉ": số nhà, ngõ/hẻm/thôn/tổ/tòa + số, "25 Nguyễn Huệ, quận 1", "123 Main Street".
+// Không dùng cờ i: "100 đường huyết" (đường = glucose) và "xã hội", "tỉnh táo" không bị nhầm; từ khoá chữ thường/không dấu
+// được liệt kê tường minh và bắt buộc có số theo sau.
+const STREET_ADDRESS_PATTERN =
+  /(?:\b(?:[Ss]ố nhà|[Ss]o nha|[Nn]hà số|[Nn]ha so)\s*\d+[\p{L}\d/-]*|\b(?:[Nn]gõ|[Nn]go|[Hh]ẻm|[Hh]em|[Nn]gách|[Nn]gach|[Tt]ổ|[Kk]hu phố|[Tt]hôn|[Xx]óm|[Tt]òa|[Cc]ăn hộ)\s+\d[\p{L}\d/-]*|\b[Tt]òa nhà\s+\p{Lu}|\b[Tt]ầng\s+\d{1,2}\s*,\s*[Tt]òa|\b\d{1,4}[A-Za-z]?(?:\/\d{1,4}[A-Za-z]?){0,3}\s+(?:[Pp]hố|[Nn]gõ|[Nn]gách|[Hh]ẻm)\s+\p{Lu}[\p{L}'’-]*(?:\s+\p{Lu}[\p{L}'’-]*){0,3}|\b\d{1,4}[A-Za-z]?(?:\/\d{1,4}[A-Za-z]?){0,3}\s+(?:[Đđ]ường\s+)?\p{Lu}[\p{L}'’-]*(?:\s+\p{Lu}[\p{L}'’-]*){0,3}\s*,\s*(?:[Pp]hường|[Qq]uận|[Hh]uyện|[Tt]hị xã|[Tt]hị trấn|[Tt]hành phố|TP\.?|P\.|Q\.)\s*[\p{L}\d][\p{L}\d\s.'’-]{0,30}|\b\d{1,4}[A-Za-z]?(?:\/\d{1,4}[A-Za-z]?){0,3}\s+[\p{L}'’-]+(?:\s+[\p{L}'’-]+){0,3}\s*,\s*(?:[Pp]hường|[Pp]huong|[Qq]uận|[Qq]uan|[Hh]uyện|[Hh]uyen|[Xx]ã|[Xx]a|[Tt]hị xã|[Tt]hanh pho|[Tt]hành phố|TP\.?|tp\.?|[Pp]\.|[Qq]\.)\s*\d{1,3}\b|\b\d{1,5}[A-Za-z]?\s+[A-Z][a-z]+(?:\s+[A-Z][a-z]+)?\s+(?:Street|St|Road|Avenue|Ave|Lane|Boulevard)\b)/gu;
 const PRIVATE_RECORD_LABEL_SOURCE =
   "(?:[Kk]hách hàng|[Hh]ọc viên|[Bb]ệnh nhân|[Cc]lient|[Pp]atient|[Cc]ustomer|[Mm]ember|[Uu]ser)";
 const PRIVATE_NAME_PREDICATE_SOURCE =
@@ -1219,7 +1225,7 @@ const containsSensitivePersonalHealth = (
   question,
   answer,
   allowedPublicPersonNames = [],
-  { allowCallerVettedPublicDateOfBirth = false, allowCommonConditions = false } = {},
+  { allowCallerVettedPublicDateOfBirth = false, identityOnly = false } = {},
 ) => {
   const combined = neutralizeReferenceTitles(`${question}\n${answer}`.normalize("NFKC"));
   const publicDateOfBirthAllowed =
@@ -1270,7 +1276,7 @@ const containsSensitivePersonalHealth = (
     ) &&
     extractUnboundPrivateNames(combined, allowedPublicPersonNames).length === 0;
   if (
-    containsPersonalHealthData(combined, { allowCommonConditions }) &&
+    containsPersonalHealthData(combined, { identityOnly }) &&
     !publicDateOfBirthAllowed &&
     !callerVettedPublicPersonOnly
   ) {
@@ -1280,9 +1286,11 @@ const containsSensitivePersonalHealth = (
   const normalized = normalizePrivacyText(combined);
   const containsHealth = containsHealthInformation(combined);
   const containsMetric = containsPersonalBodyMetric(combined);
+  // Chỉ chặn danh tính: tên riêng được cho qua; ngày sinh và ý định tự hại đã xử lý ở bước trên.
+  if (identityOnly) return false;
   const containsExplicitPrivateHealthRecord =
     EXPLICIT_PRIVATE_RECORD_SUBJECT_PATTERN.test(normalized) &&
-    ((containsHealth && !allowCommonConditions) ||
+    (containsHealth ||
       containsMetric ||
       PRIVATE_HEALTH_RECORD_CUE_PATTERN.test(normalized));
   if (containsExplicitPrivateHealthRecord) return true;
@@ -1523,7 +1531,8 @@ const redactDirectIdentifiers = (value, privateNames = []) => {
     .replace(SECRET_PATTERN, "[đã ẩn thông tin xác thực]")
     .replace(LABELED_IDENTIFIER_PATTERN, "[đã ẩn mã định danh]")
     .replace(LONG_IDENTIFIER_PATTERN, "[đã ẩn mã định danh]")
-    .replace(ADDRESS_PATTERN, "[đã ẩn địa chỉ]");
+    .replace(ADDRESS_PATTERN, "[đã ẩn địa chỉ]")
+    .replace(STREET_ADDRESS_PATTERN, "[đã ẩn địa chỉ]");
   return { text: redacted, redacted: redacted !== before };
 };
 
@@ -1608,14 +1617,13 @@ export function prepareKnowledgeRetrievalQuery(value) {
   if (!query) return { eligible: false, reason: "empty_query" };
 
   const allowedPublicPersonNames = getPublicPersonLookupNames(query);
-  // Nêu bệnh thông thường chỉ được cho qua khi truy vấn không mang danh tính (số điện thoại, email, mã, tên riêng).
-  const carriesIdentity =
-    hasDirectKnowledgeIdentifier(query) ||
-    extractContextualPrivateNames(query).length > 0 ||
-    extractUnboundPrivateNames(query, allowedPublicPersonNames).length > 0;
+  if (containsForbiddenKnowledgeContent(query)) {
+    return { eligible: false, reason: "forbidden_content" };
+  }
+  // Bệnh, thuốc, số đo, người thân và tên riêng được cho qua; số điện thoại, email, mã, địa chỉ vẫn bị che bên dưới.
   if (
     containsSensitivePersonalHealth(query, "", allowedPublicPersonNames, {
-      allowCommonConditions: !carriesIdentity,
+      identityOnly: true,
     })
   ) {
     return { eligible: false, reason: "sensitive_personal_health" };
@@ -1677,6 +1685,7 @@ const hasDirectKnowledgeIdentifier = (value) => {
     LABELED_IDENTIFIER_PATTERN,
     LONG_IDENTIFIER_PATTERN,
     ADDRESS_PATTERN,
+    STREET_ADDRESS_PATTERN,
   ];
   return decodePrivacyCandidates(value).some(
     (candidate) =>
@@ -1722,10 +1731,10 @@ export function validateKnowledgeEntryPrivacy(entry = {}) {
     .filter(Boolean);
   const combined = contentFields.join("\n").normalize("NFKC");
 
-  // Nêu bệnh/triệu chứng thông thường không kèm danh tính, số đo hay thuốc là nội dung hợp lệ (Plan 112).
+  // Bệnh, thuốc, số đo, người thân không định danh ai nên là nội dung hợp lệ; chỉ chặn danh tính (Plan 112).
   const sensitiveHealthOptions = {
     allowCallerVettedPublicDateOfBirth: true,
-    allowCommonConditions: true,
+    identityOnly: true,
   };
   if (
     contentFields.some((field) =>
@@ -1758,41 +1767,28 @@ export function validateKnowledgeEntryPrivacy(entry = {}) {
     return { valid: false, reason: "direct_identifier" };
   }
 
-  const contextualPrivateNames = extractContextualPrivateNames(combined);
-  const unboundPrivateNames = extractUnboundPrivateNames(
-    combined,
-    allowedPublicPersonNames,
-  );
-  if (contextualPrivateNames.length > 0 || unboundPrivateNames.length > 0) {
-    return { valid: false, reason: "ambiguous_person_identity" };
+  // Đường dẫn cá cược/trang web đen và đoạn mã không được lưu; tên riêng thì được phép (Plan 112).
+  if (
+    [...contentFields, ...sourceMetadataFields, ...sourceUrlFields].some(
+      containsForbiddenKnowledgeContent,
+    )
+  ) {
+    return { valid: false, reason: "forbidden_content" };
   }
 
   // Metadata nguồn dùng heuristic hẹp: tên có cue riêng tư, tên phổ biến hoặc
   // tên đứng trước predicate cá nhân. Không coi mọi Title Case organization là
   // người, tránh chặn ACSM/BJSM/NSCA/Nike và tên tạp chí công khai.
   const sourceMetadata = sourceMetadataFields.join("\n").normalize("NFKC");
-  if (sourceMetadata) {
-    const sourcePrivateNames = extractSourceMetadataPrivateNames(
-      sourceMetadataFields,
-      allowedPublicPersonNames,
-    );
-    const sourceHasPrivateContext =
-      sourcePrivateNames.length > 0 ||
-      PERSONAL_CONTEXT_PATTERN.test(normalizePrivacyText(sourceMetadata)) ||
-      EXPLICIT_PRIVATE_RECORD_SUBJECT_PATTERN.test(
-        normalizePrivacyText(sourceMetadata),
-      );
-    if (
-      sourceHasPrivateContext &&
-      sourceMetadataFields.some((field) =>
-        containsPersonalHealthData(neutralizeReferenceTitles(field)),
-      )
-    ) {
-      return { valid: false, reason: "sensitive_personal_health" };
-    }
-    if (sourcePrivateNames.length > 0) {
-      return { valid: false, reason: "ambiguous_person_identity" };
-    }
+  if (
+    sourceMetadata &&
+    sourceMetadataFields.some((field) =>
+      containsPersonalHealthData(neutralizeReferenceTitles(field), {
+        identityOnly: true,
+      }),
+    )
+  ) {
+    return { valid: false, reason: "sensitive_personal_health" };
   }
 
   for (const sourceUrl of sourceUrlFields) {

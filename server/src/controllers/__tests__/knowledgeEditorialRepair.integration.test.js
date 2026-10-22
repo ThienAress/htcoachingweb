@@ -121,7 +121,7 @@ describe("atomic Admin Knowledge Base editorial repair", () => {
 
   it.each(["question", "answer", "tags", "variants", "sources"])("rejects private %s before embedding", async (field) => {
     const f = await fixture();
-    const privateText = "Client zoraqx quux has lupus.";
+    const privateText = "Client zoraqx quux sdt 0912345678.";
     const value = ["tags", "variants"].includes(field) ? [privateText] : field === "sources"
       ? [{ type: "internal", title: privateText, publisher: "HT Coaching", evidenceTier: "canonical" }] : privateText;
     const response = await repair(f, { [field]: value });

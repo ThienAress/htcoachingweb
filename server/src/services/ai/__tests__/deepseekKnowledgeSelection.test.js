@@ -63,7 +63,7 @@ describe("searchDeepseekKnowledgeBase", () => {
   });
 
   it("dừng corpus cap trước khi loại candidate private", async () => {
-    set(...Array.from({ length: 65 }, (_, i) => entry(String(i + 1), i === 0 ? { answer: "client Jane has HIV" } : {})));
+    set(...Array.from({ length: 65 }, (_, i) => entry(String(i + 1), i === 0 ? { answer: "client Jane sdt 0912345678" } : {})));
     await expect(searchDeepseekKnowledgeBase("Huong dan tap squat", { now })).rejects.toMatchObject({ code: "KB_TRIAL_CORPUS_LIMIT" });
     expect(state.calls).toHaveLength(0);
   });
@@ -74,7 +74,7 @@ describe("searchDeepseekKnowledgeBase", () => {
   });
 
   it("loại record private khỏi prompt và metadata nêu số loại", async () => {
-    set(entry("1", { answer: "client Jane has HIV" }), entry("2")); select(["kb_1"]);
+    set(entry("1", { answer: "client Jane sdt 0912345678" }), entry("2")); select(["kb_1"]);
     const result = await searchDeepseekKnowledgeBase("Huong dan tap squat", { now });
     expect(result).toMatchObject({ results: [expect.objectContaining({ _id: "2" })], retrieval: { safeCount: 1, excludedCount: 1 } });
     expect(state.calls[0][0][1].content).not.toContain("client Jane");
@@ -90,7 +90,7 @@ describe("searchDeepseekKnowledgeBase", () => {
   });
 
   it("query privacy bị block không gọi provider", async () => {
-    const result = await searchDeepseekKnowledgeBase("Client John Doe has HIV", { now });
+    const result = await searchDeepseekKnowledgeBase("Tôi muốn tự tử", { now });
     expect(result).toMatchObject({ retrieval: { coverage: "privacy_blocked", eligibleCount: 0 } });
     expect(state.calls).toHaveLength(0);
   });

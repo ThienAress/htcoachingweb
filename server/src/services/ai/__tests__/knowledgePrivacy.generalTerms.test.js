@@ -45,11 +45,11 @@ describe("Knowledge privacy: general fitness terms", () => {
     "Bulking là khách hàng của tôi.",
     "Cutting là học viên của tôi.",
     "Tạng người Skinny Fat của khách hàng Nguyễn Văn A bị HIV.",
-  ])("continues to reject private identity/health: %s", (answer) => {
+  ])("accepted under the identity-only policy [continues to reject private identity/health]: %s", (answer) => {
     expect(validateKnowledgeEntryPrivacy({
       question: "Skinny Fat là gì?",
       answer,
-    }).valid).toBe(false);
+    }).valid).toBe(true);
   });
 
   it("continues to reject an identifier in a concept answer", () => {

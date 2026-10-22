@@ -55,10 +55,10 @@ describe("Knowledge Base prompt boundary", () => {
   it("never places legacy private KB fields in a provider prompt", () => {
     const privateEntry = {
       question: "How should adults progress resistance training?",
-      answer: "Client zoraqx quux has lupus and needs a private plan.",
-      matchedQuestion: "Client zoraqx quux has lupus",
+      answer: "Client zoraqx quux sdt 0912345678 and needs a private plan.",
+      matchedQuestion: "Client zoraqx quux sdt 0912345678",
       sources: [{
-        title: "jane has lupus",
+        title: "jane sdt 0912345678",
         publisher: "Synthetic Journal",
         url: "https://example.org/patients/john-smith-hiv-report",
       }],
@@ -70,7 +70,7 @@ describe("Knowledge Base prompt boundary", () => {
 
     const block = buildKnowledgeReferenceBlock([privateEntry, safeEntry]);
     expect(block).toContain("What is progressive overload?");
-    expect(block).not.toMatch(/zoraqx|lupus|john-smith|hiv-report/i);
+    expect(block).not.toMatch(/zoraqx|0912345678|john-smith|hiv-report/i);
     expect(buildKnowledgeReferenceBlock([privateEntry])).toBe("");
   });
 
@@ -91,7 +91,7 @@ describe("Knowledge Base prompt boundary", () => {
   it("rejects an unsafe matched variant even when the base answer is general", () => {
     const block = buildKnowledgeReferenceBlock([{
       question: "How should adults progress resistance training?",
-      matchedQuestion: "Client zoraqx quux has lupus",
+      matchedQuestion: "Client zoraqx quux sdt 0912345678",
       answer: "Use gradual progression.",
     }]);
 
@@ -134,10 +134,6 @@ describe("Knowledge Base prompt boundary", () => {
             retrievedAt: "2026-09-12T00:00:00.000Z",
             evidenceTier: "primary",
           },
-          {
-            title: "Unsafe",
-            url: "javascript:alert(document.domain)",
-          },
         ],
       },
     ]);
@@ -146,6 +142,20 @@ describe("Knowledge Base prompt boundary", () => {
     expect(block).toContain("Review \\[creatine\\]");
     expect(block).toContain("https://example.com/creatine");
     expect(block).not.toContain("javascript:");
+  });
+
+  it("excludes a whole entry whose source link is a script URL", () => {
+    const block = buildKnowledgeReferenceBlock([
+      {
+        _id: "script-source-kb",
+        question: "Creatine có hiệu quả không?",
+        answer: "Creatine hỗ trợ hiệu suất trong tập kháng lực.",
+        similarity: 0.94,
+        sources: [{ title: "Unsafe", url: "javascript:alert(document.domain)" }],
+      },
+    ]);
+
+    expect(block).toBe("");
   });
 
   it("filters incompatible sources before bounding source-backed evidence", () => {
@@ -467,6 +477,11 @@ describe("Sensitive personal information handling", () => {
     const prompt = buildSystemPrompt();
     expect(prompt).toContain("không báo lỗi kỹ thuật");
     expect(prompt).toContain("[Form liên hệ](/#contact) để HLV kiểm tra trực tiếp");
-    expect(prompt).toContain("Bệnh hoặc triệu chứng thông thường user tự nêu");
+    expect(prompt).toContain("Bệnh, triệu chứng, thuốc, số đo hoặc tình trạng sức khỏe của bản thân hay người thân");
+    expect(prompt).toContain("Tên riêng, ngày sinh và tuổi cũng bình thường");
+    expect(prompt).toContain("Nếu user gửi email: không lặp lại");
+    expect(prompt).toContain("lịch sự từ chối phần đó");
+    expect(prompt).toContain("có ý định làm hại bản thân");
+    expect(prompt).toContain("từ chối trả lời phần đó và tiếp tục khuyên tìm sự giúp đỡ");
   });
 });

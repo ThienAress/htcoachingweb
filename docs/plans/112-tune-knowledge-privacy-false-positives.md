@@ -235,3 +235,25 @@ Lần rà đầu tìm ra 2 BLOCK, 3 HIGH, 1 MED trên bản nháp đầu của b
 - Quyết định chủ sở hữu: 3 câu trả lời có số điện thoại/email của HTCOACHING được viết lại thành "liên hệ qua form" (không thêm danh sách liên hệ được phép, giữ chặn bậc 1). Nội dung thay thế do admin dán vào Knowledge Base production; plan không ghi gì lên production.
 - System prompt thêm quy tắc: bệnh thông thường user tự nêu thì trả lời bình thường kèm nhắc bác sĩ; khi user gửi định danh hoặc hồ sơ nhạy cảm (số điện thoại, email, CCCD, ngày sinh, xét nghiệm, đơn thuốc) thì không lặp lại, không báo lỗi kỹ thuật, nói nhẹ nhàng đây là thông tin nhạy cảm và đề nghị gửi qua [Form liên hệ](/#contact) để HLV kiểm tra. `AI_PROMPT_CONTRACT_VERSION` tăng lên `2026-10-22.v1`.
 - Từ vựng chung thêm "HTCOACHING", "HLV", "Gói PT".
+
+### Đổi chính sách: chỉ chặn danh tính (2026-10-22, chủ sở hữu)
+
+Chủ sở hữu thấy mức chặn bước 5 còn gắt (ví dụ "Mẹ tôi bị tiểu đường" bị chặn dù chỉ mô tả): trợ lý không đưa nhận định, luôn khuyên hỏi bác sĩ, và các trợ lý AI phổ biến không chặn nội dung kiểu này. Chính sách mới: **chỉ chặn danh tính** (tên riêng, số điện thoại, email, ngày sinh, số định danh, địa chỉ, giới thiệu tên); bệnh, thuốc, số đo, bệnh của người thân, chẩn đoán, sự kiện lâm sàng và triệu chứng được cho qua.
+
+- Tùy chọn đổi tên thành `identityOnly` (`containsPersonalHealthData`, `containsSensitivePersonalHealth`); bản mã nháp dài của bước 5 (người thân, chẩn đoán, sự kiện lâm sàng, nhóm bệnh nhạy cảm, số đo, thuốc) được gỡ, `personalHealthData.js` quay về bản trước bước 5 cộng nhánh `identityOnly` ngắn. Vẫn chặn: chủ thể có tên riêng, ngày sinh, tự giới thiệu tên, ý định tự hại.
+- Truy vấn tìm kiếm nội bộ có số điện thoại, email, mã hoặc tên dùng mức chặn đầy đủ. **Truy vấn gửi ra ngoài và AI Suggest giữ nguyên mức chặt.**
+- System prompt: bệnh, thuốc, số đo của bản thân hoặc người thân được trả lời bình thường kèm nhắc bác sĩ, không đưa nhận định chẩn đoán; chỉ thông tin định danh mới hướng dẫn gửi qua Form liên hệ. `AI_PROMPT_CONTRACT_VERSION` lên `2026-10-22.v2`.
+- Test cũ đổi kỳ vọng có lý do: các ca nội dung sức khỏe không định danh từ "luôn chặn" sang "cho qua ở mục kiến thức và tìm kiếm nội bộ, vẫn chặn ở truy vấn ngoài"; ca Search Test dùng truy vấn có tên và số điện thoại.
+- Đo lại 67 mục production: **28 hợp lệ** (trước đó 5), 0 mục bị chặn thêm.
+
+### Chính sách cuối: chỉ chặn số điện thoại, CCCD, địa chỉ nhà, link web đen và mã script (2026-10-22, chủ sở hữu)
+
+Chủ sở hữu quyết định tiếp: **cho phép cả tên riêng**; chỉ không cho phép số điện thoại, CCCD/số định danh, địa chỉ nhà, đường dẫn web đen/cá cược và đoạn mã script. Mọi thứ khác (bệnh, thuốc, số đo, người thân, chẩn đoán, tên riêng) được cho qua ở mục kiến thức và tìm kiếm nội bộ.
+
+- `validateKnowledgeEntryPrivacy` bỏ hẳn chặn tên riêng; nguồn dùng chế độ `identityOnly`; thêm kiểm `forbidden_content` mới (`knowledgeForbiddenContent.js`: link cá cược/người lớn/rút gọn link trong URL hoặc tên miền, và mã script như `<script>`, `javascript:`, `onerror=`, `eval(`, `document.cookie`, PHP, SQL phá hoại). `prepareKnowledgeRetrievalQuery` cũng chặn nội dung bị cấm và vẫn che số điện thoại, email, mã, địa chỉ; tên riêng không còn bị chặn hay làm ngưng tìm kiếm nội bộ.
+- Địa chỉ nhà không cần nhãn: thêm `STREET_ADDRESS_PATTERN` (số nhà, ngõ/hẻm/phố/đường + tên riêng, "25 Nguyễn Huệ, quận 1", "123 Main Street"); "100 đường huyết" không bị nhầm.
+- **Cập nhật cùng ngày:** ngày sinh và tuổi được cho qua. Email và ý định tự hại: vẫn bị chặn ở mục kiến thức (email là định danh trực tiếp, tự hại bị chặn ở tìm kiếm nội bộ), còn trợ lý chat khuyên trước, và nếu người dùng cố tình tiếp tục thì từ chối trả lời (system prompt). Truy vấn gửi ra ngoài và AI Suggest vẫn giữ mức chặt cũ (có chặn tên).
+- Thông báo lỗi khi lưu Knowledge Entry đổi thành câu tiếng Việt nêu đúng các thứ bị chặn (số điện thoại, email, số định danh, địa chỉ nhà, ngày sinh, đường dẫn không phù hợp, đoạn mã). System prompt: tên riêng bình thường; `AI_PROMPT_CONTRACT_VERSION` lên `2026-10-22.v4`.
+- Test cũ về tên riêng và sức khỏe của `validateKnowledgeEntryPrivacy` đổi kỳ vọng theo chính sách mới (mỗi test ghi "accepted under the identity-only policy"); các test mã đăng nhập, định danh trực tiếp, ngày sinh và URL hồ sơ riêng tư giữ nguyên.
+- Đo lại 67 mục production: **64 hợp lệ** (trước đó 5), 0 mục bị chặn thêm. 3 mục còn lại là 3 mục HTCOACHING có số điện thoại/email (admin thay bằng "liên hệ qua form").
+- Rà soát bảo mật độc lập hai lần: 0 BLOCK/HIGH; truy vấn gửi ra ngoài và AI Suggest không nới (0 khác biệt trên 869 chuỗi). Đã sửa 2 MED và 3 LOW: địa chỉ thiếu số nhà hoặc viết thường/không dấu, link cá cược che dấu (ký tự rộng bằng 0, `[.]`, đuôi lạ, %-encode, link rút gọn), biến thể script, báo nhầm (`slots-training`, `let x = 3 sets`, "100 Đường Huyết"), giới hạn độ dài chống tốn thời gian regex, và thông báo cũ của Search Test.
