@@ -55,6 +55,20 @@ describe("Knowledge privacy false positives: general terms never hide a person",
   });
 });
 
+describe("Knowledge privacy false positives: place and title words after a form of address", () => {
+  it.each([
+    "Chị Thanh Hóa là khách của mình, đang học gói 3 tháng.",
+    "Ms Bikini Open đã ký hợp đồng.",
+    "Ông Hoa Kỳ Nguyễn đến phòng tập.",
+  ])("F2 still blocks a name that looks like a place or title: %s", (answer) => {
+    expect(isValid(answerOf(answer))).toBe(false);
+  });
+
+  it("F2 keeps ordinary place mentions valid", () => {
+    expect(isValid(answerOf("Giải đấu diễn ra tại Thanh Hóa và Hà Nội, theo hướng dẫn của NASM."))).toBe(true);
+  });
+});
+
 describe("Knowledge privacy false positives: REQ-002 bibliographic identifiers", () => {
   const title =
     "Comparison of two nutritional protocols in body re-composition (DOI: 10.1007/s00421-026-06209-6) (PMID: 41940947)";
@@ -74,6 +88,25 @@ describe("Knowledge privacy false positives: REQ-002 bibliographic identifiers",
   it("AC-004 still blocks a phone number disguised as a DOI suffix, in a title or a URL", () => {
     expect(isValid(entry({ sources: [{ title: "Review (DOI: 10.1234/0912345678)" }] }))).toBe(false);
     expect(isValid(entry({ sources: [{ title: "Review", url: "https://doi.org/10.1234/0912345678" }] }))).toBe(false);
+  });
+
+  it.each([
+    ["url", { title: "Review", url: "https://doi.org/10.1234/x?email=a@b.com" }],
+    ["url", { title: "Review", url: "https://doi.org/10.1234/x-0912345678" }],
+    ["url", { title: "Review", url: "https://doi.org/10.1234/x?phone=0912345678&cccd=012345678901" }],
+    ["url", { title: "Review", url: "https://doi.org/10.1234/x?token=abcdefghijklmnopqrstuvwxyz123456" }],
+    ["url", { title: "Review", url: "https://doi.org/10.1234/foo/0912 345 678" }],
+    ["title", { title: "DOI:10.1234/x,email=a@b.com" }],
+    ["title", { title: "doi:10.1234/x?phone=0912345678" }],
+  ])("AC-004 still blocks an identifier hidden behind a DOI label (%s)", (_field, source) => {
+    expect(isValid(entry({ sources: [source] }))).toBe(false);
+  });
+
+  it.each([
+    { title: "Review", url: "https://doi.org/10.1136/bjsports-2020-102955" },
+    { title: "Dietary review (DOI: 10.1016/j.jand.2016.01.009)" },
+  ])("AC-004 accepts ordinary DOIs: %j", (source) => {
+    expect(isValid(entry({ sources: [source] }))).toBe(true);
   });
 
   it("AC-004 still blocks an unlabeled phone number in a source title", () => {

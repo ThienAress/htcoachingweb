@@ -203,3 +203,9 @@ Mở PR vào `staging`; sau khi merge và deploy (theo skill `staging-verify`), 
 - Đo lại 67 mục: nguồn bị chặn vì mã định danh giảm từ 5 xuống **0**. Số mục bị chặn toàn bộ vẫn 53 vì các phần khác (biến thể "Tôi bị...", nội dung "khách hàng bị...", tiểu sử vận động viên) còn lại thuộc Step 5 và Plan 096C.
 - Còn lại ngoài phạm vi: 3 câu trả lời chứa số điện thoại và email liên hệ của HTCOACHING (thông tin liên hệ doanh nghiệp) bị chặn đúng theo bậc 1; cần quyết định riêng nếu muốn cho phép liên hệ doanh nghiệp đã đăng ký.
 - Test bộ lọc: 666/666 pass; nhóm test Knowledge: 26 file / 833 test pass. Test AC-005 (tự mô tả tình trạng) chưa đưa vào commit, thêm ở Step 5.
+
+### Rà soát bảo mật độc lập (Step 3 và 4, 2026-10-22)
+
+- `security-reviewer`: 0 BLOCK/HIGH. 1 MED đã sửa: pattern DOI nuốt toàn bộ phần đuôi nên email, số điện thoại hoặc token sau `doi.org/10.x/...?email=...` lọt qua; nay DOI chỉ gồm ký tự hợp lệ, phần dư vẫn được kiểm định danh, và DOI có đoạn số giống số điện thoại Việt Nam vẫn bị chặn. 1 LOW đã sửa: địa danh/danh hiệu trong từ vựng không còn bị hạ chữ thường khi đứng sau từ xưng hô (Chị/Ông/Ms...), nên "Chị Thanh Hóa" vẫn bị coi là tên.
+- Rủi ro còn lại đã biết: CCCD 12 chữ số nằm trong hậu tố DOI không phân biệt được với DOI số thật (ví dụ 201010050); chấp nhận vì chỉ áp ở tiêu đề/URL nguồn do admin nhập.
+- Ngoài phạm vi review: `sourceUrlPrivateRecordRisk`, phía controller (ai được tạo entry kèm nguồn).

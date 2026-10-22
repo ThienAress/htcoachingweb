@@ -42,9 +42,24 @@ const GENERAL_TERM_PATTERN = new RegExp(
   "giu",
 );
 
+// Từ xưng hô đứng ngay trước một cụm viết hoa cho thấy đó có thể là tên người ("Chị Thanh Hóa"), nên không hạ chữ thường.
+const ADDRESS_TERM_BEFORE_PATTERN =
+  /(?:^|[^\p{L}])(?:chi|anh|em|ong|ba|co|cau|bac|di|chu|ms|mr|mrs|miss|hoc vien|khach hang|khach|member|client)\.?\s+$/u;
+
+const foldForCue = (value) =>
+  value
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/đ/gi, "d")
+    .toLowerCase();
+
 // Giữ nguyên độ dài chuỗi để vị trí khớp của các bước sau không bị lệch.
 export const maskGeneralKnowledgeTerms = (value) =>
-  String(value || "").replace(GENERAL_TERM_PATTERN, (match) => match.toLocaleLowerCase("vi"));
+  String(value || "").replace(GENERAL_TERM_PATTERN, (match, offset, whole) =>
+    ADDRESS_TERM_BEFORE_PATTERN.test(foldForCue(whole.slice(Math.max(0, offset - 24), offset)))
+      ? match
+      : match.toLocaleLowerCase("vi"),
+  );
 
 // Tên tổ chức và tiêu đề tài liệu có chứa từ y khoa ("Sports Medicine", "Clients with Hypertension").
 // Thay bằng cụm trung tính trước khi dò dữ liệu sức khỏe cá nhân để dòng dẫn nguồn không bị coi là hồ sơ bệnh.
