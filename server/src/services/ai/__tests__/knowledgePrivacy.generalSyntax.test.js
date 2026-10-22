@@ -28,9 +28,8 @@ describe("Knowledge privacy: Vietnamese educational grammar", () => {
     "Bảo muốn giảm mỡ.",
     "Nam thường tập tạ.",
     "Bình thường uống insulin.",
-    "Tôi có huyết áp 150/95.",
-  ])("retains explicit identity or health rejection: %s", (answer) => {
-    expect(validateKnowledgeEntryPrivacy({ question: "Tập luyện là gì?", answer }).valid).toBe(false);
+  ])("accepted under the identity-only policy [retains explicit identity or health rejection]: %s", (answer) => {
+    expect(validateKnowledgeEntryPrivacy({ question: "Tập luyện là gì?", answer }).valid).toBe(true);
   });
 
   it("accepts a generic-role mention of a common condition without identity (Plan 112)", () => {
@@ -55,9 +54,9 @@ describe("Knowledge privacy: Vietnamese educational grammar", () => {
     expect(containsPersonalHealthData(question)).toBe(false);
   });
 
-  it.each(["Tôi có huyết áp 150/95.", "toi co huyet ap 150/95.", "Khách hàng Tối bị HIV."])(
-    "does not mask a real personal or named health subject: %s", (answer) => {
-      expect(validateKnowledgeEntryPrivacy({ question: "Tập luyện là gì?", answer }).valid).toBe(false);
+  it.each(["Khách hàng Tối bị HIV."])(
+    "accepted under the identity-only policy [does not mask a real personal or named health subject]: %s", (answer) => {
+      expect(validateKnowledgeEntryPrivacy({ question: "Tập luyện là gì?", answer }).valid).toBe(true);
     },
   );
 
@@ -68,10 +67,10 @@ describe("Knowledge privacy: Vietnamese educational grammar", () => {
     })).toEqual({ valid: true });
   });
 
-  it("does not exempt a patient's name merely because its source mentions a review", () => {
+  it("accepts a patient's name in a source title under the identity-only policy", () => {
     expect(validateKnowledgeEntryPrivacy({
       question: "Tập luyện là gì?",
       sources: [{ title: "An bị tiểu đường: review", publisher: "Synthetic Journal" }],
-    }).valid).toBe(false);
+    }).valid).toBe(true);
   });
 });

@@ -27,72 +27,6 @@ const NAMED_PERSON_HEALTH_ASSERTION_PATTERN = new RegExp(
   `(?:^|[.!?\\n]\\s*)(?!(?:tre em|children|nguoi|people|athletes?|beginners?|seniors?)\\b)(?:[a-z][a-z0-9_'-]*\\s+){1,3}(?:bi|mac|co|has|have|had|suffers? from|injured|(?:(?:was|is|are|were)\\s+)?diagnosed(?:\\s+with)?)\\b(?:\\s+[a-z0-9_/-]+){0,12}\\s+\\b${MEDICAL_CONDITION_SOURCE}\\b`,
   "i",
 );
-// Dùng khi cho phép nêu bệnh thông thường: chủ ngữ là vai trò chung ("khách hàng", "học viên") không phải một người cụ thể.
-const GENERIC_ROLE_SUBJECT_PATTERN =
-  /\b(?:khach hang|hoc vien|benh nhan|nguoi tap|nguoi moi|nguoi lon tuoi|nguoi cao tuoi|nguoi|clients?|patients?|customers?|members?|users?|trainees?)\b/g;
-// Chủ ngữ không phải một người có tên: đại từ ngôi thứ nhất, vai trò chung, tên bài tập hoặc bộ phận cơ thể ("Squat bị đau lưng").
-// Văn bản tiếng Việt có dấu: cụm "viec tu y gian" không phải tên người; chỉ chủ thể giữ chỗ không dấu mới bị coi là tên.
-const VIETNAMESE_DIACRITIC_PATTERN =
-  /[àáảãạăằắẳẵặâầấẩẫậèéẻẽẹêềếểễệìíỉĩịòóỏõọôồốổỗộơờớởỡợùúủũụưừứửữựỳýỷỹỵđ]/i;
-// Khi cho phép nêu bệnh thông thường, các dấu hiệu dưới đây vẫn khiến nội dung bị chặn nếu đi cùng chủ thể cá nhân
-// (ngôi thứ nhất, người thân hoặc vai trò chung như "khách hàng").
-const COMMON_MODE_SUBJECT_SOURCE =
-  "(?:toi|minh|em|tui|chung toi|i|my|me|khach hang|hoc vien|benh nhan|nguoi|clients?|patients?|customers?|members?|users?|trainees?)";
-const FIRST_PERSON_OR_RELATIVE_SOURCE = "(?:toi|minh|em|tui|chung toi|i|my|me)";
-const RELATIVE_OF_SELF_PATTERN =
-  /\b(?:(?:me|bo|cha|ma|vo|chong|con|con trai|con gai|anh|chi|em|em trai|em gai|anh trai|chi gai|ban|ban be|ong|ba|chu|bac|cau|di|dong nghiep)\s+(?:toi|minh)|my\s+(?:mother|mom|father|dad|wife|husband|son|daughter|child|kid|brother|sister|friend|partner|boyfriend|girlfriend|colleague|coworker|parents?)|(?:his|her|their)\s+(?:mother|father|wife|husband|son|daughter))\b/;
-const SELF_DIAGNOSIS_PATTERN = new RegExp(
-  `\\b${FIRST_PERSON_OR_RELATIVE_SOURCE}\\b[^.!?\\n]{0,60}\\b(?:chan doan|diagnos\\w*)\\b|\\b(?:chan doan|diagnos\\w*)\\b[^.!?\\n]{0,40}\\b${FIRST_PERSON_OR_RELATIVE_SOURCE}\\b`,
-  "i",
-);
-const CLINICAL_EVENT_WORD_SOURCE =
-  "(?:phau thuat|sau mo|vua mo|da mo|mo thoat vi|mo tim|mo day chang|nhap vien|dieu tri|kham bac si|di kham|vat ly tri lieu|neutral_hospital|surgery|surgical|hospitali[sz]ed|rehab|operation)";
-const SENSITIVE_CATEGORY_WORD_SOURCE =
-  "(?:ung thu|cancer|hiv|aids|suy than|suy tim|tu ky|autis\\w*|tram cam|depress\\w*|roi loan|lo au|anxiety|bipolar|tam than|schizo\\w*|mang thai|thai ky|pregnan\\w*|dot quy|stroke|nhoi mau|heart attack|dau tim|dong kinh|epilep\\w*)";
-const COMMON_MODE_SENSITIVE_PATTERN = new RegExp(
-  `\\b${COMMON_MODE_SUBJECT_SOURCE}\\b[^.!?\\n]{0,80}\\b(?:${CLINICAL_EVENT_WORD_SOURCE}|${SENSITIVE_CATEGORY_WORD_SOURCE})\\b|\\b(?:${CLINICAL_EVENT_WORD_SOURCE}|${SENSITIVE_CATEGORY_WORD_SOURCE})\\b[^.!?\\n]{0,40}\\b${COMMON_MODE_SUBJECT_SOURCE}\\b`,
-  "i",
-);
-const COMMON_MODE_MEASURED_PATTERN = new RegExp(
-  `\\b${COMMON_MODE_SUBJECT_SOURCE}\\b[^.!?\\n]{0,60}\\b(?:huyet ap|blood pressure|duong huyet|nhip tim|heart rate|can nang|chieu cao|bmi|hba1c|cholesterol|ldl|hdl|triglycerid\\w*|creatinine)\\b[^.!?\\n]{0,25}\\d`,
-  "i",
-);
-const COMMON_MODE_THERAPY_PATTERN = new RegExp(
-  `\\b${COMMON_MODE_SUBJECT_SOURCE}\\b[^.!?\\n]{0,80}\\b(?:uong|dung|su dung|tiem|xai|boi|dan|xit|taking|takes?|uses?|using|apply|applies|applied|inject\\w*)\\b[^.!?\\n]{0,20}\\b(?:thuoc|medication|medicine|pills?|drugs?|vien|gel|cao|kem|salonpas|paracetamol|acetaminophen|voltaren|diclofenac|ibuprofen|aspirin|panadol|efferalgan|tylenol|naproxen|amoxicillin|antibiotics?|khang sinh|corticoid|steroids?|opioids?|morphin\\w*|tramadol|insulin)\\b`,
-  "i",
-);
-// Ngày sinh (nhãn hoặc ngày đầy đủ) đi cùng một khẳng định bệnh là định danh + sức khỏe.
-const COMMON_MODE_BIRTH_PATTERN = new RegExp(
-  `\\b(?:sinh ngay|sinh nam|ngay sinh|nam sinh|sinh nhat|born|dob|date of birth|birthday)\\b|\\b(?:0?[1-9]|[12]\\d|3[01])[/.-](?:0?[1-9]|1[0-2])[/.-](?:19|20)\\d{2}\\b`,
-  "i",
-);
-const NAME_INTRODUCTION_PATTERN =
-  /\b(?:ten la|ten toi la|ho ten|goi la|biet danh|(?:khach hang|hoc vien|benh nhan|client|patient)\s+(?:ten|named))\b/;
-const CLINICIAN_DIAGNOSED_PERSON_PATTERN =
-  /\b(?:bac si|doctor|clinician|physician)\b[^.!?\n]{0,30}\b(?:chan doan|diagnos\w*)\b[^.!?\n]{0,20}\b(?:toi|minh|em|me)\b/;
-
-// Chủ thể gồm từ tiếng Việt có dấu ("việc tự ý giãn") là cụm câu thông thường, không phải tên giữ chỗ không dấu.
-const subjectIsVietnamesePhrase = (value, subject) => {
-  const subjectTokens = String(subject || "").split(" ").filter(Boolean);
-  if (subjectTokens.length < 4) return false;
-  const words = [...String(value || "").matchAll(/[\p{L}\p{M}\p{N}_'’-]+/gu)].map((match) => match[0]);
-  const normalizedWords = words.map((word) => normalizeHealthText(word));
-  for (let start = 0; start + subjectTokens.length <= words.length; start += 1) {
-    if (subjectTokens.every((token, offset) => normalizedWords[start + offset] === token)) {
-      return words
-        .slice(start, start + subjectTokens.length)
-        .some((word) => VIETNAMESE_DIACRITIC_PATTERN.test(word));
-    }
-  }
-  return false;
-};
-// "mình" (đại từ, có dấu) khác tên riêng "Minh": chỉ coi là đại từ khi văn bản có chữ "mình".
-const isNonPersonHealthSubject = (value, subject) =>
-  subject === "minh"
-    ? /(?<![\p{L}])mình(?![\p{L}])/iu.test(String(value || ""))
-    : NON_PERSON_HEALTH_SUBJECT_PATTERN.test(subject);
-const NON_PERSON_HEALTH_SUBJECT_PATTERN =
-  /^(?:(?:toi|em|tui|chung toi|i)|(?:tap|bai tap|squat|deadlift|bench|press|plank|cardio|gym|chay|boi|yoga|pilates|hiit|co bap|co the|tinh trang|he_thong|viec|benh|can nang|che do|luong|muc|nhom|vung)\b.*|.*\b(?:khach hang|hoc vien|benh nhan|nguoi tap|nguoi moi|nguoi lon tuoi|nguoi cao tuoi|nguoi|clients?|patients?|customers?|members?|users?|trainees?))$/;
 const HEALTH_ASSERTION_SUBJECT_TOKEN_SOURCE =
   "(?!(?:who|that|bi|mac|co|has|have|had|was|is|are|were|diagnosed|injured|suffers?)\\b)[a-z][a-z0-9_'-]*";
 const EMBEDDED_NAMED_PERSON_HEALTH_ASSERTION_PATTERN = new RegExp(
@@ -154,9 +88,6 @@ const BENIGN_ASSERTION_OBJECT_PATTERN =
   /^(?:(?:a|an|the|mot|chiec|cai)\s+)?(?:doi ta (?:don|tay)|day khang luc|question|thac mac|cau hoi|time|thoi gian|dumbbells?|barbell|weights?|bands?|resistance|treadmill|home gym|gym|belt|straps?|lifting straps?|walk|creatine|protein|whey|pre[- ]workout|coach|trainer|(?:new\s+)?training(?:\s+(?:program|plan))?|workout(?:\s+(?:app|plan))?|app|phone|computer|idea|plan|dai lung|muc ta|thanh don|tempo|google|strava|may chay|ta don|ta tay|set\d+|neutral_oil|neutral_head|neutral_hospital|vacation|holiday|bus|train|my way|track)\b/i;
 const DIRECT_SELF_HARM_DISCLOSURE_PATTERN =
   /\b(?:toi|minh|em|tui|ban toi|i|my friend)\b\s+(?:(?:dang|vua|se|muon|co the|am|is|are|want to|going to|plan to|might)\s+){0,4}(?:tu tu|tu sat|tu hai|ket lieu|muon chet|kill myself|hurt myself|end my life|take my life|want to die|self harm|overdose(?: myself)?|do not want to live(?: anymore)?)\b/i;
-// Triệu chứng cấp hoặc có số đo gắn với bản thân vẫn bị chặn khi cho phép nêu bệnh thông thường.
-const ACUTE_OR_MEASURED_PERSONAL_PATTERN =
-  /\b(?:toi|minh|em|tui|chung toi|i|my|me|khach hang|hoc vien|benh nhan|clients?|patients?)\b[^.!?\n]{0,40}\b(?:dau nguc|dau that nguc|tuc nguc|kho tho|ngat|choang vang|dot quy|co giat|dau tim|dau neutral_head du doi|chest pain|faint(?:ed|ing)?)\b|\b(?:sot|fever|nhiet do|temperature)\b[^.!?\n]{0,16}\b\d{2}(?:[.,]\d)?\b/i;
 const ENGLISH_DIRECT_SYMPTOM_PATTERN =
   /\bi\b\s+(?:(?:am|was|just|have|had|feel|felt)\s+){0,3}(?:chest pain|short of breath|shortness of breath|cannot breathe|can t breathe|faint(?:ed|ing)?|had a stroke)\b/i;
 const IMMINENT_FAINT_DISCLOSURE_PATTERN =
@@ -345,21 +276,7 @@ const containsInheritedPrivateHealthAssertion = (value) => {
   return false;
 };
 
-// Chỉ bỏ qua khi chủ ngữ là ngôi thứ nhất hoặc vai trò chung; người thân (my friend/son...) vẫn bị chặn.
-// Tên thuốc cụ thể (không tính chữ "thuốc" chung chung) vẫn là dữ liệu cần chặn.
-const NAMED_DRUG_PATTERN = new RegExp(
-  `\\b${CLINICAL_TREATMENT_SOURCE.replace("|medication|medicine|prescription|thuoc)", ")")}\\b`,
-  "i",
-);
-const GENERIC_MEDICATION_WORD_PATTERN = /\b(?:thuoc|medication|medicine|prescription)\b/g;
-const COMMON_CONDITION_SUBJECT_PATTERN =
-  /^(?:toi|minh|em|tui|chung toi|i|khach hang|hoc vien|benh nhan|nguoi|clients?|patients?|customers?|members?|users?|trainees?)\b/;
-const GENERIC_RECIPIENT_PATTERN =
-  /(?:for|cho)\s+(?:nguoi|people|persons?|adults?|those|clients?|khach hang|hoc vien|benh nhan|patients?|athletes?|beginners?|seniors?|trainees?)\b/;
-const CONDITION_ASSERTION_VERB_PATTERN =
-  /\b(?:bi|mac|co|have|has|had|diagnosed with|suffer(?:s)? from)\s*$/;
-
-const containsUnlistedPrivateHealthAssertion = (value, { allowCommonConditions = false } = {}) => {
+const containsUnlistedPrivateHealthAssertion = (value) => {
   for (const match of value.matchAll(STRUCTURAL_PRIVATE_TREATMENT_PATTERN)) {
     const object = String(match[1] || "").trim();
     if (object && !BENIGN_ASSERTION_OBJECT_PATTERN.test(object)) return true;
@@ -372,21 +289,11 @@ const containsUnlistedPrivateHealthAssertion = (value, { allowCommonConditions =
     STRUCTURAL_NAMED_RECIPIENT_ASSERTION_PATTERN,
   )) {
     const object = String(match[1] || "").trim();
-    if (allowCommonConditions && GENERIC_RECIPIENT_PATTERN.test(match[0])) continue;
     if (object && !BENIGN_ASSERTION_OBJECT_PATTERN.test(object)) return true;
   }
   if (!PRIVATE_ADVICE_CONTEXT_PATTERN.test(value)) return false;
   for (const match of value.matchAll(STRUCTURAL_PRIVATE_ASSERTION_PATTERN)) {
     const object = String(match[1] || "").trim();
-    if (allowCommonConditions) {
-      const beforeObject = match[0].slice(0, Math.max(0, match[0].indexOf(object))).trim();
-      if (
-        CONDITION_ASSERTION_VERB_PATTERN.test(beforeObject) &&
-        COMMON_CONDITION_SUBJECT_PATTERN.test(beforeObject)
-      ) {
-        continue;
-      }
-    }
     if (object && !BENIGN_ASSERTION_OBJECT_PATTERN.test(object)) return true;
   }
   return false;
@@ -405,23 +312,26 @@ export function containsDateOfBirthInformation(value) {
   );
 }
 
+// Chế độ chỉ chặn danh tính (Plan 112): bệnh, thuốc, số đo, người thân, triệu chứng và cả tên riêng đều được cho qua.
+// Vẫn chặn ý định tự hại. Số điện thoại, email, số định danh, địa chỉ, đường dẫn và mã script do các lớp kiểm riêng xử lý.
+
 /**
  * Nhận diện disclosure sức khỏe cá nhân bằng subject + assertion/event thay vì
  * chỉ dựa vào danh sách một số tên bệnh. Không trả raw text hoặc chi tiết match.
  */
-export function containsPersonalHealthData(value, { allowCommonConditions = false } = {}) {
+export function containsPersonalHealthData(value, { identityOnly = false } = {}) {
   const normalized = maskNonMedicalStrokePhrases(normalizeHealthText(value));
   const assertionText = maskEducationalHealthQueryIntro(normalized);
   const assertionClauses = maskEducationalHealthQueryIntro(maskNonMedicalStrokePhrases(
     normalizeHealthText(value, { preserveClausePunctuation: true }),
   ));
   const clinicalStructure = normalizeClinicalStructureText(value);
-  // Khi cho phép nêu bệnh thông thường, chữ "thuốc" chung chung không phải tên thuốc; tên thuốc cụ thể vẫn bị chặn.
-  const treatmentText =
-    allowCommonConditions && !NAMED_DRUG_PATTERN.test(normalized)
-      ? normalized.replace(GENERIC_MEDICATION_WORD_PATTERN, "generic_med")
-      : normalized;
   if (!normalized) return false;
+  if (identityOnly) {
+    // Ngày sinh, tuổi, tên riêng, bệnh, thuốc, số đo đều được cho qua; chỉ ý định tự hại bị chặn ở mục kiến thức và tìm kiếm nội bộ
+    // (trợ lý trả lời bằng lời khuyên, xem system prompt).
+    return DIRECT_SELF_HARM_DISCLOSURE_PATTERN.test(normalized);
+  }
   if (
     DATE_OF_BIRTH_LABEL_PATTERN.test(clinicalStructure) ||
     PERSONAL_DATE_OF_BIRTH_PATTERN.test(clinicalStructure) ||
@@ -431,47 +341,18 @@ export function containsPersonalHealthData(value, { allowCommonConditions = fals
   }
   if (DIRECT_SELF_HARM_DISCLOSURE_PATTERN.test(normalized)) return true;
   if (
-    (!allowCommonConditions && PRIVATE_RECORD_CLINICAL_DATA_PATTERN.test(normalized)) ||
+    PRIVATE_RECORD_CLINICAL_DATA_PATTERN.test(normalized) ||
     FIRST_PERSON_CLINICAL_VALUE_PATTERN.test(normalized) ||
     FIRST_PERSON_CLINICAL_STATUS_PATTERN.test(normalized) ||
-    PERSONAL_TREATMENT_ACTION_PATTERN.test(treatmentText) ||
-    CLINICIAN_PRESCRIBED_PERSONAL_PATTERN.test(treatmentText) ||
-    (!allowCommonConditions && containsInheritedPrivateHealthAssertion(assertionClauses)) ||
-    containsUnlistedPrivateHealthAssertion(assertionText, { allowCommonConditions }) ||
+    PERSONAL_TREATMENT_ACTION_PATTERN.test(normalized) ||
+    CLINICIAN_PRESCRIBED_PERSONAL_PATTERN.test(normalized) ||
+    containsInheritedPrivateHealthAssertion(assertionClauses) ||
+    containsUnlistedPrivateHealthAssertion(assertionText) ||
     containsPrivateStructuredClinicalValue(clinicalStructure)
   ) {
     return true;
   }
   if (!HEALTH_INFORMATION_PATTERN.test(normalized)) return false;
-
-  if (allowCommonConditions) {
-    // Nêu một bệnh/triệu chứng thông thường không kèm danh tính, số đo hay thuốc thì không phải dữ liệu cần chặn.
-    // Vẫn chặn: chủ thể có tên riêng, biến cố lâm sàng (phẫu thuật, điều trị, ngất, đau ngực...) và triệu chứng cấp.
-    const genericAssertion = assertionText.replace(GENERIC_ROLE_SUBJECT_PATTERN, "generic_role");
-    return (
-      extractNamedPersonalHealthSubjects(value).some(
-        (subject) =>
-          !isNonPersonHealthSubject(value, subject) &&
-          !subjectIsVietnamesePhrase(value, subject),
-      ) ||
-      CLINICIAN_DIAGNOSED_PERSON_PATTERN.test(assertionText) ||
-      RELATIVE_OF_SELF_PATTERN.test(assertionText) ||
-      SELF_DIAGNOSIS_PATTERN.test(assertionText) ||
-      COMMON_MODE_SENSITIVE_PATTERN.test(assertionText) ||
-      COMMON_MODE_MEASURED_PATTERN.test(assertionText) ||
-      COMMON_MODE_THERAPY_PATTERN.test(assertionText) ||
-      NAME_INTRODUCTION_PATTERN.test(assertionText) ||
-      COMMON_MODE_BIRTH_PATTERN.test(assertionText) ||
-      PRIVATE_RELATION_HEALTH_ASSERTION_PATTERN.test(assertionText) ||
-      FIRST_PERSON_DIAGNOSIS_PATTERN.test(assertionText) ||
-      PRIVATE_RECORD_DIAGNOSIS_PATTERN.test(assertionText) ||
-      FIRST_PERSON_CLINICAL_EVENT_PATTERN.test(genericAssertion) ||
-      PRIVATE_RECORD_CLINICAL_EVENT_PATTERN.test(assertionText) ||
-      ACUTE_OR_MEASURED_PERSONAL_PATTERN.test(assertionText) ||
-      ENGLISH_DIRECT_SYMPTOM_PATTERN.test(assertionText) ||
-      IMMINENT_FAINT_DISCLOSURE_PATTERN.test(assertionText)
-    );
-  }
 
   return (
     extractNamedPersonalHealthSubjects(value).length > 0 ||

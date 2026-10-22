@@ -232,7 +232,7 @@ const prepareKnowledgeEmbeddingInputs = (question, variantTexts = []) => {
     preparedVariants.some((item) => !item.eligible || item.redacted)
   ) {
     return {
-      error: "Knowledge Entry không được chứa dữ liệu sức khỏe hoặc định danh cá nhân",
+      error: "Nội dung chưa lưu được vì có số điện thoại, email, số định danh, địa chỉ nhà, đường dẫn không phù hợp hoặc đoạn mã. Bạn hãy xóa phần đó rồi lưu lại.",
     };
   }
   return {
@@ -434,7 +434,7 @@ export const createEntry = async (req, res) => {
   if (!entryPrivacy.valid) {
     return sensitiveKnowledgeResponse(
       res,
-      "Knowledge Entry không được chứa dữ liệu sức khỏe hoặc định danh cá nhân",
+      "Nội dung chưa lưu được vì có số điện thoại, email, số định danh, địa chỉ nhà, đường dẫn không phù hợp hoặc đoạn mã. Bạn hãy xóa phần đó rồi lưu lại.",
     );
   }
   const preparedEmbedding = prepareKnowledgeEmbeddingInputs(
@@ -531,7 +531,7 @@ export const updateEntry = async (req, res) => {
     if (!entryPrivacy.valid) {
       return sensitiveKnowledgeResponse(
         res,
-        "Knowledge Entry không được chứa dữ liệu sức khỏe hoặc định danh cá nhân",
+        "Nội dung chưa lưu được vì có số điện thoại, email, số định danh, địa chỉ nhà, đường dẫn không phù hợp hoặc đoạn mã. Bạn hãy xóa phần đó rồi lưu lại.",
       );
     }
     const fieldChanges = {
@@ -798,7 +798,7 @@ export const createFromConversation = async (req, res) => {
   if (!entryPrivacy.valid) {
     return sensitiveKnowledgeResponse(
       res,
-      "Knowledge Entry không được chứa dữ liệu sức khỏe hoặc định danh cá nhân",
+      "Nội dung chưa lưu được vì có số điện thoại, email, số định danh, địa chỉ nhà, đường dẫn không phù hợp hoặc đoạn mã. Bạn hãy xóa phần đó rồi lưu lại.",
     );
   }
   const preparedEmbedding = prepareKnowledgeEmbeddingInputs(
@@ -846,7 +846,7 @@ export const searchEntries = async (req, res) => {
       success: false,
       code: "KNOWLEDGE_QUERY_SENSITIVE",
       message:
-        "Search Test không gửi dữ liệu sức khỏe hoặc định danh cá nhân tới nhà cung cấp AI",
+        "Search Test không gửi số điện thoại, số định danh, địa chỉ nhà, đường dẫn không phù hợp hoặc đoạn mã tới nhà cung cấp AI",
     });
   }
   const limit = clampInteger(req.query.limit, 3, 1, 10);
@@ -926,7 +926,7 @@ export const regenerateEmbedding = async (req, res) => {
   if (!entryPrivacy.valid) {
     return sensitiveKnowledgeResponse(
       res,
-      "Knowledge Entry không được chứa dữ liệu sức khỏe hoặc định danh cá nhân",
+      "Nội dung chưa lưu được vì có số điện thoại, email, số định danh, địa chỉ nhà, đường dẫn không phù hợp hoặc đoạn mã. Bạn hãy xóa phần đó rồi lưu lại.",
     );
   }
   const preparedEmbedding = prepareKnowledgeEmbeddingInputs(
@@ -1000,7 +1000,7 @@ export const mergeVariant = async (req, res) => {
   if (!entryPrivacy.valid) {
     return sensitiveKnowledgeResponse(
       res,
-      "Knowledge Entry không được chứa dữ liệu sức khỏe hoặc định danh cá nhân",
+      "Nội dung chưa lưu được vì có số điện thoại, email, số định danh, địa chỉ nhà, đường dẫn không phù hợp hoặc đoạn mã. Bạn hãy xóa phần đó rồi lưu lại.",
     );
   }
 
