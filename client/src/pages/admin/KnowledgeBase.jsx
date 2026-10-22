@@ -4,7 +4,7 @@ import { toast } from "react-toastify";
 import {
   Brain, Plus, Search, Trash2, Edit3, MessageSquare,
   BarChart3, RefreshCw, ChevronDown, Eye, Star, X, Sparkles, GitMerge, AlertTriangle,
-  ThumbsDown, ThumbsUp, CheckCircle2, Ban, Link2,
+  ThumbsDown, ThumbsUp, CheckCircle2, Ban, Link2, Download,
 } from "lucide-react";
 import {
   getKBEntries, createKBEntry, updateKBEntry, deleteKBEntry,
@@ -13,6 +13,13 @@ import {
   getAllConversations, getFullConversation, createKBFromConversation, reviewAiFeedback,
 } from "../../services/knowledgeBase.service";
 import { useDebounce } from "../../hooks/useDebounce";
+import {
+  buildKnowledgeExportDocument,
+  buildKnowledgeExportEntry,
+  buildKnowledgeExportFileName,
+  collectAllKnowledgeEntries,
+  downloadJsonFile,
+} from "./knowledgeBaseExport";
 import {
   applyConversationFeedbackReview,
   buildKnowledgeSuggestionDraft,
@@ -117,6 +124,8 @@ export default function KnowledgeBase() {
   const [sourcePair, setSourcePair] = useState(null);
   const [saving, setSaving] = useState(false);
   const [regeneratingId, setRegeneratingId] = useState(null);
+  const [exportProgress, setExportProgress] = useState(null);
+  const [exportingId, setExportingId] = useState(null);
 
   // Conversations
   const [selectedConv, setSelectedConv] = useState(null);
@@ -481,6 +490,40 @@ export default function KnowledgeBase() {
     } catch { toast.error("Lỗi xóa"); }
   };
 
+  const handleExportAll = async () => {
+    if (exportProgress) return;
+    setExportProgress({ done: 0, total: 0 });
+    try {
+      const exported = await collectAllKnowledgeEntries({
+        fetchPage: (params) => getKBEntries(params),
+        fetchVariants: (id) => getKBVariants(id),
+        onProgress: (done, total) => setExportProgress({ done, total }),
+      });
+      const now = new Date();
+      downloadJsonFile(buildKnowledgeExportFileName("all", now), buildKnowledgeExportDocument(exported, now));
+      toast.success(`Đã tải ${exported.length} mục kiến thức`);
+    } catch (error) {
+      toast.error(getUserErrorMessage(error, "Không thể tải toàn bộ kiến thức. Vui lòng thử lại."));
+    } finally {
+      setExportProgress(null);
+    }
+  };
+
+  const handleExportOne = async (entry) => {
+    if (exportingId) return;
+    setExportingId(entry._id);
+    try {
+      const res = await getKBVariants(entry._id);
+      const now = new Date();
+      const exported = buildKnowledgeExportEntry(entry, res.data?.data?.variants || []);
+      downloadJsonFile(buildKnowledgeExportFileName(`muc-${entry._id}`, now), buildKnowledgeExportDocument([exported], now));
+    } catch (error) {
+      toast.error(getUserErrorMessage(error, "Không thể tải mục kiến thức này. Vui lòng thử lại."));
+    } finally {
+      setExportingId(null);
+    }
+  };
+
   const handleRegenerate = async (id) => {
     if (regeneratingId) return;
     setRegeneratingId(id);
@@ -658,18 +701,33 @@ export default function KnowledgeBase() {
             )}
           </div>
         </div>
-        <button
-          onClick={() => {
-            editRequestRuntime.invalidate();
-            setEditingEntry(null);
-            setForm(emptyForm([""]));
-            setSourcePair(null);
-            setShowModal(true);
-          }}
-          className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium"
-        >
-          <Plus size={16} /> Thêm mới
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleExportAll}
+            disabled={Boolean(exportProgress)}
+            className="flex items-center gap-2 px-4 py-2 bg-white text-slate-700 border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors text-sm font-medium disabled:opacity-60"
+          >
+            <Download size={16} />
+            {exportProgress
+              ? exportProgress.total
+                ? `Đang tải ${exportProgress.done}/${exportProgress.total}...`
+                : "Đang tải..."
+              : "Tải toàn bộ"}
+          </button>
+          <button
+            onClick={() => {
+              editRequestRuntime.invalidate();
+              setEditingEntry(null);
+              setForm(emptyForm([""]));
+              setSourcePair(null);
+              setShowModal(true);
+            }}
+            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium"
+          >
+            <Plus size={16} /> Thêm mới
+          </button>
+        </div>
       </div>
 
       {/* Stats Cards */}
@@ -821,6 +879,16 @@ export default function KnowledgeBase() {
                         )}
                         <button onClick={() => handleEdit(e)} className="p-1.5 hover:bg-slate-100 rounded-md" title="Sửa">
                           <Edit3 size={14} className="text-slate-500" />
+                        </button>
+                        <button
+                          type="button"
+                          disabled={exportingId === e._id}
+                          onClick={() => handleExportOne(e)}
+                          className="p-1.5 hover:bg-indigo-50 rounded-md disabled:opacity-40"
+                          title="Tải mục này"
+                          aria-label="Tải mục này"
+                        >
+                          <Download size={14} className="text-indigo-500" />
                         </button>
                         <button onClick={() => handleDelete(e._id)} className="p-1.5 hover:bg-red-50 rounded-md" title="Xóa">
                           <Trash2 size={14} className="text-red-400" />

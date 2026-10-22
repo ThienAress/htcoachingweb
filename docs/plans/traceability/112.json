@@ -1,0 +1,258 @@
+{
+  "schemaVersion": 1,
+  "planId": "112",
+  "specPath": "docs/specs/knowledge-privacy-false-positive-tuning.md",
+  "planPath": "docs/plans/112-tune-knowledge-privacy-false-positives.md",
+  "tasks": [
+    {
+      "id": "TASK-001",
+      "title": "Đo baseline 67 mục production (chỉ đọc)",
+      "planStep": "Step 1"
+    },
+    {
+      "id": "TASK-002",
+      "title": "Test đỏ cho từng nhóm nhận diện nhầm",
+      "planStep": "Step 2"
+    },
+    {
+      "id": "TASK-003",
+      "title": "Thuật ngữ viết hoa, dẫn nguồn, từ y khoa ngữ cảnh chung",
+      "planStep": "Step 3"
+    },
+    {
+      "id": "TASK-004",
+      "title": "DOI/PMID trong tiêu đề nguồn",
+      "planStep": "Step 4"
+    },
+    {
+      "id": "TASK-005",
+      "title": "Tự mô tả tình trạng thông thường",
+      "planStep": "Step 5"
+    },
+    {
+      "id": "TASK-006",
+      "title": "Truy vấn gửi ra ngoài và lưu ý bác sĩ",
+      "planStep": "Step 6"
+    },
+    {
+      "id": "TASK-007",
+      "title": "Đo lại, rà bảo mật, cập nhật tài liệu",
+      "planStep": "Step 7"
+    },
+    {
+      "id": "TASK-008",
+      "title": "PR vào staging và kiểm lại bằng tay",
+      "planStep": "Step 8"
+    }
+  ],
+  "requirements": [
+    {
+      "id": "REQ-001",
+      "acceptanceCriteria": [
+        {
+          "id": "AC-001",
+          "mustHave": true,
+          "taskIds": [
+            "TASK-002",
+            "TASK-003"
+          ],
+          "verifications": [
+            {
+              "type": "command",
+              "command": "cd server && npx vitest run src/services/ai/__tests__/knowledgePrivacy.falsePositives.test.js"
+            }
+          ]
+        },
+        {
+          "id": "AC-002",
+          "mustHave": true,
+          "taskIds": [
+            "TASK-002",
+            "TASK-003"
+          ],
+          "verifications": [
+            {
+              "type": "command",
+              "command": "cd server && npx vitest run src/services/ai/__tests__/knowledgePrivacy.falsePositives.test.js"
+            }
+          ]
+        },
+        {
+          "id": "AC-003",
+          "mustHave": true,
+          "taskIds": [
+            "TASK-002",
+            "TASK-003"
+          ],
+          "verifications": [
+            {
+              "type": "command",
+              "command": "cd server && npx vitest run src/services/ai/__tests__/knowledgePrivacy.falsePositives.test.js"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "REQ-002",
+      "acceptanceCriteria": [
+        {
+          "id": "AC-004",
+          "mustHave": true,
+          "taskIds": [
+            "TASK-002",
+            "TASK-004"
+          ],
+          "verifications": [
+            {
+              "type": "command",
+              "command": "cd server && npx vitest run src/services/ai/__tests__/knowledgePrivacy.falsePositives.test.js"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "REQ-003",
+      "acceptanceCriteria": [
+        {
+          "id": "AC-005",
+          "mustHave": true,
+          "taskIds": [
+            "TASK-002",
+            "TASK-005"
+          ],
+          "verifications": [
+            {
+              "type": "command",
+              "command": "cd server && npx vitest run src/services/ai/__tests__/knowledgePrivacy.falsePositives.test.js"
+            }
+          ]
+        },
+        {
+          "id": "AC-006",
+          "mustHave": true,
+          "taskIds": [
+            "TASK-002",
+            "TASK-005"
+          ],
+          "verifications": [
+            {
+              "type": "command",
+              "command": "cd server && npx vitest run src/services/ai/__tests__/knowledgePrivacy.falsePositives.test.js"
+            }
+          ]
+        },
+        {
+          "id": "AC-007",
+          "mustHave": true,
+          "taskIds": [
+            "TASK-002",
+            "TASK-005"
+          ],
+          "verifications": [
+            {
+              "type": "command",
+              "command": "cd server && npx vitest run src/services/ai/__tests__/knowledgePrivacy.falsePositives.test.js"
+            },
+            {
+              "type": "command",
+              "command": "cd server && npx vitest run src/services/ai/__tests__/knowledgePrivacy.test.js src/services/ai/__tests__/personalHealthData.test.js"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "REQ-004",
+      "acceptanceCriteria": [
+        {
+          "id": "AC-008",
+          "mustHave": true,
+          "taskIds": [
+            "TASK-006"
+          ],
+          "verifications": [
+            {
+              "type": "command",
+              "command": "cd server && npx vitest run src/services/ai/__tests__/knowledgePrivacy.falsePositives.test.js"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "REQ-005",
+      "acceptanceCriteria": [
+        {
+          "id": "AC-009",
+          "mustHave": true,
+          "taskIds": [
+            "TASK-006"
+          ],
+          "verifications": [
+            {
+              "type": "command",
+              "command": "npm run test:ai-eval"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "REQ-006",
+      "acceptanceCriteria": [
+        {
+          "id": "AC-010",
+          "mustHave": true,
+          "taskIds": [
+            "TASK-001",
+            "TASK-007"
+          ],
+          "verifications": [
+            {
+              "type": "command",
+              "command": "Đo offline trước/sau trên 67 mục production (chỉ đọc, báo cáo số đếm), ghi vào mục Kết quả đo của plan 112"
+            }
+          ]
+        },
+        {
+          "id": "AC-011",
+          "mustHave": true,
+          "taskIds": [
+            "TASK-003",
+            "TASK-007"
+          ],
+          "verifications": [
+            {
+              "type": "command",
+              "command": "cd server && npx vitest run src/services/ai/__tests__/knowledgePrivacy.test.js src/services/ai/__tests__/personalHealthData.test.js"
+            },
+            {
+              "type": "command",
+              "command": "npm run test:unit:server"
+            }
+          ]
+        },
+        {
+          "id": "AC-012",
+          "mustHave": true,
+          "taskIds": [
+            "TASK-007",
+            "TASK-008"
+          ],
+          "verifications": [
+            {
+              "type": "command",
+              "command": "npm run agents:validate"
+            },
+            {
+              "type": "command",
+              "command": "npm run security:secrets"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
