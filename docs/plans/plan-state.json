@@ -361,6 +361,18 @@
       "rollout": "not_started",
       "owner": "root",
       "updatedAt": "2026-10-21"
+    },
+    {
+      "id": "112",
+      "title": "Giảm nhận diện nhầm của bộ lọc quyền riêng tư Knowledge Base",
+      "path": "docs/plans/112-tune-knowledge-privacy-false-positives.md",
+      "priority": "P1",
+      "complexity": "complex",
+      "lifecycle": "planned",
+      "verification": "none",
+      "rollout": "not_started",
+      "owner": "root",
+      "updatedAt": "2026-10-22"
     }
   ]
 }
