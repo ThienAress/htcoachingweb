@@ -5,14 +5,14 @@
     "requireOffDeviceRecovery": true
   },
   "latestVerifiedBackup": {
-    "backupId": "production-logical-backup-20261020T060109Z",
-    "completedAt": "2026-10-20T06:02:07.920Z",
+    "backupId": "production-logical-backup-20261022T060744Z",
+    "completedAt": "2026-10-22T06:08:51.624Z",
     "backupType": "logical_mongodump",
     "archiveIntegrityVerified": true,
     "isolatedRestoreVerified": true,
     "sourceFingerprintMatched": true,
     "continuousRecoveryAvailable": false,
     "offDeviceRecoveryVerified": true,
-    "evidence": "docs/operations/production/production-backup-record-2026-10-20.md"
+    "evidence": "docs/operations/production/production-backup-record-2026-10-22.md"
   }
 }
