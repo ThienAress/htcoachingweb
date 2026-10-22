@@ -368,8 +368,8 @@
       "path": "docs/plans/112-tune-knowledge-privacy-false-positives.md",
       "priority": "P1",
       "complexity": "complex",
-      "lifecycle": "planned",
-      "verification": "none",
+      "lifecycle": "in_progress",
+      "verification": "focused",
       "rollout": "not_started",
       "owner": "root",
       "updatedAt": "2026-10-22"
